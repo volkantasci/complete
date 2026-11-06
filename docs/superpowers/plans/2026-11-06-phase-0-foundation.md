@@ -6,7 +6,7 @@
 
 **Architecture:** `complete-specs` (private) holds the spec templates and every tool that reads EE: corpus helpers, `spec_lint`, `provenance_check`, `ee_inventory`, the EE environment, the Playwright capture harness, and the escape test. `complete` (public) holds the Odoo image recipe (vendored from `odoo/docker`, LGPL-3.0), the compose stack, the module scaffold, repository checks, CI, public docs, the committed guard hook, and a generator for machine-specific isolation settings. EE source stays in `<ws>/odoo-reference/` and never enters either repository. This plan writes no Complete module code.
 
-**Tech Stack:** Python ≥ 3.12 (venvs on the system 3.14), pytest, ruff, PyYAML, Playwright (Chromium), Pillow; Podman 6.1 with `podman compose`; Odoo 20.0 nightly deb on Ubuntu noble; PostgreSQL 17 with pgvector; GitHub Actions; Claude Code 2.1.318 permissions, hooks, and sandbox.
+**Tech Stack:** Python ≥ 3.12 (venvs on the system 3.14), pytest, ruff, PyYAML, Playwright (Chromium), Pillow; Podman 6.1 with `podman compose`; Odoo 20.0 nightly source tarball (build D) installed on Ubuntu noble; PostgreSQL 17 with pgvector; GitHub Actions; Claude Code 2.1.318 permissions, hooks, and sandbox.
 
 **Spec:** `docs/superpowers/specs/2026-11-06-clean-room-process-design.md`
 
@@ -20,7 +20,7 @@
 - `spec_lint` verbatim detection uses 8-word shingles. Spec status values: `draft`, `approved`, `implemented`, `verified`.
 - Screenshots: desktop 1600×900 and mobile 390×844, viewport-sized (not full page).
 - Database image `docker.io/pgvector/pgvector:pg17`; Odoo image tag `localhost/complete-odoo:20.0-20261106`; Odoo recipe from `odoo/docker` commit `f900094eb7492968332868d686caf22b966592ca`, directory `20.0/`.
-- Never fall back to `odoo_20.0.latest_all.deb` or Docker Hub `odoo:20.0`. If the build-D package is missing, stop and report.
+- Never fall back to another build date, a `latest` tarball or package, or Docker Hub `odoo:20.0`. The image is built from the build-D CE source tarball (amendment R33, below Task 5). If the tarball is missing or its SHA-256 differs, stop and report.
 - Sandbox paths are plain absolute paths (`/…`); permission rules use the `//…` absolute form.
 - Commits follow Conventional Commits and end with the session's `Co-Authored-By` and `Claude-Session` trailers.
 
@@ -227,6 +227,13 @@ def test_bad_manifest_is_empty_dict(tmp_path):
 
 **Interfaces:**
 - Produces: image `localhost/complete-odoo:20.0-20261106`; compose services `db` and `odoo`; Make targets `image`, `up`, `down`, `test MODULES=<comma list>`; `docker/versions.env` keys `ODOO_VERSION`, `ODOO_RELEASE`, `ODOO_SHA`.
+
+> **Amendment R33 (2026-11-06).** Odoo's nightly pipeline skipped the 20261106 `.deb`. Steps 1, 2, 3 and 5 therefore work from the CE source tarball `odoo_20.0.20261106.tar.gz` (SHA-256 `0e050d1514b26ac28428f3abd48a62b35ee173370d4e6aa5881aafe6c711a9bd`):
+> - The Dockerfile's package-install step becomes a verified tarball install into a virtualenv on Ubuntu noble.
+> - `versions.env` and CI use `ODOO_SOURCE_SHA256` instead of `ODOO_SHA`.
+> - The version check reads the image's source-SHA-256 label and runs `odoo --version`.
+>
+> The step texts below are kept as written; the amendment takes precedence.
 
 - [ ] **Step 1: Check the build-D package.** `curl -fsI https://nightly.odoo.com/20.0/nightly/deb/odoo_20.0.20261106_all.deb | head -1` → `HTTP/2 200`. On 404, stop the task and report "build D package not published"; do not substitute another date.
 - [ ] **Step 2: Vendor the recipe.** Download `Dockerfile`, `entrypoint.sh`, `odoo.conf`, and `wait-for-psql.py` from `https://raw.githubusercontent.com/odoo/docker/f900094eb7492968332868d686caf22b966592ca/20.0/`. In the Dockerfile, change only the defaults of `ARG ODOO_RELEASE` and `ARG ODOO_SHA`. `docker/NOTICE.md` records the source URL, commit SHA, LGPL-3.0, and the list of changes.

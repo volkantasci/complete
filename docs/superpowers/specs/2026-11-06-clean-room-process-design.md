@@ -192,10 +192,18 @@ The thresholds in step 6 are initial values; the pilot calibrates them.
 
 ## 9. Versions
 
-- **Single build date D:** CE source, the CE package used for the Odoo image, and EE source always share one nightly date, recorded in `odoo-reference/VERSIONS.txt`. Currently D = 20261106; CE and EE sources are in place.
-- **Odoo image:** built from the official Odoo image recipe with `ODOO_RELEASE` set to D, because the Docker Hub `odoo:20.0` image lags behind the nightlies. The CE package for 20261106 is not published yet (latest is 20261105); the image is built once it appears.
+- **Single build date D:** CE source, the CE code inside the Odoo image, and EE source always share one nightly date, recorded in `odoo-reference/VERSIONS.txt`. Currently D = 20261106; CE and EE sources are in place.
+- **Odoo image:** built from the official Odoo image recipe, because the Docker Hub `odoo:20.0` image lags behind the nightlies.
+  - The recipe's package-install step is replaced by an install from the CE nightly source tarball of build D. The tarball is verified by SHA-256 and installed into a virtualenv on the recipe's Ubuntu base.
+  - Odoo's nightly pipeline sometimes skips the `.deb` for a date while publishing the source tarball, as it did for 20261106. The source tarball therefore keeps the image on the same date as the EE source.
+  - The image carries the tarball's SHA-256 as a label.
 - **Database:** PostgreSQL 17 with pgvector. Odoo 20 requires PostgreSQL 16 or later; pgvector is needed for AI retrieval.
-- **Update routine** (weekly or on demand): fetch the new CE source and package; the owner downloads the matching EE source; record both in `VERSIONS.txt`; rebuild the image; run the full suite; list the EE modules that changed between builds and flag their spec packages for re-review.
+- **Update routine** (weekly or on demand):
+  1. Fetch the new CE source tarball.
+  2. The owner downloads the matching EE source.
+  3. Record both in `VERSIONS.txt`, and pin the tarball's SHA-256 for the image.
+  4. Rebuild the image and run the full suite.
+  5. List the EE modules that changed between builds and flag their spec packages for re-review.
 
 ## 10. Repositories and conventions
 
@@ -263,3 +271,4 @@ No calendar estimates are given until the pilot has measured real throughput.
 | 2026-11-06 | Complete always targets the latest Odoo release line at a single recorded build date. |
 | 2026-11-06 | AI and OCR go through `odoo-ai-gateway`; the gateway admin UI is reachable only by the owner through an SSH tunnel or VPN. |
 | 2026-11-06 | The owner approved the working model, the repository and tooling layout, the spec package template, and the roadmap. |
+| 2026-11-06 | The Odoo image is built from the CE nightly source tarball of build D instead of the `.deb`, because the nightly pipeline skipped the 20261106 package. |
