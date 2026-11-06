@@ -31,13 +31,7 @@ An earlier prototype was discarded on 2026-11-06 because it was not produced thr
 
 ## 2. Legal basis (summary)
 
-The EE license (Odoo Enterprise Edition License v1.0, "OEEL-1") states, among other terms:
-
-> This software and associated files (the "Software") can only be used (executed, modified, executed after modifications) with a valid Odoo Enterprise Subscription for the correct number of users.
->
-> With a valid Partnership Agreement with Odoo S.A., the above permissions are also granted, as long as the usage is limited to a testing or development environment.
->
-> It is forbidden to publish, distribute, sublicense, or sell copies of the Software or modified copies of the Software.
+The EE license (Odoo Enterprise Edition License v1.0, "OEEL-1") allows EE to be run and modified only under a valid Odoo Enterprise subscription that covers the number of users; Odoo partners may do the same, but only in testing and development environments. It prohibits publishing, distributing, sublicensing, or selling EE, in original or modified form. The full text is on Odoo's [licenses page](https://www.odoo.com/documentation/master/legal/licenses.html). This section paraphrases the license rather than quoting it, under the same rule that keeps every other EE text out of the repositories.
 
 Consequences for Complete:
 
@@ -272,3 +266,4 @@ No calendar estimates are given until the pilot has measured real throughput.
 | 2026-11-06 | AI and OCR go through `odoo-ai-gateway`; the gateway admin UI is reachable only by the owner through an SSH tunnel or VPN. |
 | 2026-11-06 | The owner approved the working model, the repository and tooling layout, the spec package template, and the roadmap. |
 | 2026-11-06 | The Odoo image is built from the CE nightly source tarball of build D instead of the `.deb`, because the nightly pipeline skipped the 20261106 package. |
+| 2026-11-07 | Section 2 paraphrases OEEL-1 and links to Odoo's licenses page instead of quoting it, because the repositories carry no EE text (owner decision at CP3). |
