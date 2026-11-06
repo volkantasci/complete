@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the two repositories, the analyst and verifier tooling, the Odoo build-D runtime, CI, and the implementer isolation boundary, and finish with a passed escape test, so the `timer` pilot can start.
+**Goal:** Build the two repositories, the analyst and verifier tooling, the Odoo build-D runtime, CI, and the implementer isolation boundary, and finish with a passed isolation check (Task 14, amended by R35(c)), so the `timer` pilot can start.
 
 **Architecture:** `complete-specs` (private) holds the spec templates and every tool that reads EE: corpus helpers, `spec_lint`, `provenance_check`, `ee_inventory`, the EE environment, the Playwright capture harness, and the escape test. `complete` (public) holds the Odoo image recipe (vendored from `odoo/docker`, LGPL-3.0), the compose stack, the module scaffold, repository checks, CI, public docs, the committed guard hook, and a generator for machine-specific isolation settings. EE source stays in `<ws>/odoo-reference/` and never enters either repository. This plan writes no Complete module code.
 
@@ -634,7 +634,16 @@ def test_vector_ids():
 
 ### Task 14: Isolation gate (owner)
 
-The owner runs this task from the shell with the `!` prefix. It starts 26 headless Claude Code runs (13 vectors × 2 modes).
+> **Amendment R35(c) (2026-11-07, confirmed by the owner at CP3).** The isolation threat model is accidental access, not deliberate evasion, so this gate is a wiring check that every layer loads, run once in `auto` mode. It replaces Steps 3–5, the full escape test, which stays available after a larger change to the isolation layers. After Steps 1 and 2, the owner starts one headless implementer session in `complete/` in `auto` mode with a prompt the coordinator writes, and keeps its stream-json output as evidence. The session must show:
+>
+> - **L2:** Read, Grep, `cat`, and a subagent's Read of a file name in the EE tree are each denied with the guard's boundary note and logged with `allowed: false`. The named file does not exist, so nothing from EE can reach the transcript even if a layer is missing.
+> - **L1:** a Read of `/etc/hostname`, which lies outside the working directories and is not covered by the guard, is denied.
+> - **L3:** a shell write outside the working directory (`touch ~/sandbox-probe`) fails, and `cat` of a file in `<ws>/complete-specs/templates/` succeeds, which exercises `allowRead` inside `denyRead`.
+> - **Module tests (R46):** a smoke module created with the scaffold passes the documented `podman compose --env-file …` command. `make test` is run once and its result recorded; inside the sandbox it is expected to fail, which is why `docs/isolation.md` gives the direct command. The smoke module is removed afterwards.
+>
+> The coordinator checks the transcript and the audit log and reports at CP5. Any failure blocks the pilot until the responsible layer is fixed. The evidence is committed to the specification repository as in Step 5, and Step 6 follows.
+
+The full escape test in Steps 3–5 starts 26 headless Claude Code runs (13 vectors × 2 modes); the owner runs it from the shell with the `!` prefix.
 
 - [ ] **Step 1: Generate the local settings.** `! cd ~/Projects/dev/VOSLO/complete && .venv/bin/python -m tools.setup_isolation --workspace ~/Projects/dev/VOSLO`
 - [ ] **Step 2: Trust the workspace once.** Start `claude` in `~/Projects/dev/VOSLO/complete`, accept the trust dialog, open `/hooks` to confirm that the `PreToolUse` guard is listed, then exit.

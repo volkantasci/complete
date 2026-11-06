@@ -105,7 +105,7 @@ A domain allowlist cannot tell an OCA repository from a leaked EE copy on the sa
 
 The analyst workspace (`complete-specs/`) adds both reference trees as additional directories, denies `Edit(//<ws-abs>/complete/**)`, and runs `spec_lint` as a pre-commit check.
 
-**Escape test (gate before the pilot).** In a throwaway implementer session, attempts to read EE through Read, Grep, Glob, Bash (`cat`, `grep`, `find`, `tar`), a symlink inside `complete/`, a subagent, a `claude -p` child process, and WebFetch must all fail. The result is stored in `complete-specs/evidence/`. Any failure blocks the pilot until it is fixed.
+**Isolation check (gate before the pilot).** The threat model is accidental access (broad searches, paths taken from error messages, web results), not a session that sets out to defeat the layers, so the check confirms that every layer is loaded. In a throwaway implementer session in `auto` mode, plain attempts to read EE through Read, Grep, a shell command, and a subagent must be denied and logged; a read outside the working directories must be denied; a shell write outside the working directory must fail; a spec template must be readable from the shell; and a scaffolded module must pass its tests. The full escape test (Read, Grep, Glob, Bash `cat`, `grep`, `find`, and `tar`, a symlink inside `complete/`, a subagent, a `claude -p` child process, WebFetch, and a bind mount) remains available after a larger change to the layers. The result is stored in `complete-specs/evidence/`. Any failure blocks the pilot until it is fixed.
 
 Documented behaviour still to be confirmed on the owner's machine during Phase 0: permission deny rules apply inside subagents, and sandbox paths use plain absolute paths (`/…`), unlike permission rules (`//…`). The machine meets the prerequisites (Claude Code 2.1.318, bubblewrap 0.13.1, socat).
 
@@ -267,3 +267,4 @@ No calendar estimates are given until the pilot has measured real throughput.
 | 2026-11-06 | The owner approved the working model, the repository and tooling layout, the spec package template, and the roadmap. |
 | 2026-11-06 | The Odoo image is built from the CE nightly source tarball of build D instead of the `.deb`, because the nightly pipeline skipped the 20261106 package. |
 | 2026-11-07 | Section 2 paraphrases OEEL-1 and links to Odoo's licenses page instead of quoting it, because the repositories carry no EE text (owner decision at CP3). |
+| 2026-11-07 | The isolation threat model is accidental access, not deliberate evasion. The gate before the pilot is a wiring check that every layer loads; the full escape test is kept for larger changes to the layers (owner decision at CP3). |

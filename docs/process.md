@@ -66,9 +66,9 @@ The implementer workspace enforces the boundary in overlapping layers, because t
 
 Container commands run outside the shell sandbox, so they rely on L2 and L5. A domain allowlist cannot tell an OCA repository from a leaked EE copy on the same host, so L4 also relies on policy and the audit log.
 
-[isolation.md](isolation.md) describes the setup, what the guard hook blocks, the audit log, and how to run the escape test.
+[isolation.md](isolation.md) describes the setup, what the guard hook blocks, the audit log, and how to run the isolation check.
 
-An escape test is a gate before the pilot: attempts to read EE through every tool, a symlink, a subagent, a child process, and web fetching must all fail.
+An isolation check is the gate before the pilot. The threat model is accidental access, so the check confirms that every layer is loaded: plain attempts to read EE are denied and logged, the shell sandbox is active, the spec templates are readable, and module tests run. A full escape test (every tool, a symlink, a subagent, a child process, web fetching, and a bind mount) is available after larger changes to the layers.
 
 ## Version update routine
 
