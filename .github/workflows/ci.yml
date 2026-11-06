@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q
+      - run: python -m tools.check_headers
+      - run: python -m tools.check_manifests
+      - run: python -m tools.check_provenance
+      - run: python -m tools.check_docs_links
+
+  odoo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Load pinned versions
+        run: |
+          grep -E '^[A-Z_]+=' docker/versions.env >> "$GITHUB_ENV"
+      - name: Prepare compose environment
+        run: cp docker/.env.example docker/.env
+      - uses: docker/setup-buildx-action@v4
+      - name: Build Odoo image
+        uses: docker/build-push-action@v7
+        with:
+          context: docker
+          build-args: |
+            ODOO_RELEASE=${{ env.ODOO_RELEASE }}
+            ODOO_SHA=${{ env.ODOO_SHA }}
+          tags: localhost/complete-odoo:20.0-${{ env.ODOO_RELEASE }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Install base
+        run: >
+          docker compose -f docker/compose.yaml run --rm -T odoo
+          odoo -d ci -i base --stop-after-init
+      - name: Install and test modules
+        shell: bash
+        run: |
+          modules=$(find addons -mindepth 1 -maxdepth 1 -type d ! -name '.*' -printf '%f\n' | sort | paste -sd, -)
+          if [ -z "$modules" ]; then
+            echo "No modules in addons/; skipping module tests."
+            exit 0
+          fi
+          tags=$(echo "$modules" | tr ',' '\n' | sed 's|^|/|' | paste -sd, -)
+          docker compose -f docker/compose.yaml run --rm -T odoo \
+            odoo -d ci_modules -i "$modules" --test-tags "$tags" --stop-after-init 2>&1 | tee odoo-test.log
+          if grep -E 'FAIL:|ERROR:' odoo-test.log; then
+            echo "Module tests reported failures."
+            exit 1
+          fi
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker/compose.yaml down -v

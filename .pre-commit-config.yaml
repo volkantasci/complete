@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check
+  - repo: local
+    hooks:
+      - id: check-headers
+        name: SPDX headers
+        entry: python -m tools.check_headers
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: check-manifests
+        name: addon manifests
+        entry: python -m tools.check_manifests
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: check-provenance
+        name: provenance records
+        entry: python -m tools.check_provenance
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: check-docs-links
+        name: documentation links
+        entry: python -m tools.check_docs_links
+        language: system
+        pass_filenames: false
+        always_run: true
