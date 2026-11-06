@@ -41,7 +41,7 @@ jobs:
           context: docker
           build-args: |
             ODOO_RELEASE=${{ env.ODOO_RELEASE }}
-            ODOO_SHA=${{ env.ODOO_SHA }}
+            ODOO_SOURCE_SHA256=${{ env.ODOO_SOURCE_SHA256 }}
           tags: localhost/complete-odoo:20.0-${{ env.ODOO_RELEASE }}
           load: true
           cache-from: type=gha
