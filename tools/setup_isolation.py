@@ -31,16 +31,19 @@ def guard_allowed_hosts(guard: Path = GUARD) -> set[str]:
     raise ValueError(f"{guard} defines no ALLOWED_HOSTS")
 
 
-def render_local_settings(ws: Path) -> dict:
+def render_local_settings(ws: Path, repo: Path | None = None) -> dict:
     """Return the local settings for the absolute workspace root ``ws``.
 
-    Permission rules take the ``//`` absolute form; sandbox paths are plain
-    absolute paths.
+    ``repo`` is this repository's directory inside ``ws``; it defaults to
+    ``ws/complete``. Permission rules take the ``//`` absolute form; sandbox paths
+    are plain absolute paths.
     """
     ws = Path(ws)
-    if not ws.is_absolute():
-        raise ValueError(f"the workspace must be an absolute path: {ws}")
+    repo = Path(repo) if repo is not None else ws / "complete"
+    if not ws.is_absolute() or not repo.is_absolute():
+        raise ValueError(f"the workspace and repository must be absolute paths: {ws}, {repo}")
     w = ws.as_posix().lstrip("/")
+    r = repo.as_posix().lstrip("/")
     return {
         "permissions": {
             "blockReadsOutsideWorkingDirectories": True,
@@ -57,7 +60,11 @@ def render_local_settings(ws: Path) -> dict:
                 f"Read(//{w}/complete-specs/tools/**)",
                 f"Read(//{w}/complete-specs/evidence/**)",
                 f"Read(//{w}/complete-specs/inventory/**)",
+                f"Read(//{w}/complete-specs/.git/**)",
+                f"Read(//{w}/complete-specs/.githooks/**)",
                 f"Edit(//{w}/complete-specs/**)",
+                f"Edit(//{r}/.claude/**)",
+                f"Edit(//{r}/.git/**)",
             ],
         },
         "sandbox": {
@@ -66,14 +73,16 @@ def render_local_settings(ws: Path) -> dict:
             "allowUnsandboxedCommands": False,
             "excludedCommands": ["podman *"],
             "filesystem": {
-                "denyRead": [
-                    str(ws / "odoo-reference/enterprise"),
-                    str(ws / "complete-specs/analysis"),
-                    str(ws / "complete-specs/env"),
-                    str(ws / "complete-specs/tools"),
-                    str(ws / "complete-specs/evidence"),
-                    str(ws / "complete-specs/inventory"),
-                ]
+                "denyRead": [str(ws / "odoo-reference/enterprise"), str(ws / "complete-specs")],
+                "allowRead": [
+                    str(ws / "complete-specs/slices"),
+                    str(ws / "complete-specs/templates"),
+                ],
+                "denyWrite": [
+                    str(repo / ".claude"),
+                    str(repo / ".git/hooks"),
+                    str(repo / ".git/config"),
+                ],
             },
             "network": {"allowedDomains": sorted(guard_allowed_hosts())},
         },
@@ -105,7 +114,8 @@ def main(argv: list[str] | None = None, repo_root: Path | None = None) -> int:
         print(f"{target} already exists; pass --force to overwrite it", file=sys.stderr)
         return 1
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(render_local_settings(ws), indent=2) + "\n", encoding="utf-8")
+    settings = render_local_settings(ws, repo=repo)
+    target.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {target}")
     return 0
 

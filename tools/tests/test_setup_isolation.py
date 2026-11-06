@@ -52,7 +52,11 @@ def test_render_local_settings_exact():
                 "Read(//w/complete-specs/tools/**)",
                 "Read(//w/complete-specs/evidence/**)",
                 "Read(//w/complete-specs/inventory/**)",
+                "Read(//w/complete-specs/.git/**)",
+                "Read(//w/complete-specs/.githooks/**)",
                 "Edit(//w/complete-specs/**)",
+                "Edit(//w/complete/.claude/**)",
+                "Edit(//w/complete/.git/**)",
             ],
         },
         "sandbox": {
@@ -61,14 +65,13 @@ def test_render_local_settings_exact():
             "allowUnsandboxedCommands": False,
             "excludedCommands": ["podman *"],
             "filesystem": {
-                "denyRead": [
-                    "/w/odoo-reference/enterprise",
-                    "/w/complete-specs/analysis",
-                    "/w/complete-specs/env",
-                    "/w/complete-specs/tools",
-                    "/w/complete-specs/evidence",
-                    "/w/complete-specs/inventory",
-                ]
+                "denyRead": ["/w/odoo-reference/enterprise", "/w/complete-specs"],
+                "allowRead": ["/w/complete-specs/slices", "/w/complete-specs/templates"],
+                "denyWrite": [
+                    "/w/complete/.claude",
+                    "/w/complete/.git/hooks",
+                    "/w/complete/.git/config",
+                ],
             },
             "network": {"allowedDomains": sorted(HOSTS)},
         },
@@ -78,7 +81,27 @@ def test_render_local_settings_exact():
 def test_render_uses_the_workspace_given():
     s = render_local_settings(Path("/home/owner/ws"))
     assert s["permissions"]["deny"][1] == "Edit(//home/owner/ws/odoo-reference/**)"
-    assert s["sandbox"]["filesystem"]["denyRead"][1] == "/home/owner/ws/complete-specs/analysis"
+    assert s["sandbox"]["filesystem"]["denyRead"][1] == "/home/owner/ws/complete-specs"
+    assert s["sandbox"]["filesystem"]["denyWrite"][0] == "/home/owner/ws/complete/.claude"
+
+
+def test_render_uses_the_repository_given():
+    s = render_local_settings(Path("/w"), repo=Path("/w/fork"))
+    assert s["permissions"]["deny"][-2:] == ["Edit(//w/fork/.claude/**)", "Edit(//w/fork/.git/**)"]
+    assert s["sandbox"]["filesystem"]["denyWrite"] == [
+        "/w/fork/.claude",
+        "/w/fork/.git/hooks",
+        "/w/fork/.git/config",
+    ]
+
+
+def test_cli_uses_the_actual_repository_directory(tmp_path):
+    repo = tmp_path / "fork"
+    repo.mkdir()
+    assert main(["--workspace", str(tmp_path)], repo_root=repo) == 0
+    settings = json.loads((repo / ".claude" / "settings.local.json").read_text(encoding="utf-8"))
+    deny_write = settings["sandbox"]["filesystem"]["denyWrite"]
+    assert deny_write[0] == str(tmp_path.resolve() / "fork" / ".claude")
 
 
 def test_network_allowlist_comes_from_the_guard():
@@ -92,7 +115,7 @@ def test_cli_refuses_to_overwrite_without_force(tmp_path):
     target = repo / ".claude" / "settings.local.json"
     assert main(argv, repo_root=repo) == 0
     written = target.read_text(encoding="utf-8")
-    expected = render_local_settings(tmp_path.resolve())
+    expected = render_local_settings(tmp_path.resolve(), repo=repo.resolve())
     assert written == json.dumps(expected, indent=2) + "\n"
     assert main(argv, repo_root=repo) == 1
     target.write_text("{}\n", encoding="utf-8")
