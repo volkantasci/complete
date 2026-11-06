@@ -12,7 +12,7 @@ Paths are relative to the owner's workspace root `<ws>`.
 | `<ws>/odoo-reference/community/` | Read only |
 | `<ws>/odoo-reference/enterprise/` | No access |
 | `<ws>/complete-specs/slices/` and `<ws>/complete-specs/templates/` | Read only |
-| Everything else in `<ws>/complete-specs/`: `analysis/`, `env/`, `tools/`, `evidence/`, `inventory/`, and the repository files | No access |
+| Everything else in `<ws>/complete-specs/`: `analysis/`, `env/`, `tools/`, `evidence/`, `inventory/`, `.git/`, `.githooks/`, the repository files, and the directory itself | No access |
 | `<ws>/complete-audit/` | Written by the guard hook only |
 
 ## Layers
@@ -21,9 +21,9 @@ The layers overlap on purpose: Claude Code permissions are not an operating-syst
 
 | Layer | Where | What it does |
 |---|---|---|
-| **L1 Permissions** | `.claude/settings.local.json` (generated, not committed) | Blocks reads outside the working directories; adds the CE tree, `slices/`, and `templates/` as extra directories; denies reading the EE tree and the analyst-only areas; denies editing anything under `odoo-reference/` and `complete-specs/`. Covers Read, Edit, Write, and NotebookEdit; Grep and Glob only on a best-effort basis. |
+| **L1 Permissions** | `.claude/settings.local.json` (generated, not committed) | Blocks reads outside the working directories; adds the CE tree, `slices/`, and `templates/` as extra directories; denies reading the EE tree, the analyst-only areas, and the specification repository's `.git/` and `.githooks/`; denies editing anything under `odoo-reference/`, `complete-specs/`, and this repository's `.claude/` and `.git/`. Covers Read, Edit, Write, and NotebookEdit; Grep and Glob only on a best-effort basis. |
 | **L2 Guard hook** | `.claude/settings.json` and `.claude/hooks/guard.py` (committed) | A `PreToolUse` hook that runs before every tool call, including calls made by subagents. It blocks forbidden calls, fails closed, and writes the audit log. |
-| **L3 Sandbox** | `.claude/settings.local.json` | Runs shell commands in a bubblewrap sandbox in which the EE tree and the analyst-only areas are unreadable and network access is limited to the web allowlist. Claude Code refuses to run shell commands when the sandbox is unavailable (`failIfUnavailable`), and a command cannot ask to leave it (`allowUnsandboxedCommands: false`). |
+| **L3 Sandbox** | `.claude/settings.local.json` | Runs shell commands in a bubblewrap sandbox in which the EE tree and the whole specification repository are unreadable (`denyRead`) except `slices/` and `templates/` (`allowRead`), this repository's `.claude/`, `.git/hooks`, and `.git/config` are not writable (`denyWrite`), and network access is limited to the web allowlist. Claude Code refuses to run shell commands when the sandbox is unavailable (`failIfUnavailable`), and a command cannot ask to leave it (`allowUnsandboxedCommands: false`). |
 | **L4 Web** | Guard hook and the sandbox network allowlist | WebFetch only over https to allowlisted hosts; WebSearch only with `allowed_domains` taken from the same list; shell network traffic only to those hosts. Every fetched URL is in the audit log. |
 | **L5 OS user** (optional) | Operating system | Implementer sessions run as a separate Linux user without read permission on `<ws>/odoo-reference/enterprise`. The only layer that does not depend on Claude Code. |
 
@@ -33,18 +33,27 @@ The web allowlist is `www.odoo.com`, `odoo.com`, `nightly.odoo.com`, `github.com
 
 The guard derives the workspace root from its own location, `<ws>/complete/.claude/hooks/guard.py`, and blocks a tool call when:
 
-- **Paths:** a path argument (`file_path`, `path`, `notebook_path`) lies in the EE tree or in an analyst-only area after `~` expansion, resolution against the session's working directory, and symlink resolution. The same applies when the working directory itself lies in such an area, and when a Grep search, or a Glob pattern that descends more than one level, starts at a directory that contains one (such as `<ws>` or `<ws>/complete-specs`). A one-level listing of `<ws>/complete-specs` stays allowed.
-- **Text:** any text in the input of any tool names the EE tree (`odoo-reference/enterprise`), an EE build (`+e.20…`), or a path below `complete-specs/` other than `slices` and `templates`. The check also runs on the text with quotes and backslashes removed and on every path with `..`, `.`, and doubled slashes resolved, so `"odoo-reference"/'enterprise'` and `community/../enterprise` count too.
-- **Shell:** a command uses `claude` as a command (starting another Claude Code process), asks to run outside the sandbox, or touches the isolation configuration (`.claude/hooks`, `.claude/settings*`, `.claude.json`, the `.claude` directory as a whole, or `disableAllHooks`). A command that merely contains the word, such as `grep -r claude docs`, is blocked too; rephrase it.
-- **Containers:** a `podman` or `docker` command passes a host path that is, or contains, a forbidden area (for example `<ws>`, `<ws>/odoo-reference`, `..`, `~`, or `/`), or uses command substitution or a shell variable in a path, which the guard cannot resolve (`$PWD`, `$(pwd)`, and `$HOME` are resolved).
-- **Writes:** Edit, Write, MultiEdit, or NotebookEdit would change the guard hook, the Claude Code settings (the repository's `.claude/settings.json` and `.claude/settings.local.json`, `~/.claude/settings.json`, `~/.claude/settings.local.json`, and `~/.claude.json`), the audit log, or anything under `odoo-reference/` or `complete-specs/`.
+- **Paths:** a path argument (`file_path`, `path`, `notebook_path`) lies in the EE tree or in an analyst-only area after `~` expansion, resolution against the session's working directory, and symlink resolution. The same applies when the working directory itself lies in such an area, when a Grep or Glob search starts at `<ws>/complete-specs` itself (whatever the pattern), and when a Grep search, or a Glob pattern that descends more than one level, starts at a directory that contains a forbidden area (such as `<ws>` or `<ws>/odoo-reference`).
+- **Text:** any text in the input of any tool names the EE tree (`odoo-reference/enterprise`), an EE build (`+e.20…`), or a path below `complete-specs/` other than `slices` and `templates`. The check also runs on the text with quotes and backslashes removed and on every path with `..`, `.`, and doubled slashes resolved, so `"odoo-reference"/'enterprise'` and `community/../enterprise` count too. Prose punctuation after a path is not part of it: trailing `, ; : ! ? ) ] } ' "`, one final period, and a run of `*` that mirrors the same run at the start (Markdown bold) are ignored, so `complete-specs/slices.` and `**complete-specs/slices**` are allowed. A lone trailing `*` is a glob and stays, so `complete-specs/slices*` is blocked.
+- **Shell:** a command uses `claude` as a command (starting another Claude Code process), asks to run outside the sandbox, touches the isolation configuration (`.claude/hooks`, `.claude/settings*`, `.claude.json`, the `.claude` directory as a whole, or `disableAllHooks`), touches the git hooks (`.git/hooks` or `core.hooksPath`, in any case), or names the specification repository itself. In shell commands `complete-specs` may appear only as `complete-specs/slices` or `complete-specs/templates`: `cd ../complete-specs`, `git -C ../complete-specs`, `ls ../complete-specs`, and repository names such as `<owner>/complete-specs` are blocked. A command that merely contains a blocked word, such as `grep -r claude docs`, is blocked too; rephrase it.
+- **Containers:** see [Containers](#containers).
+- **Writes:** Edit, Write, MultiEdit, or NotebookEdit would change anything in this repository's `.claude/` directory (the guard hook and the settings among them) or `.git/` directory, the user's Claude Code settings (`~/.claude/settings.json`, `~/.claude/settings.local.json`, and `~/.claude.json`), the container configuration (`~/.config/containers/`), the audit log, or anything under `odoo-reference/` or `complete-specs/`.
 - **Web:** a WebFetch URL, or the `url` of an MCP tool, is not https on an allowlisted host, or carries credentials, whitespace, or backslashes; or a WebSearch call lacks `allowed_domains` from the allowlist.
 
-The model receives the reason on stderr, with a note that the block is a deliberate boundary and is not to be worked around.
+The model receives the reason on stderr with one of two notes:
+
+- **Fixable request errors** say how to correct the call, and the model may retry it corrected. The only one is a WebSearch call without `allowed_domains` (or with a host outside the allowlist): the reason lists the allowlist, and the retry sets `allowed_domains` from it.
+- **Boundary denials** are everything else. The note says that the block is the isolation boundary, that the action must not be retried another way, and that the model tells the user what was blocked. Rewording, splitting, or encoding a blocked path to get past the guard is working around the boundary.
+
+### Worktrees
+
+The guard derives the workspace root from its own location, so a copy of the guard in a git worktree would compute the wrong root. When the repository path has a `.claude` component (as in `.claude/worktrees/<name>`) or the repository's `.git` is a file (any linked worktree or submodule), the guard blocks every call. It writes no audit line in that case, because the audit directory it would compute is wrong too. Implementer sessions do not use worktrees.
 
 ### Failing closed
 
-Claude Code blocks a call only when the hook exits with code 2. Any other exit code, a crash, or a timeout lets the call through. The guard therefore turns every failure into exit code 2: malformed input, any exception (including `KeyboardInterrupt` and `SystemExit`), and a failed audit write. The hook entry adds `"onFailure": "block"` as a second layer and a 10-second timeout.
+Claude Code blocks a call only when the hook exits with code 2. Any other exit code, a crash, or a timeout lets the call through. The guard therefore turns every failure into exit code 2: malformed input, any exception (including `KeyboardInterrupt` and `SystemExit`), and a failed audit write. It installs its exception hook before any other import, so a failing import also exits with 2.
+
+The hook command is `python3 -I "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py" || exit 2`. `-I` (isolated mode) keeps the script directory, the user's site-packages, and the `PYTHON*` environment variables out of the interpreter, so a planted `json.py` next to the guard or a `.pth` file in `~/.local` cannot replace a module the guard imports. `|| exit 2` turns every other non-zero exit, such as a syntax error in the guard or a missing `python3`, into a block. The hook entry adds `"onFailure": "block"` as a third layer and a 10-second timeout.
 
 ## Setting up a machine
 
@@ -63,8 +72,23 @@ Then start `claude` in `<ws>/complete`, accept the trust dialog, open `/hooks` t
 
 Podman does not work inside the sandbox: it writes container storage under the home directory and sets up its own namespaces and networking. `sandbox.excludedCommands` therefore runs `podman` commands outside the sandbox, where L3 does not apply, so container commands rely on two other layers:
 
-- **L2:** the guard rejects container commands that name a forbidden area or pass a host path that is, or contains, one: bind mounts (`-v`, `--volume`, `--mount source=…`), build contexts, `podman cp`, and so on. It cannot see paths inside compose files, Containerfiles, or scripts, and it cannot follow an obfuscated command. Keep bind mounts inside `complete/` and on the command line.
+- **L2:** the guard treats a shell command as a container command when `podman` or `docker` is in command position: the first word of the line, the first word after a separator (`;`, `&`, `&&`, `|`, `||`, a newline, `(`, `$(`, a backtick), or any word after a wrapper such as `sudo`, `env`, `timeout`, or `xargs`. Here-document bodies and quoted arguments of other commands are text, not commands, so `cat <<EOF … podman … EOF`, `echo '… podman …'`, and `git commit -m '… podman …'` are not container commands. A container command must:
+  - be one simple command that starts with `podman` or `docker` itself, without `NAME=value` prefixes or wrappers;
+  - contain none of `;` `&` `|` `<` `>` `` ` `` `$` `(` `)` `{` `}` `*` `?` `[` `]` `~` or a newline, so no pipes, redirections, substitutions, variables, globs, brace expansion, or home-directory paths;
+  - use no global option before the subcommand other than `--version`, `-v`, `--help`, or `-h` (this rules out `--remote`, `-r`, `--url`, `--connection`, `-c`, `--identity`, `--hooks-dir`, `--runtime`, and the like);
+  - not use the subcommands `unshare`, `machine`, `system service`, or `system connection`;
+  - pass no word that is, or contains, a forbidden area after symlink resolution: bind mounts (`-v`, `--volume`, `--mount source=…`), build contexts, `podman cp` sources, and so on.
+
+  The guard cannot see paths inside compose files, Containerfiles, kube YAML, or files passed to `podman secret create`. Keep bind mounts inside `complete/` and on the command line.
 - **L5:** with a separate OS user, a container started by an implementer session cannot read the EE tree whatever it mounts, because rootless Podman runs with that user's permissions.
+
+Run module tests with one plain command, without pipes or substitutions:
+
+```sh
+podman compose -f docker/compose.yaml run --rm odoo odoo -d <db> -i <mods> --test-tags <tags> --stop-after-init
+```
+
+To keep the output, rerun or scroll rather than piping it; a pipe or redirection makes the command a compound one, which the guard blocks.
 
 ## Audit log
 
@@ -93,7 +117,7 @@ Without `jq`, `python3 -m json.tool --json-lines <file>` pretty-prints a file. I
 
 ## Changing the isolation files
 
-The isolation files are `.claude/settings.json`, `.claude/hooks/guard.py`, `tools/setup_isolation.py`, their tests, and this page. Only the owner changes them, outside implementer sessions. The guard enforces part of this: it rejects writes to the hook and the settings files, and any edit whose text names a forbidden path, which most of these files contain. After a change, run the tests (`.venv/bin/pytest -q`), regenerate the local settings with `--force` if the generator changed, and rerun the escape test.
+The isolation files are `.claude/settings.json`, `.claude/hooks/guard.py`, `tools/setup_isolation.py`, their tests, and this page. Only the owner changes them, outside implementer sessions: from a Claude Code session started in `<ws>` (which does not load this repository's hook) or from a plain shell. The guard enforces part of this: it rejects writes to the `.claude/` directory and any edit whose text names a forbidden path, which most of these files contain. After a change, run the tests (`.venv/bin/pytest -q`), regenerate the local settings with `--force` if the generator changed, and rerun the escape test.
 
 ## Escape test
 
@@ -110,7 +134,10 @@ It prints a PASS/FAIL table, writes JSON and Markdown evidence to `evidence/`, a
 
 ## Limits
 
-- L2 reads the text of a call, not its meaning. A shell command can assemble a path in ways the guard cannot see, such as variables, encodings, or scripts written earlier. For shell commands the sandbox (L3) is the operating-system boundary; for containers, L5 is.
+- L2 reads the text of a call, not its meaning. A shell command can assemble a path in ways the guard cannot see, such as variables, globs, encodings, or scripts written earlier. For shell commands the sandbox (L3) is the operating-system boundary; for containers, L5 is.
+- The guard's self-protection in shell commands (the `.claude` configuration, the git hooks, the bare specification repository) is a set of regular expressions over the command text, so a command that builds those names at run time is not caught. The sandbox's `denyWrite` and L5 cover that.
+- MCP tools get only the text rule, the path rule for the `file_path`, `path`, and `notebook_path` keys, and the URL rule for a `url` key. An MCP server that reads files or fetches pages under other argument names is not checked; implementer sessions run without file-system or browser MCP servers.
+- The guard checks a call before it runs, and the tool acts on the file system afterwards. In that window a symlink or file can change (a time-of-check to time-of-use race), so a path that was safe when checked may not be when used. The sandbox and L5 do not have this gap.
 - The guard trusts its own location and protects the directory above the repository. Anyone who clones the repository and uses Claude Code in it runs the guard too, and it writes its audit log to `complete-audit/` next to the clone.
 - A domain allowlist cannot tell an OCA repository from a leaked EE copy on the same host, so L4 also relies on policy and the audit log.
-- Only L5 holds against a session that sets out to defeat the other layers. Set it up before slice work.
+- Only L5, a separate OS user without read permission on the EE tree, is a hard guarantee. It holds against a session that sets out to defeat the other layers. Set it up before slice work.

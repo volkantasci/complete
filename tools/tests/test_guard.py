@@ -69,7 +69,7 @@ def run_guard_raw(ws, text, home=None):
     """
     data = text.encode("utf-8") if isinstance(text, str) else text
     proc = subprocess.run(
-        [sys.executable, str(ws / "complete" / ".claude" / "hooks" / "guard.py")],
+        [sys.executable, "-I", str(ws / "complete" / ".claude" / "hooks" / "guard.py")],
         input=data,
         capture_output=True,
         cwd=ws / "complete",
@@ -84,6 +84,22 @@ def run_guard(ws, event, home=None):
     if event.get("cwd") is None:
         event["cwd"] = str(ws / "complete")
     return run_guard_raw(ws, json.dumps(event), home=home)
+
+
+def run_hook_command(ws, event, repo=None):
+    """Run the committed hook command through ``sh``, as Claude Code does."""
+    command = json.loads(SETTINGS.read_text(encoding="utf-8"))["hooks"]["PreToolUse"][0]
+    repo = repo or ws / "complete"
+    event = {**event, "cwd": event.get("cwd") or str(repo)}
+    proc = subprocess.run(
+        ["sh", "-c", command["hooks"][0]["command"]],
+        input=json.dumps(event).encode("utf-8"),
+        capture_output=True,
+        cwd=repo,
+        env={**os.environ, "HOME": str(ws), "CLAUDE_PROJECT_DIR": str(repo)},
+        timeout=60,
+    )
+    return proc.returncode, proc.stderr.decode("utf-8", "replace")
 
 
 def audit_lines(ws):
@@ -228,8 +244,8 @@ def test_specs_segment_rule_on_paths(ws, rel, code):
 @pytest.mark.parametrize(
     "cmd,code",
     [
-        ("ls ../complete-specs", 0),
-        ("ls ../complete-specs/", 0),
+        ("ls ../complete-specs", 2),
+        ("ls ../complete-specs/", 2),
         ("ls ../complete-specs/slices", 0),
         ("ls ../complete-specs/slices | head -n 3", 0),
         ("cat ../complete-specs/slices/000-timer/spec.md", 0),
@@ -296,6 +312,7 @@ def test_cwd_inside_a_forbidden_area_denied(ws):
         ("Glob", {"pattern": "ee/**"}),
         ("Glob", {"pattern": "ref/*/x.py"}),
         ("Glob", {"pattern": "specs/analysis/*"}),
+        ("Glob", {"pattern": "*", "path": "specs"}),
     ],
 )
 def test_symlinked_paths_denied(links, name, tool_input):
@@ -308,7 +325,6 @@ def test_symlinked_paths_denied(links, name, tool_input):
         ("Read", {"file_path": "specs/slices/000-timer/spec.md"}),
         ("Grep", {"pattern": "x", "path": "specs/slices"}),
         ("Glob", {"pattern": "specs/slices/**/*.md"}),
-        ("Glob", {"pattern": "*", "path": "specs"}),
         ("Read", {"file_path": "ref/community/x.py"}),
         ("Grep", {"pattern": "x", "path": "ref/community"}),
     ],
@@ -331,7 +347,7 @@ def test_symlinked_shared_paths_allowed(links, name, tool_input):
         ("Glob", {"pattern": "**/*.py"}, 0),
         ("Glob", {"pattern": "addons/**/*.py", "path": "{ws}/complete"}, 0),
         ("Glob", {"pattern": "**/*.py", "path": "{ws}"}, 2),
-        ("Glob", {"pattern": "*", "path": "{ws}/complete-specs"}, 0),
+        ("Glob", {"pattern": "*", "path": "{ws}/complete-specs"}, 2),
         ("Glob", {"pattern": "slices/**/*.md", "path": "{ws}/complete-specs"}, 0),
         ("Glob", {"pattern": "**/*.md", "path": "{ws}/complete-specs"}, 2),
         ("Glob", {"pattern": "{ws}/odoo-reference/enterprise/**/*.py"}, 2),
@@ -364,6 +380,10 @@ def test_search_roots(ws, name, tool_input, code):
         ("Write", {"file_path": "../complete-audit/today.jsonl", "content": ""}),
         ("Edit", {"file_path": "../complete-specs/slices/000-timer/spec.md", "old_string": "a"}),
         ("Write", {"file_path": "../odoo-reference/community/x.py", "content": ""}),
+        ("Write", {"file_path": ".claude/agents/x.md", "content": "x"}),
+        ("Write", {"file_path": ".git/hooks/pre-commit", "content": "x"}),
+        ("Edit", {"file_path": ".git/config", "old_string": "a"}),
+        ("Write", {"file_path": "~/.config/containers/containers.conf", "content": "x"}),
     ],
 )
 def test_owner_managed_files_not_writable(ws, name, tool_input):
@@ -454,7 +474,7 @@ def test_sandbox_override_denied(ws):
         ("podman run --rm -v../complete-specs:/s alpine ls /s", 2),
         ("docker run --rm -v ../odoo-reference:/r alpine ls /r", 2),
         ("podman run --rm -v ./addons:/mnt/extra-addons:ro alpine ls /mnt/extra-addons", 0),
-        ("podman run --rm -v $PWD/addons:/mnt alpine ls /mnt", 0),
+        ("podman run --rm -v $PWD/addons:/mnt alpine ls /mnt", 2),
         ("podman run --rm -v ../odoo-reference/community:/ce:ro alpine ls /ce", 0),
         ("podman run --rm -v ../complete-specs/slices:/s:ro alpine ls /s", 0),
         ("podman compose -f docker/compose.yaml ps", 0),
@@ -634,7 +654,10 @@ def test_committed_settings_json():
                     "hooks": [
                         {
                             "type": "command",
-                            "command": 'python3 "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"',
+                            "command": (
+                                'python3 -I "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"'
+                                " || exit 2"
+                            ),
                             "timeout": 10,
                             "onFailure": "block",
                         }
@@ -643,3 +666,340 @@ def test_committed_settings_json():
             ]
         }
     }
+
+
+# Fix round 1 ----------------------------------------------------------------------------
+
+EE_GLOB = "../odoo-ref*/ent*/x.py"
+
+
+# R29 (C1): container commands run outside the sandbox. A command that has podman or
+# docker in command position must be one simple command without shell syntax.
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        # The reviewer's probe forms.
+        f"podman run --rm -i alpine cat < {EE_GLOB}",
+        f"podman cp {EE_GLOB} c:/x",
+        "podman build -t t ../odoo-ref*",
+        "podman run --rm -v{ws}/odoo-reference/{community:/c,enterprise:/e} alpine cat /e/x.py",
+        f"podman ps; cat {EE_GLOB}",
+        "podman run --rm -i alpine cat < ../odoo-reference/\\\nenterprise/x.py",
+        f"podman unshare sh -c 'cat {EE_GLOB}'",
+        # Glob host paths without a redirect.
+        "podman run --rm -v ../odoo-ref?rence:/r alpine ls /r",
+        "podman run --rm -v ../odoo-ref[e]rence:/r alpine ls /r",
+        "podman run --rm -v ../odoo-*:/r alpine ls /r",
+        # Shell syntax of any kind.
+        "podman run --rm alpine ls $(pwd)",
+        "podman run --rm -v `pwd`:/w alpine ls /w",
+        "podman run --rm -v ${X}:/w alpine ls /w",
+        "podman run --rm -v ~/x:/h alpine ls /h",
+        "podman ps | head",
+        "podman ps && ls",
+        "podman ps > out.txt",
+        "podman ps &",
+        "podman ps\nls",
+        "podman run -i alpine sh <<EOF\nls\nEOF",
+        # Command position after separators, inside groups and substitutions.
+        "ls && podman ps",
+        "ls || podman ps",
+        "echo x; podman ps",
+        "echo x\npodman ps",
+        "(podman ps)",
+        "{ podman ps; }",
+        "echo $(podman ps)",
+        "echo `podman ps`",
+        "if true; then podman ps; fi",
+        "2>/dev/null podman ps -a",
+        # Quoting or a path does not hide the command word.
+        "'podman' run --rm -v ../odoo-ref*:/r alpine ls /r",
+        "\\podman run --rm -v ../odoo-ref*:/r alpine ls /r",
+        "/usr/bin/podman run --rm -v ..:/w alpine ls /w",
+        "docker run --rm -v ../odoo-ref*:/r alpine ls /r",
+        # Subcommands that leave podman's normal model.
+        "podman unshare ls",
+        "podman machine ssh",
+        "podman system service unix:///tmp/p.sock",
+        "podman system connection add x ssh://h",
+        # Global flags that send the command elsewhere or change what runs on the host.
+        "podman --remote ps",
+        "podman -r ps",
+        "podman --url tcp://h:1 ps",
+        "podman --url=tcp://h:1 ps",
+        "podman --connection x ps",
+        "podman -c x ps",
+        "podman --identity k ps",
+        "podman --hooks-dir /tmp/h run alpine ls",
+        "podman --runtime /tmp/r run alpine ls",
+        # Prefixes and wrappers.
+        "CONTAINER_HOST=ssh://h podman ps",
+        "env podman ps",
+        "sudo podman ps",
+        "timeout 60 podman ps",
+        "nohup podman ps",
+        # Parsing failures fail closed when a container CLI is mentioned.
+        'echo "podman',
+        # A quoted heredoc marker is not a heredoc, so the next line still runs.
+        'echo "<<X"\npodman ps\nX',
+        # A heredoc marker in a comment is not a heredoc either.
+        "ls # <<X\npodman ps\nX",
+        # An unterminated heredoc is not stripped.
+        "cat <<EOF\npodman ps",
+    ],
+)
+def test_container_commands_denied(ws, cmd):
+    assert run_guard(ws, tool("Bash", command=fill(cmd, ws)))[0] == 2
+
+
+def test_container_symlink_without_a_slash_denied(links):
+    assert run_guard(links, tool("Bash", command="podman cp ee c:/x"))[0] == 2
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "podman compose -f docker/compose.yaml run --rm odoo odoo -d test_x -i complete_x"
+        " --test-tags /complete_x --stop-after-init",
+        "podman compose -f docker/compose.yaml ps",
+        "podman run --rm -v ./addons:/mnt/extra-addons:ro alpine ls /mnt/extra-addons",
+        "podman ps -a",
+        "podman images",
+        "podman --version",
+        "docker ps",
+        # Heredoc bodies and quoted arguments of other commands are not container commands.
+        "cat <<EOF > notes.md\npodman run --rm -v ${X}:/x alpine\nEOF",
+        "cat <<'EOF' > notes.md\npodman ps; echo $(pwd)\nEOF",
+        'cat <<"EOF" > notes.md\npodman ps | head\nEOF',
+        "cat <<-EOF > notes.md\n\tpodman ps $X\n\tEOF",
+        "cat > a.md <<EOF\npodman $A\nEOF\ncat > b.md <<EOF\ndocker $B\nEOF",
+        "echo 'run podman $(pwd) later'",
+        "echo podman $HOME",
+        "git commit -m 'docs: explain podman ${X} and $(cmd)'",
+        'git commit -m "docs: podman ps | head"',
+        "grep -rn podman docs",
+        "ls docker",
+    ],
+)
+def test_container_commands_allowed(ws, cmd):
+    assert run_guard(ws, tool("Bash", command=cmd))[0] == 0
+
+
+# R25 (I1): the bare specs repository root is off limits in shell commands.
+
+
+@pytest.mark.parametrize(
+    "cmd,code",
+    [
+        ("cd ../complete-specs", 2),
+        ("cd ../complete-specs && ls analysis", 2),
+        ("git -C ../complete-specs log", 2),
+        ("git --git-dir=../complete-specs/.git log", 2),
+        ("ls {ws}/complete-specs", 2),
+        ("ls {ws}/complete-specs/", 2),
+        ("ls ../complete-specs/slices/..", 2),
+        ("ls ../complete-specs/./", 2),
+        ("cd .. && ls complete-specs", 2),
+        ("gh repo view volkantasci/complete-specs", 2),
+        ("ls ../complete-specs/slices", 0),
+        ("ls ../complete-specs/./slices", 0),
+        ("cat ../complete-specs/templates/spec.md", 0),
+        ("podman run --rm -v ../complete-specs/slices:/s:ro alpine ls /s", 0),
+    ],
+)
+def test_bare_specs_root_in_shell_commands(ws, cmd, code):
+    assert run_guard(ws, tool("Bash", command=fill(cmd, ws)))[0] == code
+
+
+def test_bare_specs_root_as_search_root_denied(ws):
+    for pattern in ("*", "*.md", "README.md", "{slices,analysis}"):
+        assert run_guard(ws, tool("Glob", pattern=pattern, path=f"{ws}/complete-specs"))[0] == 2
+    assert run_guard(ws, tool("Glob", pattern="../complete-specs/*"))[0] == 2
+    assert run_guard(ws, tool("Glob", pattern="../complete-specs/slices/*"))[0] == 0
+
+
+# R31 (M1): prose punctuation is not a path segment; globs stay globs.
+
+
+@pytest.mark.parametrize(
+    "text,code",
+    [
+        ("The repo `{ws}/complete-specs/`.", 0),
+        ("Specs live in ../complete-specs/slices.", 0),
+        ("Templates: ../complete-specs/templates.", 0),
+        ("**complete-specs/slices**", 0),
+        ("[complete-specs/slices]", 0),
+        ("see ../complete-specs/slices/.", 0),
+        ("see ../complete-specs/slices/000-timer/spec.md.", 0),
+        ("(see complete-specs/templates)!", 0),
+        ("Is it complete-specs/slices?", 0),
+        ("{complete-specs/slices}", 0),
+        ("see complete-specs/./slices/x.md", 0),
+        ("see complete-specs/../complete-specs/templates", 0),
+        ("Never read ../complete-specs/analysis.", 2),
+        ("**complete-specs/analysis**", 2),
+        ("[complete-specs/analysis]", 2),
+        ("see complete-specs/./analysis", 2),
+        ("complete-specs/../complete-specs/analysis.", 2),
+        ("complete-specs/slices*", 2),
+        ("complete-specs/s*", 2),
+        ("**complete-specs/slices*", 2),
+        ("*complete-specs/slices**", 2),
+        ("complete-specs/slices-old.", 2),
+    ],
+)
+def test_prose_punctuation_around_specs_paths(ws, text, code):
+    event = tool("Write", file_path="notes.md", content=fill(text, ws))
+    assert run_guard(ws, event)[0] == code
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    ["ls ../complete-specs/slices*", "ls ../complete-specs/s*", "ls ../complete-specs/./analysis"],
+)
+def test_specs_globs_in_shell_commands_denied(ws, cmd):
+    assert run_guard(ws, tool("Bash", command=cmd))[0] == 2
+
+
+# R30: git hooks run outside the guard's view.
+
+
+@pytest.mark.parametrize(
+    "cmd,code",
+    [
+        ("git config core.hooksPath /tmp/h", 2),
+        ("git config core.hookspath /tmp/h", 2),
+        ("git -c core.hooksPath=/tmp/h commit -m x", 2),
+        ("cp x .git/hooks/pre-commit", 2),
+        ("cp x .git//hooks/pre-commit", 2),
+        ("cp x .git/./hooks/pre-commit", 2),
+        ("cp x '.git'/hooks/pre-commit", 2),
+        ("ls .GIT/HOOKS", 2),
+        ('git commit -m "fix: x"', 0),
+        ("cat .gitignore", 0),
+        ("ls .github/workflows", 0),
+    ],
+)
+def test_git_hooks_in_shell_commands(ws, cmd, code):
+    assert run_guard(ws, tool("Bash", command=cmd))[0] == code
+
+
+# R28 (I4): a copy of the guard in a worktree has the wrong workspace root.
+
+
+def test_worktree_copy_inside_the_config_directory_denies_everything(ws):
+    wt = ws / "complete" / ".claude" / "worktrees" / "feat"
+    (wt / ".claude" / "hooks").mkdir(parents=True)
+    shutil.copy2(GUARD, wt / ".claude" / "hooks" / "guard.py")
+    code, stderr = run_hook_command(ws, tool("Bash", cwd=str(wt), command="ls"), repo=wt)
+    assert code == 2 and "worktree" in stderr
+    assert not (ws / "complete" / ".claude" / "worktrees" / "complete-audit").exists()
+    assert not (ws / "complete-audit").exists()
+    assert load_guard_at(wt).decide(tool("Bash", cwd=str(wt), command="ls"))[0] is False
+
+
+def test_repository_with_a_git_file_denies_everything(ws):
+    (ws / "complete" / ".git").write_text("gitdir: /elsewhere/.git/worktrees/x\n")
+    code, stderr = run_guard(ws, tool("Bash", command="ls"))
+    assert code == 2 and "worktree" in stderr
+    assert not (ws / "complete-audit").exists()
+
+
+def test_repository_with_a_git_directory_allowed(ws):
+    (ws / "complete" / ".git").mkdir()
+    assert run_guard(ws, tool("Bash", command="ls"))[0] == 0
+
+
+def load_guard_at(repo):
+    spec = importlib.util.spec_from_file_location(
+        "guard_at_" + repo.name, repo / ".claude" / "hooks" / "guard.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# R27 (I3): the hook command isolates the interpreter and fails closed.
+
+DENIED_READ = tool("Read", file_path="../odoo-reference/enterprise/x.py")
+
+
+def test_hook_command_ignores_a_planted_module(ws):
+    hooks = ws / "complete" / ".claude" / "hooks"
+    (hooks / "json.py").write_text("import os\nos._exit(0)\n")
+    event = json.dumps({**DENIED_READ, "cwd": str(ws / "complete")}).encode()
+    # Without -I the planted module would win: the call is let through.
+    plain = subprocess.run(
+        [sys.executable, str(hooks / "guard.py")], input=event, capture_output=True, timeout=60
+    )
+    assert plain.returncode == 0
+    assert run_hook_command(ws, DENIED_READ)[0] == 2
+
+
+def test_hook_command_ignores_user_site_packages(ws):
+    version = f"python{sys.version_info[0]}.{sys.version_info[1]}"
+    site = ws / ".local" / "lib" / version / "site-packages"
+    site.mkdir(parents=True)
+    (site / "zz.pth").write_text("import os; os._exit(0)\n")
+    assert run_hook_command(ws, DENIED_READ)[0] == 2
+
+
+def test_import_failure_exits_2(ws):
+    guard = ws / "complete" / ".claude" / "hooks" / "guard.py"
+    text = guard.read_text(encoding="utf-8")
+    first_import = "\nimport functools"
+    assert text.count(first_import) == 1
+    guard.write_text(text.replace(first_import, "\nimport complete_missing_module" + first_import))
+    allowed = tool("Bash", cwd=str(ws / "complete"), command="ls")
+    proc = subprocess.run(
+        [sys.executable, "-I", str(guard)],
+        input=json.dumps(allowed).encode(),
+        capture_output=True,
+        timeout=60,
+    )
+    assert proc.returncode == 2
+    assert run_hook_command(ws, allowed)[0] == 2
+
+
+def test_hook_command_blocks_when_the_guard_cannot_compile(ws):
+    guard = ws / "complete" / ".claude" / "hooks" / "guard.py"
+    guard.write_text(guard.read_text(encoding="utf-8") + "\ndef broken(:\n")
+    assert run_hook_command(ws, tool("Bash", command="ls"))[0] == 2
+
+
+def test_excepthook_is_installed_before_other_imports():
+    body = ast.parse(GUARD.read_text(encoding="utf-8")).body
+    hook = next(
+        i
+        for i, node in enumerate(body)
+        if isinstance(node, ast.If) and "excepthook" in ast.unparse(node)
+    )
+    for i, node in enumerate(body):
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            continue
+        if isinstance(node, ast.Import) and [a.name for a in node.names] == ["sys"]:
+            assert i < hook
+            continue
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            assert i > hook, ast.unparse(node)
+
+
+def test_hook_command_allows_an_ordinary_call(ws):
+    assert run_hook_command(ws, tool("Bash", command="ls")) == (0, "")
+
+
+# R32 (M4): fixable denials say how to fix the call; boundary denials say not to.
+
+
+def test_websearch_denial_says_how_to_retry(ws):
+    code, stderr = run_guard(ws, tool("WebSearch", query="odoo timer"))
+    assert code == 2
+    assert "allowed_domains" in stderr and "www.odoo.com" in stderr and "pypi.org" in stderr
+    assert "retry" in stderr.lower() and "boundary" not in stderr.lower()
+
+
+def test_boundary_denial_says_not_to_work_around(ws):
+    code, stderr = run_guard(ws, DENIED_READ)
+    assert code == 2 and "Do not retry" in stderr and "boundary" in stderr
