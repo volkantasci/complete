@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-11-06 |
-| **Status** | Draft — awaiting owner review |
+| **Status** | Approved — 2026-11-06 |
 | **Owner** | Volkan TASCI |
 | **Scope** | How Complete is organised, isolated, specified, implemented, verified, and released; the restart roadmap |
 
@@ -105,13 +105,15 @@ The implementer workspace (`complete/`) enforces the boundary in layers. Claude 
 | **L4 Web** | WebFetch and WebSearch limited to an allowlist (official Odoo documentation, CE and OCA repositories, package registries); policy forbids viewing EE code from any source; fetched URLs are audited | Online contamination |
 | **L5 OS user** (optional) | Implementer sessions run as a separate Linux user with no read permission on `odoo-reference/enterprise` | Hard guarantee at OS level |
 
+Podman runs outside the sandbox (`sandbox.excludedCommands`), so container commands rely on L2 and L5.
+
 A domain allowlist cannot tell an OCA repository from a leaked EE copy on the same host, so L4 also relies on policy and the audit log.
 
 The analyst workspace (`complete-specs/`) adds both reference trees as additional directories, denies `Edit(//<ws-abs>/complete/**)`, and runs `spec_lint` as a pre-commit check.
 
 **Escape test (gate before the pilot).** In a throwaway implementer session, attempts to read EE through Read, Grep, Glob, Bash (`cat`, `grep`, `find`, `tar`), a symlink inside `complete/`, a subagent, a `claude -p` child process, and WebFetch must all fail. The result is stored in `complete-specs/evidence/`. Any failure blocks the pilot until it is fixed.
 
-Documented behaviour still to be confirmed on the owner's machine during Phase 0: permission deny rules apply inside subagents, and `sandbox.filesystem.denyRead` accepts absolute paths in the `//` form. The machine meets the prerequisites (Claude Code 2.1.318, bubblewrap 0.13.1, socat).
+Documented behaviour still to be confirmed on the owner's machine during Phase 0: permission deny rules apply inside subagents, and sandbox paths use plain absolute paths (`/…`), unlike permission rules (`//…`). The machine meets the prerequisites (Claude Code 2.1.318, bubblewrap 0.13.1, socat).
 
 ## 6. Artifacts
 
