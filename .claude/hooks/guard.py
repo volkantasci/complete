@@ -144,13 +144,11 @@ SKIPPED_SEGMENTS = ("", ".", "..")
 # Container commands (podman runs outside the sandbox).
 CONTAINER_WORDS = frozenset({"podman", "docker"})
 CONTAINER_SYNTAX = frozenset(";&|<>`$(){}*?[]~\n\r")
-SHELL_OPERATORS = "();<>|&`\n"
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-HEREDOC_WORD = re.compile(r"'([^']*)'|\"([^\"]*)\"|([^\s;&|<>()`]+)")
 # Words after which the next words of a simple command may still run a program.
 SHELL_PREFIXES = frozenset(
     {
-        "!", "{", "}", "builtin", "chrt", "command", "do", "doas", "elif", "else", "env",
+        "!", "{", "}", "builtin", "chrt", "command", "coproc", "do", "doas", "elif", "else", "env",
         "eval", "exec", "flock", "if", "ionice", "nice", "nohup", "setsid", "stdbuf",
         "sudo", "taskset", "then", "time", "timeout", "unbuffer", "until", "watch",
         "while", "xargs",
@@ -437,110 +435,246 @@ def _names_specs_root(command: str) -> bool:
 # Shell commands ---------------------------------------------------------------------
 
 
-def _strip_heredocs(text: str) -> str:
-    """The text without here-document bodies, which are data rather than commands.
+class _Unfollowable(Exception):
+    """The shell text uses syntax that the guard does not model."""
 
-    Quotes, backslashes, and comments are followed, so a ``<<`` inside quotes or a
-    comment is not a here-document. When a body has no terminator line, the text is
-    returned unchanged.
+
+class _ShellScanner:
+    """Collect the simple commands of a shell text, at every nesting level.
+
+    It models only a conservative subset of bash: blanks, ``; & | ( )`` and newlines,
+    redirections, single and double quotes, backslashes, ``$(…)`` (also inside double
+    quotes), comments after a blank, and here-documents with their full delimiter
+    word. Anything else that can change how bash splits the text into commands,
+    such as ``$'…'``, ``$"…"``, ``$((…))``, ``((…))``, ``$[…]``, ``${…}``, backticks, a
+    ``#`` right after an operator, ``[`` before ``<<``, ``case``, ``[[``, an unterminated
+    here-document, or command substitution in an expanding here-document body, raises
+    ``_Unfollowable``. The caller then fails closed.
     """
-    out: list[str] = []
-    pending: list[tuple[str, bool]] = []
-    quote = ""
-    word_start = True
-    i, size = 0, len(text)
-    while i < size:
-        char = text[i]
-        if quote:
-            step = 2 if quote == '"' and char == "\\" else 1
-            if char == quote:
-                quote = ""
-            out.append(text[i : i + step])
-            i += step
-            continue
-        if char == "\\":
-            out.append(text[i : i + 2])
-            i += 2
-            word_start = False
-            continue
-        if char in "'\"":
-            quote = char
-        elif char == "#" and word_start:
-            end = text.find("\n", i)
-            i = size if end == -1 else end
-            continue
-        elif text.startswith("<<<", i):
-            out.append("<<<")
-            i += 3
-            word_start = True
-            continue
-        elif text.startswith("<<", i):
-            start = i + 2
-            tabs = text.startswith("-", start)
-            start += tabs
-            while start < size and text[start] in " \t":
-                start += 1
-            word = HEREDOC_WORD.match(text, start)
-            if word:
-                delimiter = next(g for g in word.groups() if g is not None)
-                pending.append((delimiter.replace("\\", ""), tabs))
-                out.append(text[i : word.end()])
-                i = word.end()
-                word_start = False
-                continue
-        elif char == "\n" and pending:
-            out.append(char)
-            i += 1
-            for delimiter, tabs in pending:
-                while True:
-                    if i >= size:
-                        return text
-                    end = text.find("\n", i)
-                    line = text[i : size if end == -1 else end]
-                    i = size if end == -1 else end + 1
-                    if (line.lstrip("\t") if tabs else line) == delimiter:
-                        break
-            pending = []
-            word_start = True
-            continue
-        word_start = char in " \t\n;&|()<>"
-        out.append(char)
-        i += 1
-    return text if pending else "".join(out)
+
+    WORD_END = " \t\n;&|()<>"
+    PLAIN = re.compile(r"[^ \t\n;&|()<>\\'\"`$]+")
+    PLAIN_QUOTED = re.compile(r"[^\"\\`$]+")
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.i = 0
+        self.commands: list[list[str]] = []
+        self.pending: list[tuple[str, bool, bool, int]] = []
+
+    def scan(self) -> list[list[str]]:
+        self._commands(level=0)
+        if self.pending:
+            raise _Unfollowable("unterminated here-document")
+        return self.commands
+
+    def _commands(self, level: int) -> None:
+        """Scan commands until the end (level 0) or the ``)`` that closes ``$(``."""
+        text, size = self.text, len(self.text)
+        words: list[str] = []
+        word: str | None = None
+        target = False
+        depth = 0
+
+        def end_word() -> None:
+            nonlocal word, target
+            if word is not None:
+                if target:
+                    target = False
+                else:
+                    words.append(word)
+            word = None
+
+        def end_command() -> None:
+            nonlocal words
+            end_word()
+            if words:
+                if {"case", "[["}.intersection(words):
+                    raise _Unfollowable("case or [[")
+                self.commands.append(words)
+            words = []
+
+        while True:
+            if self.i >= size:
+                if level:
+                    raise _Unfollowable("unclosed $(")
+                end_command()
+                return
+            char = text[self.i]
+            if char in " \t":
+                end_word()
+                self.i += 1
+            elif char == "\n":
+                end_command()
+                self.i += 1
+                self._bodies(level)
+            elif char == "#" and word is None:
+                if self.i and text[self.i - 1] not in " \t\n":
+                    raise _Unfollowable("# right after an operator")
+                end = text.find("\n", self.i)
+                self.i = size if end == -1 else end
+            elif char == "\\":
+                if text.startswith("\\\n", self.i):
+                    self.i += 2
+                else:
+                    word = (word or "") + text[self.i + 1 : self.i + 2]
+                    self.i += 2
+            elif char == "'":
+                end = text.find("'", self.i + 1)
+                if end == -1:
+                    raise _Unfollowable("unclosed single quote")
+                word = (word or "") + text[self.i + 1 : end]
+                self.i = end + 1
+            elif char == '"':
+                self.i += 1
+                word = (word or "") + self._double_quoted(level)
+            elif char == "`":
+                raise _Unfollowable("backtick")
+            elif char == "$":
+                word = (word or "") + self._dollar(level)
+            elif char == "(":
+                if text.startswith("((", self.i):
+                    raise _Unfollowable("((")
+                end_command()
+                depth += 1
+                self.i += 1
+            elif char == ")":
+                end_command()
+                self.i += 1
+                if depth:
+                    depth -= 1
+                elif level:
+                    return
+                else:
+                    raise _Unfollowable("unmatched )")
+            elif char in ";&|":
+                end_command()
+                self.i += 1
+            elif char in "<>":
+                if word is not None and word.isdigit() and text[self.i - 1].isdigit():
+                    word = None  # a file descriptor, as in 2>file
+                elif text.startswith("<<", self.i) and word is not None and "[" in word:
+                    raise _Unfollowable("<< inside a subscript")
+                end_word()
+                if text.startswith("<<<", self.i):
+                    self.i += 3
+                elif text.startswith("<<", self.i):
+                    self.i += 2
+                    tabs = text.startswith("-", self.i)
+                    self.i += tabs
+                    self._heredoc(level, tabs)
+                    continue
+                else:
+                    self.i += 1
+                    if text[self.i - 1 : self.i + 1] in (">>", ">&", ">|", "<&", "<>"):
+                        self.i += 1  # the second character of a two-character redirection
+                target = True
+            else:
+                run = self.PLAIN.match(text, self.i)
+                word = (word or "") + run.group()
+                self.i = run.end()
+
+    def _dollar(self, level: int) -> str:
+        """Read a ``$`` construct in command or double-quote context; return its text."""
+        text = self.text
+        following = text[self.i + 1 : self.i + 2]
+        if following in ("'", '"', "[", "{") or text.startswith("$((", self.i):
+            raise _Unfollowable(f"${following}")
+        if following == "(":
+            self.i += 2
+            self._commands(level + 1)
+            return "$()"
+        self.i += 1
+        return "$"
+
+    def _double_quoted(self, level: int) -> str:
+        """Read a double-quoted string after its opening quote; return its text."""
+        text, size = self.text, len(self.text)
+        value = ""
+        while True:
+            if self.i >= size:
+                raise _Unfollowable("unclosed double quote")
+            char = text[self.i]
+            if char == '"':
+                self.i += 1
+                return value
+            if char == "\\":
+                following = text[self.i + 1 : self.i + 2]
+                value += following if following in '$`"\\' else "\\" + following
+                self.i += 2
+            elif char == "`":
+                raise _Unfollowable("backtick")
+            elif char == "$":
+                value += self._dollar(level)
+            else:
+                run = self.PLAIN_QUOTED.match(text, self.i)
+                value += run.group()
+                self.i = run.end()
+
+    def _heredoc(self, level: int, tabs: bool) -> None:
+        """Read a here-document delimiter word and register its body."""
+        text, size = self.text, len(self.text)
+        while self.i < size and text[self.i] in " \t":
+            self.i += 1
+        delimiter, quoted = "", False
+        while self.i < size and text[self.i] not in self.WORD_END:
+            char = text[self.i]
+            if char == "\\":
+                delimiter += text[self.i + 1 : self.i + 2]
+                quoted = True
+                self.i += 2
+            elif char in "'\"":
+                end = text.find(char, self.i + 1)
+                part = text[self.i + 1 : end]
+                if end == -1 or (char == '"' and any(c in part for c in "$`\\")):
+                    raise _Unfollowable("here-document delimiter")
+                delimiter += part
+                quoted = True
+                self.i = end + 1
+            elif char == "`" or (char == "$" and text[self.i + 1 : self.i + 2] in "'\"({["):
+                raise _Unfollowable("here-document delimiter")
+            else:
+                delimiter += char
+                self.i += 1
+        if not delimiter:
+            raise _Unfollowable("empty here-document delimiter")
+        self.pending.append((delimiter, tabs, not quoted, level))
+
+    def _bodies(self, level: int) -> None:
+        """After a newline, skip the bodies of the here-documents opened on that line."""
+        if not self.pending:
+            return
+        if any(pending_level != level for *_, pending_level in self.pending):
+            raise _Unfollowable("here-document across a $( boundary")
+        text, size = self.text, len(self.text)
+        for delimiter, tabs, expands, _ in self.pending:
+            body: list[str] = []
+            while True:
+                if self.i >= size:
+                    raise _Unfollowable("unterminated here-document")
+                end = text.find("\n", self.i)
+                line = text[self.i : size if end == -1 else end]
+                self.i = size if end == -1 else end + 1
+                if (line.lstrip("\t") if tabs else line) == delimiter:
+                    break
+                body.append(line)
+            if expands and any("$(" in line or "`" in line for line in body):
+                raise _Unfollowable("command substitution in a here-document body")
+        self.pending = []
 
 
 def _runs_container(command: str) -> bool | None:
-    """True when podman or docker is in command position; None when unparsable.
+    """True when podman or docker is in command position; None when unfollowable.
 
-    Command position is the first word of a simple command (after ``NAME=value``
-    assignments and redirections), or any word of a simple command that starts with
-    a wrapper such as ``sudo``, ``env``, ``xargs``, or a shell keyword. Here-document
-    bodies and quoted arguments are not commands.
+    Command position is the first word of a simple command at any nesting level
+    (after ``NAME=value`` assignments and redirections), or any word of a simple
+    command that starts with a wrapper such as ``sudo``, ``env``, ``xargs``, or a shell
+    keyword. Here-document bodies and quoted arguments are not commands.
     """
-    text = _strip_heredocs(command).replace("\\\n", "")
-    lexer = shlex.shlex(text, posix=True, punctuation_chars=SHELL_OPERATORS)
-    lexer.whitespace = " \t\r"
-    lexer.whitespace_split = True
-    lexer.commenters = ""
     try:
-        tokens = list(lexer)
-    except ValueError:
+        commands = _ShellScanner(command).scan()
+    except _Unfollowable:
         return None
-    commands: list[list[str]] = [[]]
-    target = False
-    for token in tokens:
-        if target:
-            target = False
-            continue
-        if token and all(char in SHELL_OPERATORS for char in token):
-            if ("<" in token or ">" in token) and not any(c in token for c in ";|()`\n"):
-                if len(commands[-1]) == 1 and commands[-1][0].isdigit():
-                    commands[-1].pop()  # a file descriptor, as in 2>file
-                target = True
-            else:
-                commands.append([])
-            continue
-        commands[-1].append(token)
     for words in commands:
         while words and ASSIGNMENT.match(words[0]):
             words = words[1:]
@@ -590,6 +724,30 @@ def _container_reason(command: str, cwd: str) -> str | None:
         for candidate in _absolute_forms(path, cwd):
             if _forbidden_area(candidate) or _holds_forbidden_area(candidate):
                 return f"the container argument {path!r} would expose a forbidden area"
+            protected = _container_protected(candidate)
+            if protected:
+                return (
+                    f"the container argument {path!r} would expose {protected} to a container, "
+                    "which writes outside the sandbox"
+                )
+    return None
+
+
+def _container_protected(path: str) -> str | None:
+    """Name the owner-managed location that ``path`` is, lies in, or contains, if any."""
+    home = Path(os.path.expanduser("~"))
+    locations = (
+        (REPO / ".git", "the git directory"),
+        (REPO / ".claude", "the Claude Code configuration of the repository"),
+        (home / ".config" / "containers", "the container configuration"),
+        (home / ".claude", "the user's Claude Code settings"),
+        (home / ".claude.json", "the user's Claude Code settings"),
+        (AUDIT_DIR, "the audit log"),
+    )
+    for location, name in locations:
+        for root in _roots(location):
+            if _inside(path, root) or _inside(root, path):
+                return name
     return None
 
 

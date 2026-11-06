@@ -1003,3 +1003,120 @@ def test_websearch_denial_says_how_to_retry(ws):
 def test_boundary_denial_says_not_to_work_around(ws):
     code, stderr = run_guard(ws, DENIED_READ)
     assert code == 2 and "Do not retry" in stderr and "boundary" in stderr
+
+
+# Fix round 2 ----------------------------------------------------------------------------
+
+# R29 (C1, round 2): constructs the guard does not model make it fail closed when a
+# container CLI is mentioned, instead of mis-reading what bash runs.
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        # The re-review's forms: bash runs the podman line in each.
+        "echo $((1<<2))\npodman run --rm -v {ws}/odoo-ref*/ent*:/x img ls /x\n2",
+        "((x=1<<3))\npodman run --rm -v {ws}/odoo-ref*/ent*:/x img ls /x\n3",
+        "echo $(true)# ; podman run --rm -v {ws}/odoo-ref*/ent*:/x img ls /x",
+        "echo $'\\''; podman run --rm -v {ws}/odoo-ref*/ent*:/x img ls /x #'",
+        "echo $'\\''\npodman cp c:/a {ws}/odoo-ref*/ent*/ #'",
+        # Arithmetic and subscripts.
+        "x=$[1<<2]\npodman ps\n2",
+        "a[1<<2]=x\npodman ps\n2",
+        "a[1<<2]=x\npodman ps\n2]=x",
+        "echo $((1<<2\n+0))\npodman ps\n2\n))",
+        "for ((i=0; i<1; i++)); do :; done\npodman ps",
+        "echo ${x#<<}\npodman ps",
+        # Comments.
+        "(true)# ; podman ps",
+        "echo x;# ; podman ps",
+        # Quoting forms.
+        "echo $'a\\'b'; podman ps",
+        'echo $"x"; podman ps',
+        'echo "$(echo ")"; podman ps; echo "(")"',
+        'echo "$(podman ps)"',
+        # Here-documents.
+        'cat <<"E"OF\nx\nEOF\npodman ps\nE',
+        "cat <<E\\OF\nx\nEOF\npodman ps\nE",
+        "cat <<EOF\n$(podman ps)\nEOF",
+        "cat <<EOF\n`podman ps`\nEOF",
+        "x=$(cat <<EOF\npodman ps\nEOF\n); podman ps",
+        # Other syntax the guard does not model.
+        "case x in a) podman ps;; esac",
+        "[[ -n x ]] && podman ps",
+    ],
+)
+def test_container_commands_hidden_from_simple_parsers_denied(ws, cmd):
+    assert run_guard(ws, tool("Bash", command=fill(cmd, ws)))[0] == 2
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "git commit -m \"$(cat <<'EOF'\nfix(docker): bump the podman image\n\nBody $X.\nEOF\n)\"",
+        "echo a#b podman",
+        "echo $(date) podman # docker",
+        "ls 2>/dev/null; echo podman",
+        "let x=1<<2\npodman ps\n2",
+    ],
+)
+def test_container_mentions_in_modelled_syntax_allowed(ws, cmd):
+    assert run_guard(ws, tool("Bash", command=cmd))[0] == 0
+
+
+# Container commands must not reach owner-managed locations: podman writes outside the
+# sandbox, so the sandbox's denyWrite does not apply to it.
+
+
+@pytest.fixture
+def home(ws):
+    home = ws / "home"
+    (home / ".config" / "containers").mkdir(parents=True)
+    (home / "data").mkdir()
+    return home
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "podman run --rm -v {ws}/complete:/r alpine cp /r/tools/evil.cfg /r/.git/config",
+        "podman run --rm -v {ws}/complete:/r -w /r/.git alpine cp /r/tools/h.sh hooks/pre-commit",
+        "podman run --rm -v .:/r alpine ls /r",
+        "podman run --rm -v ./.git:/g alpine ls /g",
+        "podman run --rm --mount type=bind,source=.git,target=/g alpine ls /g",
+        "podman run --rm -v ./.claude:/c alpine ls /c",
+        "podman cp c:/x .git",
+        "podman cp c:/x .",
+        "podman cp .git c:/x",
+        "podman build -t t .",
+        "podman run --rm -v {ws}/complete-audit:/a alpine ls /a",
+        "podman run --rm -v {home}/.config/containers:/c alpine ls /c",
+        "podman run --rm -v {home}/.config:/c alpine ls /c",
+        "podman run --rm -v {home}:/h alpine ls /h",
+        "podman run --rm -v {home}/.claude.json:/c alpine ls /c",
+        "podman run --rm -v ./addons/gitlink:/g alpine ls /g",
+    ],
+)
+def test_container_owner_managed_paths_denied(ws, home, cmd):
+    (ws / "complete" / ".git").mkdir()
+    (ws / "complete" / "addons").mkdir()
+    (ws / "complete" / "addons" / "gitlink").symlink_to(ws / "complete" / ".git")
+    command = fill(cmd, ws).replace("{home}", str(home))
+    assert run_guard(ws, tool("Bash", command=command), home=home)[0] == 2
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "podman run --rm -v ./addons:/mnt/extra-addons alpine ls /mnt/extra-addons",
+        "podman run --rm -v {home}/data:/d alpine ls /d",
+        "podman build -t t docker/",
+        "podman compose -f docker/compose.yaml run --rm odoo odoo -d test_x -i complete_x"
+        " --test-tags /complete_x --stop-after-init",
+    ],
+)
+def test_container_ordinary_paths_allowed(ws, home, cmd):
+    (ws / "complete" / ".git").mkdir()
+    (ws / "complete" / "addons").mkdir()
+    command = cmd.replace("{home}", str(home))
+    assert run_guard(ws, tool("Bash", command=command), home=home)[0] == 0
