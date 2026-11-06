@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -42,6 +43,13 @@ def _lookup(record: dict, dotted: str):
     return value is not None, value
 
 
+def _is_number(value) -> bool:
+    """True for a finite int or float; booleans, NaN and infinities are not numbers."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    return math.isfinite(value)
+
+
 def check_provenance(addons: Path, provenance: Path) -> list[str]:
     provenance = Path(provenance)
     problems = []
@@ -63,10 +71,10 @@ def check_provenance(addons: Path, provenance: Path) -> list[str]:
             if not _lookup(record, key)[0]:
                 problems.append(f"{name}: provenance key missing: {key}")
         found, ratio = _lookup(record, "overlap.ratio")
-        if found and (not isinstance(ratio, int | float) or ratio > MAX_RATIO):
+        if found and (not _is_number(ratio) or not 0 <= ratio <= MAX_RATIO):
             problems.append(f"{name}: overlap.ratio {ratio} exceeds {MAX_RATIO}")
         found, run = _lookup(record, "overlap.longest_run")
-        if found and (not isinstance(run, int | float) or run >= MAX_RUN):
+        if found and (not _is_number(run) or not 0 <= run < MAX_RUN):
             problems.append(f"{name}: overlap.longest_run {run} must be below {MAX_RUN}")
     return problems
 

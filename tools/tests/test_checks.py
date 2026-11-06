@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from tools.check_headers import check_headers
@@ -136,3 +137,27 @@ def test_provenance_valid_and_longest_run_and_keys(tmp_path):
     assert any("complete_key" in p and "dates.verified" in p for p in problems)
     assert any("complete_key" in p and "approvals" in p for p in problems)
     assert len(REQUIRED_PROVENANCE_KEYS) == 15
+
+
+@pytest.mark.parametrize(
+    "ratio,run",
+    [
+        (float("nan"), 2),
+        (float("inf"), 2),
+        (float("-inf"), 2),
+        (True, 2),
+        (False, 2),
+        (0.01, float("nan")),
+        (0.01, True),
+        (0.01, False),
+        (0.01, float("-inf")),
+    ],
+)
+def test_provenance_rejects_non_finite_and_boolean_numbers(tmp_path, ratio, run):
+    (tmp_path / "addons/complete_x").mkdir(parents=True)
+    write(
+        tmp_path / "provenance/complete_x.yaml",
+        full_record(overlap={"ratio": ratio, "longest_run": run, "reviewed_matches": []}),
+    )
+    problems = check_provenance(tmp_path / "addons", tmp_path / "provenance")
+    assert any("complete_x" in p and "overlap." in p for p in problems)
