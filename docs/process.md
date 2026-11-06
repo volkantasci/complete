@@ -66,6 +66,8 @@ The implementer workspace enforces the boundary in overlapping layers, because t
 
 Container commands run outside the shell sandbox, so they rely on L2 and L5. A domain allowlist cannot tell an OCA repository from a leaked EE copy on the same host, so L4 also relies on policy and the audit log.
 
+[isolation.md](isolation.md) describes the setup, what the guard hook blocks, the audit log, and how to run the escape test.
+
 An escape test is a gate before the pilot: attempts to read EE through every tool, a symlink, a subagent, a child process, and web fetching must all fail.
 
 ## Version update routine
