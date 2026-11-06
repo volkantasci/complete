@@ -14,7 +14,7 @@ services:
       retries: 20
 
   odoo:
-    image: localhost/complete-odoo:20.0-${ODOO_RELEASE}
+    image: localhost/complete-odoo:20.0-${ODOO_RELEASE:?ODOO_RELEASE is not set; see docker/versions.env}
     depends_on:
       db:
         condition: service_healthy

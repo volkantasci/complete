@@ -1120,3 +1120,26 @@ def test_container_ordinary_paths_allowed(ws, home, cmd):
     (ws / "complete" / "addons").mkdir()
     command = cmd.replace("{home}", str(home))
     assert run_guard(ws, tool("Bash", command=command), home=home)[0] == 0
+
+
+def documented_test_command():
+    """The module-test command in docs/isolation.md, with its placeholders filled in."""
+    text = (REPO / "docs" / "isolation.md").read_text(encoding="utf-8")
+    lines = [
+        line for line in text.splitlines() if line.startswith("podman compose ") and " run " in line
+    ]
+    assert len(lines) == 1, "docs/isolation.md must document exactly one module-test command"
+    return lines[0].replace("<db>", "test_1").replace("<mods>", "complete_x").replace(
+        "<tags>", "/complete_x"
+    )
+
+
+def test_documented_module_test_command_is_allowed(ws):
+    command = documented_test_command()
+    assert "--env-file docker/versions.env" in command
+    assert run_guard(ws, tool("Bash", command=command))[0] == 0
+
+
+def test_compose_requires_odoo_release():
+    compose = (REPO / "docker" / "compose.yaml").read_text(encoding="utf-8")
+    assert "${ODOO_RELEASE:?" in compose

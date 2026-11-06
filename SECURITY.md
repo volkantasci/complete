@@ -12,4 +12,4 @@ Include the affected module, the steps to reproduce, and the impact you expect. 
 
 ## Out of scope
 
-Problems in Odoo itself belong to the Odoo project. Reports about suspected Odoo Enterprise material inside this repository are handled as described in [docs/licensing.md](docs/licensing.md).
+Problems in Odoo itself belong to the Odoo project. Reports about suspected Odoo Enterprise material inside this repository are handled as described in [Reporting suspected Enterprise material](docs/licensing.md#reporting-suspected-enterprise-material).

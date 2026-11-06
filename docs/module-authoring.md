@@ -9,6 +9,8 @@ How to start and finish a Complete module. Read [licensing.md](licensing.md) for
 make test MODULES=complete_<name>
 ```
 
+`make test` is for the owner's shell and CI. In a guarded session run the plain podman command from [isolation.md](isolation.md#containers) instead (after `cp docker/.env.example docker/.env` once), for example `podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d test_1 -i complete_<name> --test-tags /complete_<name> --stop-after-init`.
+
 The scaffold writes `addons/complete_<name>/` with a manifest, empty `models/`, a `tests/test_install.py` that asserts the module installs, and a README. It refuses a bad name or an existing directory.
 
 ## Naming
@@ -46,7 +48,7 @@ Work only from the spec package (`acceptance.md`, see [process.md](process.md)).
 
 | Tag | Test type |
 |---|---|
-| `backend` | Python `TransactionCase` in `tests/`, run with `make test MODULES=<module>` |
+| `backend` | Python `TransactionCase` in `tests/`, run with `make test MODULES=<module>`, or in a guarded session with the podman command in [isolation.md](isolation.md#containers) |
 | `ui` | Browser tour driven by an `HttpCase` test |
 | `visual` | Screenshot of the Complete UI compared by the verifier against the reference screenshots (no automated assertion) |
 
@@ -58,7 +60,7 @@ Take Complete screenshots with a viewport-sized capture (not full page): desktop
 
 ## Provenance record
 
-Every module needs a public record at `provenance/<module>.yaml` before its slice is integrated. The orchestrator writes it at the provenance step; the implementer must keep the inputs available: the spec package id, the implementer session id, and the audit log. The required fields are listed in [process.md](process.md). `tools/check_provenance.py` checks the record exists and is complete.
+Every module needs a public record at `provenance/<module>.yaml` before its slice is integrated. The orchestrator writes it at the provenance step; the implementer must keep the inputs available: the spec package id, the implementer session id, and the audit log. The required fields are listed in [provenance/README.md](../provenance/README.md). `tools/check_provenance.py` checks the record exists and is complete.
 
 ## Before you open a pull request
 

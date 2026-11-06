@@ -72,11 +72,11 @@ An escape test is a gate before the pilot: attempts to read EE through every too
 
 ## Version update routine
 
-Run weekly or on demand. CE source, the CE package used for the Odoo image, and EE source always share one nightly build date.
+Run weekly or on demand. CE source (also used to build the Odoo image) and EE source always share one nightly build date.
 
-1. Fetch the new CE source and package.
+1. Fetch the new CE source tarball (`https://nightly.odoo.com/20.0/nightly/src/odoo_20.0.<date>.tar.gz`) and compute its sha256.
 2. The owner downloads the matching EE source.
-3. Record both builds in the version file with checksums.
-4. Rebuild the Odoo image.
+3. Record the build date as `ODOO_RELEASE` and the tarball checksum as `ODOO_SOURCE_SHA256` in `docker/versions.env`, and record the EE build checksum in the version file.
+4. Rebuild the Odoo image (`make image`, which passes `ODOO_RELEASE` and `ODOO_SOURCE_SHA256` as build args and fails when the checksum differs).
 5. Run the full test suite.
 6. List the EE modules that changed between builds and flag their spec packages for re-review.

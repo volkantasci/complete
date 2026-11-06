@@ -29,6 +29,14 @@ Ideas and principles underlying a program, including those underlying its interf
 
 Running Enterprise for analysis requires a valid Enterprise subscription, or a partnership agreement limited to testing and development. This is a precondition of the analyst and verifier roles, which contributors to this repository do not hold.
 
+## Reporting suspected Enterprise material
+
+If you think a file in this repository contains or closely follows Odoo Enterprise material, report it privately through a GitHub security advisory, as described in [SECURITY.md](../SECURITY.md). Do not open a public issue or pull request, and do not paste the suspected material into the report; name the file and lines.
+
+1. The maintainers remove the affected material from the default branch while the report is reviewed.
+2. They re-run the overlap check (`tools/check_provenance.py` thresholds) for the affected module and review the provenance record.
+3. The outcome (removed, rewritten, or found unfounded) is recorded in the module's provenance record and in the advisory.
+
 ## Legal review
 
 The project owner obtains professional legal review before major public releases. Nothing here replaces that review.

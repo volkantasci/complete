@@ -83,10 +83,10 @@ Podman does not work inside the sandbox: it writes container storage under the h
   The guard cannot see paths inside compose files, Containerfiles, kube YAML, or files passed to `podman secret create`. Keep bind mounts inside `complete/` and on the command line.
 - **L5:** with a separate OS user, a container started by an implementer session cannot read the EE tree whatever it mounts, because rootless Podman runs with that user's permissions.
 
-Run module tests with one plain command, without pipes or substitutions:
+Run module tests with one plain command, without pipes or substitutions. `docker/compose.yaml` takes `ODOO_RELEASE` from the environment and fails when it is missing; the `--env-file` flags supply it from `docker/versions.env` (the single source of the pin) and the database credentials from `docker/.env`, so the command needs no `NAME=value` prefix. Create `docker/.env` once with `cp docker/.env.example docker/.env`. `make test` does the same for the owner and for CI, but starts podman through `make`, so a guarded session should use the command below:
 
 ```sh
-podman compose -f docker/compose.yaml run --rm odoo odoo -d <db> -i <mods> --test-tags <tags> --stop-after-init
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d <db> -i <mods> --test-tags <tags> --stop-after-init
 ```
 
 To keep the output, rerun or scroll rather than piping it; a pipe or redirection makes the command a compound one, which the guard blocks.
