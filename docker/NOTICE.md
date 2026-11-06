@@ -2,7 +2,9 @@
 
 `Dockerfile`, `entrypoint.sh`, `odoo.conf` and `wait-for-psql.py` are taken from
 the official Odoo Docker recipe and are licensed under LGPL-3.0.
-Upstream notices are kept in the files.
+The upstream license text is in [`LICENSE`](LICENSE) (LGPL-3.0 followed by GPL-3.0),
+vendored byte-identical from the same commit. Upstream has no separate
+`COPYRIGHT` file at that commit; the `LICENSE` file only refers to one.
 
 - Source: https://github.com/odoo/docker/tree/f900094eb7492968332868d686caf22b966592ca/20.0/
 - Commit: `f900094eb7492968332868d686caf22b966592ca`
@@ -10,7 +12,8 @@ Upstream notices are kept in the files.
 
 ## Changes
 
-Only the `Dockerfile` differs from upstream.
+Modified on 2026-11-06 (R33 source build): only the `Dockerfile` differs from
+upstream. The other three files and `LICENSE` are unchanged.
 
 1. The `.deb` download and install step is replaced by an install from the
    Community nightly source tarball

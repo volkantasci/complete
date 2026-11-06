@@ -28,7 +28,7 @@ The full table is in the [roadmap](docs/roadmap.md).
 
 ## License
 
-Complete is licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). See [LICENSE](LICENSE).
+Complete is licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). See [LICENSE](LICENSE). The files in `docker/` come from the official Odoo Docker recipe and stay under LGPL-3.0; see [docker/NOTICE.md](docker/NOTICE.md).
 
 ## Community
 
