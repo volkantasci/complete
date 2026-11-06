@@ -14,3 +14,8 @@ extend-exclude = ["docker"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Odoo module layout: __init__ files only import submodules; manifests are bare dict literals.
+"**/__init__.py" = ["F401"]
+"**/__manifest__.py" = ["B018"]
