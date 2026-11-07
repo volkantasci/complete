@@ -27,3 +27,22 @@ class TimerTestRestricted(models.Model):
     _description = 'Restricted Timer Model'
 
     name = fields.Char()
+
+
+class TimerTestParent(models.Model):
+    _name = 'timer.test.parent'
+    _inherit = ['timer.parent.mixin']
+    _description = 'Parent Timer Model'
+
+    name = fields.Char()
+
+    def _create_record_to_start_timer(self):
+        return self.env['timer.test'].create({'name': self.name or 'Child'})
+
+
+class TimerTestParentEmpty(models.Model):
+    _name = 'timer.test.parent.empty'
+    _inherit = ['timer.parent.mixin']
+    _description = 'Parent Timer Model Without Child'
+
+    name = fields.Char()

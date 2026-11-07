@@ -5,6 +5,7 @@ from . import (
     test_install,
     test_timer_delete,
     test_timer_mixin,
+    test_timer_parent,
     test_timer_record,
     test_timer_search,
 )
