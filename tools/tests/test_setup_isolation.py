@@ -56,7 +56,8 @@ def test_render_local_settings_exact():
                 "Read(//w/complete-specs/.githooks/**)",
                 "Edit(//w/complete-specs/**)",
                 "Edit(//w/complete/.claude/**)",
-                "Edit(//w/complete/.git/**)",
+                "Edit(//w/complete/.git/hooks/**)",
+                "Edit(//w/complete/.git/config)",
             ],
         },
         "sandbox": {
@@ -95,6 +96,21 @@ def test_extra_read_directories_are_not_writable_in_the_sandbox():
     assert "/w/complete" not in deny_write
 
 
+def test_git_stays_writable_for_shell_commands_except_hooks_and_config():
+    # Claude Code turns Edit deny rules into sandbox write denials, so a rule for the whole
+    # .git directory would stop sandboxed sessions from branching and committing (F2).
+    s = render_local_settings(Path("/w"))
+    git_edit_denies = [rule for rule in s["permissions"]["deny"] if "/w/complete/.git" in rule]
+    assert git_edit_denies == [
+        "Edit(//w/complete/.git/hooks/**)",
+        "Edit(//w/complete/.git/config)",
+    ]
+    deny_write = s["sandbox"]["filesystem"]["denyWrite"]
+    assert "/w/complete/.git/hooks" in deny_write
+    assert "/w/complete/.git/config" in deny_write
+    assert "/w/complete/.git" not in deny_write
+
+
 def test_render_uses_the_workspace_given():
     s = render_local_settings(Path("/home/owner/ws"))
     assert s["permissions"]["deny"][1] == "Edit(//home/owner/ws/odoo-reference/**)"
@@ -104,7 +120,11 @@ def test_render_uses_the_workspace_given():
 
 def test_render_uses_the_repository_given():
     s = render_local_settings(Path("/w"), repo=Path("/w/fork"))
-    assert s["permissions"]["deny"][-2:] == ["Edit(//w/fork/.claude/**)", "Edit(//w/fork/.git/**)"]
+    assert s["permissions"]["deny"][-3:] == [
+        "Edit(//w/fork/.claude/**)",
+        "Edit(//w/fork/.git/hooks/**)",
+        "Edit(//w/fork/.git/config)",
+    ]
     assert s["sandbox"]["filesystem"]["denyWrite"] == [
         "/w/fork/.claude",
         "/w/fork/.git/hooks",

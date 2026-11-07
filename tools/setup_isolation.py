@@ -65,7 +65,12 @@ def render_local_settings(ws: Path, repo: Path | None = None) -> dict:
                 f"Read(//{w}/complete-specs/.githooks/**)",
                 f"Edit(//{w}/complete-specs/**)",
                 f"Edit(//{r}/.claude/**)",
-                f"Edit(//{r}/.git/**)",
+                # Claude Code turns Edit deny rules into sandbox write denials, so these
+                # name only the git paths that must stay read-only: a rule for all of
+                # .git would stop shell commands from branching and committing. The
+                # guard keeps the Edit and Write tools out of the whole .git directory.
+                f"Edit(//{r}/.git/hooks/**)",
+                f"Edit(//{r}/.git/config)",
             ],
         },
         "sandbox": {
