@@ -81,7 +81,12 @@ class TimerParentMixin(models.AbstractModel):
         if not timer:
             return False
         child = timer._get_related_document()
-        minutes_spent = child.action_timer_stop() if child else False
+        if child:
+            minutes_spent = child.action_timer_stop()
+        else:
+            # the child document is gone: clear the orphan timer (R7)
+            minutes_spent = timer.sudo().action_timer_stop()
+            timer.sudo().unlink()
         self._invalidate_timer_fields()
         return minutes_spent
 
@@ -117,6 +122,9 @@ class TimerParentMixin(models.AbstractModel):
 
     def unlink(self):
         self.check_access('unlink')
-        timers = self.env['timer.timer'].sudo().search(self._parent_timer_domain(self.ids))
-        timers.unlink()
+        timers = self._get_timers_from_other_users() | self.env['timer.timer'].sudo().search([
+            *self._parent_timer_domain(self.ids),
+            ('user_id', '=', self.env.user.id),
+        ])
+        timers.sudo().unlink()
         return super().unlink()

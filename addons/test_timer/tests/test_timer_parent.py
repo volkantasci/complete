@@ -1,5 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
+from datetime import datetime
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError, MissingError
@@ -120,3 +121,36 @@ class TestTimerParent(TimerCase):
         self.doc_a.with_user(self.u1).action_timer_start()
         timers = self.parent.with_user(self.u1)._get_user_timers()
         self.assertEqual(timers, self.timer_of(self.doc_a, self.u1))
+
+    def test_D1_parent_unlink_uses_other_users_hook(self):
+        Parent = type(self.env['timer.test.parent'])
+        parent = self.env['timer.test.parent'].create({'name': 'H'})
+        parent.with_user(self.u1).action_timer_start()
+        with patch.object(
+            Parent, '_get_timers_from_other_users', autospec=True,
+            side_effect=Parent._get_timers_from_other_users,
+        ) as hook:
+            parent.with_user(self.u2).unlink()
+        hook.assert_called()
+        self.assertFalse(self._parent_timers(parent))
+
+    def test_R7_parent_stop_with_missing_child_clears_timer(self):
+        parent = self.env['timer.test.parent'].create({'name': 'O'})
+        timer = self.env['timer.timer'].sudo().create({
+            'res_model': 'timer.test', 'res_id': 999999, 'user_id': self.u1.id,
+            'parent_res_model': parent._name, 'parent_res_id': parent.id,
+            'timer_start': datetime(2026, 3, 4, 9, 0, 0)})
+        as_u1 = parent.with_user(self.u1)
+        self.assertTrue(as_u1.is_timer_running)
+        minutes = as_u1.action_timer_stop()
+        self.assertGreater(minutes, 0)
+        self.assertFalse(timer.exists())
+        self.assertFalse(as_u1.is_timer_running)
+
+    def test_R7_parent_stop_with_missing_child_never_started(self):
+        parent = self.env['timer.test.parent'].create({'name': 'O2'})
+        timer = self.env['timer.timer'].sudo().create({
+            'res_model': 'timer.test', 'res_id': 999999, 'user_id': self.u1.id,
+            'parent_res_model': parent._name, 'parent_res_id': parent.id})
+        self.assertFalse(parent.with_user(self.u1).action_timer_stop())
+        self.assertFalse(timer.exists())
