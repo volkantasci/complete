@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import re
 import sys
 from pathlib import Path
@@ -20,15 +21,23 @@ def scaffold(
     depends: list[str],
     category: str = "Productivity",
 ) -> Path:
-    """Render the template into ``addons_dir/name`` and return that directory."""
+    """Render the template into ``addons_dir/name`` and return that directory.
+
+    Odoo renders a module's README as reStructuredText, which garbles Markdown and makes
+    docutils warn at install. A ``static/description/index.html`` takes precedence over the
+    README in ``ir.module.module._get_desc``, so the scaffold ships one.
+    """
     if not NAME_RE.fullmatch(name):
         raise ValueError(f"module name must match {NAME_RE.pattern}: {name!r}")
     target = Path(addons_dir) / name
     if target.exists():
         raise ValueError(f"target already exists: {target}")
+    title = name.removeprefix("complete_").replace("_", " ").title()
     values = {
         "name": name,
-        "title": repr(name.removeprefix("complete_").replace("_", " ").title()),
+        "title": repr(title),
+        "title_html": html.escape(title),
+        "summary_html": html.escape(summary),
         "summary": repr(summary),
         "summary_text": summary,
         "category": repr(category),

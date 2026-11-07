@@ -11,7 +11,7 @@ make test MODULES=complete_<name>
 
 `make test` is for the owner's shell and CI. In a guarded session run the plain podman command from [isolation.md](isolation.md#containers) instead (after `cp docker/.env.example docker/.env` once), for example `podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d test_1 -i complete_<name> --test-tags /complete_<name> --stop-after-init`.
 
-The scaffold writes `addons/complete_<name>/` with a manifest, empty `models/`, a `tests/test_install.py` that asserts the module installs, and a README. It refuses a bad name or an existing directory.
+The scaffold writes `addons/complete_<name>/` with a manifest, empty `models/`, a `tests/test_install.py` that asserts the module installs, a README, and `static/description/index.html`. Odoo renders a README as reStructuredText, but it prefers that HTML page for the Apps description, so the scaffold avoids docutils warnings at install. It refuses a bad name or an existing directory.
 
 ## Naming
 

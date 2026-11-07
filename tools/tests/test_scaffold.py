@@ -16,6 +16,7 @@ def test_creates_expected_tree(tmp_path):
         "__init__.py",
         "__manifest__.py",
         "models/__init__.py",
+        "static/description/index.html",
         "tests/__init__.py",
         "tests/test_install.py",
     ]
@@ -65,3 +66,11 @@ def test_cli_creates_module(tmp_path):
     assert code == 0
     text = (tmp_path / "complete_cli" / "__manifest__.py").read_text()
     assert ast.literal_eval(text.split("\n", 2)[2])["depends"] == ["base", "mail"]
+
+
+def test_description_page_replaces_rst_rendering_of_readme(tmp_path):
+    root = scaffold("complete_demo", tmp_path, "A <b>&</b> summary", [])
+    page = (root / "static/description/index.html").read_text()
+    assert "A &lt;b&gt;&amp;&lt;/b&gt; summary" in page
+    assert "<b>" not in page
+    assert "Demo" in page
