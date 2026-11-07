@@ -29,8 +29,8 @@ A slice is one EE application, or a coherent group of modules, together with eve
 | 5 | Verification | Verifier | All scenarios pass on Complete; visual deviations resolved or accepted; otherwise back to step 4 |
 | 6 | Overlap check | Verifier with `provenance_check` | Ratio at most 5 % and no run of 5 or more consecutive verbatim lines; every remaining match reviewed and justified |
 | 7 | Documentation | Implementer | Module README, user documentation, Complete screenshots under `docs/assets/<area>/` |
-| 8 | Integration | Orchestrator | Pull request merged; full test suite and CI green |
-| 9 | Provenance | Orchestrator | Record written; spec status `verified` |
+| 8 | Provenance | Orchestrator | Record written; spec status `verified` |
+| 9 | Integration | Orchestrator | Pull request merged; full test suite and CI green (the strict provenance check needs the record from step 8) |
 
 The step 6 thresholds were initial values. The pilot kept both; see the [pilot report](pilot-000-timer.md#threshold-calibration).
 
@@ -47,6 +47,8 @@ Spec packages live in a private repository and are what the implementer works fr
 | `model.md` | Models and fields, with technical names only where compatibility requires them |
 | `acceptance.md` | Given/When/Then scenarios tagged `backend`, `ui`, or `visual` |
 | `screens/` | Reference screenshots (desktop 1600x900, mobile 390x844) with numbered callouts |
+
+The verifier's outputs, `review.md` and `verification/`, live in the package directory; capture scenarios stay in the analyst area.
 
 A lint step rejects code in specs, copied text, and file paths of the reference sources before a package can be approved.
 
