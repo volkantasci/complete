@@ -1,0 +1,9 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <template id="webclient_bootstrap_browser_chrome" inherit_id="web.webclient_bootstrap">
+        <xpath expr="//meta[@name='theme-color']" position="attributes">
+            <attribute name="t-att-content">request.env['ir.http']._cws_browser_chrome_colour(color_scheme)</attribute>
+        </xpath>
+    </template>
+</odoo>

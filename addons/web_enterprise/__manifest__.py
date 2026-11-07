@@ -12,6 +12,7 @@
     'auto_install': True,
     'data': [
         'views/res_users_views.xml',
+        'views/webclient_templates.xml',
     ],
     'installable': True,
     'application': False,
