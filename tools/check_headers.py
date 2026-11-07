@@ -7,6 +7,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from tools.gitfiles import tracked_files
+
 EXTENSIONS = {".py", ".js", ".xml", ".scss", ".css"}
 SCAN_DIRS = ("addons", "tools")
 COPYRIGHT = "Copyright 2026 Complete contributors"
@@ -31,8 +33,12 @@ def _has_header(path: Path) -> bool:
 
 
 def check_headers(root: Path) -> list[str]:
-    """Return root-relative paths whose first two non-empty lines are not a valid header."""
+    """Return root-relative paths whose first two non-empty lines are not a valid header.
+
+    Only files that git knows (tracked or staged) are checked; without git the tree is walked.
+    """
     root = Path(root)
+    known = tracked_files(root)
     problems = []
     for name in SCAN_DIRS:
         base = root / name
@@ -43,6 +49,8 @@ def check_headers(root: Path) -> list[str]:
             if any(part.startswith(".") for part in rel.parts):
                 continue
             if path.suffix not in EXTENSIONS or not path.is_file():
+                continue
+            if known is not None and rel.as_posix() not in known:
                 continue
             if not _has_header(path):
                 problems.append(rel.as_posix())

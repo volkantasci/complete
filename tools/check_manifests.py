@@ -9,6 +9,8 @@ import re
 import sys
 from pathlib import Path
 
+from tools.gitfiles import tracked_files
+
 NAME_RE = re.compile(r"^complete_[a-z0-9_]+$")
 # Original module names that an approved spec package requires for database and
 # dependency compatibility ([DB] in its model.md). Each entry needs the owner's
@@ -21,21 +23,30 @@ LICENSES = {"AGPL-3", "LGPL-3"}
 
 
 def addon_dirs(addons: Path) -> list[Path]:
-    """Return module directories; a missing directory, dotfiles and files are skipped."""
+    """Return module directories; a missing directory, dotfiles and files are skipped.
+
+    With git, a directory counts only when it holds a tracked or staged file.
+    """
     addons = Path(addons)
     if not addons.is_dir():
         return []
-    return sorted(p for p in addons.iterdir() if p.is_dir() and not p.name.startswith("."))
+    known = tracked_files(addons)
+    modules = (p for p in addons.iterdir() if p.is_dir() and not p.name.startswith("."))
+    if known is not None:
+        owners = {name.split("/", 1)[0] for name in known if "/" in name}
+        modules = (p for p in modules if p.name in owners)
+    return sorted(modules)
 
 
 def check_manifests(addons: Path) -> list[str]:
     problems = []
+    known = tracked_files(addons)
     for module in addon_dirs(addons):
         name = module.name
         if not NAME_RE.match(name) and name not in COMPATIBILITY_NAMES:
             problems.append(f"{name}: module name must match {NAME_RE.pattern}")
         manifest = module / "__manifest__.py"
-        if not manifest.is_file():
+        if not manifest.is_file() or (known is not None and f"{name}/__manifest__.py" not in known):
             problems.append(f"{name}: __manifest__.py missing")
             continue
         try:

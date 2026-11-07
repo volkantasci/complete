@@ -12,6 +12,7 @@ from pathlib import Path
 import yaml
 
 from tools.check_manifests import addon_dirs
+from tools.gitfiles import tracked_files
 
 REQUIRED_PROVENANCE_KEYS = (
     "module",
@@ -54,10 +55,11 @@ def _is_number(value) -> bool:
 def check_provenance(addons: Path, provenance: Path) -> list[str]:
     provenance = Path(provenance)
     problems = []
+    known = tracked_files(provenance) if provenance.is_dir() else None
     for module in addon_dirs(addons):
         name = module.name
         path = provenance / f"{name}.yaml"
-        if not path.is_file():
+        if not path.is_file() or (known is not None and path.name not in known):
             problems.append(f"{name}: provenance record missing ({path.name})")
             continue
         try:

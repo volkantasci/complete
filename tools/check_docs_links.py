@@ -9,16 +9,21 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote
 
+from tools.gitfiles import tracked_files
+
 LINK_RE = re.compile(r"\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 CODE_SPAN_RE = re.compile(r"`[^`]*`")
 SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
 def _markdown_files(root: Path) -> list[Path]:
+    known = tracked_files(root)
     files = []
     for path in root.rglob("*.md"):
-        parts = path.relative_to(root).parts
-        if any(part.startswith(".") for part in parts):
+        rel = path.relative_to(root)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        if known is not None and rel.as_posix() not in known:
             continue
         if path.is_file():
             files.append(path)
