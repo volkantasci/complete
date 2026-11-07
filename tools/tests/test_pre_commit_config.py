@@ -40,4 +40,6 @@ def test_local_checks_are_unchanged():
     for name in ("check_headers", "check_manifests", "check_provenance", "check_docs_links"):
         hook = hooks[name.replace("_", "-")]
         assert hook["entry"] == f"python -m tools.{name}"
+        assert hook["language"] == "system"
+        assert hook["pass_filenames"] is False
         assert hook["always_run"] is True
