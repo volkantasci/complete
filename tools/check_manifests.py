@@ -18,6 +18,7 @@ NAME_RE = re.compile(r"^complete_[a-z0-9_]+$")
 COMPATIBILITY_NAMES = frozenset({
     "timer",  # slice 000
     "test_timer",  # slice 000
+    "web_enterprise",  # slice 001a
 })
 LICENSES = {"AGPL-3", "LGPL-3"}
 
