@@ -19,6 +19,8 @@ export class TimerToggleButton extends Component {
 
     setup() {
         this.orm = useService("orm");
+        // a click while a call is running is ignored
+        this.busy = false;
     }
 
     get isRunning() {
@@ -30,9 +32,17 @@ export class TimerToggleButton extends Component {
     }
 
     async onClick() {
-        const { record, context } = this.props;
-        const method = this.isRunning ? "action_timer_stop" : "action_timer_start";
-        await this.orm.call(record.resModel, method, [[record.resId]], { context });
-        await record.model.load();
+        if (this.busy) {
+            return;
+        }
+        this.busy = true;
+        try {
+            const { record, context } = this.props;
+            const method = this.isRunning ? "action_timer_stop" : "action_timer_start";
+            await this.orm.call(record.resModel, method, [[record.resId]], { context });
+            await record.model.load();
+        } finally {
+            this.busy = false;
+        }
     }
 }

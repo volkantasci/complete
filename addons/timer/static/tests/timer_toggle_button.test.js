@@ -3,7 +3,7 @@
 import { defineMailModels } from "@mail/../tests/mail_test_helpers";
 import { Component, t, useProps, xml } from "@odoo/owl";
 import { describe, expect, test } from "@odoo/hoot";
-import { click } from "@odoo/hoot-dom";
+import { click, queryOne } from "@odoo/hoot-dom";
 import { animationFrame } from "@odoo/hoot-mock";
 import {
     contains,
@@ -118,4 +118,29 @@ test("U8: click does not open the row", async () => {
     expect(".o_list_renderer").toHaveCount(1);
     expect(".o_data_row.o_selected_row").toHaveCount(0);
     expect.verifySteps(["action_timer_start"]);
+});
+
+test("U8: a second click while the call runs is ignored", async () => {
+    const pending = Promise.withResolvers();
+    onRpc("timer.test", "action_timer_start", async () => {
+        expect.step("start-call");
+        await pending.promise;
+        return true;
+    });
+    await mountView({ type: "list", resModel: "timer.test", arch: LIST });
+    await click(BUTTON(0));
+    await click(BUTTON(0));
+    await animationFrame();
+    pending.resolve();
+    await animationFrame();
+    expect.verifySteps(["start-call"]);
+});
+
+test("V1: the button has a visible background in both states", async () => {
+    await mountView({ type: "list", resModel: "timer.test", arch: LIST });
+    for (const row of [0, 1]) {
+        const el = queryOne(BUTTON(row));
+        expect(getComputedStyle(el).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+        expect(getComputedStyle(el).backgroundColor).not.toBe("transparent");
+    }
 });

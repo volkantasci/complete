@@ -54,7 +54,10 @@ export const timerStartField = {
     extractProps: ({ options }) => ({
         unitAmountField: options.unit_amount_field,
     }),
-    fieldDependencies: [{ name: "timer_pause", type: "datetime" }],
+    fieldDependencies: ({ options }) => [
+        { name: "timer_pause", type: "datetime" },
+        ...(options.unit_amount_field ? [{ name: options.unit_amount_field, type: "float" }] : []),
+    ],
 };
 
 registry.category("fields").add("timer_start_field", timerStartField);

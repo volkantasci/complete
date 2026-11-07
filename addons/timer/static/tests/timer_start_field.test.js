@@ -275,3 +275,18 @@ test("R22: each display owns its clock", async () => {
     });
     expect(new Set(created).size).toBe(2);
 });
+
+test("U1: the offset field is loaded when the view does not declare it", async () => {
+    mockDate("2026-05-01 12:00:00");
+    TimerTest._records = [{ id: 1, name: "A", hours_logged: 1.5, timer_start: stamp(0) }];
+    await mountView({
+        type: "form",
+        resModel: "timer.test",
+        resId: 1,
+        arch: `<form>
+            <field name="name"/>
+            <field name="timer_start" widget="timer_start_field" options="{'unit_amount_field': 'hours_logged'}"/>
+        </form>`,
+    });
+    expect(`${DISPLAY} span`).toHaveText("01:30:00");
+});
