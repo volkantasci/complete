@@ -4,9 +4,9 @@ Phases are delivered slice by slice; a slice is finished (features, bridges, tes
 
 | Phase | Content | Note | Status |
 |---|---|---|---|
-| **0 — Foundation** | Both repositories; policy, process, and module-authoring docs; templates; isolation layers and escape test; tools; Odoo image for build D; EE analysis environment and capture harness; CI; EE inventory and slice list | No module code | In progress |
-| **Pilot** | One small slice end to end: `timer` (depends only on `web` and `mail`; server logic and a UI widget) | Validates the process, measures throughput, calibrates thresholds | Planned |
-| **Gateway admin UI** | Administration UI for the AI and OCR gateway | Separate repository; runs in parallel with the pilot after its own design approval | Planned |
+| **0 — Foundation** | Both repositories; policy, process, and module-authoring docs; templates; isolation layers and escape test; tools; Odoo image for build D; EE analysis environment and capture harness; CI; EE inventory and slice list | No module code | Done |
+| **Pilot** | One small slice end to end: `timer` (depends only on `web` and `mail`; server logic and a UI widget) | Validates the process, measures throughput, calibrates thresholds; see the [pilot report](pilot-000-timer.md) | Done |
+| **Gateway admin UI** | Administration UI for the AI and OCR gateway | Separate repository; runs in parallel with the pilot after its own design approval | Built; deployment pending |
 | **1 — Platform** | Enterprise-style web shell (home menu, theme, mobile), Gantt, grid, cohort and map views, spreadsheet edition, worksheet, data cleaning | Foundation for later phases | Planned |
 | **2 — AI and OCR** | Gateway OLG and OCR extensions; `complete_ai_gateway`; OCR for vendor bills, expenses, and applicants on CE applications; AI core with bridges to CE applications | From here on, each slice includes its AI bridge | Planned |
 | **3 — Finance** | Report engine, reconciliation, assets, budgets, payment files, bank imports (with bank-statement OCR), SAF-T and related compliance | | Planned |

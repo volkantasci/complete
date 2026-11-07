@@ -32,7 +32,7 @@ A slice is one EE application, or a coherent group of modules, together with eve
 | 8 | Integration | Orchestrator | Pull request merged; full test suite and CI green |
 | 9 | Provenance | Orchestrator | Record written; spec status `verified` |
 
-The step 6 thresholds are initial values; the pilot calibrates them.
+The step 6 thresholds were initial values. The pilot kept both; see the [pilot report](pilot-000-timer.md#threshold-calibration).
 
 ## Spec packages
 
