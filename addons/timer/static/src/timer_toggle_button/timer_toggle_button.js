@@ -4,6 +4,8 @@ import { Component, t, useProps } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 import { useService } from "@web/core/utils/hooks";
 
+const isFieldSet = (record, fieldName) => !!record.data[fieldName];
+
 /**
  * Start/stop button bound to a yes/no value meaning "a timer is active".
  * It never changes its own state: it calls the server, then reloads the data
@@ -24,8 +26,7 @@ export class TimerToggleButton extends Component {
     }
 
     get isRunning() {
-        const { record, name } = this.props;
-        return !!record.data[name];
+        return isFieldSet(this.props.record, this.props.name);
     }
 
     get label() {

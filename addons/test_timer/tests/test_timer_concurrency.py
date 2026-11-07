@@ -42,6 +42,17 @@ class TestTimerOneRunning(TimerCase):
         self.assertTrue(self.timer_of(self.doc_a, self.u1).is_timer_running)
         self.assertFalse(self.timer_of(self.doc_b, self.u1).is_timer_running)
 
+    def test_RW1_resume_several_records_keeps_one_running(self):
+        user = self.u1
+        docs = self.doc_a | self.doc_b | self.doc_c
+        for doc in docs:
+            doc.with_user(user).action_timer_start()
+            doc.with_user(user).action_timer_pause()
+        docs.with_user(user).action_timer_resume()
+        running = self.env['timer.timer'].sudo().search([
+            ('user_id', '=', user.id)]).filtered('is_timer_running')
+        self.assertEqual(running, self.timer_of(self.doc_c, user))
+
 
 @tagged('post_install', '-at_install')
 class TestTimerConcurrentStarts(TransactionCase):

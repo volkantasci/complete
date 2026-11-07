@@ -89,6 +89,7 @@ class PerUserTimerSupport(models.AbstractModel):
             raise MissingError(self.env._("The record to time no longer exists."))
         self.check_access('read')
         self.sudo()._stop_timer_in_progress()
+        self._flush_timers()
         self._invalidate_timer_fields()
         timer = self.user_timer_id
         if not timer:
@@ -105,9 +106,19 @@ class PerUserTimerSupport(models.AbstractModel):
         self._invalidate_timer_fields()
 
     def action_timer_resume(self):
+        """Resume the timers of the records one after the other.
+
+        The user keeps at most one running timer: the last record resumed.
+        """
         self._stop_timer_in_progress()
+        self._flush_timers()
         self._invalidate_timer_fields()
-        for record in self:
+        for position, record in enumerate(self):
+            if position:
+                # the previous record is running now: pause it first
+                record._stop_timer_in_progress()
+                record._flush_timers()
+                record._invalidate_timer_fields()
             record.user_timer_id.action_timer_resume()
         self._invalidate_timer_fields()
 
@@ -116,10 +127,11 @@ class PerUserTimerSupport(models.AbstractModel):
         timer = self.user_timer_id
         if not timer:
             return False
-        elapsed = timer.action_timer_stop()
-        timer.unlink()
-        self._invalidate_timer_fields()
-        return elapsed
+        try:
+            return timer.action_timer_stop()
+        finally:
+            timer.unlink()
+            self._invalidate_timer_fields()
 
     def _action_interrupt_user_timers(self):
         """Reaction of a document whose running timer is interrupted: pause it."""
@@ -162,6 +174,11 @@ class PerUserTimerSupport(models.AbstractModel):
         timers.sudo().unlink()
         return super().unlink()
 
+    def _flush_timers(self):
+        """Write pending timer changes: the unique index checks each statement,
+        so pauses must reach the database before a timer is started or resumed."""
+        self.env['timer.timer'].flush_model()
+
     def _stop_timer_in_progress(self):
         for timer in self._get_user_timers().filtered('is_timer_running'):
             document = timer._get_related_document()
@@ -170,6 +187,3 @@ class PerUserTimerSupport(models.AbstractModel):
             else:
                 # Orphan of a deleted document: pause it, or it would block the user.
                 timer.sudo().action_timer_pause()
-        # The unique index checks each statement: the pauses must reach the
-        # database before the caller starts or resumes its own timer.
-        self.env['timer.timer'].flush_model()

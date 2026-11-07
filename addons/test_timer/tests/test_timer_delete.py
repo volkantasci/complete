@@ -68,9 +68,14 @@ class TestTimerDelete(TimerCase):
         self.assertTrue(timer.timer_pause)
         self.assertTrue(self.timer_of(self.doc_a, user).is_timer_running)
 
-    def test_R3_interrupt_skips_missing_document(self):
-        self.env['timer.timer'].sudo().create({
+    def test_R3_interrupt_pauses_timer_of_missing_document(self):
+        orphan = self.env['timer.timer'].sudo().create({
             'res_model': 'timer.test', 'res_id': 999999, 'user_id': self.u1.id,
             'timer_start': datetime(2026, 3, 4, 9, 0, 0)})
         self.doc_a.with_user(self.u1).action_timer_start()
+        self.assertTrue(orphan.timer_pause)
+        self.assertFalse(orphan.is_timer_running)
         self.assertTrue(self.doc_a.with_user(self.u1).is_timer_running)
+        running = self.env['timer.timer'].sudo().search([
+            ('user_id', '=', self.u1.id)]).filtered('is_timer_running')
+        self.assertEqual(running, self.timer_of(self.doc_a, self.u1))

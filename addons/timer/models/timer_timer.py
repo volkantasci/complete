@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from odoo import api, fields, models
 
+_RUNNING_INPUTS = ('timer_pause', 'timer_start')
 _MIRRORED_FIELDS = ['user_timer_id', 'timer_start', 'timer_pause', 'is_timer_running']
 
 
@@ -28,7 +29,7 @@ class ClockEntry(models.Model):
         'A user can have only one running timer.',
     )
 
-    @api.depends('timer_pause', 'timer_start')
+    @api.depends(*_RUNNING_INPUTS)
     def _derive_running_flag(self):
         for timer in self:
             timer.is_timer_running = bool(timer.timer_start and not timer.timer_pause)
@@ -92,9 +93,10 @@ class ClockEntry(models.Model):
         self.ensure_one()
         if not self.timer_start:
             return False
-        elapsed = self._get_minutes_spent()
-        self.write(dict.fromkeys(('timer_start', 'timer_pause'), False))
-        return elapsed
+        try:
+            return self._get_minutes_spent()
+        finally:
+            self.write(dict.fromkeys(('timer_start', 'timer_pause'), False))
 
     @api.model
     @api.readonly
