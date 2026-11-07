@@ -1,0 +1,14 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="timer.TimerToggleButton">
+        <button type="button"
+            class="o_timer_toggle_button btn"
+            t-att-class="this.isRunning ? 'btn-danger' : 'btn-primary'"
+            t-att-title="this.label"
+            t-att-aria-label="this.label"
+            t-on-click.stop.prevent="this.onClick">
+            <i class="oi oi-filled" t-att-data-icon="this.isRunning ? 'stop_circle' : 'play_circle'"/>
+        </button>
+    </t>
+</templates>

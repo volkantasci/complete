@@ -1,0 +1,7 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="test_timer.TimerTestToggle">
+        <TimerToggleButton name="this.props.name" record="this.props.record" context="{}"/>
+    </t>
+</templates>

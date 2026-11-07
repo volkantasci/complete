@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import argparse
 import math
 import sys
 from pathlib import Path
@@ -79,11 +80,20 @@ def check_provenance(addons: Path, provenance: Path) -> list[str]:
     return problems
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="python -m tools.check_provenance", description=__doc__)
+    parser.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="report missing records without failing (local commits before the provenance step)",
+    )
+    args = parser.parse_args(argv)
     root = Path.cwd()
     problems = check_provenance(root / "addons", root / "provenance")
     for problem in problems:
         print(problem)
+    if args.allow_missing:
+        problems = [p for p in problems if "provenance record missing" not in p]
     return 1 if problems else 0
 
 

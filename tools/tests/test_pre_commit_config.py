@@ -37,9 +37,20 @@ def test_ruff_hook_runs_the_pinned_ruff_from_the_venv():
 
 def test_local_checks_are_unchanged():
     hooks = _hooks()
-    for name in ("check_headers", "check_manifests", "check_provenance", "check_docs_links"):
+    entries = {
+        "check_headers": "python -m tools.check_headers",
+        "check_manifests": "python -m tools.check_manifests",
+        "check_provenance": "python -m tools.check_provenance --allow-missing",
+        "check_docs_links": "python -m tools.check_docs_links",
+    }
+    for name, entry in entries.items():
         hook = hooks[name.replace("_", "-")]
-        assert hook["entry"] == f"python -m tools.{name}"
+        assert hook["entry"] == entry
         assert hook["language"] == "system"
         assert hook["pass_filenames"] is False
         assert hook["always_run"] is True
+
+
+def test_ci_runs_the_strict_provenance_check():
+    ci = (REPO / ".github/workflows/ci.yml").read_text()
+    assert "- run: python -m tools.check_provenance\n" in ci

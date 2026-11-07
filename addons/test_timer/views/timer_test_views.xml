@@ -1,0 +1,55 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <record id="timer_test_view_list" model="ir.ui.view">
+        <field name="name">timer.test.list</field>
+        <field name="model">timer.test</field>
+        <field name="arch" type="xml">
+            <list string="Timer Tests">
+                <field name="name"/>
+                <field name="hours_logged" widget="float_time"/>
+                <field name="is_timer_running" widget="timer_test_toggle" string="Start/Stop"/>
+                <field name="timer_start" widget="timer_start_field"
+                    options="{'unit_amount_field': 'hours_logged'}" string="Timer"/>
+                <field name="is_timer_running"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="timer_test_view_form" model="ir.ui.view">
+        <field name="name">timer.test.form</field>
+        <field name="model">timer.test</field>
+        <field name="arch" type="xml">
+            <form string="Timer Test">
+                <header>
+                    <button name="action_timer_start" string="Start" type="object"
+                        class="btn-primary" invisible="timer_start"/>
+                    <button name="action_timer_pause" string="Pause" type="object"
+                        invisible="not is_timer_running"/>
+                    <button name="action_timer_resume" string="Resume" type="object"
+                        invisible="not timer_start or not timer_pause"/>
+                    <button name="action_timer_stop" string="Stop" type="object"
+                        invisible="not timer_start"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="hours_logged" widget="float_time"/>
+                        <field name="timer_start" widget="timer_start_field"
+                            options="{'unit_amount_field': 'hours_logged'}" string="Timer"/>
+                        <field name="is_timer_running"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_timer_test" model="ir.actions.act_window">
+        <field name="name">Timer Tests</field>
+        <field name="res_model">timer.test</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_timer_test" name="Timer Tests" action="action_timer_test"
+        groups="base.group_user" sequence="8765"/>
+</odoo>

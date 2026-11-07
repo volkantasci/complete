@@ -1,0 +1,33 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+.o_timer_toggle_button.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 29px;
+    padding: 4px 16px;
+    border: 0;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+
+    // the colour does not change on hover, focus or press
+    &.btn-primary,
+    &.btn-primary:hover,
+    &.btn-primary:focus,
+    &.btn-primary:active {
+        background-color: $primary;
+    }
+    &.btn-danger,
+    &.btn-danger:hover,
+    &.btn-danger:focus,
+    &.btn-danger:active {
+        background-color: $danger;
+    }
+
+    .oi {
+        font-size: 14px;
+        color: #fff;
+        line-height: 1;
+    }
+}

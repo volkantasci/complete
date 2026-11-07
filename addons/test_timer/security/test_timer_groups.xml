@@ -1,0 +1,10 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <record id="group_timer_test_reader" model="res.groups">
+        <field name="name">Timer test: reader</field>
+    </record>
+    <record id="group_timer_test_manager" model="res.groups">
+        <field name="name">Timer test: manager</field>
+    </record>
+</odoo>

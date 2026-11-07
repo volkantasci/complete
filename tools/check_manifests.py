@@ -10,6 +10,13 @@ import sys
 from pathlib import Path
 
 NAME_RE = re.compile(r"^complete_[a-z0-9_]+$")
+# Original module names that an approved spec package requires for database and
+# dependency compatibility ([DB] in its model.md). Each entry needs the owner's
+# approval at the slice's checkpoint.
+COMPATIBILITY_NAMES = frozenset({
+    "timer",  # slice 000
+    "test_timer",  # slice 000
+})
 LICENSES = {"AGPL-3", "LGPL-3"}
 
 
@@ -25,7 +32,7 @@ def check_manifests(addons: Path) -> list[str]:
     problems = []
     for module in addon_dirs(addons):
         name = module.name
-        if not NAME_RE.match(name):
+        if not NAME_RE.match(name) and name not in COMPATIBILITY_NAMES:
             problems.append(f"{name}: module name must match {NAME_RE.pattern}")
         manifest = module / "__manifest__.py"
         if not manifest.is_file():

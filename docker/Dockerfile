@@ -109,6 +109,17 @@ RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ noble-pgdg main' > /etc/a
 # Let `entrypoint: []` + `python3 -m odoo` use the venv holding Odoo's requirements
 ENV PATH=/opt/odoo/venv/bin:$PATH
 
+# Headless Chrome and websocket-client let HttpCase browser tests (tours and JS unit
+# tests) run; without them Odoo skips those tests silently. amd64 only: Google ships
+# no arm64 Chrome package, and other architectures keep skipping browser tests.
+RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+        apt-get update \
+        && curl -o chrome.deb -sSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+        && apt-get install -y --no-install-recommends ./chrome.deb \
+        && rm -rf /var/lib/apt/lists/* chrome.deb; \
+    fi \
+    && /opt/odoo/venv/bin/pip install --no-cache-dir websocket-client
+
 # Copy entrypoint script and Odoo configuration file
 COPY ./entrypoint.sh /
 COPY ./odoo.conf /etc/odoo/
