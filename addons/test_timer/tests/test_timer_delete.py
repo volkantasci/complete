@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 from datetime import datetime
+from unittest.mock import patch
 
 from odoo.exceptions import AccessError
 from odoo.tests.common import new_test_user, tagged
@@ -33,8 +34,12 @@ class TestTimerDelete(TimerCase):
         manager = new_test_user(self.env, login='timer_manager', groups=_MANAGER)
         doc = self.env['timer.test.restricted'].with_user(manager).create({'name': 'D'})
         timer = self._direct(doc, manager)
-        with self.assertRaises(AccessError):
-            doc.with_user(reader).unlink()
+        Timer = self.registry['timer.timer']
+        with patch.object(Timer, 'unlink', autospec=True, side_effect=Timer.unlink) as unlink_spy:
+            with self.assertRaises(AccessError):
+                doc.with_user(reader).unlink()
+        # assertRaises rolls back, so an early removal is only visible through the spy
+        unlink_spy.assert_not_called()
         self.assertTrue(doc.exists())
         self.assertTrue(timer.exists())
 
