@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 from odoo import api, fields, models
+from odoo.exceptions import MissingError
 from odoo.fields import Domain
 
 _MIRRORED = ['user_timer_id', 'timer_start', 'timer_pause', 'is_timer_running']
@@ -88,6 +89,9 @@ class TimerMixin(models.AbstractModel):
 
     def action_timer_start(self):
         self.ensure_one()
+        if not self.exists():
+            raise MissingError(self.env._("The record to time no longer exists."))
+        self.check_access('read')
         self.sudo()._stop_timer_in_progress()
         self._invalidate_timer_fields()
         timer = self.user_timer_id

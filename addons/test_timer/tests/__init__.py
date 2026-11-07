@@ -10,5 +10,6 @@ from . import (
     test_timer_parent,
     test_timer_record,
     test_timer_search,
+    test_timer_start_rights,
     test_tours,
 )
