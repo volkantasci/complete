@@ -55,7 +55,8 @@ Applications offer the four actions as buttons, or as one start/stop button:
 The start/stop button is a small bar in the theme's main colour with a play icon (**Start**) or,
 while your timer runs, a red bar with a stop icon (**Stop**). Clicking it in a list row does
 not open the row. In the list above, the red button stops the running timer
-of "Design review"; the other rows show the start button.
+of "Design review"; the other rows show the start button. On "Write report",
+whose timer is paused, the start button resumes it.
 
 ## Who sees what
 
@@ -66,7 +67,8 @@ of "Design review"; the other rows show the start button.
 
 ## On a phone
 
-The clock and the button work the same way on small screens.
+The clock and the buttons work the same way on small screens. In a list,
+scroll sideways to reach the clock column.
 
 ![A running timer on a phone](../assets/timer/form-running-mobile.png)
 

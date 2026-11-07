@@ -17,6 +17,7 @@ databases and modules that depend on it keep working (see
 |---|---|---|
 | Timer record | `timer.timer` | One user's stopwatch on one document: start moment, pause moment, document model and id, user, optional parent document. At most one per document and user (`_unique_timer`). |
 | Timer behaviour | `timer.mixin` | Inherit it on a document model to get `action_timer_start`, `action_timer_pause`, `action_timer_resume`, `action_timer_stop` and the read-only fields `timer_start`, `timer_pause`, `is_timer_running`, `user_timer_id`. |
+| Extension hooks | on `timer.mixin` | `_action_interrupt_user_timers` (reaction when another timer starts; default pause), `_get_timer_vals`, `_create_timer`, `_get_user_timers`, `_get_timers_from_other_users`, `_stop_timer_in_progress`. |
 | Parent timer behaviour | `timer.parent.mixin` | For a parent document whose time is always recorded on a child document. Override `_create_record_to_start_timer` to return the child. |
 | Rounding helper | `odoo.addons.timer.utils.round_time_spent` | `round_time_spent(minutes, minimum, rounding)`: at least `minimum`, rounded up to a multiple of `rounding` (0 = no rounding). |
 | Server clock | `timer.timer.get_server_time()` | Current server time in UTC; read-only call. |

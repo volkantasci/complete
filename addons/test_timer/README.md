@@ -20,8 +20,8 @@ module for compatibility (see
   the browser tests, take screenshots and let a reviewer try the timer.
 - **Demo data.** Five `timer.test` documents, loaded with `--with-demo`.
   "Write report" has 1.5 hours already logged.
-- **Tests.** Every test name carries the id of the acceptance scenario it
-  checks (for example `test_A7_stop_on_paused_counts_to_pause`).
+- **Tests.** Test names carry the id of the acceptance scenario or spec rule
+  they check (for example `test_A7_stop_on_paused_counts_to_pause`).
 
 | File | Covers |
 |---|---|
@@ -30,7 +30,7 @@ module for compatibility (see
 | `tests/test_timer_delete.py` | deletion and rights (A17–A19, A27) |
 | `tests/test_timer_search.py` | searches (A15, A16) |
 | `tests/test_timer_parent.py` | parent timer behaviour (A24, A25, A32) |
-| `tests/test_js.py` | runs the JavaScript unit tests of `timer` in headless Chrome (U1–U10) |
+| `tests/test_js.py` | runs the JavaScript unit tests in `addons/timer/static/tests/` in headless Chrome (U1–U10, R19–R22, V1) |
 | `tests/test_tours.py` | browser tours on the host screens (U1–U3, U5, U8, U9) |
 
 ## Running
