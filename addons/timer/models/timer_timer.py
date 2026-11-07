@@ -80,7 +80,9 @@ class TimerTimer(models.Model):
 
     def _get_related_document(self):
         self.ensure_one()
-        return self.env[self.res_model].browse(self.res_id)
+        if self.res_model not in self.env:
+            return self.env['base']
+        return self.env[self.res_model].browse(self.res_id).exists()
 
     def _get_minutes_spent(self):
         self.ensure_one()

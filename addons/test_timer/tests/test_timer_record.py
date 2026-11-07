@@ -108,3 +108,26 @@ class TestTimerRecord(TimerCase):
         self.assertEqual(timer._get_related_document(), self.doc_a)
         self.assertEqual(Timer._get_timers(), timer)
         self.assertFalse(self.env['timer.timer'].with_user(self.u2)._get_timers())
+
+    def test_R3_get_related_document_missing(self):
+        Timer = self.env['timer.timer']
+        found = Timer.create(_vals(self.doc_a, self.u1))
+        self.assertEqual(found._get_related_document(), self.doc_a)
+        stale = Timer.create({'res_model': 'timer.test', 'res_id': 999999, 'user_id': self.u1.id})
+        self.assertFalse(stale._get_related_document())
+        unknown = Timer.create({'res_model': 'no.such.model', 'res_id': 1, 'user_id': self.u1.id})
+        self.assertFalse(unknown._get_related_document())
+
+    def test_A29_record_pause_never_started_unchanged(self):
+        timer = self.env['timer.timer'].with_user(self.u1).create(_vals(self.doc_a, self.u1))
+        timer.action_timer_pause()
+        self.assertFalse(timer.timer_start or timer.timer_pause)
+
+    def test_A30_record_resume_running_unchanged(self):
+        start = datetime(2026, 3, 4, 9, 0, 0)
+        timer = self.env['timer.timer'].with_user(self.u1).create(
+            _vals(self.doc_a, self.u1, timer_start=start))
+        with freeze_time('2026-03-04 09:05:00'):
+            timer.action_timer_resume()
+        self.assertEqual(timer.timer_start, start)
+        self.assertFalse(timer.timer_pause)

@@ -5,7 +5,17 @@ from odoo import fields, models
 
 class TimerTest(models.Model):
     _name = 'timer.test'
+    _inherit = ['timer.mixin']
     _description = 'Timer Model'
 
     name = fields.Char(required=True)
     hours_logged = fields.Float('Hours Already Logged')
+
+
+class TimerTestInterruption(models.Model):
+    _name = 'timer.test.interruption'
+    _inherit = ['timer.mixin']
+    _description = 'Interruption Timer Model'
+
+    def _action_interrupt_user_timers(self):
+        self.action_timer_stop()
