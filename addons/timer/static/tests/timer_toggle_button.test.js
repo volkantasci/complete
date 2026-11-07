@@ -22,7 +22,7 @@ describe.current.tags("desktop");
 class TimerTest extends models.Model {
     _name = "timer.test";
 
-    name = fields.Char();
+    name = fields.Char({ required: true });
     is_timer_running = fields.Boolean();
 
     _records = [
@@ -143,4 +143,43 @@ test("V1: the button has a visible background in both states", async () => {
         expect(getComputedStyle(el).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
         expect(getComputedStyle(el).backgroundColor).not.toBe("transparent");
     }
+});
+
+const FORM = `<form><field name="name"/><field name="is_timer_running" widget="test_timer_toggle"/></form>`;
+const FORM_BUTTON = ".o_form_view .o_timer_toggle_button";
+
+test("RW3: unsaved form edits are saved before the timer action", async () => {
+    onRpc("web_save", ({ args }) => {
+        expect.step(`web_save:${args[1].name}`);
+    });
+    await mountView({ type: "form", resModel: "timer.test", resId: 1, arch: FORM });
+    await contains(".o_field_widget[name=name] input").edit("renamed", { confirm: false });
+    await contains(FORM_BUTTON).click();
+    expect.verifySteps(["web_save:renamed", "action_timer_start"]);
+    expect(".o_field_widget[name=name] input").toHaveValue("renamed");
+    expect(FORM_BUTTON).toHaveClass("btn-danger");
+});
+
+test("RW3: no save when nothing changed", async () => {
+    onRpc("web_save", () => {
+        expect.step("web_save");
+    });
+    await mountView({ type: "form", resModel: "timer.test", resId: 1, arch: FORM });
+    await contains(FORM_BUTTON).click();
+    expect.verifySteps(["action_timer_start"]);
+    await mountView({ type: "list", resModel: "timer.test", arch: LIST });
+    await contains(BUTTON(1)).click();
+    expect.verifySteps(["action_timer_stop"]);
+});
+
+test("RW3: an invalid record is not acted on", async () => {
+    onRpc("web_save", () => {
+        expect.step("web_save");
+    });
+    await mountView({ type: "form", resModel: "timer.test", resId: 1, arch: FORM });
+    await contains(".o_field_widget[name=name] input").edit("", { confirm: false });
+    await contains(FORM_BUTTON).click();
+    expect.verifySteps([]);
+    expect(".o_field_invalid").toHaveCount(1);
+    expect(FORM_BUTTON).toHaveClass("btn-primary");
 });

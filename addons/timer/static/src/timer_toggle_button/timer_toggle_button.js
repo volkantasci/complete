@@ -38,6 +38,12 @@ export class TimerToggleButton extends Component {
         this.busy = true;
         try {
             const { record, context } = this.props;
+            // keep unsaved edits: save first, and stop if the record is invalid
+            if (record.dirty || record.isNew) {
+                if (!(await record.save())) {
+                    return;
+                }
+            }
             const method = this.isRunning ? "action_timer_stop" : "action_timer_start";
             await this.orm.call(record.resModel, method, [[record.resId]], { context });
             await record.model.load();
