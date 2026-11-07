@@ -40,6 +40,9 @@ def ws(tmp_path):
     hooks.mkdir(parents=True)
     shutil.copy2(GUARD, hooks / "guard.py")
     (root / "complete" / "README.md").write_text("# Test\n")
+    (root / "complete" / "docker").mkdir()
+    for name in ("compose.yaml", "Dockerfile"):
+        shutil.copy2(REPO / "docker" / name, root / "complete" / "docker" / name)
     (root / "odoo-reference" / "enterprise").mkdir(parents=True)
     (root / "odoo-reference" / "enterprise" / "x.py").write_text("x = 1\n")
     (root / "complete-specs" / "slices" / "000-timer").mkdir(parents=True)
@@ -169,7 +172,7 @@ def test_specs_areas(ws):
         "cat ../odoo-reference/enterprise/x.py",
         "claude -p hi",
         "/usr/bin/claude --version",
-        "podman run -v {ws}/odoo-reference/enterprise:/x alpine ls /x",
+        "podman run -v {ws}/odoo-reference/enterprise:/x ubuntu:noble ls /x",
     ],
 )
 def test_bash_denied(ws, cmd):
@@ -462,21 +465,21 @@ def test_sandbox_override_denied(ws):
 @pytest.mark.parametrize(
     "cmd,code",
     [
-        ("podman run --rm -v {ws}/odoo-reference:/r alpine cat /r/enterprise/x.py", 2),
-        ("podman run --rm -v ..:/w alpine ls /w", 2),
-        ("podman run --rm -v /:/host alpine ls /host", 2),
-        ("podman run --rm -v ~:/h alpine ls /h", 2),
-        ("podman run --rm -v $HOME/odoo-reference:/r alpine ls /r", 2),
-        ("podman run --rm -v ${HOME}/odoo-reference:/r alpine ls /r", 2),
-        ("podman run --rm -v $SRC/x:/r alpine ls /r", 2),
-        ('podman run --rm -v "$(dirname "$PWD")":/r alpine ls /r', 2),
-        ("podman run --rm --mount type=bind,source=../odoo-reference,target=/r alpine ls", 2),
-        ("podman run --rm -v../complete-specs:/s alpine ls /s", 2),
-        ("docker run --rm -v ../odoo-reference:/r alpine ls /r", 2),
-        ("podman run --rm -v ./addons:/mnt/extra-addons:ro alpine ls /mnt/extra-addons", 0),
-        ("podman run --rm -v $PWD/addons:/mnt alpine ls /mnt", 2),
-        ("podman run --rm -v ../odoo-reference/community:/ce:ro alpine ls /ce", 0),
-        ("podman run --rm -v ../complete-specs/slices:/s:ro alpine ls /s", 0),
+        ("podman run --rm -v {ws}/odoo-reference:/r ubuntu:noble cat /r/enterprise/x.py", 2),
+        ("podman run --rm -v ..:/w ubuntu:noble ls /w", 2),
+        ("podman run --rm -v /:/host ubuntu:noble ls /host", 2),
+        ("podman run --rm -v ~:/h ubuntu:noble ls /h", 2),
+        ("podman run --rm -v $HOME/odoo-reference:/r ubuntu:noble ls /r", 2),
+        ("podman run --rm -v ${HOME}/odoo-reference:/r ubuntu:noble ls /r", 2),
+        ("podman run --rm -v $SRC/x:/r ubuntu:noble ls /r", 2),
+        ('podman run --rm -v "$(dirname "$PWD")":/r ubuntu:noble ls /r', 2),
+        ("podman run --rm --mount type=bind,source=../odoo-reference,target=/r ubuntu:noble ls", 2),
+        ("podman run --rm -v../complete-specs:/s ubuntu:noble ls /s", 2),
+        ("docker run --rm -v ../odoo-reference:/r ubuntu:noble ls /r", 2),
+        ("podman run --rm -v ./addons:/mnt/extra-addons:ro ubuntu:noble ls /mnt/extra-addons", 0),
+        ("podman run --rm -v $PWD/addons:/mnt ubuntu:noble ls /mnt", 2),
+        ("podman run --rm -v ../odoo-reference/community:/ce:ro ubuntu:noble ls /ce", 0),
+        ("podman run --rm -v ../complete-specs/slices:/s:ro ubuntu:noble ls /s", 0),
         ("podman compose -f docker/compose.yaml ps", 0),
         ("podman ps -a", 0),
     ],
@@ -681,28 +684,28 @@ EE_GLOB = "../odoo-ref*/ent*/x.py"
     "cmd",
     [
         # The reviewer's probe forms.
-        f"podman run --rm -i alpine cat < {EE_GLOB}",
+        f"podman run --rm -i ubuntu:noble cat < {EE_GLOB}",
         f"podman cp {EE_GLOB} c:/x",
         "podman build -t t ../odoo-ref*",
         "podman run --rm -v{ws}/odoo-reference/{community:/c,enterprise:/e} alpine cat /e/x.py",
         f"podman ps; cat {EE_GLOB}",
-        "podman run --rm -i alpine cat < ../odoo-reference/\\\nenterprise/x.py",
+        "podman run --rm -i ubuntu:noble cat < ../odoo-reference/\\\nenterprise/x.py",
         f"podman unshare sh -c 'cat {EE_GLOB}'",
         # Glob host paths without a redirect.
-        "podman run --rm -v ../odoo-ref?rence:/r alpine ls /r",
-        "podman run --rm -v ../odoo-ref[e]rence:/r alpine ls /r",
-        "podman run --rm -v ../odoo-*:/r alpine ls /r",
+        "podman run --rm -v ../odoo-ref?rence:/r ubuntu:noble ls /r",
+        "podman run --rm -v ../odoo-ref[e]rence:/r ubuntu:noble ls /r",
+        "podman run --rm -v ../odoo-*:/r ubuntu:noble ls /r",
         # Shell syntax of any kind.
-        "podman run --rm alpine ls $(pwd)",
-        "podman run --rm -v `pwd`:/w alpine ls /w",
-        "podman run --rm -v ${X}:/w alpine ls /w",
-        "podman run --rm -v ~/x:/h alpine ls /h",
+        "podman run --rm ubuntu:noble ls $(pwd)",
+        "podman run --rm -v `pwd`:/w ubuntu:noble ls /w",
+        "podman run --rm -v ${X}:/w ubuntu:noble ls /w",
+        "podman run --rm -v ~/x:/h ubuntu:noble ls /h",
         "podman ps | head",
         "podman ps && ls",
         "podman ps > out.txt",
         "podman ps &",
         "podman ps\nls",
-        "podman run -i alpine sh <<EOF\nls\nEOF",
+        "podman run -i ubuntu:noble sh <<EOF\nls\nEOF",
         # Command position after separators, inside groups and substitutions.
         "ls && podman ps",
         "ls || podman ps",
@@ -715,10 +718,10 @@ EE_GLOB = "../odoo-ref*/ent*/x.py"
         "if true; then podman ps; fi",
         "2>/dev/null podman ps -a",
         # Quoting or a path does not hide the command word.
-        "'podman' run --rm -v ../odoo-ref*:/r alpine ls /r",
-        "\\podman run --rm -v ../odoo-ref*:/r alpine ls /r",
-        "/usr/bin/podman run --rm -v ..:/w alpine ls /w",
-        "docker run --rm -v ../odoo-ref*:/r alpine ls /r",
+        "'podman' run --rm -v ../odoo-ref*:/r ubuntu:noble ls /r",
+        "\\podman run --rm -v ../odoo-ref*:/r ubuntu:noble ls /r",
+        "/usr/bin/podman run --rm -v ..:/w ubuntu:noble ls /w",
+        "docker run --rm -v ../odoo-ref*:/r ubuntu:noble ls /r",
         # Subcommands that leave podman's normal model.
         "podman unshare ls",
         "podman machine ssh",
@@ -732,8 +735,8 @@ EE_GLOB = "../odoo-ref*/ent*/x.py"
         "podman --connection x ps",
         "podman -c x ps",
         "podman --identity k ps",
-        "podman --hooks-dir /tmp/h run alpine ls",
-        "podman --runtime /tmp/r run alpine ls",
+        "podman --hooks-dir /tmp/h run ubuntu:noble ls",
+        "podman --runtime /tmp/r run ubuntu:noble ls",
         # Prefixes and wrappers.
         "CONTAINER_HOST=ssh://h podman ps",
         "env podman ps",
@@ -764,13 +767,13 @@ def test_container_symlink_without_a_slash_denied(links):
         "podman compose -f docker/compose.yaml run --rm odoo odoo -d test_x -i complete_x"
         " --test-tags /complete_x --stop-after-init",
         "podman compose -f docker/compose.yaml ps",
-        "podman run --rm -v ./addons:/mnt/extra-addons:ro alpine ls /mnt/extra-addons",
+        "podman run --rm -v ./addons:/mnt/extra-addons:ro ubuntu:noble ls /mnt/extra-addons",
         "podman ps -a",
         "podman images",
         "podman --version",
         "docker ps",
         # Heredoc bodies and quoted arguments of other commands are not container commands.
-        "cat <<EOF > notes.md\npodman run --rm -v ${X}:/x alpine\nEOF",
+        "cat <<EOF > notes.md\npodman run --rm -v ${X}:/x ubuntu:noble\nEOF",
         "cat <<'EOF' > notes.md\npodman ps; echo $(pwd)\nEOF",
         'cat <<"EOF" > notes.md\npodman ps | head\nEOF',
         "cat <<-EOF > notes.md\n\tpodman ps $X\n\tEOF",
@@ -806,7 +809,7 @@ def test_container_commands_allowed(ws, cmd):
         ("ls ../complete-specs/slices", 0),
         ("ls ../complete-specs/./slices", 0),
         ("cat ../complete-specs/templates/spec.md", 0),
-        ("podman run --rm -v ../complete-specs/slices:/s:ro alpine ls /s", 0),
+        ("podman run --rm -v ../complete-specs/slices:/s:ro ubuntu:noble ls /s", 0),
     ],
 )
 def test_bare_specs_root_in_shell_commands(ws, cmd, code):
@@ -1079,22 +1082,22 @@ def home(ws):
 @pytest.mark.parametrize(
     "cmd",
     [
-        "podman run --rm -v {ws}/complete:/r alpine cp /r/tools/evil.cfg /r/.git/config",
+        "podman run --rm -v {ws}/complete:/r ubuntu:noble cp /r/tools/evil.cfg /r/.git/config",
         "podman run --rm -v {ws}/complete:/r -w /r/.git alpine cp /r/tools/h.sh hooks/pre-commit",
-        "podman run --rm -v .:/r alpine ls /r",
-        "podman run --rm -v ./.git:/g alpine ls /g",
-        "podman run --rm --mount type=bind,source=.git,target=/g alpine ls /g",
-        "podman run --rm -v ./.claude:/c alpine ls /c",
+        "podman run --rm -v .:/r ubuntu:noble ls /r",
+        "podman run --rm -v ./.git:/g ubuntu:noble ls /g",
+        "podman run --rm --mount type=bind,source=.git,target=/g ubuntu:noble ls /g",
+        "podman run --rm -v ./.claude:/c ubuntu:noble ls /c",
         "podman cp c:/x .git",
         "podman cp c:/x .",
         "podman cp .git c:/x",
         "podman build -t t .",
-        "podman run --rm -v {ws}/complete-audit:/a alpine ls /a",
-        "podman run --rm -v {home}/.config/containers:/c alpine ls /c",
-        "podman run --rm -v {home}/.config:/c alpine ls /c",
-        "podman run --rm -v {home}:/h alpine ls /h",
-        "podman run --rm -v {home}/.claude.json:/c alpine ls /c",
-        "podman run --rm -v ./addons/gitlink:/g alpine ls /g",
+        "podman run --rm -v {ws}/complete-audit:/a ubuntu:noble ls /a",
+        "podman run --rm -v {home}/.config/containers:/c ubuntu:noble ls /c",
+        "podman run --rm -v {home}/.config:/c ubuntu:noble ls /c",
+        "podman run --rm -v {home}:/h ubuntu:noble ls /h",
+        "podman run --rm -v {home}/.claude.json:/c ubuntu:noble ls /c",
+        "podman run --rm -v ./addons/gitlink:/g ubuntu:noble ls /g",
     ],
 )
 def test_container_owner_managed_paths_denied(ws, home, cmd):
@@ -1108,9 +1111,9 @@ def test_container_owner_managed_paths_denied(ws, home, cmd):
 @pytest.mark.parametrize(
     "cmd",
     [
-        "podman run --rm -v ./addons:/mnt/extra-addons alpine ls /mnt/extra-addons",
-        "podman run --rm -v {home}/data:/d alpine ls /d",
-        "podman build -t t docker/",
+        "podman run --rm -v ./addons:/mnt/extra-addons ubuntu:noble ls /mnt/extra-addons",
+        "podman run --rm -v {home}/data:/d ubuntu:noble ls /d",
+        "podman build -t localhost/complete-odoo:20.0-20261106 docker/",
         "podman compose -f docker/compose.yaml run --rm odoo odoo -d test_x -i complete_x"
         " --test-tags /complete_x --stop-after-init",
     ],
@@ -1143,3 +1146,471 @@ def test_documented_module_test_command_is_allowed(ws):
 def test_compose_requires_odoo_release():
     compose = (REPO / "docker" / "compose.yaml").read_text(encoding="utf-8")
     assert "${ODOO_RELEASE:?" in compose
+
+
+# F4: container commands may use only the project's images and the containers of its
+# compose stack. EE images in the user's podman storage must stay out of reach.
+
+ODOO_IMAGE = "localhost/complete-odoo:20.0-20261106"
+EE_IMAGE = "localhost/volkantasci/odoo-enterprise-20"
+COMPOSE = "podman compose --env-file docker/versions.env -f docker/compose.yaml"
+BUILD_ARGS = "--build-arg ODOO_RELEASE=20261106 --build-arg ODOO_SOURCE_SHA256=0e050d15"
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        # Listings.
+        "podman",
+        "podman --version",
+        "podman version",
+        "podman info",
+        "podman images",
+        "podman image ls -a",
+        "podman ps -a",
+        "podman container ls --all",
+        "podman volume ls",
+        "podman network ls",
+        "docker ps",
+        "docker images",
+        "docker --version",
+        # Allowed images, in full and as short names.
+        f"podman run --rm {ODOO_IMAGE} odoo --version",
+        f"podman run --rm -it -e X=1 -w /srv -p8069:8069 {ODOO_IMAGE} odoo --version",
+        f"podman run --rm --name=probe --network=bridge {ODOO_IMAGE} odoo --version",
+        f"podman run --rm -v ./addons:/mnt/extra-addons:ro {ODOO_IMAGE} ls /mnt/extra-addons",
+        f"podman run --rm -v docker_odoo-data:/x {ODOO_IMAGE} ls /x",
+        f"podman run --rm -v /scratch {ODOO_IMAGE} ls /scratch",
+        f"podman run --rm --mount type=tmpfs,target=/t {ODOO_IMAGE} ls /t",
+        f"podman run --rm --mount type=volume,source=docker_db-data,target=/d {ODOO_IMAGE} ls /d",
+        f"podman run --rm --mount type=image,source={ODOO_IMAGE},target=/i {ODOO_IMAGE} ls /i",
+        f"podman run --rm --volumes-from docker-odoo-1 {ODOO_IMAGE} ls",
+        f"podman run --rm --network container:docker-db-1 {ODOO_IMAGE} ls",
+        f"podman run --rm -- {ODOO_IMAGE} odoo --version",
+        f"podman create {ODOO_IMAGE}",
+        f"podman container run --rm {ODOO_IMAGE} odoo --version",
+        "podman run --rm docker.io/pgvector/pgvector:pg17 postgres --version",
+        "podman run --rm pgvector/pgvector:pg17 postgres --version",
+        "podman run --rm ubuntu:noble true",
+        "podman run --help",
+        "podman pull docker.io/pgvector/pgvector:pg17",
+        "podman pull docker.io/library/ubuntu:noble",
+        f"podman tag {ODOO_IMAGE} localhost/complete-odoo:dev",
+        f"podman image inspect {ODOO_IMAGE}",
+        f"podman image exists {ODOO_IMAGE}",
+        f"podman history {ODOO_IMAGE}",
+        "podman rmi localhost/complete-odoo:dev",
+        f"podman inspect docker-odoo-1 {ODOO_IMAGE}",
+        # The stack's containers.
+        "podman exec docker-odoo-1 odoo --version",
+        "podman exec -it -u odoo docker-db-1 psql -U odoo -l",
+        "podman logs --tail 50 docker-db-1",
+        "podman logs -f docker-odoo-1",
+        "podman stop docker-odoo-run-372ed1c76317",
+        "podman rm -f docker-odoo-1 docker-db-1",
+        "podman top docker-odoo-1 pid args",
+        "podman port docker-odoo-1 8069",
+        "podman stats --no-stream",
+        "podman container inspect docker-db-1",
+        "podman healthcheck run docker-db-1",
+        "podman cp docker-odoo-1:/etc/odoo/odoo.conf ./odoo.conf",
+        "podman cp ./addons docker-odoo-1:/tmp/addons",
+        # Building docker/.
+        f"podman build {BUILD_ARGS} -t {ODOO_IMAGE} docker/",
+        f"podman build -t {ODOO_IMAGE} -f docker/Dockerfile ./docker",
+        f"podman image build -t {ODOO_IMAGE} docker",
+        "podman build docker/",
+        # The compose stack.
+        f"{COMPOSE} up -d",
+        f"{COMPOSE} down",
+        f"{COMPOSE} down -v",
+        f"{COMPOSE} ps",
+        f"{COMPOSE} logs odoo",
+        f"{COMPOSE} logs -f --tail 50 odoo",
+        f"{COMPOSE} exec odoo odoo --version",
+        f"{COMPOSE} run --rm odoo odoo -d test_1 -i complete_x --stop-after-init",
+        f"{COMPOSE} run --rm -v ./addons:/mnt/extra-addons odoo ls",
+        f"{COMPOSE} run --rm -v odoo-data:/x odoo ls /x",
+        f"{COMPOSE} config",
+        f"{COMPOSE} pull",
+        "podman compose version",
+        "podman compose --file=docker/compose.yaml ps",
+    ],
+)
+def test_allowed_images_and_stack_containers(ws, cmd):
+    (ws / "complete" / "addons").mkdir()
+    code, stderr = run_guard(ws, tool("Bash", command=cmd))
+    assert code == 0, stderr
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        # Images that are not on the allowlist, in any form.
+        f"podman run --rm {EE_IMAGE} true",
+        f"podman run --rm {EE_IMAGE}:20.0 true",
+        "podman run --rm localhost/volkantasci/odoo-enterprise-19:19.0 true",
+        "podman run --rm volkantasci/odoo-enterprise-20 true",
+        "podman run --rm alpine true",
+        "podman run --rm docker.io/library/alpine:3 true",
+        "podman run --rm docker.io/pgvector/pgvector:pg16 true",
+        "podman run --rm docker.io/pgvector/pgvector true",
+        "podman run --rm ubuntu true",
+        "podman run --rm 9f634667a74a true",
+        "podman run --rm localhost/complete-odoo@sha256:0123456789abcdef true",
+        "podman run --rm docker-archive:/srv/x.tar true",
+        f"podman run --rm containers-storage:{EE_IMAGE} true",
+        f"podman create {EE_IMAGE}",
+        f"podman container create {EE_IMAGE}",
+        f"podman container run --rm {EE_IMAGE} true",
+        f"podman run --rm -it -e X=1 {EE_IMAGE} true",
+        f"podman run --rm -v ./addons:/mnt {EE_IMAGE} true",
+        f"podman run --rm -- {EE_IMAGE} true",
+        "podman run --rm",
+        # An allowed image that reaches something else.
+        "podman run --rm --rootfs ./addons true",
+        f"podman run --rm --volumes-from odoo20 {ODOO_IMAGE} true",
+        f"podman run --rm --volumes-from=odoo20:ro {ODOO_IMAGE} true",
+        f"podman run --rm --pid container:odoo20 {ODOO_IMAGE} true",
+        f"podman run --rm --ipc=container:odoo20 {ODOO_IMAGE} true",
+        f"podman run --rm --network container:odoo20 {ODOO_IMAGE} true",
+        f"podman run --rm --pod p {ODOO_IMAGE} true",
+        f"podman run --rm --requires odoo20 {ODOO_IMAGE} true",
+        f"podman run --rm -v odoo20-data:/x {ODOO_IMAGE} true",
+        f"podman run --rm -vodoo20-data:/x {ODOO_IMAGE} true",
+        f"podman run --rm --mount type=volume,source=odoo20-data,target=/x {ODOO_IMAGE} true",
+        f"podman run --rm --mount type=image,source={EE_IMAGE},target=/x {ODOO_IMAGE} true",
+        f"podman run --rm --mount type=glob,source=/x*,target=/x {ODOO_IMAGE} true",
+        f"podman run --rm --not-an-option {ODOO_IMAGE} true",
+        f"podman run --rm -Z {ODOO_IMAGE} true",
+        # Image subcommands.
+        f"podman pull {EE_IMAGE}",
+        f"podman image pull {EE_IMAGE}",
+        f"podman push {ODOO_IMAGE}",
+        f"podman save -o odoo.tar {ODOO_IMAGE}",
+        f"podman image save {EE_IMAGE}",
+        f"podman tag {EE_IMAGE} {ODOO_IMAGE}",
+        f"podman image tag {EE_IMAGE} localhost/complete-odoo:ee",
+        f"podman tag {ODOO_IMAGE} localhost/other:1",
+        f"podman untag {EE_IMAGE}",
+        f"podman rmi {EE_IMAGE}",
+        "podman rmi -a",
+        f"podman image rm {EE_IMAGE}",
+        f"podman history {EE_IMAGE}",
+        f"podman image inspect {EE_IMAGE}",
+        f"podman image mount {EE_IMAGE}",
+        "podman image prune -a",
+        "podman load -i odoo.tar",
+        "podman import odoo.tar localhost/complete-odoo:x",
+        f"podman inspect {EE_IMAGE}",
+        "podman inspect odoo20",
+        "podman inspect -l",
+        # Containers outside the stack.
+        "podman exec odoo20 true",
+        "podman exec -it odoo20 true",
+        "podman exec 3f9eb6b98a59 true",
+        "podman exec -l true",
+        "podman container exec odoo20 true",
+        "podman start odoo20",
+        "podman attach odoo20",
+        "podman logs odoo20",
+        "podman stop -a",
+        "podman rm --all",
+        "podman rm -f --filter name=odoo20",
+        "podman stop --cidfile cid.txt",
+        "podman kill docker-odoo-1 odoo20",
+        "podman top odoo20",
+        "podman stats odoo20",
+        "podman wait odoo20",
+        "podman healthcheck run odoo20",
+        "podman cp odoo20:/mnt/extra-addons ./x",
+        "podman cp ./x odoo20:/srv",
+        "podman container cp odoo20:/etc ./x",
+        "podman exec docker-other-1 true",
+        "podman exec docker-odoo-x true",
+        "podman exec",
+        # Subcommands that are not in normal work.
+        "podman commit docker-odoo-1 localhost/complete-odoo:x",
+        "podman export docker-odoo-1",
+        "podman mount docker-odoo-1",
+        "podman rename docker-odoo-1 x",
+        "podman kube play x.yaml",
+        "podman play kube x.yaml",
+        "podman generate kube odoo20",
+        "podman pod create",
+        "podman system reset",
+        "podman system prune -a",
+        "podman system df",
+        "podman volume rm docker_db-data",
+        "podman volume inspect odoo20-data",
+        "podman network create x",
+        "podman secret ls",
+        "podman login quay.io",
+        "podman search odoo",
+        "podman events",
+        "podman manifest inspect x",
+        "podman artifact ls",
+        "podman auto-update",
+        # docker is limited to listings.
+        f"docker run --rm {ODOO_IMAGE} true",
+        "docker exec docker-odoo-1 true",
+        "docker compose -f docker/compose.yaml up",
+        # Builds.
+        f"podman build -t {ODOO_IMAGE} .",
+        f"podman build -t {ODOO_IMAGE} addons",
+        f"podman build -t {ODOO_IMAGE}",
+        "podman build -t localhost/other:1 docker/",
+        f"podman build -t {ODOO_IMAGE} -f addons/Containerfile docker/",
+        f"podman build -t {ODOO_IMAGE} -f - docker/",
+        f"podman build --from {EE_IMAGE} -t {ODOO_IMAGE} docker/",
+        f"podman build --build-context ee=docker-image://{EE_IMAGE} docker/",
+        f"podman build --cache-from {EE_IMAGE} docker/",
+        "podman build --sbom-scanner-image x docker/",
+        "podman build -o type=local,dest=out docker/",
+        "podman build docker/ addons",
+        # Compose commands outside the stack.
+        "podman compose up",
+        "podman compose ps",
+        "podman compose -f docker/compose.yaml -p other exec db true",
+        "podman compose -f docker/compose.yaml --project-name=other ps",
+        "podman compose -f docker/compose.yaml --project-directory addons ps",
+        "podman compose -f - up",
+        "podman compose -f docker/missing.yaml up",
+        "podman compose -f docker/compose.yaml push",
+        "podman compose -f docker/compose.yaml build",
+        "podman compose -f docker/compose.yaml export odoo",
+        "podman compose -f docker/compose.yaml run --rm -v odoo20-data:/x odoo ls",
+        "podman compose -f docker/compose.yaml run --rm --nope odoo ls",
+    ],
+)
+def test_other_images_and_containers_denied(ws, cmd):
+    (ws / "complete" / "addons").mkdir()
+    (ws / "complete" / "addons" / "Containerfile").write_text("FROM ubuntu:noble\n")
+    assert run_guard(ws, tool("Bash", command=cmd))[0] == 2
+
+
+def write_compose(ws, body):
+    path = ws / "complete" / "addons" / "compose.yaml"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+    return "podman compose -f addons/compose.yaml up -d"
+
+
+GOOD_SERVICE = "services:\n  db:\n    image: docker.io/pgvector/pgvector:pg17\n"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        GOOD_SERVICE,
+        GOOD_SERVICE + "    ports:\n      - '127.0.0.1:5432:5432'  # local only\n",
+        'services:\n  db:\n    "image": "docker.io/pgvector/pgvector:pg17"\n',
+        "# A comment\nservices:\n  odoo:\n    image: localhost/complete-odoo:20.0-${R:-1}\n",
+        GOOD_SERVICE + "volumes:\n  db-data:\n",
+        "x-note: hello\nversion: '3'\n" + GOOD_SERVICE,
+    ],
+)
+def test_compose_files_with_allowed_images_allowed(ws, body):
+    code, stderr = run_guard(ws, tool("Bash", command=write_compose(ws, body)))
+    assert code == 0, stderr
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        f"services:\n  ee:\n    image: {EE_IMAGE}\n",
+        f"services:\n  ee:\n    image: '{EE_IMAGE}:20.0'\n",
+        GOOD_SERVICE + f"  ee:\n    image: {EE_IMAGE}\n",
+        "services:\n  db:\n    image: ${IMAGE}\n",
+        "services:\n  db:\n    image: docker.io/pgvector/${R}:pg17\n",
+        "services:\n  db:\n    image: docker.io/pgvector/pgvector:${TAG}\n",
+        "services:\n  db:\n    image: >-\n      docker.io/pgvector/pgvector:pg17\n",
+        "services:\n  db:\n    image:\n      docker.io/pgvector/pgvector:pg17\n",
+        "services:\n  db:\n    build: .\n",
+        GOOD_SERVICE + "    build: ../docker\n",
+        GOOD_SERVICE + "    extends:\n      file: other.yaml\n      service: ee\n",
+        GOOD_SERVICE + "    volumes_from:\n      - odoo20\n",
+        GOOD_SERVICE + "    network_mode: container:odoo20\n",
+        GOOD_SERVICE + '    pid: "container:odoo20"\n',
+        "services:\n  db: {image: docker.io/pgvector/pgvector:pg17}\n",
+        "services: {}\n",
+        "services:\n  db:\n    environment: {}\n",
+        "x-img: &img docker.io/pgvector/pgvector:pg17\nservices:\n  db:\n    image: *img\n",
+        "x-base: &base\n  image: x\nservices:\n  db:\n    <<: *base\n",
+        "services:\n  db:\n    image: !!str docker.io/pgvector/pgvector:pg17\n",
+        "include:\n  - other.yaml\n" + GOOD_SERVICE,
+        "name: other\n" + GOOD_SERVICE,
+        "unknown: 1\n" + GOOD_SERVICE,
+        GOOD_SERVICE + "volumes:\n  db-data:\n    external: true\n",
+        GOOD_SERVICE + "volumes:\n  db-data:\n    name: odoo20-data\n",
+        GOOD_SERVICE + "volumes:\n  db-data:\n    driver_opts:\n      device: /srv\n",
+        "---\n" + GOOD_SERVICE,
+        '{"services": {"db": {"image": "x"}}}\n',
+        "services:\n\tdb:\n\t\timage: docker.io/pgvector/pgvector:pg17\n",
+        "services:\n  - db\n",
+        "services:\n  db:\n    image: docker.io/pgvector/pgvector:pg17\n   image2: x\n",
+    ],
+)
+def test_compose_files_naming_other_images_denied(ws, body):
+    assert run_guard(ws, tool("Bash", command=write_compose(ws, body)))[0] == 2
+
+
+def test_compose_file_is_read_relative_to_the_working_directory(ws):
+    command = "podman compose -f compose.yaml up -d"
+    event = tool("Bash", cwd=str(ws / "complete" / "addons"), command=command)
+    write_compose(ws, GOOD_SERVICE)
+    assert run_guard(ws, event)[0] == 0
+    write_compose(ws, f"services:\n  ee:\n    image: {EE_IMAGE}\n")
+    assert run_guard(ws, event)[0] == 2
+
+
+@pytest.mark.parametrize(
+    "containerfile",
+    [
+        f"FROM {EE_IMAGE}\n",
+        f"FROM --platform=linux/amd64 {EE_IMAGE} AS base\n",
+        "FROM ubuntu:noble AS base\nFROM alpine\n",
+        "ARG BASE=ubuntu:noble\nFROM ${BASE}\n",
+        f"FROM ubuntu:noble\nCOPY --from={EE_IMAGE} /mnt/extra-addons /x\n",
+        f"FROM ubuntu:noble\nRUN --mount=type=bind,from={EE_IMAGE},target=/x ls /x\n",
+        f"FROM ubuntu:noble\nONBUILD COPY --from={EE_IMAGE} / /x\n",
+        f"FROM ubuntu:noble\nRUN echo \\\n  x\nFROM {EE_IMAGE}\n",
+        "# syntax=docker/dockerfile:1\nFROM ubuntu:noble\n",
+        "# escape=`\nFROM ubuntu:noble\n",
+    ],
+)
+def test_build_of_a_containerfile_with_other_images_denied(ws, containerfile):
+    (ws / "complete" / "docker" / "Dockerfile").write_text(containerfile, encoding="utf-8")
+    command = f"podman build -t {ODOO_IMAGE} docker/"
+    assert run_guard(ws, tool("Bash", command=command))[0] == 2
+
+
+@pytest.mark.parametrize(
+    "containerfile",
+    [
+        "FROM ubuntu:noble\nRUN true\n",
+        "FROM docker.io/library/ubuntu:noble AS base\nFROM base\nCOPY --from=base /a /b\n",
+        "FROM ubuntu:noble AS build\nFROM scratch\nCOPY --from=0 /a /b\nCOPY --from=build /a /c\n",
+        "# check=error=true\nFROM ubuntu:noble\n",
+    ],
+)
+def test_build_of_a_containerfile_with_allowed_images_allowed(ws, containerfile):
+    (ws / "complete" / "docker" / "Dockerfile").write_text(containerfile, encoding="utf-8")
+    command = f"podman build -t {ODOO_IMAGE} docker/"
+    code, stderr = run_guard(ws, tool("Bash", command=command))
+    assert code == 0, stderr
+
+
+def test_containerfile_takes_precedence_over_dockerfile(ws):
+    (ws / "complete" / "docker" / "Containerfile").write_text(f"FROM {EE_IMAGE}\n")
+    assert run_guard(ws, tool("Bash", command="podman build docker/"))[0] == 2
+
+
+def test_stack_containers_follow_the_project_compose_file(ws):
+    compose = ws / "complete" / "docker" / "compose.yaml"
+    compose.write_text(compose.read_text().replace("  db:\n", "  pg:\n"), encoding="utf-8")
+    assert run_guard(ws, tool("Bash", command="podman exec docker-pg-1 true"))[0] == 0
+    assert run_guard(ws, tool("Bash", command="podman exec docker-db-1 true"))[0] == 2
+
+
+def test_unreadable_project_compose_file_allows_no_container(ws):
+    (ws / "complete" / "docker" / "compose.yaml").unlink()
+    assert run_guard(ws, tool("Bash", command="podman exec docker-odoo-1 true"))[0] == 2
+
+
+def test_image_refusal_is_a_boundary_denial_with_an_audit_line(ws):
+    command = f"podman run --rm {EE_IMAGE} true"
+    code, stderr = run_guard(ws, tool("Bash", command=command))
+    assert code == 2
+    assert "allowlist" in stderr and "Do not retry" in stderr
+    line = audit_lines(ws)[-1]
+    assert line["allowed"] is False and "allowlist" in line["reason"]
+    assert line["preview"] == command
+
+
+def test_container_refusal_names_the_stack(ws):
+    code, stderr = run_guard(ws, tool("Bash", command="podman exec odoo20 true"))
+    assert code == 2 and "compose stack" in stderr
+
+
+def test_project_images_are_on_the_allowlist(ws):
+    """The images the repository itself uses must stay allowed."""
+    guard = load_guard(ws)
+    compose = (REPO / "docker" / "compose.yaml").read_text(encoding="utf-8")
+    for line in compose.splitlines():
+        if line.strip().startswith("image:"):
+            assert guard._compose_image_allowed(line.split(":", 1)[1].strip()), line
+    dockerfile = (REPO / "docker" / "Dockerfile").read_text(encoding="utf-8")
+    for line in dockerfile.splitlines():
+        if line.startswith("FROM "):
+            assert guard._image_allowed(line.split()[1]), line
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert "-t localhost/complete-odoo:" in makefile
+
+
+@pytest.mark.parametrize(
+    "cmd,code",
+    [
+        # An empty value after "=" is a value; the next word is the image (pflag).
+        (f"podman run --name= {EE_IMAGE} {ODOO_IMAGE}", 2),
+        (f"podman run --name= {ODOO_IMAGE} {EE_IMAGE}", 0),
+        (f"podman run -e= {EE_IMAGE} {ODOO_IMAGE}", 2),
+        (f"podman run -e {EE_IMAGE} {ODOO_IMAGE} true", 0),
+        (f"podman run -eX=1 {ODOO_IMAGE} true", 0),
+        (f"podman run --rm=false {ODOO_IMAGE} true", 0),
+        (f"podman run --name {ODOO_IMAGE}", 2),
+    ],
+)
+def test_option_values_are_read_as_podman_reads_them(ws, cmd, code):
+    assert run_guard(ws, tool("Bash", command=cmd))[0] == code
+
+
+def test_build_file_is_checked_against_both_bases(ws):
+    (ws / "complete" / "Dockerfile").write_text(f"FROM {EE_IMAGE}\n", encoding="utf-8")
+    command = f"podman build -t {ODOO_IMAGE} -f Dockerfile docker/"
+    assert run_guard(ws, tool("Bash", command=command))[0] == 2
+    (ws / "complete" / "Dockerfile").unlink()
+    assert run_guard(ws, tool("Bash", command=command))[0] == 0
+    (ws / "complete" / "docker" / "Dockerfile").write_text(f"FROM {EE_IMAGE}\n", encoding="utf-8")
+    assert run_guard(ws, tool("Bash", command=command))[0] == 2
+
+
+@pytest.mark.parametrize(
+    "containerfile,build",
+    [
+        (f"FROM\t{EE_IMAGE}\n", f"podman build -t {ODOO_IMAGE} docker/"),
+        (f"FROM ubuntu:noble\nCOPY\t--from={EE_IMAGE} / /x\n", "podman build docker/"),
+        ("FROM ubuntu:noble\n", "podman build -f docker/Containerfile.in docker/"),
+        ("FROM ubuntu:noble\n", "podman build --cpp-flag=-DX -f docker/Containerfile.in docker/"),
+    ],
+)
+def test_review_round_build_gaps_denied(ws, containerfile, build):
+    (ws / "complete" / "docker" / "Dockerfile").write_text(containerfile, encoding="utf-8")
+    (ws / "complete" / "docker" / "Containerfile.in").write_text(containerfile, encoding="utf-8")
+    if "Containerfile.in" not in build:
+        (ws / "complete" / "docker" / "Containerfile.in").unlink()
+    assert run_guard(ws, tool("Bash", command=build))[0] == 2
+
+
+def test_run_replace_cannot_remove_another_container(ws):
+    command = f"podman run --replace --name odoo20 {ODOO_IMAGE} true"
+    assert run_guard(ws, tool("Bash", command=command))[0] == 2
+
+
+@pytest.mark.parametrize(
+    "cmd,fragment",
+    [
+        (f"podman run --rm {EE_IMAGE} true", "image allowlist"),
+        ("podman exec odoo20 true", "compose stack"),
+        ("podman save -o x.tar localhost/complete-odoo:x", "subcommand 'save'"),
+        (f"podman run --rm --nope {ODOO_IMAGE} true", "does not know the option"),
+        (f"podman build -t {ODOO_IMAGE} addons", "only build the docker/ directory"),
+        ("podman stop -a", "option --all"),
+        ("podman compose ps", "must name its file with -f"),
+        ("docker run --rm x true", "docker may only list"),
+    ],
+)
+def test_refusals_name_the_rule_that_fired(ws, cmd, fragment):
+    (ws / "complete" / "addons").mkdir()
+    code, stderr = run_guard(ws, tool("Bash", command=cmd))
+    assert code == 2 and fragment in stderr, stderr
