@@ -14,6 +14,17 @@
         'views/res_users_views.xml',
         'views/webclient_templates.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'web_enterprise/static/src/**/*',
+        ],
+        'web.assets_unit_tests': [
+            'web_enterprise/static/tests/**/*.test.js',
+        ],
+        'web.assets_tests': [
+            'web_enterprise/static/tests/tours/**/*',
+        ],
+    },
     'installable': True,
     'application': False,
 }
