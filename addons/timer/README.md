@@ -29,7 +29,13 @@ databases and modules that depend on it keep working (see
 
 - A user has at most one running timer. Starting or resuming a timer pauses
   the user's other running timer first (a document model may stop it instead
-  by overriding `_action_interrupt_user_timers`).
+  by overriding `_action_interrupt_user_timers`). The database enforces it
+  with a unique index, so two simultaneous starts cannot both succeed: the
+  later one fails with "A user can have only one running timer.". When a
+  database that already holds two running timers for one user is upgraded,
+  the index cannot be built; Odoo logs a warning ("Constraint not added") and
+  the upgrade goes on without the rule. Pause the duplicates, then upgrade
+  again.
 - Pausing an already paused timer keeps the first pause moment.
 - Stopping returns the minutes worked as a decimal number (not rounded) and
   deletes the timer. Stop without a started timer returns `False`.

@@ -162,3 +162,9 @@ class TimerMixin(models.AbstractModel):
             document = timer._get_related_document()
             if document:
                 document._action_interrupt_user_timers()
+            else:
+                # Orphan of a deleted document: pause it, or it would block the user.
+                timer.sudo().action_timer_pause()
+        # The unique index checks each statement: the pauses must reach the
+        # database before the caller starts or resumes its own timer.
+        self.env['timer.timer'].flush_model()

@@ -23,6 +23,11 @@ class TimerTimer(models.Model):
         'A user can have only one timer per record.',
     )
 
+    _one_running_timer_per_user = models.UniqueIndex(
+        '(user_id) WHERE timer_start IS NOT NULL AND timer_pause IS NULL',
+        'A user can have only one running timer.',
+    )
+
     @api.depends('timer_start', 'timer_pause')
     def _compute_is_timer_running(self):
         for timer in self:
