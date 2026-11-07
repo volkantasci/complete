@@ -112,9 +112,14 @@ ENV PATH=/opt/odoo/venv/bin:$PATH
 # Headless Chrome and websocket-client let HttpCase browser tests (tours and JS unit
 # tests) run; without them Odoo skips those tests silently. amd64 only: Google ships
 # no arm64 Chrome package, and other architectures keep skipping browser tests.
+# The package is pinned to one version and verified against a SHA-256. To upgrade, set
+# CHROME_VERSION, download the .deb from the URL below and put its sha256sum here.
+ARG CHROME_VERSION=157.0.8103.38-1
+ARG CHROME_AMD64_SHA256=a62b277dc03da2cff50cc04589deb66f6875be339c066d46adb49b49eedb629d
 RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
         apt-get update \
-        && curl -o chrome.deb -sSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+        && curl -o chrome.deb -sSfL https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb \
+        && echo "${CHROME_AMD64_SHA256}  chrome.deb" | sha256sum -c - \
         && apt-get install -y --no-install-recommends ./chrome.deb \
         && rm -rf /var/lib/apt/lists/* chrome.deb; \
     fi \
