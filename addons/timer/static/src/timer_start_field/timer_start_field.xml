@@ -1,7 +1,7 @@
 <!-- Copyright 2026 Complete contributors -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
-    <t t-name="timer.TimerStartField">
+    <t t-name="timer.RunningClockDisplay">
         <span t-if="this.state.time" class="o_timer_start_field" t-out="this.state.time"/>
     </t>
 </templates>

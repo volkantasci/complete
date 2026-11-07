@@ -5,7 +5,7 @@ from odoo.exceptions import MissingError
 from odoo.fields import Domain
 
 
-class TimerParentMixin(models.AbstractModel):
+class ParentTimerSupport(models.AbstractModel):
     _name = 'timer.parent.mixin'
     _inherit = 'timer.mixin'
     _description = 'Parent Timer Mixin'
@@ -17,12 +17,11 @@ class TimerParentMixin(models.AbstractModel):
         ]
 
     @api.depends_context('uid')
-    def _compute_user_timer_id(self):
+    def _load_own_timers(self):
         timer_by_parent = {}
         ids = [record_id for record_id in self._ids if isinstance(record_id, int)]
         if ids:
-            timers = self.env['timer.timer'].search(
-                [*self._parent_timer_domain(ids), ('user_id', '=', self.env.user.id)], order='id')
+            timers = self._own_timer_search(self._parent_timer_domain(ids), order='id')
             for timer in timers:
                 timer_by_parent.setdefault(timer.parent_res_id, timer)
         no_timer = self.env['timer.timer']
@@ -30,7 +29,7 @@ class TimerParentMixin(models.AbstractModel):
             record.user_timer_id = timer_by_parent.get(record._origin.id or record.id, no_timer)
 
     @api.model
-    def _search_is_timer_running(self, operator, value):
+    def _find_by_running_state(self, operator, value):
         # The ORM normally hands over "in"/"not in" with booleans; "="/"!=" with a
         # boolean are the same question when the method is called directly.
         if operator in ('=', '!='):
@@ -53,7 +52,7 @@ class TimerParentMixin(models.AbstractModel):
         return Domain('id', 'in' if wants_running else 'not in', timers.mapped('parent_res_id'))
 
     @api.model
-    def _search_user_timer_id(self, operator, value):
+    def _find_by_own_timer(self, operator, value):
         """Parents referenced (or not) by the current user's timers.
 
         Timer ids are accepted next to ``False``, as the ORM searches with them
@@ -111,13 +110,10 @@ class TimerParentMixin(models.AbstractModel):
         timer = self.user_timer_id[:1]
         return timer._get_related_document() if timer else self.env['base']
 
-    def _get_user_timers(self):
-        return self.env['timer.timer'].search([('user_id', '=', self.env.user.id)])
-
     def _get_timers_from_other_users(self):
         return self.env['timer.timer'].sudo().search([
             *self._parent_timer_domain(self.ids),
-            ('user_id', '!=', self.env.user.id),
+            ('user_id', 'not in', self.env.user.ids),
         ])
 
     def unlink(self):

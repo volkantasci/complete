@@ -5,13 +5,13 @@ from odoo import api, fields, models
 _MIRRORED_FIELDS = ['user_timer_id', 'timer_start', 'timer_pause', 'is_timer_running']
 
 
-class TimerTimer(models.Model):
+class ClockEntry(models.Model):
     _name = 'timer.timer'
     _description = 'Timer Module'
 
     timer_start = fields.Datetime('Timer Start')
     timer_pause = fields.Datetime('Timer Last Pause')
-    is_timer_running = fields.Boolean('Is Timer Running', compute='_compute_is_timer_running')
+    is_timer_running = fields.Boolean('Is Timer Running', compute='_derive_running_flag')
     res_model = fields.Char('Document Model', required=True)
     res_id = fields.Integer('Document', required=True)
     user_id = fields.Many2one('res.users', string='User')
@@ -28,8 +28,8 @@ class TimerTimer(models.Model):
         'A user can have only one running timer.',
     )
 
-    @api.depends('timer_start', 'timer_pause')
-    def _compute_is_timer_running(self):
+    @api.depends('timer_pause', 'timer_start')
+    def _derive_running_flag(self):
         for timer in self:
             timer.is_timer_running = bool(timer.timer_start and not timer.timer_pause)
 
@@ -92,9 +92,9 @@ class TimerTimer(models.Model):
         self.ensure_one()
         if not self.timer_start:
             return False
-        minutes_spent = self._get_minutes_spent()
-        self.write({'timer_start': False, 'timer_pause': False})
-        return minutes_spent
+        elapsed = self._get_minutes_spent()
+        self.write(dict.fromkeys(('timer_start', 'timer_pause'), False))
+        return elapsed
 
     @api.model
     @api.readonly

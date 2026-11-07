@@ -66,7 +66,7 @@ class TestTimerParent(TimerCase):
         for operator, value in bad_forms:
             with self.subTest(operator=operator, value=value):
                 with self.assertRaises(NotImplementedError):
-                    Parent._search_is_timer_running(operator, value)
+                    Parent._find_by_running_state(operator, value)
         both = Parent.search([*scope, ('is_timer_running', 'in', [True, False])])
         self.assertEqual(both, self.parent | self.other_parent)
 

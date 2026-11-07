@@ -7,7 +7,7 @@ from odoo.fields import Domain
 _MIRRORED = ['user_timer_id', 'timer_start', 'timer_pause', 'is_timer_running']
 
 
-class TimerMixin(models.AbstractModel):
+class PerUserTimerSupport(models.AbstractModel):
     _name = 'timer.mixin'
     _description = 'Timer Mixin'
 
@@ -17,21 +17,17 @@ class TimerMixin(models.AbstractModel):
         'Timer Last Pause', compute='_compute_timer_fields', compute_sudo=False, readonly=True)
     is_timer_running = fields.Boolean(
         'Is Timer Running', compute='_compute_timer_fields', compute_sudo=False, readonly=True,
-        search='_search_is_timer_running')
+        search='_find_by_running_state')
     user_timer_id = fields.One2many(
-        'timer.timer', string='User Timer', compute='_compute_user_timer_id', compute_sudo=False,
-        search='_search_user_timer_id')
+        'timer.timer', string='User Timer', compute='_load_own_timers', compute_sudo=False,
+        search='_find_by_own_timer')
 
     @api.depends_context('uid')
-    def _compute_user_timer_id(self):
+    def _load_own_timers(self):
         timers_by_id = {}
         ids = [record_id for record_id in self._ids if isinstance(record_id, int)]
         if ids:
-            timers = self.env['timer.timer'].search([
-                ('res_model', '=', self._name),
-                ('res_id', 'in', ids),
-                ('user_id', '=', self.env.user.id),
-            ])
+            timers = self._own_timer_search([('res_model', '=', self._name), ('res_id', 'in', ids)])
             for timer in timers:
                 timers_by_id[timer.res_id] = timers_by_id.get(timer.res_id, timer) | timer
         no_timer = self.env['timer.timer']
@@ -48,7 +44,7 @@ class TimerMixin(models.AbstractModel):
             record.is_timer_running = bool(timer.timer_start and not timer.timer_pause)
 
     @api.model
-    def _search_is_timer_running(self, operator, value):
+    def _find_by_running_state(self, operator, value):
         if operator not in ('in', 'not in', '=', '!='):
             raise NotImplementedError(self.env._("This search on running timers is not supported."))
         values = {bool(v) for v in value} if operator in ('in', 'not in') else {bool(value)}
@@ -63,7 +59,7 @@ class TimerMixin(models.AbstractModel):
         return Domain('id', 'in' if wants_running else 'not in', timers.mapped('res_id'))
 
     @api.model
-    def _search_user_timer_id(self, operator, value):
+    def _find_by_own_timer(self, operator, value):
         """Documents on which the current user has (or has no) timer.
 
         The ORM also searches with timer ids to find the documents to refresh
@@ -120,10 +116,10 @@ class TimerMixin(models.AbstractModel):
         timer = self.user_timer_id
         if not timer:
             return False
-        minutes_spent = timer.action_timer_stop()
+        elapsed = timer.action_timer_stop()
         timer.unlink()
         self._invalidate_timer_fields()
-        return minutes_spent
+        return elapsed
 
     def _action_interrupt_user_timers(self):
         """Reaction of a document whose running timer is interrupted: pause it."""
@@ -141,14 +137,19 @@ class TimerMixin(models.AbstractModel):
     def _create_timer(self, vals=None):
         return self.env['timer.timer'].create({**self._get_timer_vals(), **(vals or {})})
 
+    def _own_timer_search(self, domain=(), order=None):
+        """Timers of the current user that match ``domain``."""
+        return self.env['timer.timer'].search(
+            [*domain, ('user_id', 'in', self.env.user.ids)], order=order)
+
     def _get_user_timers(self):
-        return self.env['timer.timer'].search([('user_id', '=', self.env.user.id)])
+        return self._own_timer_search()
 
     def _get_timers_from_other_users(self):
         return self.env['timer.timer'].sudo().search([
             ('res_model', '=', self._name),
             ('res_id', 'in', self.ids),
-            ('user_id', '!=', self.env.user.id),
+            ('user_id', 'not in', self.env.user.ids),
         ])
 
     def unlink(self):

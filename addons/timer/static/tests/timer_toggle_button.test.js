@@ -23,7 +23,7 @@ class TimerTest extends models.Model {
     _name = "timer.test";
 
     name = fields.Char({ required: true });
-    is_timer_running = fields.Boolean();
+    is_timer_running = fields.Boolean({ string: "Active" });
 
     _records = [
         { id: 1, name: "idle", is_timer_running: false },

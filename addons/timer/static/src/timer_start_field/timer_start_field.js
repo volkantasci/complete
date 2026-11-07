@@ -13,8 +13,8 @@ import { useTimer } from "@timer/timer_service";
  * The clock is owned by the instance and recomputed from the start moment
  * every second. It restarts whenever the start, the pause or the offset change.
  */
-export class TimerStartField extends Component {
-    static template = "timer.TimerStartField";
+export class RunningClock extends Component {
+    static template = "timer.RunningClockDisplay";
     props = useProps({
         ...standardFieldProps,
         unitAmountField: t.string().optional(),
@@ -47,8 +47,8 @@ export class TimerStartField extends Component {
     }
 }
 
-export const timerStartField = {
-    component: TimerStartField,
+const timerStartField = Object.freeze({
+    component: RunningClock,
     displayName: _t("Timer"),
     supportedTypes: ["datetime"],
     extractProps: ({ options }) => ({
@@ -58,6 +58,6 @@ export const timerStartField = {
         { name: "timer_pause", type: "datetime" },
         ...(options.unit_amount_field ? [{ name: options.unit_amount_field, type: "float" }] : []),
     ],
-};
+});
 
 registry.category("fields").add("timer_start_field", timerStartField);

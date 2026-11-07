@@ -24,7 +24,8 @@ export class TimerToggleButton extends Component {
     }
 
     get isRunning() {
-        return Boolean(this.props.record.data[this.props.name]);
+        const { record, name } = this.props;
+        return !!record.data[name];
     }
 
     get label() {

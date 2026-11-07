@@ -16,7 +16,7 @@ import {
 import { deserializeDateTime, serializeDateTime } from "@web/core/l10n/dates";
 
 import { Timer } from "@timer/timer_service";
-import { TimerStartField } from "@timer/timer_start_field/timer_start_field";
+import { RunningClock } from "@timer/timer_start_field/timer_start_field";
 
 const { DateTime } = luxon;
 
@@ -26,8 +26,8 @@ class TimerTest extends models.Model {
     _name = "timer.test";
 
     name = fields.Char();
-    timer_start = fields.Datetime();
-    timer_pause = fields.Datetime();
+    timer_start = fields.Datetime({ string: "Started at" });
+    timer_pause = fields.Datetime({ string: "Paused at" });
     hours_logged = fields.Float();
 
     action_pause(ids) {
@@ -190,9 +190,9 @@ test("R19: display restarts when start or pause changes", async () => {
 class Host extends Component {
     static template = xml`
         <t t-if="this.props.state.show">
-            <TimerStartField name="'timer_start'" record="this.props.state.record" unitAmountField="'hours_logged'"/>
+            <RunningClock name="'timer_start'" record="this.props.state.record" unitAmountField="'hours_logged'"/>
         </t>`;
-    static components = { TimerStartField };
+    static components = { RunningClock };
     props = useProps({ state: t.object() });
 }
 
