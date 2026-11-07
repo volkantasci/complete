@@ -24,7 +24,11 @@ tools/run_session.sh WORKDIR HANDOFF STREAM HANDBACK MODEL [claude arguments]
 - **Output.** The stream-json transcript goes to STREAM. When the session ends, the script copies its final message to HANDBACK.
 - **Analyst and verifier transcripts** contain EE material. Keep their STREAM in the specification repository's analyst area. Only their final message, written in spec language, reaches the coordinator through the handback.
 - **Continuing a session.** To continue a session with its context, pass `--resume <session id>` with a handoff that says what changed. A resumed stream starts with a replayed result event, so wait for the handback file to appear, not for the first result event.
-- **Templates.** The orchestrator's handoff template is [handoffs/orchestrator.md](handoffs/orchestrator.md). The analyst's and the verifier's templates live in the specification repository.
+- **Templates.** Every handoff is made from a template. The orchestrator's is [handoffs/orchestrator.md](handoffs/orchestrator.md). The analyst's and the verifier's are in the specification repository under `templates/handoffs/`.
+
+## Overlap feedback during implementation
+
+Implementers cannot see the reference, so they cannot measure overlap. Before the final review, the owner runs `provenance_check --overlap-report` in the specification repository on the slice's modules. That mode prints only the totals and the matching Complete paths and line numbers, never a reference path or reference text. The coordinator passes the list to the orchestrator, which renames or rewrites every listed line that the spec does not require. This replaces the pilot's extra verification round.
 
 ## Checkpoints
 

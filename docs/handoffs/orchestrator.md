@@ -47,13 +47,17 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - Models: implementers sonnet, task reviewers sonnet, and the final whole-branch review on opus.
    - Derive the tests from `acceptance.md`, and name each one after its scenario id.
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong.
-5. **Document:** the module README and the user documentation.
-6. **Check:**
+5. **Overlap report.** When every task is implemented and reviewed, and before the final review, stop.
+   - Report with Status `OVERLAP_CHECK` and the module paths.
+   - The owner then runs the overlap report: the Complete paths and line numbers that match the reference, with no reference text. The coordinator resumes you with that list.
+   - Rename or rewrite every listed line that `model.md` does not require, then continue with the next step.
+6. **Document:** the module README, the user documentation and the module's `static/description/index.html`.
+7. **Check:**
    - `.venv/bin/pytest -q`;
    - `.venv/bin/pre-commit run --all-files`;
    - the module tests with the podman command;
    - then the final review, with one fix wave.
-7. **Stop before integration.** The provenance record and the merge come after verification and the owner's approval.
+8. **Stop before integration.** The provenance record and the merge come after verification and the owner's approval.
 
 ## Report
 
