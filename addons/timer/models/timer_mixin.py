@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 from odoo import api, fields, models
+from odoo.fields import Domain
 
 _MIRRORED = ['user_timer_id', 'timer_start', 'timer_pause', 'is_timer_running']
 
@@ -14,9 +15,11 @@ class TimerMixin(models.AbstractModel):
     timer_pause = fields.Datetime(
         'Timer Last Pause', compute='_compute_timer_fields', compute_sudo=False, readonly=True)
     is_timer_running = fields.Boolean(
-        'Is Timer Running', compute='_compute_timer_fields', compute_sudo=False, readonly=True)
+        'Is Timer Running', compute='_compute_timer_fields', compute_sudo=False, readonly=True,
+        search='_search_is_timer_running')
     user_timer_id = fields.One2many(
-        'timer.timer', string='User Timer', compute='_compute_user_timer_id', compute_sudo=False)
+        'timer.timer', string='User Timer', compute='_compute_user_timer_id', compute_sudo=False,
+        search='_search_user_timer_id')
 
     @api.depends_context('uid')
     def _compute_user_timer_id(self):
@@ -34,7 +37,7 @@ class TimerMixin(models.AbstractModel):
         for record in self:
             record.user_timer_id = timers_by_id.get(record._origin.id or record.id, no_timer)
 
-    @api.depends('user_timer_id')
+    @api.depends('user_timer_id.timer_start', 'user_timer_id.timer_pause')
     @api.depends_context('uid')
     def _compute_timer_fields(self):
         for record in self:
@@ -42,6 +45,43 @@ class TimerMixin(models.AbstractModel):
             record.timer_start = timer.timer_start
             record.timer_pause = timer.timer_pause
             record.is_timer_running = bool(timer.timer_start and not timer.timer_pause)
+
+    @api.model
+    def _search_is_timer_running(self, operator, value):
+        if operator not in ('in', 'not in', '=', '!='):
+            raise NotImplementedError(self.env._("This search on running timers is not supported."))
+        values = {bool(v) for v in value} if operator in ('in', 'not in') else {bool(value)}
+        if len(values) == 2:
+            return Domain.TRUE if operator in ('in', '=') else Domain.FALSE
+        wants_running = (operator in ('in', '=')) == (True in values)
+        timers = self.env['timer.timer'].sudo().search([
+            ('res_model', '=', self._name),
+            ('timer_start', '!=', False),
+            ('timer_pause', '=', False),
+        ])
+        return Domain('id', 'in' if wants_running else 'not in', timers.mapped('res_id'))
+
+    @api.model
+    def _search_user_timer_id(self, operator, value):
+        """Documents on which the current user has (or has no) timer.
+
+        The ORM also searches with timer ids to find the documents to refresh
+        when a timer changes, so ids are accepted next to ``False``.
+        """
+        if operator in ('=', '!='):
+            values, positive = {value}, operator == '='
+        elif operator in ('in', 'not in'):
+            values, positive = set(value), operator == 'in'
+        else:
+            raise NotImplementedError(self.env._("This search on running timers is not supported."))
+        timer_ids = [v for v in values if v]
+        Timer = self.env['timer.timer'].sudo()
+        own = [('res_model', '=', self._name), ('user_id', '=', self.env.user.id)]
+        matched = Domain('id', 'in', Timer.search([*own, ('id', 'in', timer_ids)]).mapped('res_id'))
+        if False in values:
+            started = Timer.search([*own, ('timer_start', '!=', False)])
+            matched |= Domain('id', 'not in', started.mapped('res_id'))
+        return matched if positive else ~matched
 
     def _invalidate_timer_fields(self):
         self.invalidate_recordset(_MIRRORED)
