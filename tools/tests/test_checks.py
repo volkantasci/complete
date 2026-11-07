@@ -10,6 +10,7 @@ import yaml
 from tools.check_headers import check_headers
 from tools.check_manifests import check_manifests
 from tools.check_provenance import REQUIRED_PROVENANCE_KEYS, check_provenance
+from tools.check_provenance import main as provenance_main
 
 HEADER_PY = (
     "# Copyright 2026 Complete contributors\n"
@@ -161,3 +162,21 @@ def test_provenance_rejects_non_finite_and_boolean_numbers(tmp_path, ratio, run)
     )
     problems = check_provenance(tmp_path / "addons", tmp_path / "provenance")
     assert any("complete_x" in p and "overlap." in p for p in problems)
+
+
+def test_provenance_allow_missing_reports_but_passes(tmp_path, monkeypatch, capsys):
+    (tmp_path / "addons/complete_a").mkdir(parents=True)
+    (tmp_path / "addons/complete_b").mkdir()
+    write(tmp_path / "provenance/complete_b.yaml", full_record())
+    monkeypatch.chdir(tmp_path)
+    assert provenance_main(["--allow-missing"]) == 0
+    assert "complete_a: provenance record missing" in capsys.readouterr().out
+    assert provenance_main([]) == 1
+
+
+def test_provenance_allow_missing_still_fails_bad_records(tmp_path, monkeypatch):
+    (tmp_path / "addons/complete_b").mkdir(parents=True)
+    write(tmp_path / "provenance/complete_b.yaml",
+          full_record(overlap={"ratio": 0.07, "longest_run": 2, "reviewed_matches": []}))
+    monkeypatch.chdir(tmp_path)
+    assert provenance_main(["--allow-missing"]) == 1

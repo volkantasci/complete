@@ -22,9 +22,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # Records are written at the provenance step, after verification, so local
+      # commits only list missing ones; CI runs the strict check.
       - id: check-provenance
         name: provenance records
-        entry: python -m tools.check_provenance
+        entry: python -m tools.check_provenance --allow-missing
+        verbose: true
         language: system
         pass_filenames: false
         always_run: true
