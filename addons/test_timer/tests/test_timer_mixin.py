@@ -210,3 +210,21 @@ class TestTimerMixin(TimerCase):
         timer = self.timer_of(self.doc_a, self.u1)
         self.assertTrue(timer.is_timer_running)
         self.assertLessEqual(timer.timer_start - _dt('09:00:00'), timedelta(seconds=1))
+
+    def test_A23_direct_create_refreshes_mirrored_fields(self):
+        doc = self.as_(self.doc_a)
+        self.assertFalse(doc.timer_start or doc.timer_pause or doc.is_timer_running)
+        self._direct(self.doc_a, timer_start=_dt('09:00:00'))
+        self.assertEqual(doc.timer_start, _dt('09:00:00'))
+        self.assertTrue(doc.is_timer_running)
+
+    def test_A23_direct_write_and_unlink_refresh_mirrored_fields(self):
+        timer = self._direct(self.doc_a, timer_start=_dt('09:00:00'))
+        doc = self.as_(self.doc_a)
+        self.assertTrue(doc.is_timer_running)
+        timer.write({'timer_pause': _dt('09:10:00')})
+        self.assertEqual(doc.timer_pause, _dt('09:10:00'))
+        self.assertFalse(doc.is_timer_running)
+        timer.unlink()
+        self.assertFalse(doc.user_timer_id)
+        self.assertFalse(doc.timer_start or doc.timer_pause or doc.is_timer_running)

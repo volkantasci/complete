@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from odoo import api, fields, models
 
+_MIRRORED_FIELDS = ['user_timer_id', 'timer_start', 'timer_pause', 'is_timer_running']
+
 
 class TimerTimer(models.Model):
     _name = 'timer.timer'
@@ -32,17 +34,36 @@ class TimerTimer(models.Model):
         timers._invalidate_document_timers()
         return timers
 
-    def _invalidate_document_timers(self):
-        """Refresh the cached current-user timer of each document and its parent."""
+    def write(self, vals):
+        result = super().write(vals)
+        if 'timer_start' in vals or 'timer_pause' in vals:
+            self._invalidate_document_timers()
+        return result
+
+    def unlink(self):
+        references = self._document_references()
+        result = super().unlink()
+        self._invalidate_references(references)
+        return result
+
+    def _document_references(self):
+        references = []
         for timer in self:
-            for model, res_id in (
-                (timer.res_model, timer.res_id),
-                (timer.parent_res_model, timer.parent_res_id),
-            ):
-                if not model or not res_id or model not in self.env:
-                    continue
-                if 'user_timer_id' in self.env[model]._fields:
-                    self.env[model].browse(res_id).invalidate_recordset(['user_timer_id'])
+            references.append((timer.res_model, timer.res_id))
+            references.append((timer.parent_res_model, timer.parent_res_id))
+        return references
+
+    def _invalidate_references(self, references):
+        for model, res_id in references:
+            if not model or not res_id or model not in self.env:
+                continue
+            names = [name for name in _MIRRORED_FIELDS if name in self.env[model]._fields]
+            if names:
+                self.env[model].browse(res_id).invalidate_recordset(names)
+
+    def _invalidate_document_timers(self):
+        """Refresh the cached mirrored fields of each document and its parent."""
+        self._invalidate_references(self._document_references())
 
     def action_timer_start(self):
         for timer in self:
