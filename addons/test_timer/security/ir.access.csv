@@ -1,3 +1,5 @@
 id,name,model_id,group_id/id,operation,domain
 timer_test_user,Timer test: internal users,timer.test,base.group_user,crud,
 timer_test_interruption_user,Timer test interruption: internal users,timer.test.interruption,base.group_user,crud,
+timer_test_restricted_reader,Timer test restricted: readers,timer.test.restricted,test_timer.group_timer_test_reader,r,
+timer_test_restricted_manager,Timer test restricted: managers,timer.test.restricted,test_timer.group_timer_test_manager,crud,

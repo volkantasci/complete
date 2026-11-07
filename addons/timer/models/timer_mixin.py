@@ -101,11 +101,21 @@ class TimerMixin(models.AbstractModel):
         return self.env['timer.timer'].search([('user_id', '=', self.env.user.id)])
 
     def _get_timers_from_other_users(self):
-        return self.env['timer.timer'].search([
+        return self.env['timer.timer'].sudo().search([
             ('res_model', '=', self._name),
             ('res_id', 'in', self.ids),
             ('user_id', '!=', self.env.user.id),
         ])
+
+    def unlink(self):
+        self.check_access('unlink')
+        timers = self._get_timers_from_other_users() | self.env['timer.timer'].sudo().search([
+            ('res_model', '=', self._name),
+            ('res_id', 'in', self.ids),
+            ('user_id', '=', self.env.user.id),
+        ])
+        timers.sudo().unlink()
+        return super().unlink()
 
     def _stop_timer_in_progress(self):
         for timer in self._get_user_timers().filtered('is_timer_running'):

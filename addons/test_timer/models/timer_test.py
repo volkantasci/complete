@@ -19,3 +19,11 @@ class TimerTestInterruption(models.Model):
 
     def _action_interrupt_user_timers(self):
         self.action_timer_stop()
+
+
+class TimerTestRestricted(models.Model):
+    _name = 'timer.test.restricted'
+    _inherit = ['timer.mixin']
+    _description = 'Restricted Timer Model'
+
+    name = fields.Char()

@@ -10,7 +10,7 @@
     'author': 'Complete contributors',
     'website': 'https://github.com/volkantasci/complete',
     'depends': ['timer'],
-    'data': ['security/ir.access.csv'],
+    'data': ['security/test_timer_groups.xml', 'security/ir.access.csv'],
     'installable': True,
     'application': False,
 }
