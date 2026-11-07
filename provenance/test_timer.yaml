@@ -1,0 +1,41 @@
+# Copyright 2026 Complete contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+module: test_timer
+slice: 000-timer
+spec_sha256: 27ae6dd208f0b5763389fa8ff75069056bf06c1940ecb8a3e5225f67613f4148
+ee_build: "20261106"
+implementer_sessions:
+  - 8178a81c-8f74-488e-b365-69bebc20ebd6
+  - 438b3483-3331-4326-bbbb-b86cd77406ac
+verifier_session: 0188065a-f461-4ed1-89e6-3adc901c9bed
+overlap:
+  ratio: 0.008
+  longest_run: 2
+  reviewed_matches:
+    - file: addons/test_timer/models/timer_test.py
+      line: 18
+      reason: required name
+    - file: addons/test_timer/models/timer_test.py
+      line: 20
+      reason: required name
+    - file: addons/test_timer/models/timer_test.py
+      line: 39
+      reason: required name
+    - file: addons/test_timer/models/timer_test.py
+      line: 58
+      reason: required name
+    - file: addons/test_timer/models/timer_test.py
+      line: 6
+      reason: conventional name
+    - file: addons/test_timer/tests/common.py
+      line: 12
+      reason: framework idiom
+audit_log_sha256: 00f46c09b4b77deaeec72a1e634e32d88e3e7b4a51a8c0e275e4da6a5cf771f6
+escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed"
+dates:
+  spec_approved: "2026-11-07"
+  implemented: "2026-11-07"
+  verified: "2026-11-07"
+approvals:
+  - "owner: spec approved at CP6 (2026-11-07)"
+  - "owner: release approved at CP7 (2026-11-08)"
