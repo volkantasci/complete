@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from tools.check_headers import check_headers
-from tools.check_manifests import check_manifests
+from tools.check_manifests import NAME_RE, check_manifests
 from tools.check_provenance import REQUIRED_PROVENANCE_KEYS, check_provenance
 from tools.check_provenance import main as provenance_main
 
@@ -162,6 +162,15 @@ def test_provenance_rejects_non_finite_and_boolean_numbers(tmp_path, ratio, run)
     )
     problems = check_provenance(tmp_path / "addons", tmp_path / "provenance")
     assert any("complete_x" in p and "overlap." in p for p in problems)
+
+
+def test_manifest_accepts_compatibility_names(tmp_path):
+    # Spec packages may require an original module name for database compatibility.
+    write(tmp_path / "timer/__manifest__.py", manifest())
+    write(tmp_path / "test_timer/__manifest__.py", manifest())
+    write(tmp_path / "sale_timer/__manifest__.py", manifest())
+    problems = check_manifests(tmp_path)
+    assert problems == [f"sale_timer: module name must match {NAME_RE.pattern}"]
 
 
 def test_provenance_allow_missing_reports_but_passes(tmp_path, monkeypatch, capsys):
