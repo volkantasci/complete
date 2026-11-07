@@ -3,6 +3,12 @@
 import { registry } from "@web/core/registry";
 
 const timerText = () => document.querySelector(".o_form_view .o_timer_start_field")?.textContent;
+const toSeconds = (text) => {
+    const [h, m, s] = text.split(":").map(Number);
+    return h * 3600 + m * 60 + s;
+};
+// seconds the display may advance between the resume click and the check
+const MAX_RESUME_JUMP = 2;
 let frozen;
 
 registry.category("web_tour.tours").add("timer_form_start_pause_resume_stop", {
@@ -30,10 +36,17 @@ registry.category("web_tour.tours").add("timer_form_start_pause_resume_stop", {
         },
         { trigger: ".o_statusbar_buttons button[name=action_timer_resume]", run: "click" },
         {
+            // right after resume the display continues from the frozen value
             trigger: ".o_statusbar_buttons button[name=action_timer_pause]",
-            run() {
-                if (timerText() < frozen) {
-                    throw new Error(`Resumed display went back: ${timerText()} < ${frozen}`);
+            async run() {
+                const delta = toSeconds(timerText()) - toSeconds(frozen);
+                if (delta < 0 || delta > MAX_RESUME_JUMP) {
+                    throw new Error(`Resumed display jumped: ${frozen} -> ${timerText()}`);
+                }
+                const before = timerText();
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+                if (toSeconds(timerText()) <= toSeconds(before)) {
+                    throw new Error(`Resumed display does not tick: ${before}`);
                 }
             },
         },
