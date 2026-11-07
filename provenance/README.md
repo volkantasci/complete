@@ -4,7 +4,7 @@ Every module under `addons/` has one record, `provenance/<module>.yaml`, written
 
 | Key | Meaning |
 | --- | --- |
-| `module` | Technical module name, `complete_<name>`. |
+| `module` | Technical module name: `complete_<name>`, or an original name a spec requires for compatibility (see [module-authoring.md](../docs/module-authoring.md#naming)). |
 | `slice` | The spec slice this module implements. |
 | `spec_sha256` | SHA-256 of the approved spec file the implementer received. |
 | `ee_build` | Enterprise build date the spec was derived from (for example `20261106`). |
