@@ -44,14 +44,15 @@ def render_local_settings(ws: Path, repo: Path | None = None) -> dict:
         raise ValueError(f"the workspace and repository must be absolute paths: {ws}, {repo}")
     w = ws.as_posix().lstrip("/")
     r = repo.as_posix().lstrip("/")
+    read_only_dirs = [
+        str(ws / "odoo-reference/community"),
+        str(ws / "complete-specs/slices"),
+        str(ws / "complete-specs/templates"),
+    ]
     return {
         "permissions": {
             "blockReadsOutsideWorkingDirectories": True,
-            "additionalDirectories": [
-                str(ws / "odoo-reference/community"),
-                str(ws / "complete-specs/slices"),
-                str(ws / "complete-specs/templates"),
-            ],
+            "additionalDirectories": read_only_dirs,
             "deny": [
                 f"Read(//{w}/odoo-reference/enterprise/**)",
                 f"Edit(//{w}/odoo-reference/**)",
@@ -82,6 +83,7 @@ def render_local_settings(ws: Path, repo: Path | None = None) -> dict:
                     str(repo / ".claude"),
                     str(repo / ".git/hooks"),
                     str(repo / ".git/config"),
+                    *read_only_dirs,
                 ],
             },
             "network": {"allowedDomains": sorted(guard_allowed_hosts())},

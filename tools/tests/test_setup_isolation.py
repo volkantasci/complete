@@ -71,11 +71,28 @@ def test_render_local_settings_exact():
                     "/w/complete/.claude",
                     "/w/complete/.git/hooks",
                     "/w/complete/.git/config",
+                    "/w/odoo-reference/community",
+                    "/w/complete-specs/slices",
+                    "/w/complete-specs/templates",
                 ],
             },
             "network": {"allowedDomains": sorted(HOSTS)},
         },
     }
+
+
+def test_extra_read_directories_are_not_writable_in_the_sandbox():
+    s = render_local_settings(Path("/w"))
+    extra = s["permissions"]["additionalDirectories"]
+    deny_write = s["sandbox"]["filesystem"]["denyWrite"]
+    assert extra
+    assert all(d in deny_write for d in extra)
+    assert deny_write[:3] == [
+        "/w/complete/.claude",
+        "/w/complete/.git/hooks",
+        "/w/complete/.git/config",
+    ]
+    assert "/w/complete" not in deny_write
 
 
 def test_render_uses_the_workspace_given():
@@ -92,6 +109,9 @@ def test_render_uses_the_repository_given():
         "/w/fork/.claude",
         "/w/fork/.git/hooks",
         "/w/fork/.git/config",
+        "/w/odoo-reference/community",
+        "/w/complete-specs/slices",
+        "/w/complete-specs/templates",
     ]
 
 

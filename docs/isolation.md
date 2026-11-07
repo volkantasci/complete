@@ -23,7 +23,7 @@ The layers overlap on purpose: Claude Code permissions are not an operating-syst
 |---|---|---|
 | **L1 Permissions** | `.claude/settings.local.json` (generated, not committed) | Blocks reads outside the working directories; adds the CE tree, `slices/`, and `templates/` as extra directories; denies reading the EE tree, the analyst-only areas, and the specification repository's `.git/` and `.githooks/`; denies editing anything under `odoo-reference/`, `complete-specs/`, and this repository's `.claude/` and `.git/`. Covers Read, Edit, Write, and NotebookEdit; Grep and Glob only on a best-effort basis. |
 | **L2 Guard hook** | `.claude/settings.json` and `.claude/hooks/guard.py` (committed) | A `PreToolUse` hook that runs before every tool call, including calls made by subagents. It blocks forbidden calls, fails closed, and writes the audit log. |
-| **L3 Sandbox** | `.claude/settings.local.json` | Runs shell commands in a bubblewrap sandbox in which the EE tree and the whole specification repository are unreadable (`denyRead`) except `slices/` and `templates/` (`allowRead`), this repository's `.claude/`, `.git/hooks`, and `.git/config` are not writable (`denyWrite`), and network access is limited to the web allowlist. Claude Code refuses to run shell commands when the sandbox is unavailable (`failIfUnavailable`), and a command cannot ask to leave it (`allowUnsandboxedCommands: false`). |
+| **L3 Sandbox** | `.claude/settings.local.json` | Runs shell commands in a bubblewrap sandbox in which the EE tree and the whole specification repository are unreadable (`denyRead`) except `slices/` and `templates/` (`allowRead`), this repository's `.claude/`, `.git/hooks`, and `.git/config` are not writable (`denyWrite`), the CE tree, `slices/`, and `templates/` are not writable either (`denyWrite`, because Claude Code makes every working directory writable inside the sandbox), and network access is limited to the web allowlist. Claude Code refuses to run shell commands when the sandbox is unavailable (`failIfUnavailable`), and a command cannot ask to leave it (`allowUnsandboxedCommands: false`). |
 | **L4 Web** | Guard hook and the sandbox network allowlist | WebFetch only over https to allowlisted hosts; WebSearch only with `allowed_domains` taken from the same list; shell network traffic only to those hosts. Every fetched URL is in the audit log. |
 | **L5 OS user** (optional) | Operating system | Implementer sessions run as a separate Linux user without read permission on `<ws>/odoo-reference/enterprise`. The only layer that does not depend on Claude Code. |
 
@@ -66,7 +66,7 @@ cd <ws>/complete
 
 The command refuses to overwrite an existing file (exit code 1); pass `--force` to regenerate it. It also refuses a `--workspace` that is not the directory holding the repository (exit code 2), because the guard derives its workspace root from the repository location and the two would disagree.
 
-Then start `claude` in `<ws>/complete`, accept the trust dialog, open `/hooks` to confirm that the `PreToolUse` guard is listed, and exit. Start a new session after generating or changing the settings. The hook needs `python3` (3.12 or later) on the `PATH`.
+Then start `claude` in `<ws>/complete`, accept the trust dialog, open `/hooks` to confirm that the `PreToolUse` guard is listed, and exit. Start a new session after generating or changing the settings. A session that is already running in `complete/` picks up generated or changed settings at once, the sandbox included. Shell commands that the owner types with `!` run outside the sandbox. The hook needs `python3` (3.12 or later) on the `PATH`.
 
 ## Containers
 
@@ -124,10 +124,12 @@ The isolation files are `.claude/settings.json`, `.claude/hooks/guard.py`, `tool
 
 The isolation check is the gate before the pilot, and it is rerun after every change to the isolation files. The threat model is accidental access (broad searches, paths taken from error messages, web results), not a session that sets out to defeat the layers, so the check confirms that every layer is loaded rather than hunting for evasions. The owner starts one headless implementer session in `complete/` in `auto` mode from a shell, and that session must show that:
 
-- Read, Grep, `cat`, and a subagent cannot read a file in the EE tree: each call is denied with the guard's boundary note and logged with `allowed: false` (L2). The probe names a file that does not exist, so nothing from EE can reach the transcript even if a layer is missing.
+- Read, Grep, `cat`, and a subagent cannot read a file in the EE tree. The L1 deny rules stop a Read of the EE tree before the guard runs, so such calls leave no audit line. The guard denies shell commands, and a subagent's calls, that name the EE tree, with its boundary note, and logs them with `allowed: false` (L2). A headless session has no Grep tool, so the shell `grep` stands in for it. The probe names a file that does not exist, so nothing from EE can reach the transcript even if a layer is missing.
 - Read cannot open a file outside the working directories that the guard does not cover, such as `/etc/hostname` (L1).
-- A shell command cannot write outside the working directory, while `cat` can read a file in `<ws>/complete-specs/templates/` (L3, including `allowRead` inside `denyRead`).
+- A shell command cannot write outside the working directory or into the read-only extra directories: a write to `/tmp` or to `<ws>/complete-specs/templates/` fails with a read-only file system error. The sandbox hides the home directory behind an empty layer that it discards after each command, so a write there seems to succeed but never reaches the disk; the owner confirms from a shell that no file appeared. `cat` can read a file in `<ws>/complete-specs/templates/` (L3, including `allowRead` inside `denyRead`).
 - A module created with the scaffold passes its tests with the command in [Containers](#containers).
+
+Inside the sandbox, `git status` lists about 20 untracked placeholders, such as `.bashrc`, `.mcp.json`, `.vscode`, and `.claude/agents`. The sandbox mounts them so that those files cannot be created. They are not on disk. Check whether the tree is clean from the owner's shell, or limit `git status` to the paths in question.
 
 Any failure blocks the pilot until the responsible layer is fixed. The evidence is kept in the private specification repository.
 
