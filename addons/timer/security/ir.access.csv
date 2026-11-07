@@ -1,0 +1,3 @@
+id,name,model_id,group_id/id,operation,domain
+timer_timer_own,Timer: own timers,timer.timer,base.group_user,crud,"[('user_id', '=', user.id)]"
+timer_timer_others,Timer: read other users' timers,timer.timer,base.group_user,r,"[('user_id', '!=', user.id)]"
