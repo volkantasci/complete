@@ -36,6 +36,15 @@ The step 6 thresholds were initial values. The pilot kept both; see the [pilot r
 
 How the sessions of a slice are started and handed over in practice is in the [slice runbook](slice-runbook.md).
 
+## Scope and design rules
+
+These owner decisions apply to every slice:
+
+- **No vendor licensing or upselling.** Complete does not rebuild vendor licensing, subscription management, or upsell and promotion features. Where Enterprise shows such an element, Complete shows nothing.
+- **Theme colours.** Complete follows its own active theme. Where an Enterprise screen takes a colour from its theme, the spec names the colour role, such as primary or danger, and the Complete module uses that role, not the Enterprise value.
+- **Defects of the original.** When the analyst finds behaviour that looks like a defect, the owner decides whether Complete keeps or corrects it. The decision is recorded in the spec package.
+- **Large slices are split.** The analyst checks a slice's size before writing. A slice much larger than the pilot is split, and the owner approves the split.
+
 ## Spec packages
 
 Spec packages live in a private repository and are what the implementer works from. Each one contains:
