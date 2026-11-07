@@ -20,7 +20,8 @@ The workspace root ``WS`` comes from this file's location,
 * a shell command starts another Claude Code process, touches the isolation
   configuration or the git hooks, names the root of ``complete-specs``, asks to leave
   the sandbox, or runs a container in any form other than one plain command whose
-  host paths hold no forbidden area;
+  host paths hold no forbidden area, or with an image, container, or volume other
+  than the project's own (``ALLOWED_IMAGES`` and the compose stack in ``docker/``);
 * a write targets the isolation configuration, the git directory, the container
   configuration, the audit log, or the reference and specification trees;
 * a web request leaves the allowlist.
@@ -155,8 +156,6 @@ SHELL_PREFIXES = frozenset(
     }
 )  # fmt: skip
 CONTAINER_GLOBAL_OPTIONS = frozenset({"--version", "-v", "--help", "-h"})
-CONTAINER_DENIED_SUBCOMMANDS = frozenset({"unshare", "machine"})
-CONTAINER_DENIED_SYSTEM = frozenset({"service", "connection"})
 
 
 # Location ---------------------------------------------------------------------------
@@ -692,9 +691,9 @@ def _container_reason(command: str, cwd: str) -> str | None:
     """Check a container command; podman runs outside the sandbox, so this is strict.
 
     It must be one simple command that starts with ``podman`` or ``docker``, uses no
-    shell syntax, no global options other than ``--version`` or ``--help``, no
-    ``unshare``, ``machine``, ``system service``, or ``system connection``, and no
-    word that is, or holds, a forbidden area.
+    shell syntax, no global options other than ``--version`` or ``--help``, and no
+    word that is, or holds, a forbidden area or an owner-managed location. Then it may
+    use only the allowed images and the compose stack's containers (F4).
     """
     syntax = sorted(CONTAINER_SYNTAX.intersection(command))
     if syntax:
@@ -714,11 +713,6 @@ def _container_reason(command: str, cwd: str) -> str | None:
         if words[index] not in CONTAINER_GLOBAL_OPTIONS:
             return f"the container global option {words[index]!r} is not allowed"
         index += 1
-    subcommand = words[index : index + 2]
-    if subcommand[:1] and subcommand[0] in CONTAINER_DENIED_SUBCOMMANDS:
-        return f"the container subcommand {subcommand[0]!r} is not allowed"
-    if subcommand[:1] == ["system"] and subcommand[1:] and subcommand[1] in CONTAINER_DENIED_SYSTEM:
-        return f"the container subcommand 'system {subcommand[1]}' is not allowed"
     paths = {OPTION.sub("", token) for word in words[1:] for token in TOKEN_SEPARATORS.split(word)}
     for path in sorted(paths - {""}):
         for candidate in _absolute_forms(path, cwd):
@@ -730,7 +724,7 @@ def _container_reason(command: str, cwd: str) -> str | None:
                     f"the container argument {path!r} would expose {protected} to a container, "
                     "which writes outside the sandbox"
                 )
-    return None
+    return _container_use_reason(os.path.basename(words[0]), words[index:], cwd)
 
 
 def _container_protected(path: str) -> str | None:
@@ -772,6 +766,696 @@ def _command_reason(tool_input: dict, cwd: str) -> str | None:
         return "the guard cannot parse a command that mentions a container CLI"
     if runs_container:
         return _container_reason(command, cwd)
+    return None
+
+
+# Container images and containers (F4). Container commands may use only the images the
+# project needs and the containers of its compose stack, because the user's container
+# storage can hold images with EE code, and podman runs outside the sandbox.
+#
+# ALLOWED_IMAGES is the one place to change which images are allowed. Each key is a
+# fully qualified repository; its value is the set of allowed tags, or None for any
+# tag. To allow another image, add it here with the narrowest tags that work, add a
+# case to tools/tests/test_guard.py, and list it under "Containers" in
+# docs/isolation.md. Never add an image that holds Odoo Enterprise code.
+ALLOWED_IMAGES: dict[str, frozenset[str] | None] = {
+    "localhost/complete-odoo": None,  # built from docker/ (`make image`); the tag is the release
+    "docker.io/pgvector/pgvector": frozenset({"pg17"}),  # the db service of docker/compose.yaml
+    "docker.io/library/ubuntu": frozenset({"noble"}),  # the FROM line of docker/Dockerfile
+}
+# The project's compose stack: compose names its containers <project>-<service>-<n>
+# (or <project>-<service>-run-<id>) and its volumes <project>_<volume>, and the project
+# is the directory of the compose file.
+STACK_COMPOSE = REPO / "docker" / "compose.yaml"
+STACK_PROJECT = "docker"
+BUILD_CONTEXT = REPO / "docker"
+MAX_CONFIG_BYTES = 256 * 1024
+IMAGE_REFERENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/:-]*")
+IMAGE_TAG = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}")
+
+# Options per subcommand, from `podman <subcommand> --help` (podman 6.1) and
+# `docker compose [run] --help` (Docker Compose 5.6): `-e|--env=` takes a value, `--rm`
+# is a flag. An option missing here is refused, because the guard could then no longer
+# tell which word names the image or the container.
+RUN_OPTIONS = (
+    "--add-host= --annotation= --arch= -a|--attach= --authfile= --blkio-weight= "
+    "--blkio-weight-device= --cap-add= --cap-drop= --cert-dir= --cgroup-conf= "
+    "--cgroup-parent= --cgroupns= --cgroups= --chrootdirs= --cidfile= --conmon-pidfile= "
+    "--cpu-period= --cpu-quota= --cpu-rt-period= --cpu-rt-runtime= -c|--cpu-shares= "
+    "--cpus= --cpuset-cpus= --cpuset-mems= --creds= --decryption-key= --detach-keys= "
+    "--device= --device-cgroup-rule= --device-read-bps= --device-read-iops= "
+    "--device-write-bps= --device-write-iops= --dns= --dns-option= --dns-search= "
+    "--entrypoint= -e|--env= --env-file= --env-merge= --expose= --gidmap= --gpus= "
+    "--group-add= --group-entry= --health-cmd= --health-interval= "
+    "--health-log-destination= --health-max-log-count= --health-max-log-size= "
+    "--health-on-failure= --health-retries= --health-start-period= "
+    "--health-startup-cmd= --health-startup-interval= --health-startup-retries= "
+    "--health-startup-success= --health-startup-timeout= --health-timeout= "
+    "-h|--hostname= --hosts-file= --hostuser= --image-volume= --init-path= --ip= --ip6= "
+    "--ipc= -l|--label= --label-file= --log-driver= --log-opt= --mac-address= "
+    "-m|--memory= --memory-reservation= --memory-swap= --memory-swappiness= --mount= "
+    "--name= --network= --network-alias= --oom-score-adj= --os= --passwd-entry= "
+    "--personality= --pid= --pidfile= --pids-limit= --platform= --pod= --pod-id-file= "
+    "--preserve-fd= --preserve-fds= -p|--publish= --pull= --rdt-class= --requires= "
+    "--restart= --retry= --retry-delay= --sdnotify= --seccomp-policy= --secret= "
+    "--security-opt= --shm-size= --shm-size-systemd= --stop-signal= --stop-timeout= "
+    "--subgidname= --subuidname= --sysctl= --systemd= --timeout= --tmpfs= --tz= "
+    "--uidmap= --ulimit= --umask= --unsetenv= -u|--user= --userns= --uts= --variant= "
+    "-v|--volume= --volumes-from= -w|--workdir= --init-ctr= -d|--detach "
+    "--disable-content-trust --env-host --http-proxy --init -i|--interactive "
+    "--no-healthcheck --no-hostname --no-hosts --oom-kill-disable --passwd --privileged "
+    "-P|--publish-all -q|--quiet --read-only --read-only-tmpfs --replace --rm --rmi "
+    "--rootfs --sig-proxy --tls-verify -t|--tty --unsetenv-all"
+)
+
+BUILD_OPTIONS = (
+    "-f|--file= --add-host= --annotation= --arch= --authfile= --build-arg= --build-arg-file= "
+    "--build-context= --cache-from= --cache-to= --cache-ttl= --cap-add= --cap-drop= "
+    "--cert-dir= --cgroup-parent= --cgroupns= --compression-format= "
+    "--compression-level= --cpp-flag= --cpu-period= --cpu-quota= -c|--cpu-shares= "
+    "--cpuset-cpus= --cpuset-mems= --creds= --cw= --decryption-key= --device= --dns= "
+    "--dns-option= --dns-search= --env= --format= --from= --group-add= --hooks-dir= "
+    "--ignorefile= --iidfile= --iidfile-raw= --ipc= --isolation= --jobs= --label= "
+    "--layer-label= --logfile= --manifest= -m|--memory= --memory-swap= --metadata-file= "
+    "--mount= --network= --os= --os-feature= --os-version= -o|--output= --pid= "
+    "--platform= --pull= --retry= --retry-delay= --runtime-flag= --sbom= "
+    "--sbom-image-output= --sbom-image-purl-output= --sbom-merge-strategy= "
+    "--sbom-output= --sbom-purl-output= --sbom-scanner-command= --sbom-scanner-image= "
+    "--secret= --security-opt= --shm-size= --sign-by= --source-date-epoch= "
+    "--source-policy-file= --ssh= -t|--tag= --target= --timestamp= --ulimit= "
+    "--unsetannotation= --unsetenv= --unsetlabel= --userns= --userns-gid-map= "
+    "--userns-gid-map-group= --userns-uid-map= --userns-uid-map-user= --uts= --variant= "
+    "-v|--volume= --all-platforms --compat-volumes --compress --created-annotation "
+    "-D|--disable-compression --disable-content-trust --force-compression --force-rm "
+    "--http-proxy --identity-label --inherit-annotations --inherit-labels --layers "
+    "--logsplit --no-cache --no-hostname --no-hosts --omit-history -q|--quiet "
+    "--rewrite-timestamp --rm --save-stages --skip-unused-stages --squash --squash-all "
+    "--stage-labels --stdin --tls-verify"
+)
+
+COMPOSE_OPTIONS = (
+    "--ansi= --env-file= -f|--file= --parallel= --profile= --progress= "
+    "--project-directory= -p|--project-name= --all-resources --compatibility --dry-run"
+)
+
+COMPOSE_RUN_OPTIONS = (
+    "--cap-add= --cap-drop= --entrypoint= -e|--env= --env-from-file= -l|--label= "
+    "--name= -p|--publish= --pull= -u|--user= -v|--volume= -w|--workdir= --build "
+    "-d|--detach --dry-run -i|--interactive --no-deps -T|--no-tty -q|--quiet "
+    "--quiet-build --quiet-pull --remove-orphans --rm -P|--service-ports --use-aliases"
+)
+
+# Subcommand -> (kind, options). The kinds are checked in _check_container_use.
+PODMAN_SUBCOMMANDS: dict[str, tuple[str, str]] = {
+    "run": ("run", RUN_OPTIONS),
+    "create": ("run", RUN_OPTIONS),
+    "build": ("build", BUILD_OPTIONS),
+    "pull": (
+        "images",
+        (
+            "--arch= --authfile= --cert-dir= --creds= --decryption-key= --os= "
+            "--platform= --policy= --retry= --retry-delay= --variant= -a|--all-tags "
+            "--disable-content-trust -q|--quiet --tls-verify"
+        ),
+    ),
+    "tag": ("images", ""),
+    "untag": ("images", ""),
+    "rmi": ("images", "-a|--all -f|--force -i|--ignore --no-prune"),
+    "history": ("images", "--format= -H|--human --no-trunc -q|--quiet"),
+    "image exists": ("images", ""),
+    "image inspect": ("images", "-f|--format="),
+    "inspect": ("inspect", "-f|--format= -t|--type= -l|--latest -s|--size"),
+    "exec": (
+        "containers",
+        (
+            "--cidfile= --detach-keys= -e|--env= --env-file= --preserve-fd= "
+            "--preserve-fds= -u|--user= -w|--workdir= -d|--detach -i|--interactive "
+            "-l|--latest --no-session --privileged -t|--tty"
+        ),
+    ),
+    "attach": ("containers", "--detach-keys= -l|--latest --no-stdin --sig-proxy"),
+    "start": (
+        "containers",
+        ("--detach-keys= -f|--filter= --all -a|--attach -i|--interactive -l|--latest --sig-proxy"),
+    ),
+    "stop": ("containers", ("--cidfile= -f|--filter= -t|--time= -a|--all -i|--ignore -l|--latest")),
+    "restart": (
+        "containers",
+        ("--cidfile= -f|--filter= -t|--time= -a|--all -l|--latest --running"),
+    ),
+    "kill": ("containers", "--cidfile= -s|--signal= -a|--all -l|--latest"),
+    "pause": ("containers", "--cidfile= -f|--filter= -a|--all -l|--latest"),
+    "unpause": ("containers", "--cidfile= -f|--filter= -a|--all -l|--latest"),
+    "rm": (
+        "containers",
+        (
+            "--cidfile= --filter= -t|--time= -a|--all --depend -f|--force "
+            "-i|--ignore -l|--latest -v|--volumes"
+        ),
+    ),
+    "logs": (
+        "containers",
+        ("--since= --tail= --until= --color -f|--follow -l|--latest -n|--names -t|--timestamps"),
+    ),
+    "top": ("containers", "-l|--latest"),
+    "port": ("containers", "-a|--all -l|--latest"),
+    "wait": ("containers", ("--condition= -i|--interval= --exit-first-match --ignore -l|--latest")),
+    "stats": (
+        "containers",
+        ("--format= -i|--interval= -a|--all -l|--latest --no-reset --no-stream --no-trunc"),
+    ),
+    "healthcheck run": ("containers", "--ignore-result"),
+    "container inspect": ("containers", "-f|--format= -l|--latest -s|--size"),
+    "container exists": ("containers", "--external"),
+    "cp": ("cp", "-a|--archive --overwrite"),
+}
+PODMAN_GROUPS = frozenset({"image", "container", "volume", "network", "healthcheck"})
+PODMAN_ALIASES = {
+    "image ls": "images",
+    "image list": "images",
+    "container ls": "ps",
+    "container list": "ps",
+    "container ps": "ps",
+    "volume list": "volume ls",
+    "network list": "network ls",
+    "image pull": "pull",
+    "image tag": "tag",
+    "image untag": "untag",
+    "image rm": "rmi",
+    "image history": "history",
+    "image build": "build",
+    **{
+        f"container {name}": name
+        for name in (
+            "run", "create", "exec", "cp", "attach", "start", "stop", "restart", "kill",
+            "pause", "unpause", "rm", "logs", "top", "port", "wait", "stats",
+        )
+    },
+}  # fmt: skip
+PODMAN_LISTINGS = frozenset({"help", "version", "info", "ps", "images", "volume ls", "network ls"})
+DOCKER_LISTINGS = frozenset({"version", "info", "ps", "images"})
+# Words after the image (run, create) or the container (exec) are the container's command.
+COMMAND_TAILS = frozenset({"run", "create", "exec"})
+# Only the first operand names a container; the rest are ps fields or a port.
+FIRST_OPERAND_ONLY = frozenset({"exec", "top", "port"})
+RUN_REFUSED = frozenset({"--rootfs", "--pod", "--pod-id-file", "--requires"})
+BUILD_REFUSED = frozenset(
+    {
+        "--from", "--build-context", "--cache-from", "--cache-to", "--mount", "--hooks-dir",
+        "--runtime-flag", "--output",
+    }
+)  # fmt: skip
+SELECTING_OPTIONS = frozenset({"--all", "--latest", "--filter", "--cidfile"})
+NAMESPACE_OPTIONS = frozenset({"--pid", "--ipc", "--network", "--uts", "--userns", "--cgroupns"})
+COMPOSE_SUBCOMMANDS = frozenset(
+    {
+        "up", "down", "ps", "logs", "exec", "run", "start", "stop", "restart", "config",
+        "images", "top", "pull", "create", "kill", "pause", "unpause", "port", "rm", "wait",
+        "cp", "attach", "stats", "version", "ls",
+    }
+)  # fmt: skip
+COMPOSE_WITHOUT_FILE = frozenset({"version", "ls"})
+COMPOSE_TOP_KEYS = frozenset({"services", "volumes", "networks", "secrets", "configs", "version"})
+COMPOSE_REFUSED_KEYS = frozenset({"build", "extends", "volumes_from"})
+YAML_KEY = re.compile(r"""("[^"\\]*"|'[^']*'|[^\s'"#:{}\[\],&*!|>%@`-][^:#]*?)\s*:(?:\s+(.*))?""")
+YAML_NODE_PROPERTY = re.compile(r"(?:^|[:\-?]\s+|[\[{,]\s*)[&*!]|<<\s*:|\bcontainer:")
+CONTAINERFILE_DIRECTIVE = re.compile(r"#\s*([A-Za-z]+)\s*=")
+CONTAINERFILE_SOURCE = re.compile(r"(?:--from=|\bfrom=)([^\s,]+)", re.IGNORECASE)
+
+
+class _Refused(Exception):
+    """A container command uses an image, container, or file that the guard refuses."""
+
+
+@functools.cache
+def _option_table(spec: str) -> dict[str, tuple[str, bool]]:
+    """Map each option name of a spec to its long name and whether it takes a value."""
+    table = {"--help": ("--help", False)}
+    for entry in spec.split():
+        names = entry.rstrip("=").split("|")
+        for name in names:
+            table[name] = (names[-1], entry.endswith("="))
+    return table
+
+
+def _parse_options(
+    words: list[str], spec: str, stop: bool
+) -> tuple[list[tuple[str, str | None]], list[str], list[str]]:
+    """Split words into options, operands, and the rest, as podman's flag parser does.
+
+    Options come back as ``(long name, value)``; a flag's value is None unless written
+    as ``--flag=value``. With ``stop``, parsing ends at the first operand, and the words
+    after it are returned as the rest. An option that the spec does not list, or a
+    missing value, raises ``_Refused``.
+    """
+    table = _option_table(spec)
+    options: list[tuple[str, str | None]] = []
+    operands: list[str] = []
+    index = 0
+
+    def value_of(name: str, inline: str | None) -> str:
+        """The value written after ``=`` or attached (even if empty), else the next word."""
+        nonlocal index
+        if inline is not None:
+            return inline
+        if index >= len(words):
+            raise _Refused(f"the option {name} has no value")
+        index += 1
+        return words[index - 1]
+
+    def known(name: str) -> tuple[str, bool]:
+        if name not in table:
+            raise _Refused(f"the guard does not know the option {name}, so it cannot check it")
+        return table[name]
+
+    while index < len(words):
+        word = words[index]
+        index += 1
+        if word == "--":
+            take = 1 if stop else len(words)
+            operands.extend(words[index : index + take])
+            index += take
+            break
+        if word.startswith("--"):
+            name, equals, inline = word.partition("=")
+            long, takes = known(name)
+            written = inline if equals else None
+            options.append((long, value_of(name, written) if takes else written))
+        elif word.startswith("-") and word != "-":
+            for position in range(1, len(word)):
+                long, takes = known("-" + word[position])
+                if takes:
+                    attached = word[position + 1 :]
+                    written = attached[1:] if attached.startswith("=") else attached or None
+                    options.append((long, value_of(long, written)))
+                    break
+                options.append((long, None))
+        else:
+            operands.append(word)
+            if stop:
+                break
+    rest = words[index:]
+    if not stop:
+        operands.extend(rest)
+        rest = []
+    return options, operands, rest
+
+
+def _allowlist_text() -> str:
+    return ", ".join(
+        f"{name} (any tag)" if tags is None else ", ".join(f"{name}:{tag}" for tag in sorted(tags))
+        for name, tags in ALLOWED_IMAGES.items()
+    )
+
+
+def _image_name(reference: str) -> tuple[str, str] | None:
+    """The fully qualified repository and tag of an image reference, read as Docker does.
+
+    A short name gets ``docker.io/library/`` or ``docker.io/``, and a missing tag means
+    ``latest``. None for a digest, a variable, or any other character outside a name.
+    """
+    if not IMAGE_REFERENCE.fullmatch(reference) or "//" in reference:
+        return None
+    slash, colon = reference.rfind("/"), reference.rfind(":")
+    repository, tag = (
+        (reference[:colon], reference[colon + 1 :]) if colon > slash else (reference, "latest")
+    )
+    if not IMAGE_TAG.fullmatch(tag):
+        return None
+    first, _, rest = repository.partition("/")
+    if not rest:
+        repository = "docker.io/library/" + repository
+    elif not ("." in first or ":" in first or first == "localhost"):
+        repository = "docker.io/" + repository
+    return repository, tag
+
+
+def _image_allowed(reference: str) -> bool:
+    name = _image_name(reference)
+    if name is None or name[0] not in ALLOWED_IMAGES:
+        return False
+    tags = ALLOWED_IMAGES[name[0]]
+    return tags is None or name[1] in tags
+
+
+def _compose_image_allowed(value: str) -> bool:
+    """An image of a compose file; a variable may stand only in a tag that may be any."""
+    if "$" not in value:
+        return _image_allowed(value)
+    head = value[: value.index("$")]
+    slash, colon = head.rfind("/"), head.rfind(":")
+    name = _image_name(head[:colon]) if colon > slash else None
+    return name is not None and name[0] in ALLOWED_IMAGES and ALLOWED_IMAGES[name[0]] is None
+
+
+def _refuse_image(reference: str, where: str = "") -> None:
+    if not _image_allowed(reference):
+        raise _Refused(
+            f"the container image {reference!r}{where} is not on the guard's image allowlist "
+            f"({_allowlist_text()}); name an allowed image in full, with its tag"
+        )
+
+
+def _read_text(path: str) -> str:
+    with open(path, "rb") as handle:
+        data = handle.read(MAX_CONFIG_BYTES + 1)
+    if len(data) > MAX_CONFIG_BYTES:
+        raise _Refused(f"{path!r} is too large for the guard to check")
+    return data.decode("utf-8")
+
+
+def _strip_yaml_comment(line: str) -> str:
+    quote = None
+    for index, char in enumerate(line):
+        if quote:
+            quote = None if char == quote else quote
+        elif char in "'\"":
+            quote = char
+        elif char == "#" and (index == 0 or line[index - 1] in " \t"):
+            return line[:index]
+    return line
+
+
+def _yaml_scalar(value: str | None, where: str) -> str:
+    if not value or value[0] in "|>&*!{[":
+        raise _Refused(f"{where}: write the image as a plain or quoted value on its key's line")
+    if value[0] in "'\"":
+        if len(value) < 2 or value[-1] != value[0] or value[0] in value[1:-1] or "\\" in value:
+            raise _Refused(f"{where}: the guard cannot read this quoted image")
+        return value[1:-1]
+    return value
+
+
+def _read_compose(path: str) -> tuple[dict[str, str], set[str]]:
+    """The services (name to image) and the top-level volume names of a compose file.
+
+    The guard follows only a conservative subset of YAML: block mappings with spaces,
+    plain or quoted one-line images, and comments. Anything else raises ``_Refused``,
+    and so do the keys that could reach another image, container, or volume.
+    """
+    text = _read_text(path)
+    services: dict[str, str | None] = {}
+    volumes: set[str] = set()
+    section = service = None
+    entry_indent = key_indent = None
+    for number, raw in enumerate(text.splitlines(), 1):
+        where = f"line {number} of the compose file {path!r}"
+        if "\t" in raw[: len(raw) - len(raw.lstrip())]:
+            raise _Refused(f"{where} is indented with a tab")
+        line = _strip_yaml_comment(raw).rstrip()
+        body = line.lstrip(" ")
+        if not body:
+            continue
+        indent = len(line) - len(body)
+        if YAML_NODE_PROPERTY.search(body) or body.startswith(("---", "...", "%", "{", "[", "?")):
+            raise _Refused(
+                f"{where} uses YAML the guard does not follow (anchors, aliases, tags, merge "
+                "keys, flow style, documents) or a container: reference"
+            )
+        match = YAML_KEY.fullmatch(body)
+        key = match.group(1).strip("\"'") if match else None
+        value = match.group(2) if match else None
+        if indent == 0:
+            if key is None or not (key in COMPOSE_TOP_KEYS or key.startswith("x-")):
+                raise _Refused(f"{where}: the top-level entry {body[:40]!r} is not allowed")
+            if key in ("services", "volumes") and value:
+                raise _Refused(f"{where}: write {key} as a block mapping")
+            section, service, entry_indent = key, None, None
+            continue
+        if section not in ("services", "volumes"):
+            continue
+        entry_indent = indent if entry_indent is None else entry_indent
+        if indent == entry_indent:
+            if key is None or value:
+                raise _Refused(f"{where}: each {section} entry must be a name with a block mapping")
+            if section == "services":
+                services[key], service, key_indent = None, key, None
+            else:
+                volumes.add(key)
+            continue
+        if indent < entry_indent:
+            raise _Refused(f"{where} has an unexpected indentation")
+        if section == "volumes":
+            raise _Refused(f"{where}: top-level volumes must be bare names, without settings")
+        key_indent = indent if key_indent is None else key_indent
+        if indent < key_indent:
+            raise _Refused(f"{where} has an unexpected indentation")
+        if indent > key_indent:
+            continue
+        if key is None:
+            raise _Refused(f"{where}: a service must be a block mapping")
+        if key in COMPOSE_REFUSED_KEYS:
+            raise _Refused(f"{where}: the service key {key!r} is not allowed")
+        if key == "image":
+            services[service] = _yaml_scalar(value, where)
+    if not services:
+        raise _Refused(f"the compose file {path!r} defines no services")
+    for name, image in services.items():
+        if image is None:
+            raise _Refused(f"the service {name!r} in the compose file {path!r} has no image")
+    return services, volumes  # type: ignore[return-value]
+
+
+@functools.cache
+def _stack() -> tuple[frozenset[str], frozenset[str]]:
+    """The services and volumes of the project's compose file; empty when unreadable."""
+    try:
+        services, volumes = _read_compose(str(STACK_COMPOSE))
+    except (_Refused, OSError, ValueError):
+        return frozenset(), frozenset()
+    return frozenset(services), frozenset(f"{STACK_PROJECT}_{name}" for name in volumes)
+
+
+def _refuse_container(name: str) -> None:
+    for service in _stack()[0]:
+        for separator in "-_":
+            prefix = f"{STACK_PROJECT}{separator}{service}{separator}"
+            rest = name[len(prefix) :]
+            if name.startswith(prefix) and re.fullmatch(rf"\d+|run{separator}[0-9a-f]+", rest):
+                return
+    raise _Refused(
+        f"the container {name!r} is not a container of the project's compose stack "
+        f"(docker/compose.yaml, named {STACK_PROJECT}-<service>-<n>); name a stack "
+        "container in full, not by an ID"
+    )
+
+
+def _refuse_volume(value: str, named: frozenset[str] | set[str]) -> None:
+    source, separator, _ = value.partition(":")
+    if separator and not source.startswith(("/", ".", "~")) and source not in named:
+        raise _Refused(f"the volume {source!r} is not a volume of the project's compose stack")
+
+
+def _refuse_mount(value: str) -> None:
+    fields = dict(part.partition("=")[::2] for part in value.split(","))
+    kind = fields.get("type", "volume")
+    source = fields.get("source", fields.get("src", ""))
+    if kind == "volume" and source:
+        _refuse_volume(f"{source}:/", _stack()[1])
+    elif kind == "image":
+        _refuse_image(source, " in --mount")
+    elif kind not in ("volume", "bind", "tmpfs", "ramfs", "devpts"):
+        raise _Refused(f"the mount type {kind!r} is not allowed")
+
+
+def _check_namespaces(options: list[tuple[str, str | None]]) -> None:
+    for name, value in options:
+        if name in NAMESPACE_OPTIONS and value:
+            for part in value.split(","):
+                if part.startswith("container:"):
+                    _refuse_container(part.split(":")[1])
+
+
+def _check_containerfile(path: str) -> None:
+    """Refuse a container file that builds from, copies from, or mounts another image."""
+    lines = _read_text(path).splitlines()
+    for line in lines:
+        directive = CONTAINERFILE_DIRECTIVE.match(line.strip())
+        if not directive:
+            break
+        if directive.group(1).lower() in ("syntax", "escape"):
+            raise _Refused(
+                f"the container file {path!r} uses the parser directive {directive.group(1)!r}"
+            )
+    instructions, current = [], ""
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.endswith("\\"):
+            current += stripped[:-1] + " "
+            continue
+        instructions.append(current + stripped)
+        current = ""
+    instructions += [current] if current else []
+    stages: set[str] = set()
+    for instruction in instructions:
+        keyword, _, rest = instruction.partition(" ")
+        if keyword.upper() == "ONBUILD":
+            keyword, _, rest = rest.strip().partition(" ")
+        if keyword.upper() == "FROM":
+            words = [word for word in rest.split() if not word.startswith("--")]
+            base = words[0] if words else ""
+            if "$" in base:
+                raise _Refused(
+                    f"the container file {path!r} names its base image through a variable"
+                )
+            if base.lower() not in stages and base != "scratch":
+                _refuse_image(base, f" in FROM of {path!r}")
+            if len(words) >= 3 and words[1].lower() == "as":
+                stages.add(words[2].lower())
+        for match in CONTAINERFILE_SOURCE.finditer(rest):
+            source = match.group(1).strip("\"'")
+            if "$" in source:
+                raise _Refused(
+                    f"the container file {path!r} names a source image through a variable"
+                )
+            if source.lower() not in stages and not source.isdigit():
+                _refuse_image(source, f" in {path!r}")
+
+
+def _check_build(options: list[tuple[str, str | None]], operands: list[str], cwd: str) -> None:
+    for name, _ in options:
+        if name in BUILD_REFUSED or name.startswith("--sbom"):
+            raise _Refused(f"the build option {name} is not allowed")
+    _check_namespaces(options)
+    for name, value in options:
+        if name == "--tag":
+            _refuse_image(value or "", " given to --tag")
+        elif name == "--volume":
+            _refuse_volume(value or "", _stack()[1])
+    if "--help" in dict(options) and not operands:
+        return
+    context = os.path.realpath(BUILD_CONTEXT)
+    if len(operands) != 1 or os.path.realpath(os.path.join(cwd, operands[0])) != context:
+        raise _Refused(
+            "podman build may only build the docker/ directory, named as its one context"
+        )
+    files = [value or "" for name, value in options if name == "--file"]
+    if not files:
+        default = os.path.join(context, "Containerfile")
+        files = [default if os.path.exists(default) else os.path.join(context, "Dockerfile")]
+    for file in files:
+        # The file may be read relative to the working directory or to the context, so
+        # every candidate that exists must be a file in docker/ that passes.
+        candidates = {os.path.realpath(os.path.join(base, file)) for base in (cwd, context)}
+        found = [path for path in candidates if os.path.exists(path)]
+        if file == "-" or not found:
+            raise _Refused(f"the guard cannot find the container file {file!r}")
+        for path in found:
+            if not _inside(path, context) or path == context:
+                raise _Refused(f"the container file {file!r} is not a file in docker/")
+            _check_containerfile(path)
+
+
+def _check_compose(words: list[str], cwd: str) -> None:
+    options, operands, rest = _parse_options(words, COMPOSE_OPTIONS, stop=True)
+    for name, _ in options:
+        if name in ("--project-name", "--project-directory"):
+            raise _Refused(f"the compose option {name} would select another project's containers")
+    if not operands:
+        return
+    subcommand = operands[0]
+    if subcommand not in COMPOSE_SUBCOMMANDS:
+        raise _Refused(f"the compose subcommand {subcommand!r} is not allowed")
+    if subcommand in COMPOSE_WITHOUT_FILE:
+        return
+    files = [value or "" for name, value in options if name == "--file"]
+    if not files:
+        raise _Refused(
+            "a compose command must name its file with -f, such as -f docker/compose.yaml"
+        )
+    volumes: set[str] = set()
+    for file in files:
+        if file == "-":
+            raise _Refused("the guard cannot check a compose file read from standard input")
+        services, declared = _read_compose(os.path.join(cwd, file))
+        for service, image in services.items():
+            if not _compose_image_allowed(image):
+                _refuse_image(image, f" of the service {service!r} in {file!r}")
+        volumes |= declared
+    if subcommand == "run":
+        run_options, _, _ = _parse_options(rest, COMPOSE_RUN_OPTIONS, stop=True)
+        for name, value in run_options:
+            if name == "--volume":
+                _refuse_volume(value or "", volumes)
+
+
+def _check_container_use(cli: str, words: list[str], cwd: str) -> None:
+    """Refuse a container command that uses another image, container, or volume (F4).
+
+    ``words`` follow the CLI name and its global options. docker may only list; podman
+    may use only the subcommands in PODMAN_SUBCOMMANDS, the listings, and compose.
+    """
+    key, rest = (words[0] if words else None), words[1:]
+    if key in PODMAN_GROUPS and rest:
+        key, rest = f"{key} {rest[0]}", rest[1:]
+    key = PODMAN_ALIASES.get(key, key)
+    if cli == "docker":
+        if key is None or key in DOCKER_LISTINGS:
+            return
+        raise _Refused(
+            "docker may only list (ps, images, version, info); use podman, which the guard checks"
+        )
+    if key is None or key in PODMAN_LISTINGS:
+        return
+    if key == "compose":
+        return _check_compose(rest, cwd)
+    if key not in PODMAN_SUBCOMMANDS:
+        raise _Refused(
+            f"the podman subcommand {key!r} is not allowed in implementer sessions; see "
+            "docs/isolation.md, Containers"
+        )
+    kind, spec = PODMAN_SUBCOMMANDS[key]
+    options, operands, _ = _parse_options(rest, spec, stop=key in COMMAND_TAILS)
+    names = {name for name, _ in options}
+    if kind == "build":
+        return _check_build(options, operands, cwd)
+    selecting = names & (RUN_REFUSED if kind == "run" else SELECTING_OPTIONS)
+    if selecting:
+        raise _Refused(f"the option {min(selecting)} is not allowed with podman {key}")
+    if not operands:
+        if "--help" in names or key == "stats":
+            return
+        raise _Refused(f"podman {key} names no image or container")
+    if kind == "run":
+        _refuse_image(operands[0])
+        _check_namespaces(options)
+        for name, value in options:
+            if name == "--volume":
+                _refuse_volume(value or "", _stack()[1])
+            elif name == "--mount":
+                _refuse_mount(value or "")
+            elif name == "--volumes-from":
+                _refuse_container((value or "").split(":")[0])
+    elif kind == "images":
+        for operand in operands:
+            _refuse_image(operand)
+    elif kind == "inspect":
+        for operand in operands:
+            if not _image_allowed(operand):
+                _refuse_container(operand)
+    elif kind == "containers":
+        for operand in operands[:1] if key in FIRST_OPERAND_ONLY else operands:
+            _refuse_container(operand)
+    elif len(operands) != 2:  # cp
+        raise _Refused("podman cp takes one source and one destination")
+    else:
+        for operand in operands:
+            head, separator, _ = operand.partition(":")
+            if separator and "/" not in head:
+                _refuse_container(head)
+
+
+def _container_use_reason(cli: str, words: list[str], cwd: str) -> str | None:
+    try:
+        _check_container_use(cli, words, cwd)
+    except _Refused as exc:
+        return str(exc)
+    except (OSError, ValueError) as exc:
+        return (
+            f"the guard cannot read a file that this container command uses ({type(exc).__name__})"
+        )
     return None
 
 
