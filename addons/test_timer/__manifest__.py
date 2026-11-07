@@ -10,7 +10,16 @@
     'author': 'Complete contributors',
     'website': 'https://github.com/volkantasci/complete',
     'depends': ['timer'],
-    'data': ['security/test_timer_groups.xml', 'security/ir.access.csv'],
+    'data': [
+        'security/test_timer_groups.xml',
+        'security/ir.access.csv',
+        'views/timer_test_views.xml',
+    ],
+    'demo': ['data/timer_test_demo.xml'],
+    'assets': {
+        'web.assets_backend': ['test_timer/static/src/**/*'],
+        'web.assets_tests': ['test_timer/static/tests/tours/**/*'],
+    },
     'installable': True,
     'application': False,
 }

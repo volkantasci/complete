@@ -1,0 +1,20 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <record id="timer_test_demo_1" model="timer.test">
+        <field name="name">Design review</field>
+    </record>
+    <record id="timer_test_demo_2" model="timer.test">
+        <field name="name">Customer call</field>
+    </record>
+    <record id="timer_test_demo_3" model="timer.test">
+        <field name="name">Write report</field>
+        <field name="hours_logged">1.5</field>
+    </record>
+    <record id="timer_test_demo_4" model="timer.test">
+        <field name="name">Bug triage</field>
+    </record>
+    <record id="timer_test_demo_5" model="timer.test">
+        <field name="name">Release notes</field>
+    </record>
+</odoo>
