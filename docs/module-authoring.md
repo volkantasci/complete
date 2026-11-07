@@ -68,3 +68,5 @@ Every module needs a public record at `provenance/<module>.yaml` before its slic
 .venv/bin/pytest -q
 .venv/bin/pre-commit run --all-files
 ```
+
+The same hooks run on every `git commit`. They are all local hooks in `.pre-commit-config.yaml`: ruff runs from `.venv` at the version that `requirements-dev.txt` pins, and the checks run from `tools/`. Pre-commit downloads nothing, so the hooks work offline. That matters in a guarded session, because the sandbox lets no hook repository be cloned and keeps no pre-commit cache between commands. The only setup is the owner's, once per machine, from a shell in `complete/`: create `.venv` with `python3 -m venv .venv`, run `.venv/bin/pip install -r requirements-dev.txt`, and then run `.venv/bin/pre-commit install`. Do not bypass a failing hook with `--no-verify`; fix the finding instead.
