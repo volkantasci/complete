@@ -16,6 +16,7 @@ The scaffold writes `addons/complete_<name>/` with a manifest, empty `models/`, 
 ## Naming
 
 - Module technical names match `^complete_[a-z0-9_]+$`, for example `complete_timer`.
+- A spec's `model.md` may require an original module name for compatibility, for example `timer`, so that existing databases and modules that depend on it keep working. Such a name goes on the allowlist `COMPATIBILITY_NAMES` in `tools/check_manifests.py`, and the owner confirms each entry at the slice checkpoint. The scaffold does not create these modules; create the directory by hand from `tools/module_template/`.
 - Use Odoo technical names for models, fields, selection keys, and routes only where compatibility requires them (see [licensing.md](licensing.md)).
 
 ## Manifest
