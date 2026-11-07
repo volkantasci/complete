@@ -34,6 +34,8 @@ A slice is one EE application, or a coherent group of modules, together with eve
 
 The step 6 thresholds were initial values. The pilot kept both; see the [pilot report](pilot-000-timer.md#threshold-calibration).
 
+How the sessions of a slice are started and handed over in practice is in the [slice runbook](slice-runbook.md).
+
 ## Spec packages
 
 Spec packages live in a private repository and are what the implementer works from. Each one contains:
