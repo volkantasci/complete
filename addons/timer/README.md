@@ -22,7 +22,7 @@ databases and modules that depend on it keep working (see
 | Rounding helper | `odoo.addons.timer.utils.round_time_spent` | `round_time_spent(minutes, minimum, rounding)`: at least `minimum`, rounded up to a multiple of `rounding` (0 = no rounding). |
 | Server clock | `timer.timer.get_server_time()` | Current server time in UTC; read-only call. |
 | Running-time display | field widget `timer_start_field` | Live `HH:MM:SS` clock on the `timer_start` field. Option `unit_amount_field` names a float field of hours already recorded, added to the elapsed time. |
-| Start/stop button | `TimerToggleButton` from `@timer/timer_toggle_button/timer_toggle_button` | One button that starts or stops the current user's timer. Props: `name` (boolean field, usually `is_timer_running`), `record`, `context`. |
+| Start/stop button | `TimerToggleButton` from `@timer/timer_toggle_button/timer_toggle_button` | One button that starts or stops the current user's timer. Props: `name` (boolean field, usually `is_timer_running`), `record`, `context`. Saves a dirty record first and does nothing if the save fails. |
 | Clock service | service `timer`, hook `useTimer()` from `@timer/timer_service` | Gives each component its own clock object (`setTimer`, `updateTimer`, `formatTime`, `resetTimer`, `addFloatTime`, `toSeconds`, `floatValue`, `getInterval`, `getCurrentTime`, `time`). |
 
 ## Rules in short
@@ -36,6 +36,9 @@ databases and modules that depend on it keep working (see
   the index cannot be built; Odoo logs a warning ("Constraint not added") and
   the upgrade goes on without the rule. Pause the duplicates, then upgrade
   again.
+- Starting needs a document that exists and that the user may read:
+  otherwise start raises "The record to time no longer exists." or the
+  standard access error, and no other timer is paused.
 - Pausing an already paused timer keeps the first pause moment.
 - Stopping returns the minutes worked as a decimal number (not rounded) and
   deletes the timer. Stop without a started timer returns `False`.

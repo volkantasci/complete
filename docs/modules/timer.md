@@ -45,7 +45,9 @@ Applications offer the four actions as buttons, or as one start/stop button:
 
 - **Start** starts your timer on the document. If you already have a running
   timer on another document, that one is paused first: you only ever have one
-  running timer. Starting a paused timer resumes it.
+  running timer, even when you click Start in two browser tabs at the same
+  moment: one of the two clicks is refused. Starting a paused timer resumes
+  it. You can only start a timer on a document you can open.
 - **Pause** freezes your timer. Pausing again changes nothing.
 - **Resume** continues a paused timer from where it stopped; the paused time
   is not counted.
@@ -54,7 +56,9 @@ Applications offer the four actions as buttons, or as one start/stop button:
 
 The start/stop button is a small bar in the theme's main colour with a play icon (**Start**) or,
 while your timer runs, a red bar with a stop icon (**Stop**). Clicking it in a list row does
-not open the row. In the list above, the red button stops the running timer
+not open the row. On a form with changes you have not saved yet, the button
+saves them first; if the form cannot be saved (for example a required field
+is empty), the timer does not start or stop. In the list above, the red button stops the running timer
 of "Design review"; the other rows show the start button. On "Write report",
 whose timer is paused, the start button resumes it.
 
