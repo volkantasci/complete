@@ -33,7 +33,7 @@ databases and modules that depend on it keep working (see
   with a unique index, so two simultaneous starts cannot both succeed: the
   later one fails with "A user can have only one running timer.". When a
   database that already holds two running timers for one user is upgraded,
-  the index cannot be built; Odoo logs a warning ("Constraint not added") and
+  the index cannot be built; Odoo logs a warning ("Constraint not added during finalize") and
   the upgrade goes on without the rule. Pause the duplicates, then upgrade
   again.
 - Starting needs a document that exists and that the user may read:
