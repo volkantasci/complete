@@ -777,7 +777,9 @@ def _command_reason(tool_input: dict, cwd: str) -> str | None:
 # fully qualified repository; its value is the set of allowed tags, or None for any
 # tag. To allow another image, add it here with the narrowest tags that work, add a
 # case to tools/tests/test_guard.py, and list it under "Containers" in
-# docs/isolation.md. Never add an image that holds Odoo Enterprise code.
+# docs/isolation.md. Never add an image that holds Odoo Enterprise code, and never
+# build or tag such an image under one of these names (any tag of complete-odoo is
+# allowed, so that name must only ever hold the image built from docker/).
 ALLOWED_IMAGES: dict[str, frozenset[str] | None] = {
     "localhost/complete-odoo": None,  # built from docker/ (`make image`); the tag is the release
     "docker.io/pgvector/pgvector": frozenset({"pg17"}),  # the db service of docker/compose.yaml
@@ -958,11 +960,11 @@ DOCKER_LISTINGS = frozenset({"version", "info", "ps", "images"})
 COMMAND_TAILS = frozenset({"run", "create", "exec"})
 # Only the first operand names a container; the rest are ps fields or a port.
 FIRST_OPERAND_ONLY = frozenset({"exec", "top", "port"})
-RUN_REFUSED = frozenset({"--rootfs", "--pod", "--pod-id-file", "--requires"})
+RUN_REFUSED = frozenset({"--rootfs", "--pod", "--pod-id-file", "--requires", "--replace"})
 BUILD_REFUSED = frozenset(
     {
         "--from", "--build-context", "--cache-from", "--cache-to", "--mount", "--hooks-dir",
-        "--runtime-flag", "--output",
+        "--runtime-flag", "--output", "--cpp-flag",
     }
 )  # fmt: skip
 SELECTING_OPTIONS = frozenset({"--all", "--latest", "--filter", "--cidfile"})
@@ -1290,9 +1292,9 @@ def _check_containerfile(path: str) -> None:
     instructions += [current] if current else []
     stages: set[str] = set()
     for instruction in instructions:
-        keyword, _, rest = instruction.partition(" ")
+        keyword, rest = (instruction.split(None, 1) + [""])[:2]
         if keyword.upper() == "ONBUILD":
-            keyword, _, rest = rest.strip().partition(" ")
+            keyword, rest = (rest.split(None, 1) + [""])[:2]
         if keyword.upper() == "FROM":
             words = [word for word in rest.split() if not word.startswith("--")]
             base = words[0] if words else ""
@@ -1345,6 +1347,8 @@ def _check_build(options: list[tuple[str, str | None]], operands: list[str], cwd
         for path in found:
             if not _inside(path, context) or path == context:
                 raise _Refused(f"the container file {file!r} is not a file in docker/")
+            if path.endswith(".in"):
+                raise _Refused(f"the container file {file!r} would be run through cpp")
             _check_containerfile(path)
 
 

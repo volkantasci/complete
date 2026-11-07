@@ -1573,3 +1573,44 @@ def test_build_file_is_checked_against_both_bases(ws):
     assert run_guard(ws, tool("Bash", command=command))[0] == 0
     (ws / "complete" / "docker" / "Dockerfile").write_text(f"FROM {EE_IMAGE}\n", encoding="utf-8")
     assert run_guard(ws, tool("Bash", command=command))[0] == 2
+
+
+@pytest.mark.parametrize(
+    "containerfile,build",
+    [
+        (f"FROM\t{EE_IMAGE}\n", f"podman build -t {ODOO_IMAGE} docker/"),
+        (f"FROM ubuntu:noble\nCOPY\t--from={EE_IMAGE} / /x\n", "podman build docker/"),
+        ("FROM ubuntu:noble\n", "podman build -f docker/Containerfile.in docker/"),
+        ("FROM ubuntu:noble\n", "podman build --cpp-flag=-DX -f docker/Containerfile.in docker/"),
+    ],
+)
+def test_review_round_build_gaps_denied(ws, containerfile, build):
+    (ws / "complete" / "docker" / "Dockerfile").write_text(containerfile, encoding="utf-8")
+    (ws / "complete" / "docker" / "Containerfile.in").write_text(containerfile, encoding="utf-8")
+    if "Containerfile.in" not in build:
+        (ws / "complete" / "docker" / "Containerfile.in").unlink()
+    assert run_guard(ws, tool("Bash", command=build))[0] == 2
+
+
+def test_run_replace_cannot_remove_another_container(ws):
+    command = f"podman run --replace --name odoo20 {ODOO_IMAGE} true"
+    assert run_guard(ws, tool("Bash", command=command))[0] == 2
+
+
+@pytest.mark.parametrize(
+    "cmd,fragment",
+    [
+        (f"podman run --rm {EE_IMAGE} true", "image allowlist"),
+        ("podman exec odoo20 true", "compose stack"),
+        ("podman save -o x.tar localhost/complete-odoo:x", "subcommand 'save'"),
+        (f"podman run --rm --nope {ODOO_IMAGE} true", "does not know the option"),
+        (f"podman build -t {ODOO_IMAGE} addons", "only build the docker/ directory"),
+        ("podman stop -a", "option --all"),
+        ("podman compose ps", "must name its file with -f"),
+        ("docker run --rm x true", "docker may only list"),
+    ],
+)
+def test_refusals_name_the_rule_that_fired(ws, cmd, fragment):
+    (ws / "complete" / "addons").mkdir()
+    code, stderr = run_guard(ws, tool("Bash", command=cmd))
+    assert code == 2 and fragment in stderr, stderr
