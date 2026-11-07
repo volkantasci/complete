@@ -3,6 +3,7 @@
 
 from . import (
     test_install,
+    test_js,
     test_timer_delete,
     test_timer_mixin,
     test_timer_parent,

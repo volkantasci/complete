@@ -11,6 +11,14 @@
     'website': 'https://github.com/volkantasci/complete',
     'depends': ['web', 'mail'],
     'data': ['security/ir.access.csv'],
+    'assets': {
+        'web.assets_backend': [
+            'timer/static/src/**/*',
+        ],
+        'web.assets_unit_tests': [
+            'timer/static/tests/**/*',
+        ],
+    },
     'installable': True,
     'application': False,
 }
