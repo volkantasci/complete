@@ -5,9 +5,9 @@
          notification field to the same group, the Theme field comes first. -->
     <record model="ir.ui.view" id="view_users_form_simple_modif_color_scheme">
         <field name="name">res.users.preferences.form.color.scheme</field>
-        <field name="model">res.users</field>
-        <field name="inherit_id" ref="base.view_users_form_simple_modif"/>
         <field name="priority">8</field>
+        <field name="inherit_id" eval="ref('base.view_users_form_simple_modif')"/>
+        <field name="model">res.users</field>
         <field name="arch" type="xml">
             <xpath expr="//group[@name='other_preferences']" position="inside">
                 <field name="color_scheme" string="Theme" widget="radio" options="{'horizontal': true}" readonly="0"/>
@@ -17,9 +17,9 @@
 
     <record model="ir.ui.view" id="view_users_form_color_scheme">
         <field name="name">res.users.form.color.scheme</field>
-        <field name="model">res.users</field>
-        <field name="inherit_id" ref="base.view_users_form"/>
         <field name="priority">8</field>
+        <field name="inherit_id" eval="ref('base.view_users_form')"/>
+        <field name="model">res.users</field>
         <field name="arch" type="xml">
             <xpath expr="//group[@name='other_preferences']" position="inside">
                 <field name="color_scheme" string="Theme" widget="radio" options="{'horizontal': true}" readonly="0"/>

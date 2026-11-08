@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import json
 import logging
+from collections.abc import Mapping
 
 from odoo import models
 from odoo.http import request
@@ -11,6 +12,11 @@ _logger = logging.getLogger(__name__)
 
 SCHEMES = ('light', 'dark')
 MESSAGE_PARAMETER = 'sysadmin.message'
+
+
+def _expire_scheme_cookie(response):
+    """Ask the browser to drop the colour scheme cookie."""
+    response.set_cookie('color_scheme', '', max_age=0)
 CHROME_COLOURS = {'light': '#71639e', 'dark': '#25262b'}
 
 
@@ -31,7 +37,7 @@ class IrHttp(models.AbstractModel):
     @classmethod
     def _post_logout(cls):
         super()._post_logout()
-        request.future_response.set_cookie(key='color_scheme', value='', max_age=0)
+        _expire_scheme_cookie(request.future_response)
 
     def session_info(self):
         info = super().session_info()
@@ -50,7 +56,7 @@ class IrHttp(models.AbstractModel):
             value = json.loads(raw)
         except ValueError:
             value = None
-        if type(value) is not dict:
+        if not isinstance(value, Mapping):
             _logger.error(
                 "The parameter %s does not hold a JSON object; ignored.", MESSAGE_PARAMETER,
             )

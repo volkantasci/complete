@@ -3,7 +3,7 @@
 <templates xml:space="preserve">
 
   <t t-name="web_enterprise.KanbanHeader" t-inherit="web.KanbanHeader" t-inherit-mode="extension">
-    <xpath position="attributes" expr="//div[hasclass('o_kanban_header')]">
+    <xpath position="attributes" expr="//div[@t-ref='this.rootRef']">
       <attribute name="t-att-class">{ 'o_cws_stuck': this.cwsIsStuck }</attribute>
     </xpath>
   </t>

@@ -4,7 +4,7 @@
 
   <t t-name="web_enterprise.NavBar.AppsMenu" t-inherit="web.NavBar.AppsMenu" t-inherit-mode="extension">
     <!-- mobile: the CE toggle keeps opening the sidebar; it gets the back state -->
-    <xpath position="attributes" expr="//a[hasclass('o_menu_toggle')]">
+    <xpath position="attributes" expr="//a[@accesskey='h']">
       <attribute name="t-att-class">{
         'hasImage': this.currentApp?.webIconData,
         'o_menu_toggle_back': this.hasBackChevron,
