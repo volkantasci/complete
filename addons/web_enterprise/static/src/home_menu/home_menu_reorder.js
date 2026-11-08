@@ -5,7 +5,10 @@ import { browser } from "@web/core/browser/browser";
 
 /** How long a tile must be held before it can be dragged (milliseconds). */
 export const HOLD_DELAY = 500;
-/** How far the pointer may move during the hold before the hold is given up (pixels). */
+/**
+ * How far the pointer must move (pixels, 10 or more) to act on a press: before the hold
+ * is over it cancels the press; after the hold it starts the drag.
+ */
 export const MOVE_TOLERANCE = 10;
 
 /**
@@ -44,12 +47,14 @@ export function precedingXmlid(xmlids, from, over) {
 /**
  * Press-and-hold drag reordering of the home menu tiles.
  *
- * A pointer pressed on a tile for HOLD_DELAY without moving more than
- * MOVE_TOLERANCE starts a drag: the tile follows the pointer and is flagged in
- * the returned state. Releasing it over another tile calls `onDrop` with the
- * dragged tile's identifier and the identifier of the tile that precedes it in
- * the new order (null for first). A shorter press, or one that moved too far
- * early, is an ordinary click. The click that ends a drag is swallowed.
+ * A pointer pressed on a tile for HOLD_DELAY, then moved by MOVE_TOLERANCE or more
+ * from where it was when the hold ended, starts a drag: the tile follows the
+ * pointer and is flagged in the returned state. Releasing it over another tile
+ * calls `onDrop` with the dragged tile's identifier and the identifier of the
+ * tile that precedes it in the new order (null for first). A move of
+ * MOVE_TOLERANCE or more before the hold is over cancels the press for good. A
+ * shorter press, or a hold released without that move, is an ordinary click. The
+ * click that ends a drag is swallowed.
  *
  * @param {Object} params
  * @param {() => (HTMLElement|null)} params.ref element holding the tiles
@@ -58,7 +63,7 @@ export function precedingXmlid(xmlids, from, over) {
  */
 export function useTileReorder({ ref, onDrop }) {
     const state = proxy({ dragged: null });
-    let pending = null; // { tile, x, y, timer }
+    let pending = null; // { tile, x, y, lastX, lastY, timer, held } (x, y: press point)
     let drag = null; // { tile, x, y, over }
     let swallowClick = false;
 
@@ -67,7 +72,7 @@ export function useTileReorder({ ref, onDrop }) {
 
     const clearPending = () => {
         if (pending) {
-            browser.clearTimeout(pending.timer);
+            browser.clearTimeout(pending.timer ?? undefined);
             pending = null;
         }
     };
@@ -80,8 +85,17 @@ export function useTileReorder({ ref, onDrop }) {
         state.dragged = null;
     };
 
+    // the hold is over: from now on a move of MOVE_TOLERANCE from here starts the drag
+    const endHold = () => {
+        if (pending) {
+            pending.held = true;
+            pending.timer = null;
+            pending.holdX = pending.lastX;
+            pending.holdY = pending.lastY;
+        }
+    };
     const startDrag = () => {
-        drag = { tile: pending.tile, x: pending.x, y: pending.y, over: null };
+        drag = { tile: pending.tile, x: pending.holdX, y: pending.holdY, over: null };
         pending = null;
         state.dragged = drag.tile.dataset.menuXmlid;
     };
@@ -102,15 +116,30 @@ export function useTileReorder({ ref, onDrop }) {
             tile,
             x: ev.clientX,
             y: ev.clientY,
-            timer: browser.setTimeout(startDrag, HOLD_DELAY),
+            lastX: ev.clientX,
+            lastY: ev.clientY,
+            held: false,
+            timer: browser.setTimeout(endHold, HOLD_DELAY),
         };
     });
     useListener(window, "pointermove", (ev) => {
-        if (pending) {
-            if (Math.hypot(ev.clientX - pending.x, ev.clientY - pending.y) > MOVE_TOLERANCE) {
+        if (pending && !pending.held) {
+            if (Math.hypot(ev.clientX - pending.x, ev.clientY - pending.y) >= MOVE_TOLERANCE) {
                 clearPending();
+            } else {
+                pending.lastX = ev.clientX;
+                pending.lastY = ev.clientY;
             }
-        } else if (drag) {
+            return;
+        }
+        if (pending) {
+            const moved = Math.hypot(ev.clientX - pending.holdX, ev.clientY - pending.holdY);
+            if (moved < MOVE_TOLERANCE) {
+                return;
+            }
+            startDrag();
+        }
+        if (drag) {
             drag.tile.style.setProperty("--o_cws_drag_x", `${ev.clientX - drag.x}px`);
             drag.tile.style.setProperty("--o_cws_drag_y", `${ev.clientY - drag.y}px`);
             const under = document.elementFromPoint(ev.clientX, ev.clientY) || ev.target;

@@ -60,8 +60,8 @@ requires, so that tours and other modules can find the tiles.
   same as the button. On the home menu with nothing behind it the button is
   hidden. On small screens the button opens the Community sidebar; its "All Apps"
   entry shows the home menu.
-- **Order.** Press and hold a tile for 0.5 s (moving less than 10 px), then drag
-  it. The new full order is saved at once to the user's own settings. When the
+- **Order.** Press and hold a tile for 0.5 s without moving 10 px or more, then move
+  10 px or more to start the drag. The new full order is saved at once to the user's own settings. When the
   menu is built, applications missing from the saved list come first in their
   default order, then the listed ones in the saved order; unknown identifiers
   are ignored.
@@ -114,7 +114,7 @@ Open Settings, Technical, System Parameters (developer mode) and create or edit
 the key `sysadmin.message`. Example value:
 
 ```json
-{"message": "<p><b>Maintenance:</b> the server restarts tonight at 11 pm.</p>", "warning_type": "user"}
+{"message": "<p><b>Maintenance:</b> the platform goes offline tonight from 11 pm.</p>", "warning_type": "user"}
 ```
 
 Use `"admin"` instead of `"user"` to show it to administrators only. Remove the

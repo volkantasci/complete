@@ -206,7 +206,9 @@ test("A26 typing opens the palette with the footer", async () => {
     expect(".o_command_palette").toHaveCount(1);
     expect(paletteQuery()).toBe("/c");
     expect(".o_cws_palette_footer").toHaveCount(1);
-    expect(".o_cws_palette_footer").toHaveText("TIP — open me anywhere with CONTROL + K");
+    expect(".o_cws_palette_footer").toHaveText("TIP — press CONTROL + K on any screen to bring up this search");
+    // decision D14: the original sentence is not reused, even in part
+    expect(".o_cws_palette_footer").not.toHaveText(/open me|anywhere with/);
     expect(".o_home_menu_search_input").toHaveValue("");
 });
 
@@ -216,7 +218,8 @@ test("A26b the footer names the Command key on Apple computers", async () => {
     await mountHome();
     await press("c");
     await animationFrame();
-    expect(".o_cws_palette_footer").toHaveText("TIP — open me anywhere with COMMAND + K");
+    expect(".o_cws_palette_footer").toHaveText("TIP — press COMMAND + K on any screen to bring up this search");
+    expect(".o_cws_palette_footer").not.toHaveText(/open me|anywhere with/);
 });
 
 test("A27 focus returns after closing the palette", async () => {

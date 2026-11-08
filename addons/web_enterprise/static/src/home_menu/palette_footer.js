@@ -5,7 +5,7 @@ import { isMacOS } from "@web/core/browser/feature_detection";
 
 /**
  * Footer of the command palette when opened from the home menu: tells that the
- * palette opens from anywhere with Control+K (Command+K on Apple computers).
+ * palette can be reached from any screen with Control+K (Command+K on Apple computers).
  */
 export class PaletteFooter extends Component {
     static template = "web_enterprise.PaletteFooter";

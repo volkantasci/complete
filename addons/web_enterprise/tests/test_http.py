@@ -99,7 +99,7 @@ class TestAdminMessage(TransactionCase):
         self.assertNotIn('<script', value['message'])
         self.assertIn('<b>x</b>', value['message'])
 
-    def test_A50b_missing_message_and_unknown_type_are_skipped(self):
+    def test_A46d_missing_message_and_unknown_type_are_skipped(self):
         for value in (
             '{"warning_type": "other"}',
             '{"message": "x"}',
@@ -110,7 +110,7 @@ class TestAdminMessage(TransactionCase):
             with self.assertLogs('odoo.addons.web_enterprise', 'ERROR'):
                 self.assertIsNone(self._message(value), value)
 
-    def test_A50c_empty_text_with_valid_audience_passes(self):
+    def test_A46e_empty_text_with_valid_audience_passes(self):
         value = self._message('{"message": "", "warning_type": "admin"}')
         self.assertEqual(value, {'message': '', 'warning_type': 'admin'})
 
@@ -211,6 +211,7 @@ class TestWebClientCookie(HttpCase):
         response = self.url_open('/odoo')
         (cookie,) = self._scheme_cookies(response)
         self.assertTrue(cookie.startswith('color_scheme=dark'), cookie)
+        self.assertIn('Max-Age=31536000', cookie)
 
     def test_A56_first_page_sets_cookie(self):
         self.authenticate('cws_wc_light', 'cws_wc_light')

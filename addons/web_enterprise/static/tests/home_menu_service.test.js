@@ -300,17 +300,20 @@ test("A41 the background class follows the home menu", async () => {
 
 test("A71 running menu again changes nothing", async () => {
     await mountWebClient();
-    await press("ArrowRight");
-    await press("ArrowRight");
+    // the first Right focuses tile 0, so four of them focus tile 3
+    for (let i = 0; i < 4; i++) {
+        await press("ArrowRight");
+    }
     await animationFrame();
     expect(".o_app.o_focused").toHaveCount(1);
-    expect(queryAll(".o_app")[1]).toHaveClass("o_focused");
+    expect(queryAll(".o_app")[3]).toHaveClass("o_focused");
     const pushes = countPushes();
     await getService("action").doAction(HOME_ACTION);
     await animationFrame();
     expect(pushes.count).toBe(0);
     expect(HOME_ROOT).toHaveCount(1);
-    expect(queryAll(".o_app")[1]).toHaveClass("o_focused");
+    expect(".o_app.o_focused").toHaveCount(1);
+    expect(queryAll(".o_app")[3]).toHaveClass("o_focused");
 });
 
 test("A75 menus without an action get no tile", async () => {

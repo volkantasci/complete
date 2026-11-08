@@ -107,7 +107,7 @@ Settings, Technical, System Parameters (developer mode) and create or edit the
 key. The value is a small piece of JSON with the text and the audience:
 
 ```json
-{"message": "<p><b>Maintenance:</b> the server restarts tonight at 11 pm.</p>", "warning_type": "user"}
+{"message": "<p><b>Maintenance:</b> the platform goes offline tonight from 11 pm.</p>", "warning_type": "user"}
 ```
 
 - `"warning_type": "user"` shows it to every internal user.

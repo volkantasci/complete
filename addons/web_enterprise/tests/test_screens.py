@@ -137,7 +137,7 @@ class ShellScreens(HttpCase):
     def message(self):
         self.env['ir.config_parameter'].sudo().set_str(
             'sysadmin.message',
-            '{"message": "<p><b>Maintenance:</b> the server restarts tonight at 11 pm, '
+            '{"message": "<p><b>Maintenance:</b> the platform goes offline tonight from 11 pm, '
             'please save your work before then.</p>", "warning_type": "user"}',
         )
 

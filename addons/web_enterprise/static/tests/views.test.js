@@ -233,10 +233,14 @@ describe("pivot tooltips", () => {
         await mountView({ resModel: "lead", type: "pivot" });
         await animationFrame();
         expect(".o_pivot table [data-tooltip], .o_pivot table [title]").toHaveCount(0);
-        expect(".o_pivot_header_cell_closed").not.toHaveCount(0);
-        await contains(".o_pivot_header_cell_closed").click();
-        await contains(".dropdown-menu .dropdown-item:first").click();
+        // a row header that can still be expanded
+        expect(".o_pivot tbody .o_pivot_header_cell_closed").not.toHaveCount(0);
+        const headerCount = queryAll(".o_pivot tbody th").length;
+        await contains(".o_pivot tbody .o_pivot_header_cell_closed:first").click();
+        await contains(".dropdown-menu .dropdown-item:contains(Name)").click();
         await animationFrame();
+        // the expansion showed new header cells, and none of them has a tooltip
+        expect(queryAll(".o_pivot tbody th").length).toBeGreaterThan(headerCount);
         expect(".o_pivot table [data-tooltip], .o_pivot table [title]").toHaveCount(0);
         const rows = queryAll("tbody th");
         expect(getComputedStyle(rows[0]).paddingLeft).toBe("5px");

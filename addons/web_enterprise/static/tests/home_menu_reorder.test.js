@@ -70,6 +70,12 @@ async function mountHome({ homemenuConfig = false } = {}) {
     return { component, saved, busEvents, opened };
 }
 
+/** Options for moveTo that put the pointer `dx`, `dy` pixels from the centre of the target. */
+function offsetFromCentre(selector, dx, dy = 0) {
+    const { x, y, width, height } = queryRect(selector);
+    return { position: { x: x + width / 2 + dx, y: y + height / 2 + dy } };
+}
+
 const captions = () => queryAllTexts(".o_app .o_caption");
 
 test("A33 drag saves the order", async () => {
@@ -77,6 +83,10 @@ test("A33 drag saves the order", async () => {
     expect(busEvents).toEqual([NAMES]);
     const { moveTo, drop } = await drag(".o_app:eq(3)");
     await advanceTime(500);
+    await animationFrame();
+    // the hold alone does not start the drag
+    expect(".o_dragged_app").toHaveCount(0);
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 12));
     await animationFrame();
     expect(".o_app.o_dragged_app").toHaveCount(1);
     expect(".o_app:eq(3)").toHaveClass("o_dragged_app");
@@ -143,8 +153,9 @@ test("A33d the saved order survives a new mount and the click ending a drag is s
     });
     expect(captions().at(-1)).toBe("Contacts");
     // released over its own tile: nothing moves and the click does not open the app
-    const { drop } = await drag(".o_app:eq(0)");
+    const { moveTo, drop } = await drag(".o_app:eq(0)");
     await advanceTime(500);
+    await moveTo(".o_app:eq(0)", offsetFromCentre(".o_app:eq(0)", 12));
     await drop();
     await animationFrame();
     expect(opened).toEqual([]);
@@ -186,16 +197,68 @@ test("A34b moving more than 10 px before 500 ms cancels the drag", async () => {
     expect(saved).toHaveLength(0);
 });
 
-test("A34c a small move keeps the hold", async () => {
-    await mountHome();
-    const { moveTo, cancel } = await drag(".o_app:eq(3)");
+test("A34c a hold followed by a move under 10 px does not drag yet", async () => {
+    const { saved } = await mountHome();
+    const { moveTo, drop } = await drag(".o_app:eq(3)");
     await advanceTime(200);
-    const { x, y, width, height } = queryRect(".o_app:eq(3)");
-    await moveTo(".o_app:eq(3)", { position: { x: x + width / 2 + 5, y: y + height / 2 } });
+    // a small move before the hold is over keeps the press alive
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 5));
     await advanceTime(400);
     await animationFrame();
+    expect(".o_dragged_app").toHaveCount(0);
+    // 9 px from the pointer position at the end of the hold: still no drag
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 14));
+    await animationFrame();
+    expect(".o_dragged_app").toHaveCount(0);
+    // 10 px from that position: the drag starts
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 15));
+    await animationFrame();
+    expect(".o_app:eq(3)").toHaveClass("o_dragged_app");
+    await moveTo(".o_app:eq(0)");
+    await drop();
+    await animationFrame();
+    expect(captions()[0]).toBe("Contacts");
+    expect(saved).toHaveLength(1);
+});
+
+test("A34d an early move of exactly 10 px cancels, 9 px does not", async () => {
+    const { saved } = await mountHome();
+    const { moveTo, drop } = await drag(".o_app:eq(3)");
+    await advanceTime(200);
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 9));
+    await advanceTime(400);
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 20));
+    await animationFrame();
     expect(".o_dragged_app").toHaveCount(1);
-    await cancel();
+    await drop();
+    await animationFrame();
+
+    const second = await drag(".o_app:eq(3)");
+    await advanceTime(200);
+    await second.moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 10));
+    await advanceTime(600);
+    await second.moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 40));
+    await animationFrame();
+    expect(".o_dragged_app").toHaveCount(0);
+    await second.drop();
+    await animationFrame();
+    expect(saved).toHaveLength(0);
+});
+
+test("A34e an early move, then a hold and another move, does not drag", async () => {
+    const { saved } = await mountHome();
+    const { moveTo, drop } = await drag(".o_app:eq(3)");
+    await advanceTime(100);
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 30));
+    await advanceTime(600);
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 50));
+    await animationFrame();
+    expect(".o_dragged_app").toHaveCount(0);
+    await moveTo(".o_app:eq(0)");
+    await drop();
+    await animationFrame();
+    expect(captions()).toEqual(NAMES);
+    expect(saved).toHaveLength(0);
 });
 
 test("A40 file drop opens the share dialog when there are share targets", async () => {
@@ -248,6 +311,9 @@ test("A33t touch drag reorders", async () => {
     const { saved } = await mountHome();
     const { moveTo, drop } = await drag(".o_app:eq(3)");
     await advanceTime(500);
+    await animationFrame();
+    expect(".o_dragged_app").toHaveCount(0);
+    await moveTo(".o_app:eq(3)", offsetFromCentre(".o_app:eq(3)", 12));
     await animationFrame();
     expect(".o_app:eq(3)").toHaveClass("o_dragged_app");
     await moveTo(".o_app:eq(0)");
