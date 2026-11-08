@@ -323,8 +323,10 @@ class TestScreensMobile(ShellScreens):
         with self.shell('/odoo/action-crm.crm_lead_action_pipeline'):
             self.wait("!!document.querySelector('.o_kanban_view .o_kanban_record')")
             self.shot('s16_kanban_header_top_mobile_')
+            # on phones each unfolded column is the vertical scroller
             self.js(
-                "(() => { const el = document.querySelector('.o_content');"
+                "(() => { const el = document.querySelector("
+                "'.o_kanban_group:not(.o_column_folded)');"
                 " el.scrollTop = el.clientHeight; })()"
             )
             self.shot('s17_kanban_header_sticky_mobile_')

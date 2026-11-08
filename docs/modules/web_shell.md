@@ -145,13 +145,18 @@ the start.
 The dark look and the visual theme come in a later slice. Today Dark only
 switches to the dark stylesheet that Community provides.
 
-![The home menu with Dark chosen](../assets/web_shell/13-home-dark.png)
+In the four pictures below Dark is selected and Community's dark stylesheet is
+loaded, but the page looks the same as with Light: Community's dark bundle
+barely changes these screens, and the visible dark look arrives with the visual
+theme slice. That the switch itself works is proved by tests A57 and A61.
 
-![An application with Dark chosen](../assets/web_shell/14-app-dark.png)
+![The home menu with Dark chosen (looks like Light for now)](../assets/web_shell/13-home-dark.png)
 
-![The home menu with Dark chosen, on a phone](../assets/web_shell/13-home-dark.mobile.png)
+![An application with Dark chosen (looks like Light for now)](../assets/web_shell/14-app-dark.png)
 
-![An application with Dark chosen, on a phone](../assets/web_shell/14-app-dark.mobile.png)
+![The home menu with Dark chosen, on a phone (looks like Light for now)](../assets/web_shell/13-home-dark.mobile.png)
+
+![An application with Dark chosen, on a phone (looks like Light for now)](../assets/web_shell/14-app-dark.mobile.png)
 
 ## Behaviour of views
 

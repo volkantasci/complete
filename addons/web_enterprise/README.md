@@ -33,13 +33,14 @@ that Community provides.
 | Bus events | `HOME-MENU:TOGGLED`, `HOME-MENU:APPS-UPDATED` | On the environment bus. `HOME-MENU:TOGGLED` carries `true` or `false` when the home menu is shown or hidden. `HOME-MENU:APPS-UPDATED` carries the ordered application list after the home menu is built or reordered. |
 | Body class | `o_home_menu_background` | On `<body>` while the home menu is shown. |
 | Burger menu | systray entry `burger_menu` | Replaces the Community entry (same name, sequence 0). While the home menu is shown it behaves as if no application were open. |
-| Page hooks | `WebClient._loadDefaultApp` and the top bar `NavBar` | `_loadDefaultApp` opens the home menu (empty address, unknown action, back from the first screen). The top bar gets the grid button, the back chevron, the hidden application chrome and the mobile sidebar behaviour. |
+| Page hooks | classes `o_home_menu`, `o_home_menu_search_input`, `o_apps`, `o_app`, `o_menuitem`, `o_app_icon`, `o_caption`, `o_draggable`, `o_focused`, `o_dragged_app`, `o_disabled_offline`, `o_menu_toggle`, `o_menu_toggle_back`, `o_menu_brand`, `o_menu_brand_icon`, `o_menu_sections`, `o_hidden`; attribute `data-menu-xmlid` on a tile; ids `result_app_<index>` | The compatibility names listed in `model.md` ("Page hooks"), kept on the equivalent elements so that tours, tests and other modules find them. |
+| JS extension points | `WebClient._loadDefaultApp` and the top bar `NavBar` | `_loadDefaultApp` opens the home menu (empty address, unknown action, back from the first screen). The top bar gets the grid button, the back chevron, the hidden application chrome and the mobile sidebar behaviour. |
 | View extension points | `data-cws-views`, `data-cws-active`, `data-cws-from`, CSS variables `--cws-switch-from`, `--cws-switch-to` | On the control panel view switcher: number of views, active position, position the highlight starts from (all counted from 0). Slice 001b styles the slide. |
 | Stuck header | class `o_cws_stuck` | On a kanban column header of an unfolded column while the scroll container is scrolled down by more than 0 px. The module itself adds the extra bottom padding and the frosted backdrop; slice 001b may restyle it. |
 
 Own CSS classes start with `o_cws_`; the classes `o_home_menu`, `o_app`,
-`o_caption` and `o_draggable` follow the Community names so that tours and
-other modules can find the tiles.
+`o_caption` and `o_draggable` are the compatibility names that `model.md`
+requires, so that tours and other modules can find the tiles.
 
 ## Rules in short
 
@@ -180,13 +181,18 @@ podman compose --env-file docker/versions.env --env-file docker/.env -f docker/c
 ```
 
 Screenshots (needs a database with demo data and the Contacts, CRM, Sales,
-Calendar and Project applications). Send `--screenshots` to a git-ignored
-directory that the container can write to, created beforehand with mode 777,
-for example one inside the module that you list in `.git/info/exclude`:
+Calendar and Project applications). Container output must never land in the
+module or in any tracked directory. Send it to the repository's git-ignored
+`.cache/web_shell_screens/` with an explicit bind mount, and run the container
+as root so that the files belong to your host user and can be deleted. Create
+the host directory first (`mkdir -p .cache/web_shell_screens`), then, with the
+absolute path of your checkout:
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d <db> -u web_enterprise --screenshots /mnt/extra-addons/web_enterprise/.cws_screens --test-tags web_shell_screens --stop-after-init
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm --user root -v /path/to/complete/.cache/web_shell_screens:/mnt/cws_shots odoo odoo -d <db> -i web_enterprise,contacts,crm,sale_management,calendar,project --with-demo --screenshots /mnt/cws_shots --test-tags web_shell_screens --stop-after-init
 ```
+
+Moving the pictures you keep into `docs/assets/web_shell/` is a plain `mv`.
 
 From the owner's shell the Makefile does the module run:
 
