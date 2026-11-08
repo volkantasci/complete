@@ -1,0 +1,36 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Pivot and graph views (001b R27, R28). Lazy bundle.
+
+.o_pivot {
+    table {
+        --#{$prefix}table-hover-bg: #{$o-cws-row-hover-bg};
+    }
+
+    // data cells use the view background
+    .o_pivot_cell_value.bg-100 {
+        background-color: $o-view-background-color !important;
+    }
+
+    // a hovered cell takes the table hover colour
+    .o_pivot_cell_value.o_cell_hover {
+        background-color: $o-view-background-color;
+        background-image: linear-gradient($o-cws-row-hover-bg, $o-cws-row-hover-bg);
+    }
+}
+
+.o_pivot_buttons,
+.o_graph_renderer > :first-child:not(.o_graph_canvas_container) {
+    margin-top: 0 !important;
+}
+
+// Next to a search panel the chart frame is framed like a list.
+.o_search_panel_wrap ~ .o_graph_renderer,
+.o_search_panel ~ .o_graph_renderer,
+.o_search_panel_resize ~ .o_graph_renderer {
+    border: $border-width solid $o-border-color;
+    border-bottom-width: 0;
+    border-radius: $o-border-radius-xl $o-border-radius-xl 0 0;
+    margin-right: 16px;
+}

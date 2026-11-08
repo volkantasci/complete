@@ -3,6 +3,7 @@
 """Probe tests of the standard views: control panel, search bar, kanban, search panel
 (001b R15, R23-R25, R32, R33, R38 colour picker and company switcher field, R42)."""
 import colorsys
+import math
 import re
 
 from odoo.tests import tagged
@@ -519,3 +520,314 @@ class TestThemeViews(ShellProbeCase):
             self.assertEqual((title['font-size'], title['font-weight']), ('16.8px', '500'))
             self.assertEqual(self.style(CARD, 'font-size')['font-size'], '13px')
             self.assertEqual(self.style(SECTION_TOGGLE, 'font-weight')['font-weight'], '400')
+
+
+GREY_700 = {'light': '#495057', 'dark': '#B3B4B8'}
+ACTION = {'light': '#017E84', 'dark': '#1CBCB1'}
+HOVER_ALPHA = {'light': .055, 'dark': .10}
+SELECTED = {'light': ('#D1ECF1', '#A7BDC1'), 'dark': ('#223446', '#4E5D6B')}
+BLACK_ROLE = {'light': '#000000', 'dark': '#FFFFFF'}
+COLOUR_RE = re.compile(r'rgba?\([^)]*\)')
+
+
+def first_colour(value):
+    """The first colour written in a computed ``box-shadow`` or image value."""
+    match = COLOUR_RE.search(value)
+    assert match, value
+    return match.group(0)
+
+
+@tagged('post_install', '-at_install')
+class TestThemeListPivotGraph(ShellProbeCase):
+    """Probe tests of list, pivot and graph (001b R26-R28)."""
+
+    # -- list ---------------------------------------------------------------------
+
+    def list_page(self, scheme, grouped=False, **kwargs):
+        key = 'list_grouped_action' if grouped else 'list_action'
+        return self.page(f"/odoo/action-{self.fixtures[key]}", scheme=scheme, **kwargs)
+
+    def list_ready(self, selector='.o_data_row'):
+        self.wait(f"!!document.querySelector('{selector}')")
+        self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+
+    def _not_striped(self, scheme):
+        with self.list_page(scheme):
+            self.list_ready()
+            for index in (0, 1):
+                got = self.style('.o_data_row > td.o_data_cell', 'background-color', index=index)
+                self.assertColour(got['background-color'], VIEW[scheme])
+            got = self.style('.o_list_table thead th:not(.o_list_record_selector)',
+                             'color', 'font-weight', 'padding-top', 'padding-bottom', index=0)
+            self.assertColour(got['color'], GREY_700[scheme])
+            self.assertEqual(got['font-weight'], '400')
+            self.assertEqual((got['padding-top'], got['padding-bottom']), ('8px', '8px'))
+
+    def test_A63_list_not_striped_light(self):
+        self._not_striped('light')
+
+    def test_A63_list_not_striped_dark(self):
+        self._not_striped('dark')
+
+    def _hover_selection(self, scheme):
+        bg, line = SELECTED[scheme]
+        with self.list_page(scheme):
+            self.list_ready()
+            cell = '.o_data_row:nth-child(3) > td.o_data_cell'
+            self.assertTrue(self.js(
+                "document.querySelectorAll('.o_data_row').length >= 3"))
+            with self.forced('.o_data_row', 'hover', index=2):
+                got = self.style(cell, 'box-shadow')
+            self.assertColour(first_colour(got['box-shadow']), ACTION[scheme],
+                              alpha=HOVER_ALPHA[scheme])
+            self.js("""for (const box of [...document.querySelectorAll(
+                '.o_data_row .o_list_record_selector input')].slice(0, 2)) { box.click(); }""")
+            self.wait("document.querySelectorAll('.o_data_row_selected').length === 2")
+            self.js("new Promise((resolve) => setTimeout(resolve, 300))")
+            for index in (0, 1):
+                got = self.style('.o_data_row_selected > td.o_data_cell', 'background-color',
+                                 'border-bottom-color', 'border-bottom-width', 'color',
+                                 index=index)
+                self.assertColour(got['background-color'], bg)
+                self.assertColour(got['border-bottom-color'], line)
+                self.assertEqual(got['border-bottom-width'], '1px')
+                self.assertColour(got['color'], BLACK_ROLE[scheme])
+
+    def test_A64_row_hover_selection_light(self):
+        self._hover_selection('light')
+
+    def test_A64_row_hover_selection_dark(self):
+        self._hover_selection('dark')
+
+    def _grouped(self, scheme):
+        with self.list_page(scheme, grouped=True):
+            self.list_ready('.o_group_header')
+            self.js("document.querySelector('.o_group_header').click()")
+            self.wait("!!document.querySelector('.o_group_header + .o_data_row')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 300))")
+            got = self.style('.o_group_header + .o_data_row > td.o_data_cell', 'background-image')
+            image = got['background-image']
+            self.assertEqual(image.count('linear-gradient'), 2, image)
+            self.assertRegex(image, r'rgba\(0, 0, 0, 0\.02[45]\)')  # 2.5 % in 8 bits
+            self.assertIn('4px', image)
+            self.assertIn('2px', image)
+            # the second record row has no such shadow
+            got = self.style('.o_data_row + .o_data_row > td.o_data_cell', 'background-image')
+            self.assertEqual(got['background-image'], 'none')
+            got = self.style('.o_list_footer td', 'color', 'font-weight', 'background-color')
+            self.assertColour(got['color'], BLACK_ROLE[scheme])
+            self.assertEqual(got['font-weight'], '500')
+            self.assertColour(got['background-color'], '#000000', alpha=0)
+            empties = self.js("""[...document.querySelectorAll('.o_list_footer td:empty')]
+                .map((td) => getComputedStyle(td).padding)""")
+            self.assertTrue(empties)
+            for padding in empties:
+                self.assertEqual(padding, '0px')
+
+    def test_A66_grouped_list_light(self):
+        self._grouped('light')
+
+    def test_A66_grouped_list_dark(self):
+        self._grouped('dark')
+
+    def test_A68_list_beside_search_panel(self):
+        with self.page(self.fixtures['apps_list_url'], scheme='light'):
+            self.list_ready()
+            self.wait("!!document.querySelector('.o_search_panel')")
+            got = self.style(
+                '.o_list_renderer', 'border-top-width', 'border-left-width',
+                'border-right-width', 'border-bottom-width', 'border-top-left-radius',
+                'border-top-right-radius', 'border-bottom-left-radius', 'margin-right',
+                'border-top-color')
+            self.assertEqual(
+                (got['border-top-width'], got['border-left-width'], got['border-right-width']),
+                ('1px', '1px', '1px'))
+            self.assertEqual(got['border-bottom-width'], '0px')
+            self.assertEqual(
+                (got['border-top-left-radius'], got['border-top-right-radius']),
+                ('12px', '12px'))
+            self.assertEqual(
+                (got['border-bottom-left-radius']), '0px')
+            self.assertEqual(got['margin-right'], '16px')
+            self.assertColour(got['border-top-color'], BORDER['light'])
+
+    def test_A120_activity_sticky_blur(self):
+        if not self.mail_installed():
+            self.skipTest('the activity view needs the mail module')
+        action = self.env['ir.actions.act_window'].create({
+            'name': 'Cws activity probe', 'res_model': 'res.partner',
+            'view_mode': 'activity,list',
+        })
+        self.env['ir.ui.view'].create({
+            'name': 'cws.probe.activity', 'model': 'res.partner', 'type': 'activity',
+            'arch': '<activity string="Probe"><templates><div t-name="activity-box">'
+                    '<field name="name"/></div></templates></activity>',
+        })
+        with self.page(f"/odoo/action-{action.id}", scheme='light'):
+            self.wait("!!document.querySelector('.o_activity_view thead th')")
+            got = self.style('.o_activity_view thead th', 'backdrop-filter')
+            self.assertEqual(got['backdrop-filter'], 'blur(2px)')
+
+    # -- pivot --------------------------------------------------------------------
+
+    def _pivot(self, scheme):
+        with self.page(f"/odoo/action-{self.fixtures['pivot_action']}", scheme=scheme):
+            self.wait("!!document.querySelector('.o_pivot_cell_value')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+            got = self.style('.o_pivot_cell_value', 'background-color')
+            self.assertColour(got['background-color'], VIEW[scheme])
+            # the button row has no extra top margin
+            self.assertEqual(
+                self.style('.o_pivot_buttons', 'margin-top')['margin-top'], '0px')
+            # a hovered row of the table takes the table hover colour
+            with self.forced('.o_pivot tbody tr', 'hover'):
+                got = self.style('.o_pivot_cell_value', 'box-shadow')
+            self.assertColour(first_colour(got['box-shadow']), ACTION[scheme],
+                              alpha=HOVER_ALPHA[scheme])
+            # the pointer on a cell marks it
+            self.pointer_to('.o_pivot_cell_value')
+            self.wait("!!document.querySelector('.o_pivot_cell_value.o_cell_hover')")
+            got = self.style('.o_pivot_cell_value.o_cell_hover', 'background-image')
+            self.assertColour(first_colour(got['background-image']), ACTION[scheme],
+                              alpha=HOVER_ALPHA[scheme])
+
+    def test_A70_pivot_light(self):
+        self._pivot('light')
+
+    def test_A70_pivot_dark(self):
+        self._pivot('dark')
+
+    # -- graph --------------------------------------------------------------------
+
+
+    CANVAS = '.o_graph_canvas_container canvas'
+    PIXEL_JS = """(chartX, chartY) => {
+        const canvas = document.querySelector('CANVAS_SEL');
+        const scale = canvas.width / canvas.clientWidth;
+        const px = canvas.getContext('2d').getImageData(
+            Math.round(chartX * scale), Math.round(chartY * scale), 1, 1).data;
+        return [px[0], px[1], px[2]];
+    }"""
+
+    def chart_page(self, scheme):
+        return self.page(f"/odoo/action-{self.fixtures['graph_action']}", scheme=scheme)
+
+    def chart_ready(self, mode):
+        self.wait(f"!!document.querySelector('{self.CANVAS}')")
+        if mode != 'bar':
+            self.js(f"document.querySelector('.o_switcher [data-mode={mode}]').click()")
+        self.wait(f"Chart.getChart(document.querySelector('{self.CANVAS}'))"
+                  f"?.config.type === '{mode}'")
+        # the chart animation ends
+        self.js("new Promise((resolve) => setTimeout(resolve, 1200))")
+
+    def pixel(self, x, y):
+        script = self.PIXEL_JS.replace('CANVAS_SEL', self.CANVAS)
+        return self.js(f"({script})({x}, {y})")
+
+    def test_A72_bars_legend(self):
+        with self.chart_page('light'):
+            self.chart_ready('bar')
+            got = self.js("""(() => {
+                const chart = Chart.getChart(document.querySelector('CANVAS_SEL'));
+                return {
+                    width: chart.options.plugins.legend.labels.boxWidth,
+                    radius: chart.options.plugins.legend.labels.borderRadius,
+                    useRadius: chart.options.plugins.legend.labels.useBorderRadius,
+                    border: chart.options.elements.bar.borderWidth,
+                    datasetBorder: chart.data.datasets.map((d) => d.borderWidth),
+                    fill: typeof chart.data.datasets[0].backgroundColor,
+                };
+            })()""".replace('CANVAS_SEL', self.CANVAS))
+            self.assertEqual(got['width'], 30)
+            self.assertEqual(got['radius'], 4)
+            self.assertTrue(got['useRadius'])
+            self.assertEqual(got['border'], 0)
+            self.assertEqual(set(got['datasetBorder']), {0})
+            self.assertEqual(got['fill'], 'string')  # flat fill
+
+    def _line_fill(self, scheme):
+        end = {'light': (255, 255, 255), 'dark': (0x26, 0x2A, 0x36)}[scheme]
+        with self.chart_page(scheme):
+            self.chart_ready('line')
+            geometry = self.js("""(() => {
+                const chart = Chart.getChart(document.querySelector('CANVAS_SEL'));
+                const point = chart.getDatasetMeta(0).data.find(
+                    (p) => p.y < chart.chartArea.bottom - 40);
+                return {x: point.x, y: point.y, bottom: chart.chartArea.bottom,
+                        base: chart.data.datasets[0].borderColor};
+            })()""".replace('CANVAS_SEL', self.CANVAS))
+            self.assertTrue(geometry)
+            # at the bottom of the chart area the fill reaches the fixed end colour
+            bottom = self.pixel(geometry['x'], geometry['bottom'] - 3)
+            for got, want in zip(bottom, end, strict=True):
+                self.assertAlmostEqual(got, want, delta=8, msg=f'{bottom} vs {end}')
+            # right under the line it is the lighter (darker in dark) variant of the base
+            base = hex_rgb(geometry['base'])
+            near = self.pixel(geometry['x'], geometry['y'] + 4)
+            goal = 255 if scheme == 'light' else 0
+            for got, colour in zip(near, base, strict=True):
+                self.assertAlmostEqual(got, round((colour + goal) / 2), delta=40,
+                                       msg=f'{near} vs {base}')
+
+    def test_A73_line_fill_light(self):
+        self._line_fill('light')
+
+    def test_A73_line_fill_dark(self):
+        self._line_fill('dark')
+
+    def _pie_fill(self, scheme):
+        with self.chart_page(scheme):
+            self.chart_ready('pie')
+            geometry = self.js("""(() => {
+                const chart = Chart.getChart(document.querySelector('CANVAS_SEL'));
+                const arc = chart.getDatasetMeta(0).data[0];
+                const angle = (arc.startAngle + arc.endAngle) / 2;
+                return {x: arc.x, y: arc.y, outer: arc.outerRadius, angle,
+                        base: chart.data.datasets[0].cwsBaseColours[0],
+                        border: chart.data.datasets[0].borderWidth};
+            })()""".replace('CANVAS_SEL', self.CANVAS))
+            self.assertEqual(geometry['border'], 0)
+
+            def at(fraction):
+                radius = geometry['outer'] * fraction
+                return self.pixel(geometry['x'] + radius * math.cos(geometry['angle']),
+                                  geometry['y'] + radius * math.sin(geometry['angle']))
+
+            centre, edge = at(.05), at(.97)
+            for got, want in zip(centre, hex_rgb(geometry['base']), strict=True):
+                self.assertAlmostEqual(got, want, delta=12)
+            if scheme == 'light':
+                self.assertGreater(sum(edge), sum(centre) + 15)
+            else:
+                self.assertLess(sum(edge), sum(centre) - 15)
+            # the tooltip swatch repeats the fill
+            box = self.rect(self.CANVAS)
+            x = box['x'] + geometry['x'] + geometry['outer'] * .5 * math.cos(geometry['angle'])
+            y = box['y'] + geometry['y'] + geometry['outer'] * .5 * math.sin(geometry['angle'])
+            self.browser._websocket_request('Input.dispatchMouseEvent', params={
+                'type': 'mouseMoved', 'x': x, 'y': y})
+            self.wait("!!document.querySelector('.o_graph_custom_tooltip .o_square')")
+            got = self.style('.o_graph_custom_tooltip .o_square', 'background-image')
+            self.assertIn('radial-gradient', got['background-image'])
+
+    def test_A74_pie_fill_light(self):
+        self._pie_fill('light')
+
+    def test_A74_pie_fill_dark(self):
+        self._pie_fill('dark')
+
+    def test_A76_first_paint_without_error(self):
+        # a chart drawn before its size is known must not raise; every mode is entered
+        with self.chart_page('light'):
+            self.chart_ready('bar')
+            for mode in ('line', 'pie', 'bar'):
+                self.js(f"document.querySelector('.o_switcher [data-mode={mode}]').click()")
+                self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+            self.assertFalse(self.js("!!document.querySelector('.o_error_dialog')"))
+
+    def test_R28_graph_top_margin(self):
+        with self.chart_page('light'):
+            self.chart_ready('bar')
+            self.assertEqual(
+                self.style('.o_graph_renderer > :first-child', 'margin-top')['margin-top'], '0px')

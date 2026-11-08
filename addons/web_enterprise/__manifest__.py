@@ -22,6 +22,9 @@
             'web_enterprise/static/src/**/*',
             # the pivot view is lazy loaded: its patch goes with it
             ('remove', 'web_enterprise/static/src/views/pivot_renderer_patch.js'),
+            ('remove', 'web_enterprise/static/src/theme/graph_pivot.scss'),
+            ('remove', 'web_enterprise/static/src/views/graph_fill_patch.js'),
+            ('remove', 'web_enterprise/static/src/views/graph_renderer_patch.xml'),
             # the role files are placed explicitly, ahead of the Community
             # primary variables
             ('remove', 'web_enterprise/static/src/theme/roles_light.scss'),
@@ -36,6 +39,9 @@
              'web_enterprise/static/src/theme/roles_light.scss'),
             'web_enterprise/static/src/theme/role_properties.scss',
             'web_enterprise/static/src/views/pivot_renderer_patch.js',
+            'web_enterprise/static/src/theme/graph_pivot.scss',
+            'web_enterprise/static/src/views/graph_fill_patch.js',
+            'web_enterprise/static/src/views/graph_renderer_patch.xml',
         ],
         'web.dark_mode_variables': [
             ('before', 'web_enterprise/static/src/theme/roles_light.scss',

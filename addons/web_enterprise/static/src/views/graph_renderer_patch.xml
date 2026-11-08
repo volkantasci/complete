@@ -1,0 +1,12 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+
+  <t t-name="web_enterprise.GraphRenderer.CustomTooltip" t-inherit="web.GraphRenderer.CustomTooltip" t-inherit-mode="extension">
+    <!-- the swatch may be a gradient (001b R28) -->
+    <xpath position="attributes" expr="//span[hasclass('o_square')]">
+      <attribute name="t-attf-style">background: {{ tooltipItem.boxColor }}</attribute>
+    </xpath>
+  </t>
+
+</templates>
