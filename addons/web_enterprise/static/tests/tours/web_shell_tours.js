@@ -10,6 +10,16 @@ const tile = (xmlid) => `a.o_app[data-menu-xmlid="${xmlid}"]`;
 const GRID_BUTTON = ".o_navbar .o_menu_toggle:not(.o_menu_toggle_back):not(.o_hidden)";
 const BACK_CHEVRON = ".o_navbar .o_menu_toggle.o_menu_toggle_back";
 
+/**
+ * The partner name input: a textarea in the base form, a text input once the
+ * autocomplete widget replaces it (installed together with Discuss).
+ */
+const nameField = (value) => {
+    const suffix = value ? `:value(${value})` : "";
+    const base = ".o_form_view .o_field_widget[name=name]";
+    return `${base} textarea${suffix}, ${base} input${suffix}`;
+};
+
 /** Fixture tiles in display order, as xmlids. */
 const fixtureOrder = () =>
     [...document.querySelectorAll("a.o_app[data-menu-xmlid^='cws_tour.']")].map(
@@ -118,12 +128,12 @@ tours.add("web_shell_toggle_restore_and_new_stack", {
         { trigger: ".o_searchview_autocomplete .o-dropdown-item.focus", run: "click" },
         { trigger: ".o_searchview_facet" },
         { trigger: ".o_data_row .o_data_cell:contains(Shell Alpha)", run: "click" },
-        { trigger: ".o_form_view .o_field_widget[name=name] textarea:value(Shell Alpha)" },
+        { trigger: nameField("Shell Alpha") },
         { trigger: `${GRID_BUTTON}`, run: "click" },
         { trigger: ".o_home_menu" },
         { trigger: "body:not(:has(.o_form_view))" },
         { trigger: BACK_CHEVRON, run: "click" },
-        { trigger: ".o_form_view .o_field_widget[name=name] textarea:value(Shell Alpha)" },
+        { trigger: nameField("Shell Alpha") },
         { trigger: ".o_breadcrumb .o_back_button", run: "click" },
         // A9: same list, same filter
         { trigger: ".o_list_view .o_data_row" },
@@ -144,12 +154,12 @@ tours.add("web_shell_toggle_restore_and_new_stack", {
 
 tours.add("web_shell_unsaved_changes_saved_on_toggle", {
     steps: () => [
-        { trigger: ".o_form_view .o_field_widget[name=name] textarea", run: "edit Shell Renamed" },
+        { trigger: nameField(), run: "edit Shell Renamed" },
         { trigger: GRID_BUTTON, run: "click" },
         { trigger: ".o_home_menu" },
         { trigger: "body:not(:has(.o_dialog)):not(:has(.o_form_view))" },
         { trigger: BACK_CHEVRON, run: "click" },
-        { trigger: ".o_form_view .o_field_widget[name=name] textarea:value(Shell Renamed)" },
+        { trigger: nameField("Shell Renamed") },
         { trigger: ".o_form_view:not(.o_form_dirty)" },
     ],
 });
@@ -275,7 +285,7 @@ tours.add("web_shell_missing_action", {
 
 tours.add("web_shell_back_from_first_screen", {
     steps: () => [
-        { trigger: ".o_form_view .o_field_widget[name=name] textarea:value(Shell Alpha)" },
+        { trigger: nameField("Shell Alpha") },
         { trigger: "body:not(:has(.o_breadcrumb .o_back_button))" },
         {
             trigger: ".o_navbar",
