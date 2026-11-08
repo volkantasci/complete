@@ -1,5 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
+import re
+
 from odoo.tests import tagged
 
 from .theme_probe import ThemeProbeCase, parse_colour
@@ -477,3 +479,357 @@ class TestThemeShell(ShellProbeCase):
             })()""")
             self.assertColour(link, '#017E84')
             self.assertNotEqual(parse_colour(link)[:3], parse_colour('#714B67')[:3])
+
+
+TILE = '.o_home_menu .o_app'
+TILE_ICON = '.o_home_menu .o_app .o_app_icon'
+TILE_NAME = '.o_home_menu .o_app .o_caption'
+MOBILE = (390, 844)
+COLOUR_FN = r'rgba?\(([^)]*)\)'
+
+
+def split_top_level(value):
+    """Split a CSS value at the commas that are not inside parentheses."""
+    parts, depth, current = [], 0, ''
+    for char in value:
+        if char == '(':
+            depth += 1
+        elif char == ')':
+            depth -= 1
+        if char == ',' and depth == 0:
+            parts.append(current.strip())
+            current = ''
+        else:
+            current += char
+    parts.append(current.strip())
+    return parts
+
+
+def numbers(value):
+    return [float(n) for n in re.findall(r'-?\d+\.?\d*', value)]
+
+
+def colour_in(value, index=0):
+    return [m.group(0) for m in re.finditer(COLOUR_FN, value)][index]
+
+
+@tagged('post_install', '-at_install')
+class TestThemeHomeMenu(ShellProbeCase):
+    """Home menu look (R10 to R12, R14)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        menus = cls.env['ir.ui.menu']
+        action = f"ir.actions.act_window,{cls.fixtures['kanban_action']}"
+        # enough applications to scroll the home menu, one of them with a glyph icon
+        for index in range(40):
+            menus.create({
+                'name': f'Cws home {index:02}', 'action': action,
+                'web_icon': 'base,static/description/icon.png',
+            })
+        menus.create({
+            'name': 'Cws home glyph', 'action': action, 'web_icon': 'oi-apps,#FFFFFF,#336699',
+        })
+
+    def home_page(self, scheme='light', **kwargs):
+        return self.page('/odoo', scheme=scheme, **kwargs)
+
+    def wait_home(self):
+        self.wait("document.body.classList.contains('o_home_menu_background') && "
+                  f"document.querySelectorAll('{TILE}').length > 5 && "
+                  "!!document.querySelector('.o_main_navbar')", timeout=60)
+        self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+
+    def _background(self, scheme, contrast, alpha, dot):
+        with self.home_page(scheme):
+            self.wait_home()
+            layers = split_top_level(self.style('body', 'background-image')['background-image'])
+            self.assertEqual(len(layers), 5, layers)
+            self.assertTrue(layers[0].startswith('linear-gradient(45deg'), layers[0])
+            self.assertTrue(layers[1].startswith('linear-gradient(135deg'), layers[1])
+            self.assertTrue(layers[2].startswith('linear-gradient('), layers[2])
+            self.assertTrue(layers[3].startswith('radial-gradient('), layers[3])
+            self.assertTrue(layers[4].startswith('radial-gradient('), layers[4])
+            # the page colour leads layers 1 to 3
+            page = self.style('body', 'background-color')['background-color']
+            for layer in layers[:3]:
+                self.assertIn(page, layer)
+            self.assertIn('rgba(0, 0, 0, 0)', layers[0])
+            for stop in ('95%', '30%', '60%'):
+                self.assertIn(stop, layers[1])
+            # layer 4: the contrast colour out to 20 %, transparent at 400 %
+            self.assertIn('20%', layers[3])
+            self.assertIn('400%', layers[3])
+            self.assertColour(colour_in(layers[3]), contrast, alpha=alpha)
+            # layer 5: one dot on a 12 px grid
+            self.assertColour(colour_in(layers[4]), dot[0], alpha=dot[1])
+            style = self.style('body', 'background-size', 'background-repeat')
+            sizes = split_top_level(style['background-size'])
+            repeats = split_top_level(style['background-repeat'])
+            self.assertEqual(sizes[4], '12px 12px')
+            self.assertEqual(sizes[2], '100% 40%')
+            self.assertEqual([sizes[0], sizes[1], sizes[3]], ['auto'] * 3)
+            self.assertEqual(repeats[:4], ['no-repeat'] * 4)
+            self.assertEqual(repeats[4], 'repeat')
+            # opening an application removes the layers
+            self.js("document.querySelector('.o_home_menu .o_app').click()")
+            self.wait("!document.body.classList.contains('o_home_menu_background')", timeout=30)
+            self.assertEqual(self.style('body', 'background-image')['background-image'], 'none')
+
+    def test_A19_home_background_layers_light(self):
+        self._background('light', '#E9ECEF', 0.95, ('#000000', 1.0))
+
+    def test_A19_home_background_layers_dark(self):
+        self._background('dark', '#151518', 0.93, ('#FFFFFF', 0.75))
+
+    def _icon_square(self, scheme):
+        with self.home_page(scheme):
+            self.wait_home()
+            icon = self.style(
+                TILE_ICON, 'width', 'height', 'padding-top', 'background-color', 'border-radius',
+                'box-shadow')
+            self.assertEqual(
+                (icon['width'], icon['height'], icon['padding-top'], icon['border-radius']),
+                ('70px', '70px', '10px', '8px'))
+            shadows = split_top_level(icon['box-shadow'])
+            if scheme == 'light':
+                self.assertColour(icon['background-color'], '#FFFFFF')
+                # a 1 px ring, then six soft layers, offset 1, 2, 3, 5, 10 and 24 px
+                self.assertEqual(len(shadows), 7, shadows)
+                self.assertEqual(numbers(shadows[0])[-4:], [0, 0, 0, 1])
+                self.assertEqual([numbers(s)[-3] for s in shadows[1:]], [1, 2, 3, 5, 10, 24])
+                for shadow in shadows[1:]:
+                    colour = colour_in(shadow)
+                    self.assertColour(colour, '#2A3346', alpha=parse_colour(colour)[3])
+                    self.assertTrue(0.025 <= parse_colour(colour)[3] <= 0.045, colour)
+                    self.assertLess(numbers(shadow.split(')')[-1])[-1], 0)  # negative spread
+            else:
+                self.assertColour(icon['background-color'], '#2C2E35')
+                self.assertEqual(len(shadows), 1, shadows)
+                self.assertIn('inset', shadows[0])
+                self.assertColour(colour_in(shadows[0]), '#3E3F47')
+                self.assertEqual(numbers(shadows[0])[-4:], [0, 0, 0, 1])
+
+    def test_A21_icon_squares_light(self):
+        self._icon_square('light')
+
+    def test_A21_icon_squares_dark(self):
+        self._icon_square('dark')
+
+    def _hover_press(self, scheme):
+        with self.home_page(scheme):
+            self.wait_home()
+            rest = self.style(TILE_ICON, 'box-shadow')['box-shadow']
+            transition = self.style(TILE_ICON, 'transition-duration', 'transition-property',
+                                    'transition-timing-function')
+            self.assertEqual(transition['transition-duration'], '0.1s')
+            self.assertEqual(transition['transition-property'], 'box-shadow')
+            self.assertEqual(transition['transition-timing-function'], 'ease-in')
+            with self.forced(TILE, 'hover'):
+                hover = self.style(TILE_ICON, 'box-shadow', 'transform')
+                self.assertNotEqual(hover['box-shadow'], rest)
+                self.assertEqual(hover['transform'], 'none')
+                if scheme == 'light':
+                    shadows = split_top_level(hover['box-shadow'])
+                    self.assertEqual(len(shadows), 3, shadows)
+                    self.assertColour(colour_in(shadows[0]), '#000000', alpha=0.15)
+                    self.assertColour(colour_in(shadows[1]), '#091E42', alpha=0.25)
+                    self.assertEqual(numbers(shadows[1].split(')')[-1]), [0, 4, 8, -2])
+                    self.assertColour(colour_in(shadows[2]), '#091E42', alpha=0.08)
+                else:
+                    self.assertColour(colour_in(hover['box-shadow']), '#56575E')
+            with self.forced(TILE, 'hover', 'active'):
+                pressed = self.style(TILE_ICON, 'transform', 'transition-duration',
+                                     'transform-origin')
+                # translateY(-2px) scale(.98), from the icon's bottom centre
+                self.assertEqual(numbers(pressed['transform'].split('(')[1]),
+                                 [0.98, 0, 0, 0.98, 0, -2])
+                self.assertEqual(pressed['transition-duration'], '0s')
+                self.assertEqual(pressed['transform-origin'], '35px 70px')
+
+    def test_A22_tile_hover_press_light(self):
+        self._hover_press('light')
+
+    def test_A22_tile_hover_press_dark(self):
+        self._hover_press('dark')
+
+    def _tile_names(self, scheme, size=(1600, 900), touch=False):
+        with self.home_page(scheme, size=size, touch=touch):
+            self.wait_home()
+            name = self.style(TILE_NAME, 'color', 'text-shadow', 'font-size')
+            if scheme == 'light':
+                self.assertColour(name['color'], '#212529')
+                self.assertEqual(name['text-shadow'], 'none')
+            else:
+                self.assertColour(name['color'], '#FFFFFF')
+                shadows = split_top_level(name['text-shadow'])
+                self.assertEqual(len(shadows), 3, shadows)
+                self.assertColour(colour_in(shadows[0]), '#000000', alpha=0.75)
+                self.assertEqual(numbers(shadows[0].split(')')[-1]), [0, 1, 2])
+                for glow in shadows[1:]:
+                    self.assertEqual(numbers(glow.split(')')[-1]), [0, 0, 5])
+                    self.assertColour(colour_in(glow), '#000000', alpha=0.05)
+            return name['font-size']
+
+    def test_A24_tile_names_light(self):
+        self.assertEqual(self._tile_names('light'), '14px')
+
+    def test_A24_tile_names_dark(self):
+        self.assertEqual(self._tile_names('dark'), '14px')
+
+    def test_A24_tile_names_mobile(self):
+        self.assertEqual(self._tile_names('light', size=MOBILE, touch=True), '13px')
+
+    def _focus_wash(self, scheme, wash, outline):
+        with self.home_page(scheme):
+            self.wait_home()
+            self.key('ArrowRight')
+            self.wait("!!document.querySelector('.o_home_menu .o_app.o_focused')")
+            got = self.style('.o_home_menu .o_app.o_focused', 'background-color', 'outline-color',
+                             'outline-width', 'outline-style', 'border-radius')
+            self.assertColour(got['background-color'], wash, alpha=0.75)
+            self.assertColour(got['outline-color'], outline)
+            self.assertEqual(got['outline-width'], '1px')
+            self.assertEqual(got['outline-style'], 'solid')
+            self.assertEqual(got['border-radius'], '6px')
+
+    def test_A25_focus_wash_light(self):
+        self._focus_wash('light', '#E6F2F3', '#017E84')
+
+    def test_A25_focus_wash_dark(self):
+        self._focus_wash('dark', '#3B4C52', '#1CBCB1')
+
+    def test_A27_dragged_tile(self):
+        with self.home_page():
+            self.wait_home()
+            # a tile with a menu xml id: only those can be reordered
+            drag_tile = '.o_home_menu .o_app:not([data-menu-xmlid=""])'
+            self.assertEqual(self.style(drag_tile, 'rotate')['rotate'], 'none')
+            motion = self.style(drag_tile, 'transition-property', 'transition-duration')
+            self.assertEqual(motion['transition-property'], 'rotate')
+            self.assertEqual(motion['transition-duration'], '0.5s')
+            rest = self.style(f'{drag_tile} .o_app_icon', 'box-shadow')['box-shadow']
+            self.pointer_to(drag_tile)  # scrolls it into view
+            box = self.rect(drag_tile)
+            x, y = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
+            request = self.browser._websocket_request
+
+            def mouse(kind, dx=0):
+                request('Input.dispatchMouseEvent', params={
+                    'type': kind, 'button': 'left', 'buttons': 0 if kind == 'mouseReleased' else 1,
+                    'clickCount': 1, 'x': x + dx, 'y': y,
+                })
+
+            request('Input.dispatchMouseEvent', params={'type': 'mouseMoved', 'x': x, 'y': y})
+            mouse('mousePressed')
+            self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+            mouse('mouseMoved', 14)
+            self.wait("!!document.querySelector('.o_home_menu .o_app.o_dragged_app')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+            self.assertEqual(
+                self.style('.o_home_menu .o_app.o_dragged_app', 'rotate')['rotate'], '6deg')
+            icon = self.style('.o_home_menu .o_app.o_dragged_app .o_app_icon',
+                              'box-shadow', 'transform')
+            shadows = split_top_level(icon['box-shadow'])
+            self.assertEqual(len(shadows), 4, shadows)
+            self.assertEqual(numbers(shadows[3].split(')')[-1]), [0, 8, 15, -10])
+            self.assertColour(colour_in(shadows[3]), '#091E42', alpha=0.5)
+            self.assertEqual(numbers(icon['transform'].split('(')[1]), [1, 0, 0, 1, 0, -1])
+            mouse('mouseReleased', 14)
+            # the pointer leaves the tile, so that its icon is not left in the hover state
+            request('Input.dispatchMouseEvent', params={'type': 'mouseMoved', 'x': 5, 'y': 400})
+            self.wait("!document.querySelector('.o_home_menu .o_app.o_dragged_app')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+            self.assertEqual(self.style(drag_tile, 'rotate')['rotate'], 'none')
+            self.assertEqual(
+                self.style(f'{drag_tile} .o_app_icon', 'box-shadow')['box-shadow'], rest)
+
+    def _tray_wash(self, scheme, wash):
+        with self.home_page(scheme):
+            self.wait_home()
+            entry = USER_MENU
+            with self.forced(entry, 'hover'):
+                self.assertColour(
+                    self.style(entry, 'background-color')['background-color'], wash, alpha=0.1)
+
+    def test_A28_tray_wash_light(self):
+        self._tray_wash('light', '#000000')
+
+    def test_A28_tray_wash_dark(self):
+        self._tray_wash('dark', '#FFFFFF')
+
+    def test_A110_tray_open_no_outline(self):
+        with self.home_page():
+            self.wait_home()
+            entry = USER_MENU
+            self.js(f"document.querySelector({entry!r}).click()")
+            self.wait(f"document.querySelector({entry!r}).getAttribute('aria-expanded') === 'true'")
+            with self.forced(entry, 'focus', 'focus-visible'):
+                got = self.style(entry, 'outline-style', 'outline-width')
+                self.assertTrue(
+                    got['outline-style'] == 'none' or got['outline-width'] == '0px', got)
+
+    def test_A111_scrollbar_and_glyph_tile(self):
+        with self.home_page():
+            self.wait_home()
+            root = '.o_home_menu'
+            self.assertGreater(
+                self.js(f"document.querySelector('{root}').scrollHeight"),
+                self.js(f"document.querySelector('{root}').clientHeight"))
+            self.assertEqual(self.style(root, 'scrollbar-width')['scrollbar-width'], 'auto')
+            self.assertEqual(
+                self.style(root, 'width', pseudo='::-webkit-scrollbar')['width'], '8px')
+            thumb = self.style(root, 'background-color', 'border-top-left-radius',
+                               pseudo='::-webkit-scrollbar-thumb')
+            self.assertColour(thumb['background-color'], '#212529', alpha=0.5)
+            self.assertGreaterEqual(float(thumb['border-top-left-radius'][:-2]), 4)
+            track = self.style(root, 'background-color', pseudo='::-webkit-scrollbar-track')
+            self.assertEqual(parse_colour(track['background-color'])[3], 0)
+            glyph = '.o_home_menu .o_app .o_cws_glyph_icon'
+            square = self.style(glyph, 'width', 'height', 'border-radius', 'background-color')
+            self.assertEqual((square['width'], square['height'], square['border-radius']),
+                             ('70px', '70px', '8px'))
+            self.assertColour(square['background-color'], '#336699')
+            self.assertEqual(self.style(f'{glyph} i', 'font-size')['font-size'], '35px')
+        with self.home_page(size=MOBILE, touch=True):
+            self.wait_home()
+            self.assertEqual(
+                self.style('.o_home_menu', 'scrollbar-width')['scrollbar-width'], 'none')
+
+    def _touch_search(self, scheme, height, border):
+        with self.home_page(scheme, size=MOBILE, touch=True):
+            self.wait_home()
+            field = '.o_home_menu .o_cws_touch_search'
+            got = self.style(
+                field, 'height', 'border-top-left-radius', 'padding-top', 'padding-left',
+                'background-color', 'border-top-width', 'border-top-color', 'border-left-width',
+                'border-right-width', 'border-bottom-width', 'margin-top', 'margin-bottom')
+            self.assertEqual(got['height'], f'{height}px')
+            self.assertEqual(got['border-top-left-radius'], '6px')
+            self.assertEqual((got['padding-top'], got['padding-left']), ('8px', '8px'))
+            self.assertEqual((got['margin-top'], got['margin-bottom']), ('8px', '16px'))
+            self.assertColour(
+                got['background-color'], '#F8F9FA' if scheme == 'light' else '#1F1F23')
+            for side in ('top', 'left', 'right', 'bottom'):
+                self.assertEqual(got[f'border-{side}-width'], '1px' if border else '0px')
+            if border:
+                self.assertColour(got['border-top-color'], border)
+            # the field leads the scrolled content: the page opens past it
+            box = self.rect(field)
+            # light: fully past; dark: the 1 px border of the taller field (D5) ends 1 px below
+            self.assertLessEqual(box['y'] + box['height'], 46 + (1 if border else 0))
+
+    def test_A30_A125_touch_search_light(self):
+        self._touch_search('light', 37, None)
+
+    def test_A30_A125_touch_search_dark(self):
+        self._touch_search('dark', 39, '#3C3E4A')
+
+    def test_A30_touch_search_width(self):
+        with self.home_page(size=(800, 900), touch=True):
+            self.wait_home()
+            self.assertEqual(self.rect('.o_home_menu')['width'], 800)
+        with self.home_page(size=(1100, 900), touch=True):
+            self.wait_home()
+            self.assertEqual(self.rect('.o_home_menu')['width'], 850)

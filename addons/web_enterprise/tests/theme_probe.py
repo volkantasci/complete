@@ -8,12 +8,15 @@ it for all its reads.
 """
 import contextlib
 import json
+import logging
 import re
 
 from odoo.tests import HttpCase
 from odoo.tests.common import ChromeBrowser, flushing_cursor
 
 from .theme_fixtures import build_theme_fixtures
+
+_logger = logging.getLogger(__name__)
 
 KEYS = {
     'Tab': ('Tab', 'Tab', 9),
@@ -113,6 +116,20 @@ class ThemeProbeCase(HttpCase):
                  'value': 'reduce' if reduced_motion else 'no-preference'},
             ]})
             browser.navigate_to(self.base_url() + url, wait_stop=False)
+            # Rarely (about one page in twenty) the server treats the session cookie just set as
+            # anonymous and answers the first request with a redirect to the login page, so
+            # ``.o_web_client`` never shows. Detect that case and sign in again, once or twice.
+            for attempt in range(3):
+                self.wait("!!document.querySelector('.o_web_client') || "
+                          "location.pathname.startsWith('/web/login')", timeout=120)
+                if self.js("!!document.querySelector('.o_web_client')"):
+                    break
+                _logger.warning('probe page %s landed on the login page (attempt %s): '
+                                'signing in again', url, attempt + 1)
+                # a request still running on the shared test cursor can leave it read-only
+                self._wait_remaining_requests(timeout=5)
+                self.authenticate(login, login, browser=browser)
+                browser.navigate_to(self.base_url() + url, wait_stop=False)
             self.wait("!!document.querySelector('.o_web_client')", timeout=120)
             self.wait("document.readyState === 'complete'")
             loaded = self.js(

@@ -251,3 +251,30 @@ $o-gradient-lg: linear-gradient(145deg, rgba($o-white, .55), transparent) !defau
 
 $o-cws-graph-area-end: #FFFFFF !default;
 $o-cws-home-contrast: darken($o-gray-100, 5%) !default;
+
+// Contrast haze and dot grid of the home menu background (R10): opacity of the haze
+// and of the dots.
+$o-cws-home-contrast-alpha: .95 !default;
+$o-cws-home-dot-alpha: 1 !default;
+
+// Tile icon squares (R11): resting, hover and drag shadows.
+$o-cws-tile-navy: #2A3346 !default;
+$o-cws-tile-navy-hover: #091E42 !default;
+$o-cws-tile-shadow:
+    0 0 0 1px rgba($o-black, .075),
+    0 1px 1px -.5px rgba($o-cws-tile-navy, .03),
+    0 2px 2px -1px rgba($o-cws-tile-navy, .03),
+    0 3px 3px -1.5px rgba($o-cws-tile-navy, .04),
+    0 5px 5px -2.5px rgba($o-cws-tile-navy, .04),
+    0 10px 10px -5px rgba($o-cws-tile-navy, .04),
+    0 24px 24px -12px rgba($o-cws-tile-navy, .04) !default;
+$o-cws-tile-shadow-hover:
+    0 0 0 1px rgba($o-black, .15),
+    0 4px 8px -2px rgba($o-cws-tile-navy-hover, .25),
+    0 0 0 1px rgba($o-cws-tile-navy-hover, .08) !default;
+$o-cws-tile-text-shadow: none !default;
+
+// Touch search field (R14, D5): height with its border, border width and colour.
+$o-cws-touch-search-height: 37px !default;
+$o-cws-touch-search-border-width: 0 !default;
+$o-cws-touch-search-border: transparent !default;
