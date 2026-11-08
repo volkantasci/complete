@@ -283,6 +283,38 @@ class TestThemeBadgesTags(ThemeProbeCase):
             self.assertAlmostEqual(minimum, ruler, delta=.5)
 
 
+    def _tag(self, scheme, border, background, text):
+        with self.page(f"/odoo/action-{self.fixtures['list_action']}", scheme=scheme):
+            selector = '.o_data_row .o_tag.o_tag_color_1'
+            self.wait(f"!!document.querySelector('{selector}')")
+            got = self.style(selector, 'border-top-color', 'border-top-width', 'border-top-style',
+                             'background-color', 'color', 'border-top-left-radius',
+                             'background-image')
+            self.assertColour(got['border-top-color'], border)
+            self.assertEqual(got['border-top-width'], '1px')
+            self.assertEqual(got['border-top-style'], 'solid')
+            self.assertColour(got['background-color'], background)
+            self.assertColour(got['color'], text)
+            self.assertGreaterEqual(float(got['border-top-left-radius'][:-2]), 10)
+            self.assertIn('linear-gradient(', got['background-image'])
+
+    def test_A40_tags(self):
+        self._tag('light', '#D76A58', '#FEDBD5', '#6B1F15')
+        self._tag('dark', '#F8907E', '#58271F', '#FEC9BF')
+
+    def test_A40_tag_cross_keeps_border(self):
+        # the editable tags field of the form shows a removal cross inside the tag
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['form_record_url'], scheme=scheme):
+                tag = '.o_field_many2many_tags .o_tag:has(.o_delete)'
+                self.wait(f"!!document.querySelector('{tag}')")
+                got = self.style(tag, 'border-top-width', 'border-top-style')
+                self.assertEqual(
+                    (got['border-top-width'], got['border-top-style']), ('1px', 'solid'))
+                cross = self.style(f'{tag} .o_delete', 'border-top-width')
+                self.assertEqual(cross['border-top-width'], '0px')
+
+
 @tagged('post_install', '-at_install')
 class TestThemeViewSwitcher(ThemeProbeCase):
     def test_A33_group_rule_spares_view_switcher(self):
