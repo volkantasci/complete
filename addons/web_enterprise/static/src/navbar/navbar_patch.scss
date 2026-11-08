@@ -55,18 +55,22 @@ nav.o_main_navbar {
     // with an application: the 30 px application icon covers the left part of the 93 px button
     // and the name starts 16 px after the icon (x 47). At rest the grid is hidden; hovering or
     // focusing the button fades the icon out and the grid in (our own reveal).
+    // The button holds the glyph and the name, so a click on any part of it toggles. It is 93 px
+    // wide at least and grows with a longer name; the sections follow because the wrapper is
+    // sized by the button.
     .o_cws_apps_menu:has(> .o_menu_brand_icon) {
-        width: 30px;
         margin-left: 1px;
 
         > .o_cws_grid_button:not(.o_menu_toggle_back) {
             flex: 0 0 auto;
-            width: 93px;
+            min-width: 93px;
             padding: 0 0 0 8px;
             justify-content: flex-start;
+            white-space: nowrap;
 
             .o_cws_grid_icon {
                 opacity: 0;
+                margin-right: 8px;
                 transition: opacity .15s;
             }
 
@@ -98,9 +102,11 @@ nav.o_main_navbar {
         transition: opacity .15s;
     }
 
-    .o_menu_brand {
+    .o_cws_grid_button .o_menu_brand {
         margin-left: 16px;
         font-size: 16.8px;
+        line-height: 1;
+        white-space: nowrap;
     }
 
     .o_cws_scoped_link {

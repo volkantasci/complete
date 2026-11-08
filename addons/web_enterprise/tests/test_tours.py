@@ -81,6 +81,11 @@ class TestWebShellTours(HttpCase):
             '/odoo/cws-contacts', 'web_shell_toggle_restore_and_new_stack', login='cws_a1',
         )
 
+    def test_A87_name_toggles_home_menu(self):
+        self.start_tour(
+            '/odoo/cws-contacts', 'web_shell_name_toggles_home_menu', login='cws_a1',
+        )
+
     def test_A12_unsaved_changes_saved_on_toggle(self):
         self.start_tour(
             f'/odoo/cws-contacts/{self.partner.id}',

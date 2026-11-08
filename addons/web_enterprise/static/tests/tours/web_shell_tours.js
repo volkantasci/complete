@@ -152,6 +152,33 @@ tours.add("web_shell_toggle_restore_and_new_stack", {
     ],
 });
 
+tours.add("web_shell_name_toggles_home_menu", {
+    steps: () => [
+        { trigger: ".o_list_view .o_data_row" },
+        { trigger: ".o_searchview_input", run: "edit Alpha" },
+        { trigger: ".o_searchview_autocomplete .o-dropdown-item.focus", run: "click" },
+        { trigger: ".o_searchview_facet:contains(Alpha)" },
+        { trigger: ".o_data_row:contains(Shell Alpha)" },
+        // D7: the name is part of the one button, a click on its text toggles
+        { trigger: ".o_navbar .o_menu_toggle .o_menu_brand:contains(Shell Contacts)", run: "click" },
+        { trigger: ".o_home_menu" },
+        { trigger: BACK_CHEVRON },
+        { trigger: "body:not(:has(.o_list_view))" },
+        { trigger: BACK_CHEVRON, run: "click" },
+        { trigger: ".o_list_view .o_data_row" },
+        { trigger: ".o_searchview_facet:contains(Alpha)" },
+        { trigger: "body:not(:has(.o_home_menu))" },
+        // from a record form the name still toggles instead of opening the start screen
+        { trigger: ".o_data_row .o_data_cell:contains(Shell Alpha)", run: "click" },
+        { trigger: nameField("Shell Alpha") },
+        { trigger: ".o_navbar .o_menu_brand:contains(Shell Contacts)", run: "click" },
+        { trigger: ".o_home_menu" },
+        { trigger: "body:not(:has(.o_form_view))" },
+        { trigger: BACK_CHEVRON, run: "click" },
+        { trigger: nameField("Shell Alpha") },
+    ],
+});
+
 tours.add("web_shell_unsaved_changes_saved_on_toggle", {
     steps: () => [
         { trigger: nameField(), run: "edit Shell Renamed" },

@@ -40,6 +40,7 @@
                 </t>
               </t>
             </svg>
+            <span t-if="this.currentApp" class="o_menu_brand o_cws_brand_name" t-att-class="{ 'o_hidden': this.isAppChromeHidden }" t-out="this.currentApp.name"/>
           </button>
           <t t-if="this.currentApp">
             <t t-call="web_enterprise.NavBar.BrandIcon"/>
@@ -70,9 +71,8 @@
   </t>
 
   <t t-name="web_enterprise.NavBar" t-inherit="web.NavBar" t-inherit-mode="extension">
-    <xpath expr="//DropdownItem[@t-if='!this.ui.isSmall and this.currentApp']" position="attributes">
-      <attribute name="class">'o_menu_brand d-flex' + (this.isBrandHidden ? ' o_hidden' : '')</attribute>
-    </xpath>
+    <!-- the name is part of the grid button, so the Community brand link goes -->
+    <xpath expr="//DropdownItem[@t-if='!this.ui.isSmall and this.currentApp']" position="replace"/>
     <xpath expr="//div[hasclass('o_navbar_breadcrumbs')]" position="attributes">
       <attribute name="t-att-class">{ 'o_hidden': this.isAppChromeHidden }</attribute>
     </xpath>

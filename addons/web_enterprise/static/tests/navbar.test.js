@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, test } from "@odoo/hoot";
-import { animationFrame, press, queryAll, queryOne, resize } from "@odoo/hoot";
+import { animationFrame, click, press, queryAll, queryOne, resize } from "@odoo/hoot";
 import {
     contains,
     defineActions,
@@ -109,18 +109,90 @@ test("A8 grid button toggles over the application", async () => {
     await mountWebClient();
     expect(GRID_BUTTON).toHaveCount(1);
     expect(GRID_BUTTON).not.toHaveClass(BACK_STATE);
-    await contains(GRID_BUTTON).click();
+    expect(".o_list_view").toHaveCount(1);
+    // the three parts of the one button: glyph, application icon, application name
+    for (const part of [".o_cws_grid_icon", ".o_menu_brand_icon", BRAND]) {
+        expect(HOME_ROOT).toHaveCount(0);
+        // click where the pointer lands: the application icon lets the pointer through
+        const partRect = queryOne(part).getBoundingClientRect();
+        const target = document.elementFromPoint(
+            partRect.left + partRect.width / 2,
+            partRect.top + partRect.height / 2
+        );
+        expect(target.closest(GRID_BUTTON)).not.toBe(null);
+        await click(target);
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        expect(HOME_ROOT).toHaveCount(1);
+        expect(GRID_BUTTON).toHaveClass(BACK_STATE);
+        expect(GRID_BUTTON).not.toHaveClass("o_hidden");
+        expect(GRID_BUTTON).toHaveAttribute("title", "Previous view");
+        expect(GRID_BUTTON).toHaveAttribute("aria-label", "Previous view");
+        expect(BRAND).toHaveClass("o_hidden");
+        expect(".o_menu_brand_icon").toHaveClass("o_hidden");
+        expect(".o_menu_sections").toHaveClass("o_hidden");
+        expect(".o_navbar_breadcrumbs").toHaveClass("o_hidden");
+        expect(BRAND).not.toBeVisible();
+        await toggle(false);
+        expect(HOME_ROOT).toHaveCount(0);
+    }
+});
+
+test("A87 clicking the application name toggles the home menu", async () => {
+    let actionLoads = 0;
+    onRpc("/web/action/load", () => {
+        actionLoads++;
+    });
+    await mountWebClient();
+    const menu = getService("menu");
+    const selected = [];
+    patchWithCleanup(menu, {
+        selectMenu(...args) {
+            selected.push(args);
+            return super.selectMenu(...args);
+        },
+    });
+    await toggleSearchBarMenu();
+    await toggleMenuItem("Only first");
+    await animationFrame();
+    expect(".o_searchview_facet").toHaveCount(1);
+    const loadsBefore = actionLoads;
+
+    // one visible name, inside the button, tooltip of the whole button
+    expect(BRAND).toHaveCount(1);
+    expect(`${GRID_BUTTON} ${BRAND}`).toHaveCount(1);
+    expect(BRAND).toHaveText("CRM");
+    expect(GRID_BUTTON).toHaveAttribute("title", "Home menu");
+    expect(queryOne(BRAND).closest("[title]").getAttribute("title")).toBe("Home menu");
+
+    await contains(BRAND).click();
     await animationFrame();
     expect(HOME_ROOT).toHaveCount(1);
     expect(GRID_BUTTON).toHaveClass(BACK_STATE);
-    expect(GRID_BUTTON).not.toHaveClass("o_hidden");
-    expect(GRID_BUTTON).toHaveAttribute("title", "Previous view");
-    expect(GRID_BUTTON).toHaveAttribute("aria-label", "Previous view");
-    expect(BRAND).toHaveClass("o_hidden");
-    expect(".o_menu_brand_icon").toHaveClass("o_hidden");
-    expect(".o_menu_sections").toHaveClass("o_hidden");
-    expect(".o_navbar_breadcrumbs").toHaveClass("o_hidden");
-    expect(BRAND).not.toBeVisible();
+    expect(actionLoads).toBe(loadsBefore);
+    expect(selected).toHaveLength(0);
+
+    await contains(GRID_BUTTON).click();
+    await animationFrame();
+    expect(HOME_ROOT).toHaveCount(0);
+    expect(".o_searchview_facet").toHaveCount(1);
+    expect(".o_data_row").toHaveCount(1);
+    expect(actionLoads).toBe(loadsBefore);
+
+    // from a record form (two breadcrumbs) the name does not return to the start screen
+    await contains(".o_data_row .o_data_cell").click();
+    await animationFrame();
+    expect(".o_form_view").toHaveCount(1);
+    expect(".o_breadcrumb .o_back_button").toHaveCount(1);
+    expect(".o_last_breadcrumb_item").toHaveCount(1);
+    await contains(BRAND).click();
+    await animationFrame();
+    expect(HOME_ROOT).toHaveCount(1);
+    expect(selected).toHaveLength(0);
+    await contains(GRID_BUTTON).click();
+    await animationFrame();
+    expect(".o_form_view").toHaveCount(1);
 });
 
 test("A9 back chevron restores the filtered application", async () => {
@@ -217,6 +289,9 @@ test("S4 grid button visible", async () => {
     expect(Math.round(nameRect.left - rect.left)).toBe(46);
     expect(getComputedStyle(name).fontSize).toBe("16.8px");
     expect(getComputedStyle(name).marginLeft).toBe("16px");
+    // the name belongs to the button, inside its box
+    expect(queryOne(`${GRID_BUTTON} ${BRAND}`)).toBe(name);
+    expect(nameRect.right).toBeLessThan(rect.right + 0.5);
 });
 
 test("S4 grid revealed on focus", async () => {

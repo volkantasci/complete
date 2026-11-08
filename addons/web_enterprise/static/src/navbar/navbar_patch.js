@@ -35,11 +35,6 @@ patch(NavBar.prototype, {
         return this.homeSvc.hasHomeMenu;
     },
 
-    /** The brand is replaced by the scoped link, which carries the name itself. */
-    get isBrandHidden() {
-        return this.isAppChromeHidden || (!this.ui.isSmall && this.isScopedApp);
-    },
-
     get gridButtonTitle() {
         return this.hasBackChevron ? _t("Previous view") : _t("Home menu");
     },
