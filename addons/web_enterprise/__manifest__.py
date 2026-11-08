@@ -17,6 +17,11 @@
     'assets': {
         'web.assets_backend': [
             'web_enterprise/static/src/**/*',
+            # the pivot view is lazy loaded: its patch goes with it
+            ('remove', 'web_enterprise/static/src/views/pivot_renderer_patch.js'),
+        ],
+        'web.assets_backend_lazy': [
+            'web_enterprise/static/src/views/pivot_renderer_patch.js',
         ],
         'web.assets_unit_tests': [
             'web_enterprise/static/tests/**/*.test.js',
