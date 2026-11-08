@@ -63,7 +63,7 @@ export function precedingXmlid(xmlids, from, over) {
  */
 export function useTileReorder({ ref, onDrop }) {
     const state = proxy({ dragged: null });
-    let pending = null; // { tile, x, y, lastX, lastY, timer, held } (x, y: press point)
+    let pending = null; // { tile, x, y, lastX, lastY, timer, held, holdX, holdY } (x, y: press point; holdX, holdY: pointer at the end of the hold)
     let drag = null; // { tile, x, y, over }
     let swallowClick = false;
 
@@ -72,7 +72,7 @@ export function useTileReorder({ ref, onDrop }) {
 
     const clearPending = () => {
         if (pending) {
-            browser.clearTimeout(pending.timer ?? undefined);
+            browser.clearTimeout(pending.timer);
             pending = null;
         }
     };
@@ -191,10 +191,14 @@ export function useTileReorder({ ref, onDrop }) {
     for (const name of ["dragstart", "contextmenu"]) {
         useListener(ref, name, (ev) => holding() && ev.preventDefault());
     }
-    // once dragging, the page must not scroll under the finger
-    useListener(ref, "touchmove", (ev) => drag && ev.cancelable && ev.preventDefault(), {
-        passive: false,
-    });
+    // once the hold is over (and while dragging) the page must not scroll under the finger: a phone
+    // browser could otherwise pan within its touch slop and cancel the pointer before the drag starts
+    useListener(
+        ref,
+        "touchmove",
+        (ev) => (drag || pending?.held) && ev.cancelable && ev.preventDefault(),
+        { passive: false }
+    );
     onWillDestroy(() => {
         clearPending();
         endDrag();

@@ -54,16 +54,20 @@ requires, so that tours and other modules can find the tiles.
   link, so "open in a new tab" works. 6 tiles per row from 768 px wide, 4 below.
 - **Opening a tile** starts a new action stack (breadcrumbs emptied, the
   background application dropped) and adds one browser history entry.
-- **Toggling.** In an application the top bar button is one button: the grid, the application icon and the application name together. Clicking any of them (the name too) toggles the home menu. The button shows the home menu over the open application
-  and brings the application back exactly as it was. Pending edits of an open
-  form are saved first, with no confirmation. Escape and the back chevron do the
-  same as the button. On the home menu with nothing behind it the button is
-  hidden. On small screens the button opens the Community sidebar; its "All Apps"
-  entry shows the home menu.
-- **Order.** Press and hold a tile for 0.5 s. A move of 10 px or more before the hold ends cancels the press. After the hold, a move of 10 px or more from the held position starts the drag. The new full order is saved at once to the user's own settings. When the
-  menu is built, applications missing from the saved list come first in their
-  default order, then the listed ones in the saved order; unknown identifiers
-  are ignored.
+- **Toggling.** In an application the top bar button is one button: the grid,
+  the application icon and the application name together. Clicking any of them
+  (the name too) toggles the home menu. The button shows the home menu over the
+  open application and brings the application back exactly as it was. Pending
+  edits of an open form are saved first, with no confirmation. Escape and the
+  back chevron do the same as the button. On the home menu with nothing behind
+  it the button is hidden. On small screens the button opens the Community
+  sidebar; its "All Apps" entry shows the home menu.
+- **Order.** Press and hold a tile for 0.5 s. A move of 10 px or more before the
+  hold ends cancels the press. After the hold, a move of 10 px or more from the
+  held position starts the drag. The new full order is saved at once to the
+  user's own settings. When the menu is built, applications missing from the
+  saved list come first in their default order, then the listed ones in the
+  saved order; unknown identifiers are ignored.
 - **Keyboard** (window 768 px or wider when the home menu opens). Arrow keys and
   Tab move between tiles, Enter opens the focused tile, Escape goes back. The row
   length for the arrows is the one currently shown (6 or 4), also after a resize.
@@ -79,8 +83,11 @@ requires, so that tours and other modules can find the tiles.
 - **View behaviours.** The view switcher reports its positions (the highlight
   starts from the previous view when the user switches inside the same action
   and window, otherwise from the active one). Unfolded kanban columns get
-  `o_cws_stuck` while scrolled (extra padding and a frosted backdrop). The class is set from JavaScript on the live header, so copies of the header template in other modules (for example the CRM pipeline) get it too. On small screens (decided once when the pivot is
-  created) the pivot removes its hover tooltips again after each render.
+  `o_cws_stuck` while scrolled (extra padding and a frosted backdrop). The class
+  is set from JavaScript on the live header, so copies of the header template in
+  other modules (for example the CRM pipeline) get it too. On small screens
+  (decided once when the pivot is created) the pivot removes its hover tooltips
+  again after each render.
 
 ### How the colour scheme is decided
 
@@ -133,6 +140,16 @@ parameter (or empty the message) to hide it.
   text entry has the focus stays there; it does not jump to the home menu search.
 - **D6. Unreadable saved order.** A saved order that is not valid JSON, or not a
   list, is ignored and the default order shows.
+- **D7. One top bar button.** The grid, the application icon and the
+  application name are one button; the name never reopens the application.
+- **D8. Scheme cookie lifetime.** The server writes the colour scheme cookie
+  with a lifetime of one year, so it outlives the browser session.
+- **D12. Early move cancels.** A move of 10 px or more before the hold ends
+  cancels that press; the Community behaviour of ignoring it is not kept.
+- **D13. Malformed administrator message.** A value that is not the two-part
+  message is skipped and logged; it never reaches the browser.
+- **D14. Palette tip.** The footer of the command palette is worded by Complete,
+  with the same meaning and the key names in bold.
 
 ## Not included
 

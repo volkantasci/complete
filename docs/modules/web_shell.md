@@ -64,7 +64,7 @@ lists no application entries.
 
 ## Reordering the tiles
 
-Press and hold a tile for half a second without moving, then move it a little (about 10 px) to start the drag and drag it to its
+Press and hold a tile for half a second, keeping still, then move it a little (about 10 px) to start the drag and drag it to its
 new place and let go. The new order is saved at once and belongs only to you.
 It works with a mouse and with a finger.
 

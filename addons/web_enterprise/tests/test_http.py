@@ -202,6 +202,8 @@ class TestWebClientCookie(HttpCase):
         target = datetime.now(UTC) + timedelta(days=365)
         self.assertLess(abs(expires - target), timedelta(days=1))
         self.assertEqual(self.opener.cookies.get('color_scheme'), 'light')
+        # Reopen: the Max-Age/Expires assertions above are the proof of the lifetime; the
+        # requests jar keeps session cookies anyway, so this only checks the value survives.
         self.url_open('/odoo')
         self.assertEqual(self.opener.cookies.get('color_scheme'), 'light')
         # A stored "dark" is written back, so the browser has no reason to reload.

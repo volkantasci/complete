@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, mockTouch, test } from "@odoo/hoot";
-import { advanceTime, animationFrame, drag, queryAll, queryAllTexts, queryRect } from "@odoo/hoot";
+import { advanceTime, animationFrame, drag, queryAll, queryAllTexts, queryOne, queryRect } from "@odoo/hoot";
 import { EventBus } from "@odoo/owl";
 import {
     mockService,
@@ -73,7 +73,7 @@ async function mountHome({ homemenuConfig = false } = {}) {
 /** Options for moveTo that put the pointer `dx`, `dy` pixels from the centre of the target. */
 function offsetFromCentre(selector, dx, dy = 0) {
     const { x, y, width, height } = queryRect(selector);
-    return { position: { x: x + width / 2 + dx, y: y + height / 2 + dy } };
+    return { position: { x: Math.round(x + width / 2) + dx, y: Math.round(y + height / 2) + dy } };
 }
 
 const captions = () => queryAllTexts(".o_app .o_caption");
@@ -243,6 +243,23 @@ test("A34d an early move of exactly 10 px cancels, 9 px does not", async () => {
     await second.drop();
     await animationFrame();
     expect(saved).toHaveLength(0);
+});
+
+test("A34f touch scrolling is cancelled once the hold is over, not before", async () => {
+    await mountHome();
+    const { drop } = await drag(".o_app:eq(3)");
+    const touchmove = () => {
+        const ev = new Event("touchmove", { bubbles: true, cancelable: true });
+        queryOne(".o_app:eq(3)").dispatchEvent(ev);
+        return ev.defaultPrevented;
+    };
+    await advanceTime(200);
+    expect(touchmove()).toBe(false);
+    await advanceTime(400);
+    expect(touchmove()).toBe(true);
+    await drop();
+    await animationFrame();
+    expect(touchmove()).toBe(false);
 });
 
 test("A34e an early move, then a hold and another move, does not drag", async () => {

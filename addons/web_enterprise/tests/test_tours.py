@@ -185,7 +185,10 @@ class TestStickyKanbanHeaderTours(StickyKanbanFixture):
 
 @tagged('post_install', '-at_install')
 class TestStickyKanbanHeaderMobileTours(StickyKanbanFixture):
-    """The same on a phone, where each column scrolls on its own."""
+    """The same on a phone, where `.o_content` scrolls too.
+
+    The columns do not scroll on their own.
+    """
 
     browser_size = '390x844'
     touch_enabled = True
@@ -196,7 +199,11 @@ class TestStickyKanbanHeaderMobileTours(StickyKanbanFixture):
 
 @tagged('post_install', '-at_install')
 class TestStickyPipelineHeaderTours(HttpCase):
-    """The CRM pipeline header has its own template copy; it must stick as well (A64)."""
+    """The CRM pipeline header has its own template copy; it must stick as well (A64).
+
+    This tour runs only with `-i crm` (it skips itself otherwise). The always-on guard for
+    the template copy is the Hoot test "A64 header with its own template copy".
+    """
 
     browser_size = '1600x900'
 

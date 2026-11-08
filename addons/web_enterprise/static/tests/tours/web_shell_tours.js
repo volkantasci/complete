@@ -341,7 +341,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 400));
 const paddingBottom = () => getComputedStyle(document.querySelector(KANBAN_HEADER)).paddingBottom;
 
 const stickySteps = (opening) => [
-        ...opening,
+    ...opening,
         { trigger: `${KANBAN_HEADER}:not(.o_cws_stuck)` },
         {
             trigger: KANBAN_HEADER,
@@ -354,7 +354,8 @@ const stickySteps = (opening) => [
                     `${scroller.className} does not overflow`
                 );
                 scroller.scrollTop = 300;
-                assert(scroller.scrollTop > 0, "the view did not scroll");            },
+                assert(scroller.scrollTop > 0, "the view did not scroll");
+            },
         },
         { trigger: `${KANBAN_HEADER}.o_cws_stuck` },
         {

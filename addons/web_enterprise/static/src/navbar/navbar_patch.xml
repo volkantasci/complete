@@ -30,6 +30,7 @@
             data-available-offline=""
             t-att-title="this.gridButtonTitle"
             t-att-aria-label="this.gridButtonTitle"
+            t-att-aria-describedby="this.currentApp and !this.hasBackChevron ? 'o_cws_brand_name' : undefined"
             t-on-click="this.onGridButtonClick"
           >
             <i t-if="this.hasBackChevron" class="oi" data-icon="chevron_backward" aria-hidden="true"/>
@@ -40,7 +41,7 @@
                 </t>
               </t>
             </svg>
-            <span t-if="this.currentApp" class="o_menu_brand o_cws_brand_name" t-att-class="{ 'o_hidden': this.isAppChromeHidden }" t-out="this.currentApp.name"/>
+            <span t-if="this.currentApp" id="o_cws_brand_name" class="o_menu_brand o_cws_brand_name" t-att-class="{ 'o_hidden': this.isAppChromeHidden }" t-out="this.currentApp.name"/>
           </button>
           <t t-if="this.currentApp">
             <t t-call="web_enterprise.NavBar.BrandIcon"/>

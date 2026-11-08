@@ -163,7 +163,7 @@ test("A50 no message", async () => {
     expect(".o_apps .o_app").toHaveCount(11);
 });
 
-test("A50b malformed message", async () => {
+test("A46f malformed message", async () => {
     for (const value of [
         { message: "", warning_type: "user" },
         { message: "   ", warning_type: "user" },
