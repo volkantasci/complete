@@ -9,8 +9,10 @@ it for all its reads.
 import contextlib
 import json
 import logging
+import os
 import re
 
+from odoo.http.session import session_store
 from odoo.tests import HttpCase
 from odoo.tests.common import ChromeBrowser, flushing_cursor
 
@@ -105,6 +107,7 @@ class ThemeProbeCase(HttpCase):
             atexit.callback(self._wait_remaining_requests)
             atexit.enter_context(browser.cleanup)
             self.authenticate(login, login, browser=browser)
+            self._ensure_session_file()
             self.browser = browser
             request = browser._websocket_request
             request('Emulation.setDeviceMetricsOverride', params={
@@ -116,20 +119,12 @@ class ThemeProbeCase(HttpCase):
                  'value': 'reduce' if reduced_motion else 'no-preference'},
             ]})
             browser.navigate_to(self.base_url() + url, wait_stop=False)
-            # Rarely (about one page in twenty) the server treats the session cookie just set as
-            # anonymous and answers the first request with a redirect to the login page, so
-            # ``.o_web_client`` never shows. Detect that case and sign in again, once or twice.
-            for attempt in range(3):
-                self.wait("!!document.querySelector('.o_web_client') || "
-                          "location.pathname.startsWith('/web/login')", timeout=120)
-                if self.js("!!document.querySelector('.o_web_client')"):
-                    break
-                _logger.warning('probe page %s landed on the login page (attempt %s): '
-                                'signing in again', url, attempt + 1)
-                # a request still running on the shared test cursor can leave it read-only
-                self._wait_remaining_requests(timeout=5)
-                self.authenticate(login, login, browser=browser)
-                browser.navigate_to(self.base_url() + url, wait_stop=False)
+            # no retry: a redirect to the login page is a real failure and shows as such
+            self.wait("!!document.querySelector('.o_web_client') || "
+                      "location.pathname.startsWith('/web/login')", timeout=120)
+            self.assertFalse(
+                self.js("location.pathname.startsWith('/web/login')"),
+                f'{url} redirected to the login page although {login} is signed in')
             self.wait("!!document.querySelector('.o_web_client')", timeout=120)
             self.wait("document.readyState === 'complete'")
             loaded = self.js(
@@ -138,6 +133,22 @@ class ThemeProbeCase(HttpCase):
             )
             self.assertEqual(loaded, scheme, f'the {scheme} bundle did not load')
             yield browser
+
+    def _ensure_session_file(self):
+        """Make sure the session written by ``authenticate`` is on disk.
+
+        Odoo's ``SessionStore.save`` swallows every ``OSError``, so a failed write (seen in
+        about 4 of 900 pages) leaves no file: the browser's cookie then names an empty session
+        and the first request is redirected to the login page. Writing it again is enough.
+        """
+        store = session_store()
+        path = store.get_session_path(self.session.sid)
+        for _attempt in range(5):
+            if os.path.exists(path):
+                return
+            _logger.warning('session file missing after authenticate: writing it again')
+            store.save(self.session)
+        self.assertTrue(os.path.exists(path), 'the session file cannot be written')
 
     # -- evaluation -----------------------------------------------------------------
 

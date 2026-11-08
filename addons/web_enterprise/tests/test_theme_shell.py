@@ -1,7 +1,9 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 import re
+from unittest.mock import patch
 
+from odoo.http.session import session_store
 from odoo.tests import tagged
 
 from .theme_probe import ThemeProbeCase, parse_colour
@@ -113,6 +115,25 @@ class TestThemeProbeTools(ThemeProbeCase):
             for url, selector in pages:
                 self.browser.navigate_to(self.base_url() + url, wait_stop=False)
                 self.wait(f"!!document.querySelector({selector!r})")
+
+    def test_session_file_written_again(self):
+        # SessionStore.save swallows OSError; the harness must notice a missing file
+        # and write it again, so that the first load is signed in.
+        store = session_store()
+        real_save = store.save
+        calls = []
+
+        def lossy_save(session):
+            calls.append(session.sid)
+            if len(calls) > 1:
+                real_save(session)
+
+        url = f"/odoo/action-{self.fixtures['kanban_action']}"
+        with patch.object(store, 'save', side_effect=lossy_save), \
+                self.assertLogs('odoo.addons.web_enterprise.tests.theme_probe', 'WARNING'), \
+                self.page(url):
+            self.wait("!!document.querySelector('.o_kanban_view')")
+        self.assertGreater(len(calls), 1)
 
     def test_date_picker_opens(self):
         with self.page(self.fixtures['date_form_url']):
