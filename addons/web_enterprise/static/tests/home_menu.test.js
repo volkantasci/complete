@@ -122,6 +122,15 @@ test("A68 missing icon image", async () => {
     expect(tileIcon({ webIcon: false, webIconData: false }).kind).toBe("default");
 });
 
+test("A6 row pitch", async () => {
+    await resize({ width: 1366 });
+    await mountHome();
+    expect(getComputedStyle(queryFirst(".o_apps")).rowGap).toBe("15px");
+    const tiles = queryAll(".o_apps .o_draggable");
+    const pitch = tiles[6].getBoundingClientRect().top - tiles[0].getBoundingClientRect().top;
+    expect(pitch).toBe(130);
+});
+
 test("A67 user with no application", async () => {
     await mountHome({ apps: [] });
     expect(".o_apps").toHaveCount(0);

@@ -7,20 +7,10 @@
       <div class="o_cws_column">
       <t t-set="tiles" t-value="this.tiles"/>
       <t t-set="message" t-value="this.adminMessage"/>
+      <!-- on touch devices the field leads the column, above the message (R11) -->
+      <t t-if="this.isTouch" t-call="web_enterprise.HomeMenu.SearchField"/>
       <div t-if="message" class="o_cws_admin_message" t-out="message"/>
-      <input
-        type="text"
-        t-ref="this.inputRef"
-        class="o_home_menu_search_input"
-        t-att-class="this.isTouch ? 'o_cws_touch_search' : 'o_cws_search_hidden'"
-        placeholder="Search for a menu..."
-        role="combobox"
-        aria-label="Search for a menu"
-        aria-autocomplete="list"
-        aria-controls="o_cws_apps_list"
-        t-att-aria-expanded="tiles.length > 0 ? 'true' : 'false'"
-        t-att-aria-activedescendant="this.state.focusedIndex === null ? undefined : 'result_app_' + this.state.focusedIndex"
-      />
+      <t t-if="!this.isTouch" t-call="web_enterprise.HomeMenu.SearchField"/>
       <div t-if="tiles.length" class="o_apps" id="o_cws_apps_list" role="listbox">
         <t t-foreach="tiles" t-as="app" t-key="app.id">
           <div class="o_draggable">
@@ -57,6 +47,22 @@
       </div>
       </div>
     </div>
+  </t>
+
+  <t t-name="web_enterprise.HomeMenu.SearchField">
+    <input
+      type="text"
+      t-ref="this.inputRef"
+      class="o_home_menu_search_input"
+      t-att-class="this.isTouch ? 'o_cws_touch_search' : 'o_cws_search_hidden'"
+      placeholder="Search for a menu..."
+      role="combobox"
+      aria-label="Search for a menu"
+      aria-autocomplete="list"
+      aria-controls="o_cws_apps_list"
+      t-att-aria-expanded="this.tiles.length > 0 ? 'true' : 'false'"
+      t-att-aria-activedescendant="this.state.focusedIndex === null ? undefined : 'result_app_' + this.state.focusedIndex"
+    />
   </t>
 
 </templates>

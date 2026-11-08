@@ -187,6 +187,30 @@ test("S4 brand and grid button", async () => {
     expect(getComputedStyle(queryOne(".o_menu_toggle")).borderRadius).toBe("6px");
 });
 
+test("S4 grid button visible", async () => {
+    await mountWebClient();
+    const button = queryOne(".o_menu_toggle");
+    const rect = button.getBoundingClientRect();
+    expect(rect.width).toBe(93);
+    expect(rect.height).toBe(26);
+    const icon = queryOne(".o_menu_toggle .o_cws_grid_icon");
+    const iconRect = icon.getBoundingClientRect();
+    expect(getComputedStyle(icon).display).not.toBe("none");
+    expect(iconRect.width).toBe(14);
+    expect(iconRect.height).toBe(14);
+    const brandIcon = queryOne(".o_menu_brand_icon").getBoundingClientRect();
+    expect(brandIcon.width).toBe(30);
+    // the grid icon is drawn beside the application icon, not under it
+    expect(iconRect.left).not.toBeLessThan(brandIcon.right);
+    // the grid icon does not take the bar colour
+    expect(getComputedStyle(icon).color).not.toBe(
+        getComputedStyle(queryOne(".o_main_navbar")).backgroundColor
+    );
+    const name = queryOne(".o_menu_brand").getBoundingClientRect();
+    expect(name.width).toBeGreaterThan(0);
+    expect(name.left - brandIcon.right).toBeGreaterThan(0);
+});
+
 test("A18 scoped app link", async () => {
     mockService("pwa", () => ({
         isScopedApp: true,
@@ -225,6 +249,22 @@ test("R15 navbar transparent while the home menu is shown", async () => {
     expect(document.body).toHaveClass("o_home_menu_background");
     expect(getComputedStyle(queryOne(".o_main_navbar")).backgroundColor).toBe(
         "rgba(0, 0, 0, 0)"
+    );
+});
+
+test("R15 entries read as body text on the home menu", async () => {
+    await mountWebClient();
+    const entry = () =>
+        getComputedStyle(
+            queryAll(".o_menu_systray .o_nav_entry, .o_menu_systray .dropdown-toggle")[0]
+        ).color;
+    const inApp = entry();
+    await toggle(true);
+    const onHome = entry();
+    expect(onHome).not.toBe(inApp);
+    expect(onHome).toBe(getComputedStyle(document.body).color);
+    expect(getComputedStyle(queryOne(".o_menu_toggle")).color).toBe(
+        getComputedStyle(document.body).color
     );
 });
 

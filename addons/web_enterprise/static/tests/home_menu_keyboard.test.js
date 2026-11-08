@@ -14,6 +14,8 @@ import {
 } from "@odoo/hoot";
 import { Component, proxy, xml } from "@odoo/owl";
 import { getService, mountWithCleanup, patchWithCleanup } from "@web/../tests/web_test_helpers";
+import { user } from "@web/core/user";
+import { session } from "@web/session";
 import { Dialog } from "@web/core/dialog/dialog";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
@@ -284,6 +286,38 @@ test("A31 visible search field on touch", async () => {
     await animationFrame();
     expect(paletteQuery()).toBe("/");
     expect(".o_cws_palette_footer").toHaveCount(1);
+});
+
+test("A31 touch field fits the top bar height", async () => {
+    mockTouch(true);
+    await resize({ width: 390 });
+    await mountHome();
+    const field = queryFirst(".o_home_menu_search_input");
+    const { height } = field.getBoundingClientRect();
+    const margin = parseFloat(getComputedStyle(field).marginBottom);
+    expect(height + margin).toBe(46);
+    expect(parseFloat(getComputedStyle(field).paddingTop)).toBe(8);
+    expect(margin).toBe(16);
+    // the scrolled page starts right under the field: the field is just out of sight
+    expect(field.getBoundingClientRect().bottom + margin).toBe(
+        queryFirst(".o_home_menu").getBoundingClientRect().top
+    );
+});
+
+test("A31 touch order is field, message, grid", async () => {
+    mockTouch(true);
+    patchWithCleanup(session, {
+        sysadmin_message: { message: "<p><b>Maintenance:</b> tonight</p>", warning_type: "user" },
+    });
+    patchWithCleanup(user, { isSystem: false });
+    await resize({ width: 390 });
+    await mountHome();
+    const children = [...queryFirst(".o_cws_column").children].map((el) => el.className);
+    expect(children[0]).toInclude("o_cws_touch_search");
+    expect(children[1]).toInclude("o_cws_admin_message");
+    expect(children[2]).toInclude("o_apps");
+    const message = queryFirst(".o_cws_admin_message").getBoundingClientRect();
+    expect(message.top).not.toBeLessThan(queryFirst(".o_home_menu").getBoundingClientRect().top);
 });
 
 test("A31b wide touch device keeps keyboard handling", async () => {
