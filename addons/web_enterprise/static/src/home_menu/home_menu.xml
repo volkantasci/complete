@@ -1,0 +1,57 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+
+  <t t-name="web_enterprise.HomeMenu">
+    <div class="o_home_menu" t-att-class="{ 'o_cws_ios_list': this.isIosList }">
+      <t t-set="tiles" t-value="this.tiles"/>
+      <t t-set="message" t-value="this.adminMessage"/>
+      <div t-if="message" class="o_cws_admin_message" t-out="message"/>
+      <input
+        type="text"
+        class="o_home_menu_search_input o_cws_search_hidden"
+        placeholder="Search for a menu..."
+        role="combobox"
+        aria-label="Search for a menu"
+        aria-autocomplete="list"
+        aria-controls="o_cws_apps_list"
+        t-att-aria-expanded="tiles.length > 0 ? 'true' : 'false'"
+        t-att-aria-activedescendant="this.state.focusedIndex === null ? undefined : 'result_app_' + this.state.focusedIndex"
+      />
+      <div t-if="tiles.length" class="o_apps" id="o_cws_apps_list" role="listbox">
+        <t t-foreach="tiles" t-as="app" t-key="app.id">
+          <div class="o_draggable">
+            <a
+              class="o_app o_menuitem"
+              role="option"
+              t-attf-id="result_app_{{app_index}}"
+              t-att-href="app.href"
+              t-att-data-menu-xmlid="app.xmlid"
+              t-att-class="{
+                'o_focused': this.state.focusedIndex === app_index,
+                'o_disabled_offline': this.isDimmed(app),
+              }"
+              t-on-click="(ev) => this.onTileClick(ev, app)"
+            >
+              <img
+                t-if="app.icon.kind !== 'glyph'"
+                class="o_app_icon"
+                t-att-src="app.icon.src"
+                alt=""
+              />
+              <div
+                t-else=""
+                class="o_app_icon o_cws_glyph_icon"
+                t-att-style="'background:' + app.icon.background"
+              >
+                <i class="oi oi-3x" t-att-data-icon="app.icon.glyph" t-att-style="'color:' + app.icon.color"/>
+              </div>
+              <div class="o_caption" t-out="app.name"/>
+            </a>
+          </div>
+        </t>
+      </div>
+    </div>
+  </t>
+
+</templates>

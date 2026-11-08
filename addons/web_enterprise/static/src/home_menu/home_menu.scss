@@ -1,0 +1,137 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Layout of the home menu. Colours come from the theme roles only.
+.o_home_menu {
+    --o-cws-active-rgb: #{red($o-component-active-bg)}, #{green($o-component-active-bg)}, #{blue($o-component-active-bg)};
+
+    width: 100%;
+    padding: 24px 16px 0;
+    margin: 0 auto;
+    overflow-y: auto;
+    color: $body-color;
+
+    @include media-breakpoint-up(md) {
+        max-width: 850px;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .o_cws_admin_message {
+        margin-bottom: 16px;
+        font-size: 14px;
+        color: $body-color;
+
+        p {
+            margin-bottom: 16px;
+        }
+    }
+
+    // Present for assistive technology; keyboard and typing styles come with the behaviour.
+    .o_cws_search_hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+        white-space: nowrap;
+    }
+
+    .o_apps {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+
+        @include media-breakpoint-up(md) {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+    }
+
+    .o_draggable {
+        min-width: 0;
+    }
+
+    .o_app {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px;
+        border-radius: 12px;
+        color: inherit;
+        text-decoration: none;
+
+        &.o_focused {
+            background: rgba(var(--o-cws-active-rgb), .75);
+            outline: 1px solid $o-action;
+            border-radius: 6px;
+        }
+
+        .o_app_icon {
+            width: 70px;
+            height: 70px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: $o-view-background-color;
+            object-fit: contain;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 4px 8px rgba(0, 0, 0, .1);
+        }
+
+        .o_cws_glyph_icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .o_caption {
+            width: 100%;
+            margin-top: 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+
+            @include media-breakpoint-up(md) {
+                font-size: 14px;
+            }
+        }
+
+        &.o_dragged_app {
+            transform: rotate(6deg);
+
+            .o_app_icon {
+                box-shadow: 0 4px 8px rgba(0, 0, 0, .2), 0 12px 24px rgba(0, 0, 0, .25);
+            }
+        }
+    }
+
+    // Inside the iOS app on a narrow screen: one row per application.
+    &.o_cws_ios_list {
+        .o_apps {
+            display: block;
+        }
+
+        .o_app {
+            flex-direction: row;
+            gap: 24px;
+            padding: 16px 24px;
+            border-radius: 0;
+            background: rgba(255, 255, 255, .1);
+
+            .o_app_icon {
+                width: 52.5px;
+                height: 52.5px;
+                flex: 0 0 auto;
+            }
+
+            .o_caption {
+                margin-top: 0;
+                text-align: left;
+                font-size: 20px;
+            }
+        }
+    }
+}
