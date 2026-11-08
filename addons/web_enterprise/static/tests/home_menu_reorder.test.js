@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { describe, expect, test } from "@odoo/hoot";
+import { describe, expect, mockTouch, test } from "@odoo/hoot";
 import { advanceTime, animationFrame, drag, queryAll, queryAllTexts, queryRect } from "@odoo/hoot";
 import { EventBus } from "@odoo/owl";
 import {
@@ -12,7 +12,7 @@ import {
 import { user } from "@web/core/user";
 
 import { HomeMenu } from "@web_enterprise/home_menu/home_menu";
-import { precedingIndex } from "@web_enterprise/home_menu/home_menu_reorder";
+import { precedingIndex, precedingXmlid } from "@web_enterprise/home_menu/home_menu_reorder";
 
 describe.current.tags("desktop");
 
@@ -230,4 +230,40 @@ test("precedingIndex puts the tile after the one that precedes it", () => {
     expect(precedingIndex(3, 0)).toBe(null);
     expect(precedingIndex(3, 1)).toBe(0);
     expect(precedingIndex(0, 2)).toBe(2);
+});
+
+test("precedingXmlid skips tiles without an identifier", () => {
+    const ids = ["a", null, "c", null, "e"];
+    expect(precedingXmlid(ids, 4, 3)).toBe("c");
+    expect(precedingXmlid(ids, 4, 1)).toBe("a");
+    expect(precedingXmlid(ids, 0, 3)).toBe("c");
+    expect(precedingXmlid(ids, 2, 1)).toBe("a");
+    expect(precedingXmlid(ids, 4, 0)).toBe(null);
+});
+
+test("A33t touch drag reorders", async () => {
+    mockTouch(true);
+    const { saved } = await mountHome();
+    const { moveTo, drop } = await drag(".o_app:eq(3)");
+    await advanceTime(500);
+    await animationFrame();
+    expect(".o_app:eq(3)").toHaveClass("o_dragged_app");
+    await moveTo(".o_app:eq(0)");
+    await drop();
+    await animationFrame();
+    expect(captions()[0]).toBe("Contacts");
+    expect(JSON.parse(saved[0].homemenu_config)[0]).toBe("cws_test.app_contacts");
+});
+
+test("A34t touch scroll during the hold cancels", async () => {
+    mockTouch(true);
+    const { saved } = await mountHome();
+    const { cancel } = await drag(".o_app:eq(3)");
+    await advanceTime(200);
+    window.dispatchEvent(new PointerEvent("pointercancel", { pointerType: "touch" }));
+    await advanceTime(400);
+    await animationFrame();
+    expect(".o_dragged_app").toHaveCount(0);
+    expect(saved).toHaveLength(0);
+    await cancel();
 });

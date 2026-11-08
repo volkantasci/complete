@@ -24,6 +24,24 @@ export function precedingIndex(from, over) {
 }
 
 /**
+ * Identifier of the tile that precedes a dropped one: the nearest tile before the
+ * drop position that has an identifier, or null for first.
+ *
+ * @param {(string|null)[]} xmlids identifiers in the list as it was before the drop
+ * @param {number} from index of the dragged tile
+ * @param {number} over index of the tile the pointer was released over
+ * @returns {string|null}
+ */
+export function precedingXmlid(xmlids, from, over) {
+    for (let index = precedingIndex(from, over); index !== null && index >= 0; index--) {
+        if (index !== from && xmlids[index]) {
+            return xmlids[index];
+        }
+    }
+    return null;
+}
+
+/**
  * Press-and-hold drag reordering of the home menu tiles.
  *
  * A pointer pressed on a tile for HOLD_DELAY without moving more than
@@ -76,6 +94,10 @@ export function useTileReorder({ ref, onDrop }) {
         if (!tile?.dataset.menuXmlid || ev.button) {
             return;
         }
+        // touch pointers are captured by the pressed tile: let the events reach what is under the finger
+        if (ev.target.hasPointerCapture?.(ev.pointerId)) {
+            ev.target.releasePointerCapture(ev.pointerId);
+        }
         pending = {
             tile,
             x: ev.clientX,
@@ -91,7 +113,8 @@ export function useTileReorder({ ref, onDrop }) {
         } else if (drag) {
             drag.tile.style.setProperty("--o_cws_drag_x", `${ev.clientX - drag.x}px`);
             drag.tile.style.setProperty("--o_cws_drag_y", `${ev.clientY - drag.y}px`);
-            const cell = ev.target.closest?.(".o_draggable");
+            const under = document.elementFromPoint(ev.clientX, ev.clientY) || ev.target;
+            const cell = under.closest?.(".o_draggable");
             if (cell && ref()?.contains(cell)) {
                 drag.over = cell.contains(drag.tile) ? null : cell;
             }
@@ -112,10 +135,9 @@ export function useTileReorder({ ref, onDrop }) {
             const from = all.findIndex((cell) => cell.contains(tile));
             const to = all.indexOf(over);
             if (from >= 0 && to >= 0) {
-                const before = precedingIndex(from, to);
                 onDrop({
                     xmlid: xmlidOf(all[from]),
-                    previousXmlid: before === null ? null : xmlidOf(all[before]),
+                    previousXmlid: precedingXmlid(all.map(xmlidOf), from, to),
                 });
             }
         }
@@ -140,7 +162,8 @@ export function useTileReorder({ ref, onDrop }) {
     for (const name of ["dragstart", "contextmenu"]) {
         useListener(ref, name, (ev) => holding() && ev.preventDefault());
     }
-    useListener(window, "touchmove", (ev) => drag && ev.cancelable && ev.preventDefault(), {
+    // once dragging, the page must not scroll under the finger
+    useListener(ref, "touchmove", (ev) => drag && ev.cancelable && ev.preventDefault(), {
         passive: false,
     });
     onWillDestroy(() => {
