@@ -10,7 +10,8 @@
 }
 
 // Adjacent buttons of a group overlap by the border width instead of keeping a gap.
-// The generic switchers (R21) have their own spacing.
-.btn-group:not(.o_switcher) {
+// The switchers (R21; the control-panel view switcher and `.o_switcher`) keep their own
+// spacing, which belongs to the switcher task.
+.btn-group:not(.o_switcher, .o_cp_switch_buttons) {
     gap: 0;
 }

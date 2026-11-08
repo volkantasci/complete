@@ -21,6 +21,10 @@ KANBAN = f"""
             <field name="name" class="fw-bold"/>
             <field name="category_id" widget="many2many_tags" options="{{'color_field': 'color'}}"/>
             <div><span class="badge text-bg-primary"><field name="type"/></span></div>
+            <div>
+                <span class="badge text-bg-light o_cws_b_light"><field name="type"/></span>
+                <span class="badge text-bg-dark o_cws_b_dark"><field name="type"/></span>
+            </div>
         </t>
     </templates>
 </kanban>

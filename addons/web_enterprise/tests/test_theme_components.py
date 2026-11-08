@@ -233,6 +233,21 @@ class TestThemeBadgesTags(ThemeProbeCase):
         self._badge('light', '#00A945', '#008818')
         self._badge('dark', '#22B053', '#30C06E')
 
+    def test_A38_other_tones(self):
+        # light and dark badges follow the same rule: the tone's colour at 15 % as
+        # background and the colour itself as text (body text for the white light tone)
+        cases = {
+            'light': {'light': ('#FFFFFF', '#212529'), 'dark': ('#212529', '#212529')},
+            'dark': {'light': ('#3E3F47', '#3E3F47'), 'dark': ('#B3B4B8', '#B3B4B8')},
+        }
+        for scheme, tones in cases.items():
+            with self.page(f"/odoo/action-{self.fixtures['kanban_action']}", scheme=scheme):
+                self.wait("!!document.querySelector('.o_cws_b_light')")
+                for tone, (tint, text) in tones.items():
+                    got = self.style(f'.o_cws_b_{tone}', 'background-color', 'color')
+                    self.assertColour(got['background-color'], tint, alpha=.15)
+                    self.assertColour(got['color'], text)
+
     def test_A39_card_badges(self):
         with self.page(f"/odoo/action-{self.fixtures['kanban_action']}"):
             selector = '.o_kanban_record .badge.text-bg-primary'
@@ -266,6 +281,17 @@ class TestThemeBadgesTags(ThemeProbeCase):
                 }})()""")
             minimum = float(self.style(selector, 'min-width')['min-width'][:-2])
             self.assertAlmostEqual(minimum, ruler, delta=.5)
+
+
+@tagged('post_install', '-at_install')
+class TestThemeViewSwitcher(ThemeProbeCase):
+    def test_A33_group_rule_spares_view_switcher(self):
+        # Community spaces a button group by 1px plus the border width (2px); the group
+        # overlap rule must not change that for the control-panel view switcher
+        with self.page(self.fixtures['apps_kanban_url']):
+            nav = '.o_control_panel .o_cp_switch_buttons'
+            self.wait(f"!!document.querySelector('{nav} .btn')")
+            self.assertEqual(self.style(nav, 'column-gap')['column-gap'], '2px')
 
 
 @tagged('post_install', '-at_install')

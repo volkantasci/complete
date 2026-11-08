@@ -10,10 +10,15 @@
 }
 
 // Contextual badges: a 15 % tint of the tone behind the tone's contextual text colour.
-@each $-tone in (primary, secondary, success, info, warning, danger) {
+@each $-tone in (primary, secondary, success, info, warning, danger, light, dark) {
     $-text: map-get($o-cws-text-tones, $-tone);
+    // secondary, light and dark have no text tone of their own: the contextual colour
+    // itself, except the light tone where it is the white role (body text instead).
     @if not $-text {
-        $-text: $secondary;
+        $-text: map-get($theme-colors, $-tone);
+        @if $-tone == light and $-text == $o-white {
+            $-text: $o-main-text-color;
+        }
     }
     .badge.text-bg-#{$-tone} {
         background-color: rgba(map-get($theme-colors, $-tone), .15) !important;
