@@ -1,5 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
+import re
+from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from http import HTTPStatus
 from unittest.mock import Mock, patch
 
@@ -90,14 +93,26 @@ class TestAdminMessage(TransactionCase):
         self.assertIsNone(self._message(''))
 
     def test_A47_dangerous_markup_removed(self):
-        value = self._message('{"message": "<p><script>alert(1)</script><b>x</b></p>"}')
+        value = self._message(
+            '{"message": "<p><script>alert(1)</script><b>x</b></p>", "warning_type": "user"}',
+        )
         self.assertNotIn('<script', value['message'])
         self.assertIn('<b>x</b>', value['message'])
 
-    def test_A50b_missing_message_and_unknown_type_are_passed_on_as_is(self):
-        # The server only sanitizes; the browser decides what to show.
-        value = self._message('{"warning_type": "other"}')
-        self.assertEqual(value, {'message': '', 'warning_type': 'other'})
+    def test_A50b_missing_message_and_unknown_type_are_skipped(self):
+        for value in (
+            '{"warning_type": "other"}',
+            '{"message": "x"}',
+            '{"message": "x", "warning_type": "other"}',
+            '{"message": 5, "warning_type": "user"}',
+            '5',
+        ):
+            with self.assertLogs('odoo.addons.web_enterprise', 'ERROR'):
+                self.assertIsNone(self._message(value), value)
+
+    def test_A50c_empty_text_with_valid_audience_passes(self):
+        value = self._message('{"message": "", "warning_type": "admin"}')
+        self.assertEqual(value, {'message': '', 'warning_type': 'admin'})
 
 
 @tagged('post_install', '-at_install')
@@ -117,6 +132,18 @@ class TestSessionInfo(HttpCase):
         self.assertIn('<b>Maintenance:</b>', info['sysadmin_message']['message'])
         self.assertEqual(info['sysadmin_message']['warning_type'], 'user')
         self.assertNotIn('sysadmin_message', self._session_info(portal))
+
+    def test_A45_wrong_shapes_give_no_key(self):
+        internal = new_test_user(self.env, login='cws_si_u3', groups='base.group_user')
+        for value in (
+            '["a"]', '5', '{"warning_type": "user"}',
+            '{"message": "x", "warning_type": "other"}',
+        ):
+            self.env['ir.config_parameter'].sudo().set_str(MESSAGE_KEY, value)
+            with self.assertLogs('odoo.addons.web_enterprise', 'ERROR') as logs:
+                info = self._session_info(internal)
+            self.assertNotIn('sysadmin_message', info, value)
+            self.assertEqual(len(logs.records), 1, value)
 
     def test_no_message_without_parameter(self):
         internal = new_test_user(self.env, login='cws_si_u2', groups='base.group_user')
@@ -144,8 +171,8 @@ class TestWebClientCookie(HttpCase):
         self.assertEqual(response.status_code, 200)
         (cookie,) = self._scheme_cookies(response)
         self.assertTrue(cookie.startswith('color_scheme=light'), cookie)
-        self.assertNotIn('Expires', cookie)
-        self.assertNotIn('Max-Age', cookie)
+        self.assertIn('Max-Age=31536000', cookie)
+        self.assertIn('Expires=', cookie)
 
         self.authenticate('cws_wc_dark', 'cws_wc_dark')
         response = self.url_open('/odoo')
@@ -162,6 +189,28 @@ class TestWebClientCookie(HttpCase):
         response = self.url_open('/odoo', allow_redirects=False)
         self.assertEqual(response.status_code, HTTPStatus.SEE_OTHER)
         self.assertFalse(self._scheme_cookies(response))
+
+    def test_A88_server_cookie_lasts_one_year(self):
+        user = new_test_user(self.env, login='cws_wc_system', groups='base.group_user')
+        self.env['res.users.settings']._find_or_create_for_user(user).color_scheme = 'system'
+        self.authenticate('cws_wc_system', 'cws_wc_system')
+        self.opener.cookies.pop('color_scheme', None)
+        response = self.url_open('/odoo')
+        (cookie,) = self._scheme_cookies(response)
+        self.assertIn('Max-Age=31536000', cookie)
+        expires = parsedate_to_datetime(re.search(r'Expires=([^;]+)', cookie)[1])
+        target = datetime.now(UTC) + timedelta(days=365)
+        self.assertLess(abs(expires - target), timedelta(days=1))
+        self.assertEqual(self.opener.cookies.get('color_scheme'), 'light')
+        self.url_open('/odoo')
+        self.assertEqual(self.opener.cookies.get('color_scheme'), 'light')
+        # A stored "dark" is written back, so the browser has no reason to reload.
+        for stored in self.opener.cookies:
+            if stored.name == 'color_scheme':
+                stored.value = 'dark'
+        response = self.url_open('/odoo')
+        (cookie,) = self._scheme_cookies(response)
+        self.assertTrue(cookie.startswith('color_scheme=dark'), cookie)
 
     def test_A56_first_page_sets_cookie(self):
         self.authenticate('cws_wc_light', 'cws_wc_light')

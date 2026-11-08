@@ -11,6 +11,7 @@ from odoo.tools import html_sanitize
 _logger = logging.getLogger(__name__)
 
 SCHEMES = ('light', 'dark')
+AUDIENCES = ('user', 'admin')
 MESSAGE_PARAMETER = 'sysadmin.message'
 
 CHROME_COLOURS = {'light': '#71639e', 'dark': '#25262b'}
@@ -57,14 +58,19 @@ class IrHttp(models.AbstractModel):
             value = json.loads(raw)
         except ValueError:
             value = None
-        if not isinstance(value, Mapping):
+        if not (
+            isinstance(value, Mapping)
+            and isinstance(value.get('message'), str)
+            and value.get('warning_type') in AUDIENCES
+        ):
             _logger.error(
-                "The parameter %s does not hold a JSON object; ignored.", MESSAGE_PARAMETER,
+                "The parameter %s does not hold a message with a text and an audience"
+                " ('user' or 'admin'); ignored.", MESSAGE_PARAMETER,
             )
             return None
         return {
-            'message': html_sanitize(value.get('message') or ''),
-            'warning_type': value.get('warning_type'),
+            'message': html_sanitize(value['message']),
+            'warning_type': value['warning_type'],
         }
 
     def _cws_browser_chrome_colour(self, scheme):
