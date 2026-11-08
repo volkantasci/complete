@@ -164,3 +164,17 @@
         }
     }
 }
+
+// The client action keeps the home menu in a box of the height of the action area,
+// so that the home menu itself is the scrolling container.
+.o_cws_home_menu_action {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+
+    > .o_home_menu {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+}
