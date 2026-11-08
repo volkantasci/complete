@@ -1,0 +1,116 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Segmented switchers (001b R21): the control-panel view switcher and the groups of
+// up to four toggle buttons marked `.o_switcher`. The highlight is the `::before` of the
+// container. Its slot is (padding-box width - 8px - (n - 1) * gap) / n, the gap being 4px
+// minus the border width, so that it matches the active button exactly.
+
+$o-cws-switch-ease: cubic-bezier(0.2, 1.12, 0.2, 1.12) !default;
+$o-cws-switch-time: .2s !default;
+$o-cws-switch-gap: 4px - 1px !default;
+$o-cws-switch-max: 4 !default;
+
+@keyframes o-cws-pill-slide {
+    from {
+        inset-inline-start: calc(4px + var(--cws-switch-from) * (var(--cws-pill-w) + #{$o-cws-switch-gap}));
+    }
+    to {
+        inset-inline-start: calc(4px + var(--cws-switch-to) * (var(--cws-pill-w) + #{$o-cws-switch-gap}));
+    }
+}
+
+.o_switcher,
+nav.o_cp_switch_buttons {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: stretch;
+    gap: $o-cws-switch-gap;
+    padding: 4px;
+    border: 1px solid $o-border-color;
+    border-radius: 10px;
+    background-color: $o-view-background-color;
+
+    // no pill unless a rule below asks for one
+    &::before {
+        content: none;
+        display: none;
+        position: absolute;
+        z-index: 0;
+        top: 4px;
+        bottom: 4px;
+        width: var(--cws-pill-w);
+        inset-inline-start: calc(4px + var(--cws-sw-i) * (var(--cws-pill-w) + #{$o-cws-switch-gap}));
+        border-radius: 6px;
+        background-color: $o-cws-switch-pill-bg;
+        pointer-events: none;
+    }
+
+    > .btn:not(#_),
+    > .btn:not(:first-child):not(:last-child):not(#_) {
+        --#{$prefix}btn-bg: transparent;
+        --#{$prefix}btn-border-color: transparent;
+        --#{$prefix}btn-hover-bg: transparent;
+        --#{$prefix}btn-hover-border-color: transparent;
+        --#{$prefix}btn-active-bg: transparent;
+        --#{$prefix}btn-active-border-color: transparent;
+        --#{$prefix}btn-disabled-bg: transparent;
+        --#{$prefix}btn-disabled-border-color: transparent;
+        --#{$prefix}gradient: none;
+
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        padding: 2px 6px;
+        border: 0;
+        border-radius: 6px;
+        background-image: none;
+        box-shadow: none;
+    }
+
+    > .btn:not(.active, #_):hover {
+        --#{$prefix}btn-hover-bg: #{$o-cws-switch-hover-bg};
+    }
+}
+
+// The highlight of a group: count and active position are read from its buttons.
+.o_switcher {
+    @for $-n from 1 through $o-cws-switch-max {
+        @for $-k from 1 through $-n {
+            &:has(> :nth-child(#{$-n})):not(:has(> :nth-child(#{$-n + 1}))):has(> :nth-child(#{$-k}).active)::before {
+                --cws-sw-n: #{$-n};
+                --cws-sw-i: #{$-k - 1};
+                --cws-pill-w: calc((100% - 8px - (#{$-n} - 1) * #{$o-cws-switch-gap}) / #{$-n});
+
+                content: "";
+                display: block;
+                transition:
+                    inset-inline-start $o-cws-switch-time $o-cws-switch-ease,
+                    width $o-cws-switch-time $o-cws-switch-ease;
+
+                // reduced motion (E1): the highlight jumps
+                @media (prefers-reduced-motion: reduce) {
+                    transition: none;
+                }
+            }
+        }
+    }
+}
+
+// The view switcher: its panel is created anew on a switch, so the highlight runs a
+// keyframe animation from the slot of the view left to the slot of the view shown.
+nav.o_cp_switch_buttons[data-cws-views] {
+    &::before {
+        --cws-sw-i: var(--cws-switch-to);
+        --cws-pill-w: calc((100% - 8px - (var(--cws-switch-count) - 1) * #{$o-cws-switch-gap}) / var(--cws-switch-count));
+
+        content: "";
+        display: block;
+        animation: o-cws-pill-slide $o-cws-switch-time $o-cws-switch-ease;
+
+        @media (prefers-reduced-motion: reduce) {
+            animation: none;
+        }
+    }
+}

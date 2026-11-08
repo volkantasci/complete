@@ -244,3 +244,13 @@ $o-cws-btns-outline-extra: (
 $form-switch-color: rgba($o-black, .5) !default;
 $form-switch-focus-color: $o-black !default;
 $form-switch-checked-color: $o-view-background-color !default;
+
+// Segmented switchers (R21), notebook tabs (R20)
+$o-cws-switch-pill-bg: $o-gray-400 !default;
+$o-cws-switch-hover-bg: $o-gray-300 !default;
+$o-cws-tab-bg: $o-gray-300 !default;
+$o-cws-tab-hover-bg: $o-gray-400 !default;
+$o-cws-tab-border: $o-gray-200 !default;
+$o-cws-tab-vertical-border: $o-gray-400 !default;
+$o-cws-tab-accent: map-get($o-cws-text-tones, "primary") !default;
+$o-cws-tab-active-color: map-get($o-cws-text-tones, "primary") !default;

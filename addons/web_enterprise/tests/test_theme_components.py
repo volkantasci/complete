@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 """Probe tests of the component look: buttons, badges, tags, ribbons (001b R16-R18, R41)."""
+import json
 import re
 
 from odoo.tests import tagged
@@ -318,12 +319,12 @@ class TestThemeBadgesTags(ThemeProbeCase):
 @tagged('post_install', '-at_install')
 class TestThemeViewSwitcher(ThemeProbeCase):
     def test_A33_group_rule_spares_view_switcher(self):
-        # Community spaces a button group by 1px plus the border width (2px); the group
+        # the switcher keeps its own spacing (R21: 4px minus the border); the group
         # overlap rule must not change that for the control-panel view switcher
         with self.page(self.fixtures['apps_kanban_url']):
             nav = '.o_control_panel .o_cp_switch_buttons'
             self.wait(f"!!document.querySelector('{nav} .btn')")
-            self.assertEqual(self.style(nav, 'column-gap')['column-gap'], '2px')
+            self.assertEqual(self.style(nav, 'column-gap')['column-gap'], '3px')
 
 
 @tagged('post_install', '-at_install')
@@ -676,3 +677,325 @@ class TestThemeInputs(OverlayMixin, ThemeProbeCase):
             self.assertRegex(plain, r'rgba\(255,255,255,0?\.5\)')
             checked = self.style('.o_cws_probe_switch_on', 'background-image')['background-image']
             self.assertIn('2c2e35', checked.lower())
+
+
+NAV = '.o_control_panel nav.o_cp_switch_buttons'
+EASE = 'cubic-bezier(0.2, 1.12, 0.2, 1.12)'
+GRAPH_MODES = '.o_switcher[aria-label="Change graph"]'
+SWITCHER_COLOURS = {
+    # scheme: (view background, pill, hover (hex, alpha))
+    'light': ('#FFFFFF', '#E7EBED', ('#DEE2E6', .5)),
+    'dark': ('#2C2E35', '#56575E', ('#3E3F47', 1.0)),
+}
+
+
+class SwitcherMixin:
+    def pill(self, container, index=0):
+        """Box of the ``::before`` highlight of ``container`` in page coordinates."""
+        return self.js(f"""(() => {{
+            const el = document.querySelectorAll({json.dumps(container)})[{index}];
+            const cs = getComputedStyle(el, '::before');
+            const r = el.getBoundingClientRect();
+            const rtl = getComputedStyle(el).direction === 'rtl';
+            const width = parseFloat(cs.width);
+            const left = parseFloat(cs.left);
+            const border = parseFloat(getComputedStyle(el).borderLeftWidth);
+            return {{x: r.x + border + left, width, display: cs.display, content: cs.content,
+                     rtl}};
+        }})()""")
+
+    def assertPillOn(self, container, button, delta=2):
+        pill = self.pill(container)
+        box = self.rect(button)
+        self.assertEqual(pill['display'], 'block', container)
+        self.assertAlmostEqual(pill['x'], box['x'], delta=delta, msg=f'{container} x')
+        self.assertAlmostEqual(pill['width'], box['width'], delta=delta, msg=f'{container} w')
+
+    def settled_on(self, container, button):
+        """Wait until the highlight of ``container`` lies on ``button`` (slide done)."""
+        self.wait(f"""(() => {{
+            const el = document.querySelector({json.dumps(container)});
+            const b = document.querySelector({json.dumps(button)}).getBoundingClientRect();
+            const cs = getComputedStyle(el, '::before');
+            const border = parseFloat(getComputedStyle(el).borderLeftWidth);
+            const x = el.getBoundingClientRect().x + border + parseFloat(cs.left);
+            return cs.display === 'block' && Math.abs(x - b.x) < 1
+                && Math.abs(parseFloat(cs.width) - b.width) < 1
+                && !el.getAnimations({{subtree: false}}).length
+                && !document.getAnimations().some((a) => a.effect.pseudoElement);
+        }})()""")
+
+    def inject_switcher(self, buttons, active):
+        """A ``.btn-group.o_switcher`` of ``buttons`` buttons, ``active`` (0-based, or None)."""
+        self.js(f"""(() => {{
+            document.querySelectorAll('.o_cws_probe_switcher').forEach((e) => e.remove());
+            const group = document.createElement('div');
+            group.className = 'btn-group o_switcher o_cws_probe_switcher';
+            group.style.cssText = 'position: fixed; top: 300px; left: 300px; z-index: 9999';
+            for (let i = 0; i < {buttons}; i++) {{
+                const b = document.createElement('button');
+                const on = i === {json.dumps(active)};
+                b.className = 'btn btn-secondary o_cws_probe_b' + (on ? ' active' : '');
+                b.textContent = 'x';
+                group.append(b);
+            }}
+            document.body.append(group);
+        }})()""")
+
+
+@tagged('post_install', '-at_install')
+class TestThemeSwitchers(SwitcherMixin, ThemeProbeCase):
+    def _open(self, scheme='light', **kwargs):
+        return self.page(self.fixtures['apps_kanban_url'], scheme=scheme, **kwargs)
+
+    def _ready(self):
+        self.wait(f"!!document.querySelector('{NAV} .o_list')")
+
+    def test_A48_view_switcher_look(self):
+        for scheme, (view_bg, pill, (hover, hover_alpha)) in SWITCHER_COLOURS.items():
+            with self._open(scheme):
+                self._ready()
+                got = self.style(NAV, 'background-color', 'border-top-width', 'border-top-style',
+                                 'padding-top', 'padding-left', 'border-top-left-radius',
+                                 'column-gap')
+                self.assertColour(got['background-color'], view_bg)
+                self.assertEqual(
+                    (got['border-top-width'], got['border-top-style']), ('1px', 'solid'))
+                self.assertEqual((got['padding-top'], got['padding-left']), ('4px', '4px'))
+                self.assertEqual(got['border-top-left-radius'], '10px')
+                self.assertEqual(got['column-gap'], '3px')
+                self.assertColour(
+                    self.style(NAV, 'background-color', pseudo='::before')['background-color'],
+                    pill)
+                self.assertPillOn(NAV, f'{NAV} .btn.active')
+                # buttons: transparent, no border, no gloss, 2px by 6px, 6px radius
+                button = f'{NAV} .btn:not(.active)'
+                got = self.style(button, 'background-color', 'border-top-width', 'background-image',
+                                 'padding-top', 'padding-left', 'border-top-left-radius')
+                self.assertColour(got['background-color'], '#000000', alpha=0)
+                self.assertEqual(got['border-top-width'], '0px')
+                self.assertEqual(got['background-image'], 'none')
+                self.assertEqual((got['padding-top'], got['padding-left']), ('2px', '6px'))
+                self.assertEqual(got['border-top-left-radius'], '6px')
+                with self.forced(button, 'hover'):
+                    got = self.style(button, 'background-color')
+                self.assertColour(got['background-color'], hover, alpha=hover_alpha)
+                with self.forced(f'{NAV} .btn.active', 'hover'):
+                    got = self.style(f'{NAV} .btn.active', 'background-color')
+                self.assertColour(got['background-color'], '#000000', alpha=0)
+
+    def test_A49_pill_slide(self):
+        with self._open():
+            self._ready()
+            self.js("""(() => {
+                window.__cws_slides = [];
+                document.addEventListener('animationstart', (ev) => {
+                    if (ev.animationName === 'o-cws-pill-slide') {
+                        window.__cws_slides.push({pseudo: ev.pseudoElement});
+                    }
+                }, true);
+            })()""")
+            self.js(f"document.querySelector('{NAV} .o_list').click()")
+            self.wait(f"!!document.querySelector('{NAV} .o_list.active')")
+            got = self.style(NAV, 'animation-name', 'animation-duration',
+                             'animation-timing-function', pseudo='::before')
+            self.assertEqual(got['animation-name'], 'o-cws-pill-slide')
+            self.assertEqual(got['animation-duration'], '0.2s')
+            self.assertEqual(got['animation-timing-function'], EASE)
+            self.wait('window.__cws_slides.length > 0')
+            self.assertEqual(self.js('window.__cws_slides[0].pseudo'), '::before')
+            self.settled_on(NAV, f'{NAV} .o_list')
+            self.assertPillOn(NAV, f'{NAV} .o_list.active')
+            self.assertEqual(
+                self.style(NAV, '--cws-switch-from', '--cws-switch-to', '--cws-switch-count'),
+                {'--cws-switch-from': '0', '--cws-switch-to': '1',
+                 '--cws-switch-count': str(self.js(
+                     f"document.querySelectorAll('{NAV} .btn').length"))},
+            )
+
+    def test_A49_slide_starts_on_the_old_slot(self):
+        with self._open():
+            self._ready()
+            self.js("""(() => {
+                window.__cws_start = null;
+                document.addEventListener('animationstart', (ev) => {
+                    if (ev.animationName === 'o-cws-pill-slide') {
+                        const nav = ev.target;
+                        const cs = getComputedStyle(nav, '::before');
+                        const run = document.getAnimations().find(
+                            (a) => a.effect.pseudoElement === '::before');
+                        run.pause();
+                        run.currentTime = 0;
+                        const kanban = nav.querySelector('.o_kanban').getBoundingClientRect();
+                        window.__cws_start = {
+                            dx: nav.getBoundingClientRect().x + 1 + parseFloat(cs.left) - kanban.x,
+                        };
+                    }
+                }, true);
+            })()""")
+            self.js(f"document.querySelector('{NAV} .o_list').click()")
+            self.wait('window.__cws_start !== null')
+            self.assertAlmostEqual(self.js('window.__cws_start.dx'), 0, delta=2)
+
+    def test_A15_reduced_motion_pill(self):
+        with self._open(reduced_motion=True):
+            self._ready()
+            self.js(f"document.querySelector('{NAV} .o_list').click()")
+            self.wait(f"!!document.querySelector('{NAV} .o_list.active')")
+            got = self.style(NAV, 'animation-name', pseudo='::before')
+            self.assertEqual(got['animation-name'], 'none')
+            self.assertEqual(self.js("document.getAnimations().filter("
+                                     "(a) => a.effect.pseudoElement).length"), 0)
+            self.assertPillOn(NAV, f'{NAV} .o_list.active', delta=1)
+
+    def test_A15_reduced_motion_graph_switcher(self):
+        with self.page(f"/odoo/action-{self.fixtures['graph_action']}", reduced_motion=True):
+            self.wait(f"!!document.querySelector('{GRAPH_MODES} .btn')")
+            got = self.style(GRAPH_MODES, 'transition-duration', 'animation-name',
+                             pseudo='::before')
+            self.assertEqual(got['transition-duration'], '0s')
+            self.assertEqual(got['animation-name'], 'none')
+
+    def test_A50_graph_switcher(self):
+        for scheme, (view_bg, pill, _hover) in SWITCHER_COLOURS.items():
+            with self.page(f"/odoo/action-{self.fixtures['graph_action']}", scheme=scheme):
+                self.wait(f"!!document.querySelector('{GRAPH_MODES} .btn.active')")
+                got = self.style(GRAPH_MODES, 'background-color', 'border-top-left-radius',
+                                 'padding-top')
+                self.assertColour(got['background-color'], view_bg)
+                self.assertEqual(got['border-top-left-radius'], '10px')
+                self.assertEqual(got['padding-top'], '4px')
+                self.assertColour(
+                    self.style(GRAPH_MODES, 'background-color',
+                               pseudo='::before')['background-color'], pill)
+                self.assertPillOn(GRAPH_MODES, f'{GRAPH_MODES} .btn.active')
+                for mode in ('line', 'pie', 'bar'):
+                    self.js(f"document.querySelector('{GRAPH_MODES} [data-mode={mode}]').click()")
+                    self.settled_on(GRAPH_MODES, f'{GRAPH_MODES} [data-mode={mode}]')
+                    self.assertPillOn(GRAPH_MODES, f'{GRAPH_MODES} [data-mode={mode}].active')
+
+    def test_A50b_one_button_and_fast_switch(self):
+        with self.page(f"/odoo/action-{self.fixtures['graph_action']}"):
+            self.wait(f"!!document.querySelector('{GRAPH_MODES} .btn.active')")
+            # three modes in a row without waiting: the highlight ends under the last
+            self.js(f"""(() => {{
+                for (const mode of ['line', 'pie', 'line']) {{
+                    document.querySelector('{GRAPH_MODES} [data-mode=' + mode + ']').click();
+                }}
+            }})()""")
+            self.settled_on(GRAPH_MODES, f'{GRAPH_MODES} [data-mode=line]')
+            self.assertPillOn(GRAPH_MODES, f'{GRAPH_MODES} [data-mode=line].active', delta=1)
+            # a switcher of one button: the highlight covers the whole slot
+            self.inject_switcher(1, 0)
+            self.settled_on('.o_cws_probe_switcher', '.o_cws_probe_b')
+            self.assertPillOn('.o_cws_probe_switcher', '.o_cws_probe_b')
+            self.assertGreater(self.pill('.o_cws_probe_switcher')['width'], 10)
+
+    def test_A119_no_pill(self):
+        with self._open():
+            self._ready()
+            for count, active in ((5, 0), (3, None), (0, None)):
+                self.inject_switcher(count, active)
+                got = self.pill('.o_cws_probe_switcher')
+                self.assertEqual((got['display'], got['content']), ('none', 'none'),
+                                 (count, active))
+            # the buttons keep the transparent look
+            self.inject_switcher(5, 0)
+            got = self.style('.o_cws_probe_b', 'background-color', 'border-top-width')
+            self.assertColour(got['background-color'], '#000000', alpha=0)
+            self.assertEqual(got['border-top-width'], '0px')
+            # and up to four buttons with an active one do get it
+            for count in (2, 4):
+                self.inject_switcher(count, count - 1)
+                self.assertEqual(self.pill('.o_cws_probe_switcher')['display'], 'block')
+
+    def test_E9_rtl_mirrors_the_pill(self):
+        # the logical properties follow the document direction
+        with self._open():
+            self._ready()
+            # (the web client forces ltr in several wrappers; the rtl bundle flips them)
+            self.js(f"document.querySelector('{NAV}').style.direction = 'rtl'")
+            self.assertEqual(self.js("getComputedStyle(document.querySelector("
+                                     f"'{NAV}')).direction"), 'rtl')
+            self.assertPillOn(NAV, f'{NAV} .btn.active')
+
+
+@tagged('post_install', '-at_install')
+class TestThemeNotebookStatusbar(OverlayMixin, ThemeProbeCase):
+    TAB = '.o_notebook .nav-link'
+
+    def test_A46_notebook(self):
+        for scheme, text, bar, inactive, hover in (
+            ('light', '#714B67', '#714B67', '#F8F9FA', '#E7EBED'),
+            ('dark', '#C175AD', '#C175AD', '#3E3F47', '#56575E'),
+        ):
+            with self.page(self.fixtures['form_record_url'], scheme=scheme):
+                self.wait(f"document.querySelectorAll('{self.TAB}').length > 1")
+                got = self.style(f'{self.TAB}.active', 'color', 'background-color',
+                                 'border-top-left-radius', 'padding-top', 'padding-left')
+                self.assertColour(got['color'], text)
+                self.assertColour(got['background-color'], '#000000', alpha=0)
+                self.assertEqual(got['border-top-left-radius'], '6px')
+                self.assertEqual((got['padding-top'], got['padding-left']), ('8px', '16px'))
+                got = self.style(f'{self.TAB}.active', 'background-color', 'height',
+                                 pseudo='::before')
+                self.assertColour(got['background-color'], bar)
+                self.assertEqual(got['height'], '3px')
+                tab = f'{self.TAB}:not(.active)'
+                got = self.style(tab, 'background-color', 'border-top-left-radius')
+                self.assertColour(got['background-color'], inactive)
+                self.assertEqual(got['border-top-left-radius'], '6px')
+                with self.forced(tab, 'hover'):
+                    self.assertColour(self.style(tab, 'background-color')['background-color'],
+                                      hover)
+                # the second tab, once active, takes the bar
+                self.js(f"document.querySelectorAll('{self.TAB}')[1].click()")
+                self.wait(f"document.querySelectorAll('{self.TAB}')[1].classList.contains('active')")
+                self.wait('document.getAnimations().length === 0')
+                got = self.style(f'{self.TAB}.active', 'color')
+                self.assertColour(got['color'], text)
+                self.assertEqual(
+                    self.js(f"document.querySelectorAll('{self.TAB}.active').length"), 1)
+
+    def test_A47_dialog_notebook_edge_to_edge(self):
+        with self.page(self.fixtures['apps_kanban_url']):
+            self.open_user_menu()
+            self.js("document.querySelector('[data-menu=\"preferences\"]').click()")
+            self.wait("!!document.querySelector('.o_dialog .modal-content .o_notebook')")
+            content = self.rect('.o_dialog .modal-content')
+            row = self.rect('.o_dialog .modal-content .o_notebook_headers')
+            self.assertAlmostEqual(row['x'], content['x'], delta=1.5)
+            self.assertAlmostEqual(row['x'] + row['width'], content['x'] + content['width'],
+                                   delta=1.5)
+
+    def test_A51_status_bar(self):
+        group = '.o_field_statusbar > .o_statusbar_status'
+        for scheme, current, hover, pressed in (
+            ('light', '#E6F2F3', '#DEE2E6', '#CED4DA'),
+            ('dark', '#3B4C52', '#3E3F47', '#56575E'),
+        ):
+            with self.page(self.fixtures['form_record_url'], scheme=scheme):
+                self.wait(f"!!document.querySelector('{group} .o_arrow_button_current')")
+                got = self.style(group, 'border-top-width', 'border-top-style',
+                                 'border-top-left-radius', 'padding-top', 'padding-left',
+                                 'background-color')
+                self.assertEqual((got['border-top-width'], got['border-top-style']),
+                                 ('1px', 'solid'))
+                self.assertEqual(got['border-top-left-radius'], '8px')
+                self.assertEqual((got['padding-top'], got['padding-left']), ('2px', '2px'))
+                self.assertColour(got['background-color'],
+                                  '#FFFFFF' if scheme == 'light' else '#2C2E35')
+                step = f'{group} .o_arrow_button_current'
+                got = self.style(step, 'background-color', 'height', 'font-weight')
+                self.assertColour(got['background-color'], current)
+                self.assertEqual(got['height'], '27px')
+                self.assertIn(got['font-weight'], ('500', '600'))
+                clickable = (f'{group} .o_arrow_button:not(.o_arrow_button_current)'
+                             ':not(.dropdown-toggle)')
+                with self.forced(clickable, 'hover'):
+                    self.assertColour(
+                        self.style(clickable, 'background-color')['background-color'], hover)
+                with self.forced(clickable, 'hover', 'active'):
+                    self.assertColour(
+                        self.style(clickable, 'background-color')['background-color'], pressed)
+

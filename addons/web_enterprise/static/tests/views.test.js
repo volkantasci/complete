@@ -84,6 +84,18 @@ function switcher() {
 }
 
 describe("view switcher", () => {
+    test("A48 view switcher exposes count, from and to", async () => {
+        await mountWebClient();
+        await getService("action").doAction(1);
+        expect(switcher().style.getPropertyValue("--cws-switch-count").trim()).toBe("3");
+        expect(switcher().style.getPropertyValue("--cws-switch-from").trim()).toBe("0");
+        expect(switcher().style.getPropertyValue("--cws-switch-to").trim()).toBe("0");
+        await contains(".o_switch_view.o_list").click();
+        expect(switcher().style.getPropertyValue("--cws-switch-count").trim()).toBe("3");
+        expect(switcher().style.getPropertyValue("--cws-switch-from").trim()).toBe("0");
+        expect(switcher().style.getPropertyValue("--cws-switch-to").trim()).toBe("1");
+    });
+
     test("A62 switcher slides between views", async () => {
         await mountWebClient();
         await getService("action").doAction(1);

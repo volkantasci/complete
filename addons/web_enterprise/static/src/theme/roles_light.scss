@@ -431,3 +431,13 @@ $form-check-input-indeterminate-border-color: $o-action !default;
 $form-check-input-indeterminate-bg-color: $o-action !default;
 $form-check-input-focus-box-shadow: 0 0 0 4px rgba($o-action, .25) !default;
 $form-check-input-focus-border: $o-action !default;
+
+// Segmented switchers (R21), notebook tabs (R20)
+$o-cws-switch-pill-bg: $o-gray-200 !default;
+$o-cws-switch-hover-bg: rgba($o-gray-300, .5) !default;
+$o-cws-tab-bg: $o-gray-100 !default;
+$o-cws-tab-hover-bg: $o-gray-200 !default;
+$o-cws-tab-border: $o-border-color !default;
+$o-cws-tab-vertical-border: $o-border-color !default;
+$o-cws-tab-accent: $o-brand-primary !default;
+$o-cws-tab-active-color: $o-brand-primary !default;

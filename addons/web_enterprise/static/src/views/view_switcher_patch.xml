@@ -8,7 +8,7 @@
       <attribute name="t-att-data-cws-views">this.cwsViewCount</attribute>
       <attribute name="t-att-data-cws-active">this.cwsActiveIndex</attribute>
       <attribute name="t-att-data-cws-from">this.cwsFromIndex</attribute>
-      <attribute name="t-att-style">'--cws-switch-from: ' + this.cwsFromIndex + '; --cws-switch-to: ' + this.cwsActiveIndex</attribute>
+      <attribute name="t-att-style">'--cws-switch-count: ' + this.cwsViewCount + '; --cws-switch-from: ' + this.cwsFromIndex + '; --cws-switch-to: ' + this.cwsActiveIndex</attribute>
     </xpath>
   </t>
 
