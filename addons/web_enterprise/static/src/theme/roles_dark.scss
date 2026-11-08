@@ -152,3 +152,90 @@ $o-cws-tile-text-shadow:
 $o-cws-touch-search-height: 39px !default;
 $o-cws-touch-search-border-width: 1px !default;
 $o-cws-touch-search-border: #3C3E4A !default;
+
+// Buttons (R16)
+$o-cws-on-primary: $o-black !default;
+$o-cws-primary-pressed-text: $o-black !default;
+$o-cws-primary-pressed-border: $o-cws-primary-pressed !default;
+
+$o-cws-btn-secondary-border: $o-gray-300 !default;
+$o-cws-btn-secondary-hover-bg: $o-gray-300 !default;
+$o-cws-btn-secondary-hover-border: $o-gray-300 !default;
+$o-cws-btn-secondary-hover-color: $o-gray-900 !default;
+$o-cws-btn-secondary-disabled-bg: $o-gray-300 !default;
+
+// Danger, outline primary, outline danger and outline light are restyled in dark only;
+// the light scheme keeps the Community buttons. Text on a fill is the black role (white).
+$o-cws-btns-extra: (
+    "danger": (
+        background: $o-danger,
+        border: $o-danger,
+        color: $o-black,
+
+        hover-background: lighten($o-danger, 3%),
+        hover-border: lighten($o-danger, 3%),
+        hover-color: $o-black,
+
+        active-background: lighten($o-danger, 6%),
+        active-border: lighten($o-danger, 6%),
+        active-color: $o-black,
+
+        disabled-background: $o-danger,
+        disabled-border: $o-danger,
+        disabled-color: $o-black,
+    ),
+) !default;
+
+$o-cws-btns-outline-extra: (
+    "primary": (
+        background: transparent,
+        border: map-get($o-cws-text-tones, "primary"),
+        color: map-get($o-cws-text-tones, "primary"),
+
+        hover-background: $o-cws-primary-hover,
+        hover-border: $o-cws-primary-hover,
+        hover-color: $o-black,
+
+        active-background: $o-cws-primary-pressed,
+        active-border: $o-cws-primary-pressed,
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: map-get($o-cws-text-tones, "primary"),
+        disabled-color: map-get($o-cws-text-tones, "primary"),
+    ),
+    "danger": (
+        background: transparent,
+        border: map-get($o-cws-text-tones, "danger"),
+        color: map-get($o-cws-text-tones, "danger"),
+
+        hover-background: lighten($o-danger, 3%),
+        hover-border: lighten($o-danger, 3%),
+        hover-color: $o-black,
+
+        active-background: lighten($o-danger, 6%),
+        active-border: lighten($o-danger, 6%),
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: map-get($o-cws-text-tones, "danger"),
+        disabled-color: map-get($o-cws-text-tones, "danger"),
+    ),
+    "light": (
+        background: transparent,
+        border: $o-gray-300,
+        color: $o-black,
+
+        hover-background: $o-gray-300,
+        hover-border: $o-gray-300,
+        hover-color: $o-black,
+
+        active-background: mix($o-action, $o-gray-100, 15%),
+        active-border: lighten($o-action, 10%),
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: $o-gray-300,
+        disabled-color: $o-black,
+    ),
+) !default;

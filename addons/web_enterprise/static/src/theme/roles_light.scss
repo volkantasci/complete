@@ -278,3 +278,105 @@ $o-cws-tile-text-shadow: none !default;
 $o-cws-touch-search-height: 37px !default;
 $o-cws-touch-search-border-width: 0 !default;
 $o-cws-touch-search-border: transparent !default;
+
+// ---------------------------------------------------------------------------
+// Buttons (R16), badges (R17)
+// ---------------------------------------------------------------------------
+
+// No shadow at rest, under the pointer or when pressed, and no transition.
+$btn-box-shadow: none !default;
+$btn-active-box-shadow: none !default;
+$btn-transition: none !default;
+
+$o-badge-min-width: 2.7ch !default;
+
+// Text on the primary fill: the white role in light, the black role (white) in dark.
+$o-cws-on-primary: $o-white !default;
+// Text of a pressed primary button.
+$o-cws-primary-pressed-text: $o-brand-primary !default;
+$o-cws-primary-pressed-border: $o-brand-primary !default;
+
+// Secondary button: light and dark differ in these four roles and the disabled fill.
+$o-cws-btn-secondary-border: $o-gray-400 !default;
+$o-cws-btn-secondary-hover-bg: $o-gray-200 !default;
+$o-cws-btn-secondary-hover-border: $o-gray-400 !default;
+$o-cws-btn-secondary-hover-color: $o-black !default;
+$o-cws-btn-secondary-disabled-bg: $o-view-background-color !default;
+
+// Entries a scheme adds to the Community button maps (the dark file sets them).
+$o-cws-btns-extra: () !default;
+$o-cws-btns-outline-extra: () !default;
+
+$o-btns-bs-override: map-merge((
+    "primary": (
+        background: $o-brand-primary,
+        border: $o-brand-primary,
+        color: $o-cws-on-primary,
+
+        hover-background: $o-cws-primary-hover,
+        hover-border: $o-cws-primary-hover,
+        hover-color: $o-cws-on-primary,
+
+        active-background: $o-cws-primary-pressed,
+        active-border: $o-cws-primary-pressed-border,
+        active-color: $o-cws-primary-pressed-text,
+
+        disabled-background: $o-brand-primary,
+        disabled-border: $o-brand-primary,
+        disabled-color: $o-cws-on-primary,
+    ),
+    "secondary": (
+        background: $o-view-background-color,
+        border: $o-cws-btn-secondary-border,
+        color: $o-gray-900,
+
+        hover-background: $o-cws-btn-secondary-hover-bg,
+        hover-border: $o-cws-btn-secondary-hover-border,
+        hover-color: $o-cws-btn-secondary-hover-color,
+
+        active-background: $o-cws-pressed-bg,
+        active-border: $o-cws-pressed-border,
+        active-color: $o-black,
+
+        disabled-background: $o-cws-btn-secondary-disabled-bg,
+        disabled-border: $o-cws-btn-secondary-border,
+        disabled-color: $o-gray-900,
+    ),
+    "light": (
+        background: transparent,
+        border: transparent,
+        color: $o-gray-900,
+
+        hover-background: $o-cws-entry-hover-bg,
+        hover-border: $o-cws-entry-hover-bg,
+        hover-color: $o-black,
+
+        active-background: $o-cws-pressed-bg,
+        active-border: $o-cws-pressed-border,
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: transparent,
+        disabled-color: $o-gray-900,
+    ),
+), $o-cws-btns-extra) !default;
+
+$o-btns-bs-outline-override: map-merge((
+    "secondary": (
+        background: transparent,
+        border: $o-cws-btn-secondary-border,
+        color: $o-gray-900,
+
+        hover-background: $o-cws-btn-secondary-hover-bg,
+        hover-border: $o-cws-btn-secondary-hover-border,
+        hover-color: $o-cws-btn-secondary-hover-color,
+
+        active-background: $o-cws-pressed-bg,
+        active-border: $o-cws-pressed-border,
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: $o-cws-btn-secondary-border,
+        disabled-color: $o-gray-900,
+    ),
+), $o-cws-btns-outline-extra) !default;

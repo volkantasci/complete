@@ -1,0 +1,16 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Buttons (001b R16). The colours of every variant come from the button maps in the
+// role files; this file adds what the maps cannot say.
+
+// The button gloss does not apply inside dropdown menus (R19 owns the look there).
+.dropdown-menu .btn {
+    --#{$prefix}gradient: none;
+}
+
+// Adjacent buttons of a group overlap by the border width instead of keeping a gap.
+// The generic switchers (R21) have their own spacing.
+.btn-group:not(.o_switcher) {
+    gap: 0;
+}

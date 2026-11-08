@@ -37,6 +37,14 @@ LIST = """
 </list>
 """
 
+VARIANTS = ('primary', 'secondary', 'light', 'danger', 'outline-secondary',
+            'outline-primary', 'outline-danger', 'outline-light')
+VARIANT_BUTTONS = '<div class="d-flex gap-2 o_cws_variants">' + ''.join(
+    f'<button name="action_archive" type="object" string="B{n}"'
+    f' class="btn-{name} o_cws_v_{name.replace("-", "_")}"/>'
+    for n, name in enumerate(VARIANTS)
+) + '</div>'
+
 FORM = """
 <form string="Fixture">
     <header>
@@ -45,6 +53,13 @@ FORM = """
         <field name="type" widget="statusbar" options="{'clickable': '1'}"/>
     </header>
     <sheet>
+        <field name="active" invisible="1"/>
+        <widget name="web_ribbon" title="Dormant" bg_color="text-bg-danger" invisible="active"/>
+        <!--variants-->
+        <div class="btn-group o_cws_group">
+            <button name="action_archive" type="object" string="Ii" class="btn-secondary"/>
+            <button name="action_archive" type="object" string="Jj" class="btn-secondary"/>
+        </div>
         <div class="oe_button_box" name="button_box">
             <button name="action_archive" type="object" class="oe_stat_button" icon="fa-star">
                 <field name="color" widget="statinfo" string="Colour"/>
@@ -152,7 +167,10 @@ def build_theme_fixtures(env):
         'pivot_action': _action(env, 'pivot', [('pivot', PIVOT)]).id,
         'graph_action': _action(env, 'graph', [('graph', GRAPH)]).id,
     }
-    form_action = _action(env, 'form', [('list', LIST), ('form', FORM)])
+    form_action = _action(
+        env, 'form', [('list', LIST), ('form', FORM.replace('<!--variants-->', VARIANT_BUTTONS))],
+    )
+    fixtures['form_action'] = form_action.id
     fixtures['form_record_url'] = f'/odoo/action-{form_action.id}/{partners[0].id}'
     # an editable Date field on a Community base model (the date picker scenarios)
     currency = env['res.currency'].with_context(active_test=False).search([], limit=1)
