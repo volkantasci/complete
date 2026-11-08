@@ -23,8 +23,8 @@ that Community provides.
 | Colour scheme setting | field `res.users.settings.color_scheme` | Selection `system`, `light`, `dark`. Required, default `system`. Writing an empty value is ignored (the stored value stays). |
 | Colour scheme on users | field `res.users.color_scheme` | Related to the setting above, labelled "Color Scheme", writable by the user themself (`user_writeable`). Shown as "Theme" on the preferences dialog and on the user form (Preferences tab). |
 | Administrator message | system parameter `sysadmin.message` | JSON object `{"message": "<p>...</p>", "warning_type": "user" or "admin"}`. `message` is rich text; `warning_type` is the audience: `user` = every internal user, `admin` = administrators only. Set by an administrator or the hosting operator; nothing in this module writes it. |
-| Session key | `sysadmin_message` in the session info | `{message, warning_type}` with the message sanitized (`html_sanitize`). Sent to internal users only. A value that is not a JSON object is ignored and logged as an error; the session still starts. |
-| Colour scheme cookie | cookie `color_scheme` | `light` or `dark`. Written by the server on every successful answer of the web client route (`/web`, `/odoo`, `/odoo/...`, `/scoped_app/...`), without expiry (browser session), and by the browser when its decision differs. Deleted at logout. |
+| Session key | `sysadmin_message` in the session info | `{message, warning_type}` with the message sanitized (`html_sanitize`). Sent to internal users only. Only a two-part value reaches the browser: a JSON object whose `message` is text and whose `warning_type` is `user` or `admin`. Any other value (not JSON, not an object, a missing part, another audience) is logged as an error and skipped; the session still starts. |
+| Colour scheme cookie | cookie `color_scheme` | `light` or `dark`. Written by the server on every successful answer of the web client route (`/web`, `/odoo`, `/odoo/...`, `/scoped_app/...`), with a lifetime of one year, and by the browser when its decision differs. Deleted at logout. |
 | Server decision | `ir.http.color_scheme()` | The scheme a page is rendered with. Public user: `light`. Setting `light` or `dark`: that value. Otherwise the cookie, if it is `light` or `dark`. Otherwise `light`. |
 | Browser colour | `ir.http._cws_browser_chrome_colour(scheme)` and the `theme-color` meta tag | The colour mobile browsers paint their toolbar with: one value for light, one for dark. |
 | Home menu action | client action `menu` | The home menu as a screen of the action stack. Browser tab title "Home". Asking for it while it is shown changes nothing. |
@@ -54,14 +54,13 @@ requires, so that tours and other modules can find the tiles.
   link, so "open in a new tab" works. 6 tiles per row from 768 px wide, 4 below.
 - **Opening a tile** starts a new action stack (breadcrumbs emptied, the
   background application dropped) and adds one browser history entry.
-- **Toggling.** The grid button shows the home menu over the open application
+- **Toggling.** In an application the top bar button is one button: the grid, the application icon and the application name together. Clicking any of them (the name too) toggles the home menu. The button shows the home menu over the open application
   and brings the application back exactly as it was. Pending edits of an open
   form are saved first, with no confirmation. Escape and the back chevron do the
   same as the button. On the home menu with nothing behind it the button is
   hidden. On small screens the button opens the Community sidebar; its "All Apps"
   entry shows the home menu.
-- **Order.** Press and hold a tile for 0.5 s without moving 10 px or more, then move
-  10 px or more to start the drag. The new full order is saved at once to the user's own settings. When the
+- **Order.** Press and hold a tile for 0.5 s. A move of 10 px or more before the hold ends cancels the press. After the hold, a move of 10 px or more from the held position starts the drag. The new full order is saved at once to the user's own settings. When the
   menu is built, applications missing from the saved list come first in their
   default order, then the listed ones in the saved order; unknown identifiers
   are ignored.
@@ -80,14 +79,14 @@ requires, so that tours and other modules can find the tiles.
 - **View behaviours.** The view switcher reports its positions (the highlight
   starts from the previous view when the user switches inside the same action
   and window, otherwise from the active one). Unfolded kanban columns get
-  `o_cws_stuck` while scrolled (extra padding and a frosted backdrop). On small screens (decided once when the pivot is
+  `o_cws_stuck` while scrolled (extra padding and a frosted backdrop). The class is set from JavaScript on the live header, so copies of the header template in other modules (for example the CRM pipeline) get it too. On small screens (decided once when the pivot is
   created) the pivot removes its hover tooltips again after each render.
 
 ### How the colour scheme is decided
 
 1. **Server cookie.** Every successful answer of the web client route sets the
    cookie `color_scheme` to the server decision (`ir.http.color_scheme()`). It
-   has no expiry, so it lasts for the browser session. On a first visit the
+   lasts one year (`Max-Age` 31536000). On a first visit the
    browser therefore already finds a value, written by the server. The same
    decision picks the colour of the `theme-color` meta tag.
 2. **Browser check.** When the web client starts, the service `color_scheme`

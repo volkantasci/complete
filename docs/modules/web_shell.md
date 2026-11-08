@@ -23,8 +23,9 @@ use "open in a new tab", because every tile is a link.
 
 ## Going to the home menu and back
 
-Inside an application, the grid button at the left of the top bar opens the
-home menu over it. The application stays open behind it.
+Inside an application, the button at the left of the top bar (the grid, the
+application icon and the application name form one button) opens the
+home menu over it. Clicking the name does the same. The application stays open behind it.
 
 ![An application with the grid button, the application icon and its name](../assets/web_shell/04-app-navbar.png)
 
@@ -63,7 +64,7 @@ lists no application entries.
 
 ## Reordering the tiles
 
-Press and hold a tile for half a second without moving, then drag it to its
+Press and hold a tile for half a second without moving, then move it a little (about 10 px) to start the drag and drag it to its
 new place and let go. The new order is saved at once and belongs only to you.
 It works with a mouse and with a finger.
 
@@ -112,6 +113,8 @@ key. The value is a small piece of JSON with the text and the audience:
 
 - `"warning_type": "user"` shows it to every internal user.
 - `"warning_type": "admin"` shows it to administrators only.
+- Both parts are needed: a text in `message` and one of the two audiences. Any
+  other value is skipped and an error is logged on the server.
 - Portal users and visitors never see it.
 - The message stays until you remove the parameter or empty the message. If
   the value is not valid JSON, no message is shown and an error is logged on
