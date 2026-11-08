@@ -8,6 +8,7 @@ from . import (
     test_screens,
     test_theme_bundles,
     test_theme_http,
+    test_theme_shell,
     test_tours,
     test_user_settings,
 )
