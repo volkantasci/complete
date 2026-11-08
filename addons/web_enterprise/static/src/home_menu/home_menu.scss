@@ -27,7 +27,7 @@
         }
     }
 
-    // Present for assistive technology; keyboard and typing styles come with the behaviour.
+    // Present for assistive technology and for typing; not drawn on devices without touch.
     .o_cws_search_hidden {
         position: absolute;
         width: 1px;
@@ -38,6 +38,30 @@
         clip: rect(0, 0, 0, 0);
         border: 0;
         white-space: nowrap;
+    }
+
+    // Touch devices (R11): visible field, page opens 46 px down, no scroll bar.
+    &.o_cws_touch {
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        .o_cws_column {
+            min-height: calc(100vh + 46px);
+        }
+
+        .o_cws_touch_search {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            border: 0;
+            border-radius: 8px;
+            background: $o-gray-100;
+            color: $body-color;
+        }
     }
 
     .o_apps {

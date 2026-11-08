@@ -3,13 +3,16 @@
 <templates xml:space="preserve">
 
   <t t-name="web_enterprise.HomeMenu">
-    <div class="o_home_menu" t-att-class="{ 'o_cws_ios_list': this.isIosList }">
+    <div class="o_home_menu" t-ref="this.rootRef" t-att-class="{ 'o_cws_ios_list': this.isIosList, 'o_cws_touch': this.isTouch }">
+      <div class="o_cws_column">
       <t t-set="tiles" t-value="this.tiles"/>
       <t t-set="message" t-value="this.adminMessage"/>
       <div t-if="message" class="o_cws_admin_message" t-out="message"/>
       <input
         type="text"
-        class="o_home_menu_search_input o_cws_search_hidden"
+        t-ref="this.inputRef"
+        class="o_home_menu_search_input"
+        t-att-class="this.isTouch ? 'o_cws_touch_search' : 'o_cws_search_hidden'"
         placeholder="Search for a menu..."
         role="combobox"
         aria-label="Search for a menu"
@@ -50,6 +53,7 @@
             </a>
           </div>
         </t>
+      </div>
       </div>
     </div>
   </t>

@@ -1,18 +1,31 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, markup, proxy, t, useListener, usePlugin, useProps } from "@odoo/owl";
+import {
+    Component,
+    markup,
+    onMounted,
+    proxy,
+    signal,
+    t,
+    useEffect,
+    useListener,
+    useOnChange,
+    usePlugin,
+    useProps,
+} from "@odoo/owl";
 import { isIosApp } from "@web/core/browser/feature_detection";
 import { DebugModePlugin } from "@web/core/debug_mode_plugin";
 import { OfflinePlugin } from "@web/core/offline/offline_plugin";
 import { user } from "@web/core/user";
 import { session } from "@web/session";
 
+import { WIDE_BREAKPOINT, useTileKeyboard } from "@web_enterprise/home_menu/home_menu_keyboard";
 import { orderTiles, readSavedOrder } from "@web_enterprise/home_menu/tile_order";
 
 // Community default application icon (what `load_menus` sends for a menu without an image).
 const DEFAULT_ICON = "/web/static/img/default_icon_app.png";
-// Below this window width the layout is the narrow one (Bootstrap `md`).
-const WIDE_BREAKPOINT = 768;
+// Height of the top bar: a touch device opens the page scrolled down by this much (R11).
+const TOUCH_SCROLL_OFFSET = 46;
 
 /**
  * Address a tile links to: the action path (or the action id) under /odoo,
@@ -70,6 +83,7 @@ export class HomeMenu extends Component {
     props = useProps({
         apps: t.array(),
         onOpenApp: t.function(),
+        onEscape: t.function().optional(),
     });
 
     setup() {
@@ -81,6 +95,45 @@ export class HomeMenu extends Component {
         });
         useListener(window, "resize", () => {
             this.state.width = window.innerWidth;
+        });
+        this.rootRef = signal.ref();
+        this.inputRef = signal.ref();
+        const { touch } = useTileKeyboard({
+            getCount: () => this.tiles.length,
+            getFocused: () => this.state.focusedIndex,
+            setFocused: (index) => {
+                this.state.focusedIndex = index;
+            },
+            openFocused: () => {
+                const app = this.tiles[this.state.focusedIndex];
+                if (app) {
+                    this.props.onOpenApp(app);
+                }
+            },
+            onEscape: () => (this.props.onEscape || (() => {}))(),
+            inputRef: this.inputRef,
+        });
+        this.isTouch = touch;
+        // the tile list changed: nothing is focused any more
+        useOnChange(
+            () => [this.props.apps],
+            () => {
+                this.state.focusedIndex = null;
+            },
+            { initialRun: false }
+        );
+        // keep the focused tile vertically centred
+        useEffect(() => {
+            const index = this.state.focusedIndex;
+            const root = this.rootRef();
+            if (index !== null && root) {
+                root.querySelectorAll(".o_app")[index]?.scrollIntoView({ block: "center" });
+            }
+        });
+        onMounted(() => {
+            if (this.isTouch) {
+                this.rootRef().scrollTop = TOUCH_SCROLL_OFFSET;
+            }
         });
     }
 
