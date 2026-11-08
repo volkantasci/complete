@@ -175,7 +175,12 @@ class ThemeProbeCase(HttpCase):
 
     @contextlib.contextmanager
     def forced(self, selector, *states, index=0):
-        """Force pseudo-classes ('hover', 'active', 'focus', 'focus-visible') while open."""
+        """Force pseudo-classes ('hover', 'active', 'focus', 'focus-visible') while open.
+
+        On entry, waits until the computed styles settle (two animation frames plus the
+        element's longest transition duration and delay) so the probe never reads a
+        mid-transition value.
+        """
         for state in states:
             self.assertIn(state, STATES)
         node = self._node_id(selector, index)
@@ -184,11 +189,27 @@ class ThemeProbeCase(HttpCase):
             'nodeId': node, 'forcedPseudoClasses': list(states),
         })
         try:
+            self._settle(selector, index)
             yield
         finally:
             request('CSS.forcePseudoState', params={
                 'nodeId': node, 'forcedPseudoClasses': [],
             })
+
+    def _settle(self, selector, index):
+        self.js(f"""(async () => {{
+            const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+            const el = document.querySelectorAll({json.dumps(selector)})[{int(index)}];
+            await frame();
+            await frame();
+            const cs = getComputedStyle(el);
+            const seconds = (text) => text.split(',').map((t) => parseFloat(t) || 0);
+            const durations = seconds(cs.transitionDuration);
+            const delays = seconds(cs.transitionDelay);
+            const total = Math.max(...durations.map((d, i) => d + delays[i % delays.length]));
+            await new Promise((r) => setTimeout(r, total * 1000 + 50));
+            await frame();
+        }})()""")
 
     def pointer_to(self, selector, index=0):
         """Move the real pointer to the centre of the element."""

@@ -75,7 +75,7 @@ class TestThemeProbeTools(ThemeProbeCase):
         for key in (
             'kanban_action', 'kanban_ungrouped_action', 'list_action', 'list_grouped_action',
             'calendar_action', 'pivot_action', 'graph_action', 'form_record_url',
-            'apps_kanban_url', 'apps_list_url', 'settings_url',
+            'apps_kanban_url', 'apps_list_url', 'settings_url', 'date_form_url',
         ):
             self.assertIn(key, fixtures)
         with self.page(f"/odoo/action-{fixtures['kanban_action']}", scheme='dark'):
@@ -104,9 +104,24 @@ class TestThemeProbeTools(ThemeProbeCase):
             (f"/odoo/action-{fixtures['graph_action']}", '.o_graph_canvas_container canvas'),
             (fixtures['apps_kanban_url'], '.o_kanban_view .o_kanban_record'),
             (fixtures['apps_list_url'], '.o_list_view .o_data_row'),
+            (fixtures['date_form_url'], '.o_form_view .o_field_date button'),
             (fixtures['settings_url'], '.o_form_view .o_setting_box'),
         ]
         with self.page(pages[0][0]):
             for url, selector in pages:
                 self.browser.navigate_to(self.base_url() + url, wait_stop=False)
                 self.wait(f"!!document.querySelector({selector!r})")
+
+    def test_date_picker_opens(self):
+        with self.page(self.fixtures['date_form_url']):
+            self.wait("!!document.querySelector('.o_form_view .o_field_date button')")
+            self.assertFalse(self.js("!!document.querySelector('.o_datetime_picker')"))
+            field = '.o_form_view .o_field_date button'
+            self.pointer_to(field)
+            box = self.rect(field)
+            point = {'x': box['x'] + box['width'] / 2, 'y': box['y'] + box['height'] / 2}
+            for kind in ('mousePressed', 'mouseReleased'):
+                self.browser._websocket_request('Input.dispatchMouseEvent', params={
+                    'type': kind, 'button': 'left', 'clickCount': 1, **point,
+                })
+            self.wait("!!document.querySelector('.o_datetime_picker')")

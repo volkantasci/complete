@@ -68,6 +68,17 @@ FORM = """
 </form>
 """
 
+DATE_FORM = """
+<form string="Fixture">
+    <sheet>
+        <group>
+            <field name="name" readonly="0"/>
+            <field name="rate"/>
+        </group>
+    </sheet>
+</form>
+"""
+
 CALENDAR = """
 <calendar string="Fixture" date_start="create_date" mode="month" color="color">
     <field name="name"/>
@@ -89,13 +100,13 @@ GRAPH = """
 """
 
 
-def _action(env, name, views, group_by=None, mode=None):
-    """Create views and an action on res.partner showing only the fixture records."""
+def _action(env, name, views, group_by=None, mode=None, model='res.partner', domain=None):
+    """Create views and an action showing only the fixture records of ``model``."""
     view_records = []
     for index, (kind, arch) in enumerate(views):
         view = env['ir.ui.view'].create({
             'name': f'{MARK}.{name}.{kind}',
-            'model': 'res.partner',
+            'model': model,
             'type': kind,
             'arch': arch,
         })
@@ -103,9 +114,9 @@ def _action(env, name, views, group_by=None, mode=None):
     context = {'group_by': [group_by]} if group_by else {}
     return env['ir.actions.act_window'].create({
         'name': f'{MARK} {name}',
-        'res_model': 'res.partner',
+        'res_model': model,
         'view_mode': mode or ','.join(kind for kind, _arch in views),
-        'domain': [('ref', '=', MARK)],
+        'domain': domain or [('ref', '=', MARK)],
         'context': context,
         'view_ids': view_records,
     })
@@ -143,6 +154,16 @@ def build_theme_fixtures(env):
     }
     form_action = _action(env, 'form', [('list', LIST), ('form', FORM)])
     fixtures['form_record_url'] = f'/odoo/action-{form_action.id}/{partners[0].id}'
+    # an editable Date field on a Community base model (the date picker scenarios)
+    currency = env['res.currency'].with_context(active_test=False).search([], limit=1)
+    rate = env['res.currency.rate'].create({
+        'name': '2026-01-15', 'currency_id': currency.id, 'rate': 1.5,
+    })
+    date_action = _action(
+        env, 'date_form', [('form', DATE_FORM)], model='res.currency.rate',
+        domain=[('id', '=', rate.id)],
+    )
+    fixtures['date_form_url'] = f'/odoo/action-{date_action.id}/{rate.id}'
     fixtures['apps_kanban_url'] = '/odoo/action-base.open_module_tree?view_type=kanban'
     fixtures['apps_list_url'] = '/odoo/action-base.open_module_tree?view_type=list'
     fixtures['settings_url'] = '/odoo/action-base_setup.action_general_configuration'
