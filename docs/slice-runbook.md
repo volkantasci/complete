@@ -21,9 +21,11 @@ tools/run_session.sh WORKDIR HANDOFF STREAM HANDBACK MODEL [claude arguments]
 ```
 
 - **Memory and limits.** The script turns auto memory off. It lets background subagents run without a time limit, which print mode would otherwise cap at 10 minutes after the last turn.
-- **Output.** The stream-json transcript goes to STREAM. When the session ends, the script copies its final message to HANDBACK.
+- **Output.** The stream-json transcript goes to STREAM. When the session ends, the script writes HANDBACK: one header line with the run's numbers, then the session's final message.
+  - A session that is woken after its report may end with a one-line message. So when the final message is shorter than 1,500 characters and an earlier result of the same run has a `Status:` line, the handback also carries that earlier report, under "Earlier report in this run".
+  - Handoffs still ask for a self-contained final message, sent again if the session is woken after it.
 - **Analyst and verifier transcripts** contain EE material. Keep their STREAM in the specification repository's analyst area. Only their final message, written in spec language, reaches the coordinator through the handback.
-- **Continuing a session.** To continue a session with its context, pass `--resume <session id>` with a handoff that says what changed. A resumed stream starts with a replayed result event, so wait for the handback file to appear, not for the first result event.
+- **Continuing a session.** To continue a session with its context, pass `--resume <session id>` with a handoff that says what changed. A resumed stream starts with a replayed result event, so wait for the handback file to appear, not for the first result event. The cost in a resumed run's result events counts from the session's first run.
 - **Templates.** Every handoff is made from a template. The orchestrator's is [handoffs/orchestrator.md](handoffs/orchestrator.md). The analyst's and the verifier's are in the specification repository under `templates/handoffs/`.
 
 ## Overlap feedback during implementation
@@ -50,3 +52,10 @@ Anything the verifier sends back goes to the owner first. The owner's decisions 
 - **Verifier outputs.** The verifier writes `review.md` and `verification/` in the package, and keeps capture scenarios in the analyst area.
 - **Ruling numbers.** Workers number their own rulings with a prefix for their part or session, so that rulings from parallel ledgers do not collide.
 - **Isolation changes** run as maintenance parts outside `complete/`, and each ends with a live probe in `complete/` from a shell: the git probe and the container probe in [isolation.md](isolation.md).
+
+## Rules slice 001a added
+
+- **Own wording.** The screenshots in a spec package show the original's wording. Implementers write every user-facing text in their own words, except texts the spec prescribes, and compare their texts with the visible wording before the final review. In 001a, a footer sentence and an example message repeated visible wording and had to be reworded.
+- **Tours for live behaviour.** A behaviour that depends on the live web client, such as what happens while a view scrolls, gets a tour in a real browser session. In 001a, a unit test passed while the live view failed, because two applications render their own copy of the template involved.
+- **Optional dependencies.** When a module adapts to another module being installed, its tests run both with and without that module.
+- **Self-contained reports.** Every handoff asks for a self-contained final message. Before sending it, the session makes sure that nothing it started is still running.

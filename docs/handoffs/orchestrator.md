@@ -33,6 +33,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
   - Run each container command as one plain command: no `cd`, no pipes, nothing combined with it.
   - Run module tests with the command in [isolation.md](../isolation.md#containers). Only the project's images and compose containers are allowed.
 - **Names.** Use technical names only where `model.md` requires them. Give every other identifier a name of your own ([module-authoring.md](../module-authoring.md#naming)).
+- **Wording.** The spec's screenshots show the original's wording. Write every user-facing text in your own words, with the meaning the spec gives, except the texts the spec prescribes.
 - **Isolation files** (listed in [isolation.md](../isolation.md)) stay unchanged.
 - **Phase 0 infrastructure** (`tools/`, `docker/`, `.github/`): change it only if the slice needs it. Make each such change in its own commit, give the reason, and list it in your report.
 - **Licensing:** follow [licensing.md](../licensing.md).
@@ -46,7 +47,8 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 3. **Implement** with the superpowers:subagent-driven-development skill on the branch above.
    - Models: implementers sonnet, task reviewers sonnet, and the final whole-branch review on opus.
    - Derive the tests from `acceptance.md`, and name each one after its scenario id.
-4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong.
+   - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
+4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
 5. **Overlap report.** When every task is implemented and reviewed, and before the final review, stop.
    - Report with Status `OVERLAP_CHECK` and the module paths.
    - The owner then runs the overlap report: the Complete paths and line numbers that match the reference, with no reference text. The coordinator resumes you with that list.
@@ -55,13 +57,13 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 7. **Check:**
    - `.venv/bin/pytest -q`;
    - `.venv/bin/pre-commit run --all-files`;
-   - the module tests with the podman command;
+   - the module tests with the podman command, with and without each module that your code adapts to;
    - then the final review, with one fix wave.
 8. **Stop before integration.** The provenance record and the merge come after verification and the owner's approval.
 
 ## Report
 
-Your final message is copied to the coordinator. Write it in plain English and include:
+Your final message is copied to the coordinator. Make it self-contained, write it in plain English, and include:
 
 - **Status:** DONE, DONE_WITH_QUESTIONS, or BLOCKED with the exact error.
 - **Branch and commits,** and the plan path.
@@ -74,5 +76,7 @@ Your final message is copied to the coordinator. Write it in plain English and i
 - **Time and friction:**
   - the start and end (UTC) of plan, implementation, documentation and review;
   - what slowed you down.
+
+Before the final message, make sure no subagent or background task is still running, and schedule no fallback checks. If you are woken after it, send the full report again.
 
 Then stop.
