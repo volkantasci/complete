@@ -127,6 +127,10 @@ class TestThemeProbeTools(ThemeProbeCase):
             self.wait("!!document.querySelector('.o_datetime_picker')")
 
 
+COUNTER = '.o_main_navbar .o-mail-MessagingMenuInDropdown-counter'
+COUNTER_ICON = (
+    '.o_main_navbar .o_menu_systray button:has(> .o-mail-MessagingMenuInDropdown-counter) > i'
+)
 SECTION_TOGGLE = '.o_menu_sections .dropdown-toggle'
 SECTION_ENTRY = '.o_menu_sections .o_nav_entry'
 BAR = '.o_main_navbar'
@@ -201,8 +205,9 @@ class TestThemeShell(ShellProbeCase):
             self.assertEqual(bar['padding-top'], '10px')
             self.assertEqual(bar['padding-bottom'], '10px')
             self.assertEqual(bar['border-bottom-width'], '0px')
-            background = parse_colour(bar['background-color'])
-            if background[3] > 0:  # not transparent: it is the page colour
+            if scheme == 'light':  # transparent: the page shows through
+                self.assertColour(bar['background-color'], '#000000', alpha=0)
+            else:  # opaque page colour
                 self.assertColour(bar['background-color'], roles['page'])
             self.assertColour(
                 self.style('body', 'background-color')['background-color'], roles['page'])
@@ -392,25 +397,26 @@ class TestThemeShell(ShellProbeCase):
             if home:
                 self.js(f"document.querySelector({GRID_BUTTON!r}).click()")
                 self.wait("document.body.classList.contains('o_home_menu_background')")
-            # a counter as the mail tray draws it
-            self.js("""(() => {
-                const entry = document.querySelector('.o_main_navbar .o_menu_systray button');
-                const badge = document.createElement('span');
-                badge.className = 'o_cws_probe_counter badge rounded-pill';
-                badge.textContent = '3';
-                entry.appendChild(badge);
-            })()""")
+            # the unread counter the mail messaging menu really draws (the admin has unread messages
+            # from the demo/welcome data)
+            self.wait(f"!!document.querySelector('{COUNTER}')", timeout=60)
             got = self.style(
-                '.o_cws_probe_counter', 'background-color', 'color', 'font-size',
-                'font-weight', 'padding-top', 'padding-left', 'border-top-left-radius',
-                'text-shadow',
+                COUNTER, 'background-color', 'color', 'font-size', 'font-weight',
+                'padding-top', 'padding-left', 'padding-right', 'border-top-left-radius',
+                'text-shadow', 'background-image',
             )
+            self.assertIn('gradient', got['background-image'])
+            icon = self.rect(COUNTER_ICON)
+            badge = self.rect(COUNTER)
+            self.assertLess(badge['y'], icon['y'])  # up
+            self.assertGreater(badge['x'] + badge['width'], icon['x'] + icon['width'])  # right
             self.assertColour(got['background-color'], roles['counter'])
             self.assertColour(got['color'], '#FFFFFF')
             self.assertEqual(got['font-size'], '9.8px')
             self.assertEqual(got['font-weight'], '500')
             self.assertEqual(got['padding-top'], '2px')
             self.assertEqual(got['padding-left'], '4px')
+            self.assertEqual(got['padding-right'], '4px')
             self.assertEqual(got['text-shadow'], 'none')
             self.assertGreaterEqual(float(got['border-top-left-radius'][:-2]), 9.8)
 
@@ -458,6 +464,10 @@ class TestThemeShell(ShellProbeCase):
             self.assertColour(self.style(BAR, 'background-color')['background-color'],
                               '#000000', alpha=0)
             self.assertColour(self.style(GRID_ICON, 'color')['color'], '#714B67')
+            if self.mail_installed():
+                self.wait(f"!!document.querySelector('{COUNTER}')", timeout=60)
+                self.assertColour(
+                    self.style(COUNTER, 'background-color')['background-color'], '#EF4444')
             link = self.js("""(() => {
                 const a = document.createElement('a');
                 a.className = 'o_cws_probe_link';
