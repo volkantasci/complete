@@ -146,6 +146,10 @@ $o-cws-superuser-stripe-b: #373435 !default;
 
 // Pressed light and secondary buttons.
 $o-cws-pressed-bg: $o-cws-active-bg !default;
+// Active value of the search panel (R32) and kanban column highlights (R24, R38).
+$o-cws-panel-active-bg: $o-cws-active-bg !default;
+$o-cws-kanban-drop-bg: mix($o-white, $o-action, 90%) !default;
+$o-cws-kanban-selected-bg: #D1ECF1 !default;
 $o-cws-pressed-border: $o-action !default;
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,30 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Search panel (001b R32).
+
+.o_search_panel {
+    --SearchPanelHeader-border-radius: #{$o-border-radius};
+}
+
+// The toggle button of the side panel sits directly under the control panel.
+.o_search_panel_wrap {
+    @include media-breakpoint-up(md) {
+        --SearchPanelSidebarButton-padding-top: 0px;
+    }
+}
+
+// The active category value: component active background, medium weight, black-role text.
+.o_search_panel_category_value_header {
+    --list-group-active-bg: #{$o-cws-panel-active-bg};
+    --list-group-active-color: #{$o-black};
+    --list-group-active-border-color: transparent;
+
+    &.active,
+    &.active:hover {
+        background-color: $o-cws-panel-active-bg;
+        color: $o-black;
+        border-radius: $o-border-radius;
+        font-weight: 500 !important;
+    }
+}

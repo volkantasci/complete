@@ -1,0 +1,64 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Control panel (001b R15), search bar and facets (R33).
+
+.o_control_panel {
+    border-bottom: 0;
+    padding-top: 8px;
+    padding-bottom: 16px;
+    background-color: $o-webclient-background-color;
+
+    // On large screens the action area fills the panel height and its navigation row
+    // is centred in it.
+    @include media-breakpoint-up(lg) {
+        .o_control_panel_actions {
+            align-self: stretch;
+        }
+
+        .o_control_panel_navigation {
+            align-self: stretch;
+            align-items: center;
+        }
+    }
+}
+
+// The search bar: a 37 px field, pill on its left end, white (view background) with the
+// boxed input border; the focus border replaces the border and nothing else.
+.o_cp_searchview {
+    min-height: 37px;
+
+    .o_searchview {
+        min-height: 37px;
+        background-color: $o-view-background-color;
+        border-color: $o-cws-input-border;
+        box-shadow: none;
+
+        &:focus-within {
+            border-color: $o-cws-focus-border;
+            background-color: $o-view-background-color;
+            box-shadow: none;
+        }
+    }
+
+    // CE colours the field while the options menu is open: same focus border.
+    &:has(.o_searchview_dropdown_toggler.show) .o_searchview {
+        border-color: $o-cws-focus-border;
+    }
+}
+
+// Facets: grey 100 chip with a 6 px radius; its label part is the primary subtle fill
+// with the primary text tone.
+.o_searchview_facet {
+    border-radius: $o-border-radius;
+    background-color: $o-gray-100;
+
+    .o_searchview_facet_label {
+        border-radius: $o-border-radius;
+
+        &.bg-primary-subtle {
+            background-color: o-cws-subtle("primary", bg) !important;
+            color: map-get($o-cws-text-tones, "primary") !important;
+        }
+    }
+}

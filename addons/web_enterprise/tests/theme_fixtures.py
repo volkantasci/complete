@@ -26,6 +26,9 @@ KANBAN = f"""
                 <span class="badge text-bg-dark o_cws_b_dark"><field name="type"/></span>
             </div>
         </t>
+        <t t-name="menu">
+            <field name="color" widget="kanban_color_picker"/>
+        </t>
     </templates>
 </kanban>
 """
@@ -59,6 +62,7 @@ FORM = """
     <sheet>
         <field name="active" invisible="1"/>
         <widget name="web_ribbon" title="Dormant" bg_color="text-bg-danger" invisible="active"/>
+        <h1 class="o_cws_title">Aa</h1>
         <!--variants-->
         <div class="btn-group o_cws_group">
             <button name="action_archive" type="object" string="Ii" class="btn-secondary"/>
@@ -156,7 +160,9 @@ def build_theme_fixtures(env):
                 'name': f'{MARK} {kind} {number + 1}',
                 'ref': MARK,
                 'type': kind,
-                'color': (number % 3) + 1,
+                # one card without a colour (invoice), one with index 4 (the last contact)
+                'color': 0 if kind == 'invoice' else 4 if (kind, number) == ('contact', 3)
+                else (number % 3) + 1,
                 'category_id': [(6, 0, tags[: number % 3 + 1].ids)],
             })
     kanban = KANBAN.replace('{group}', 'type')

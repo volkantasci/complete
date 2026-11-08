@@ -1,0 +1,9 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Smaller dark adjustments (001b R38).
+
+// The search field of the company switcher has a grey 400 border.
+.o_switch_company_menu_dropdown .form-control[role="search"] {
+    border-color: $o-gray-400;
+}

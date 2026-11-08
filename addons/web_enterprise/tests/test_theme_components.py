@@ -258,11 +258,10 @@ class TestThemeBadgesTags(ThemeProbeCase):
             self.wait(f"!!document.querySelector('{selector}')")
             got = self.style(selector, 'font-size', 'font-weight', 'line-height',
                              'border-top-left-radius', 'padding-left')
-            # 0.77 em of the card text (13 px on a styled card, so 10 px there)
-            parent = self.js(
-                f"parseFloat(getComputedStyle(document.querySelector('{selector}')"
-                ".parentElement).fontSize)")
-            self.assertAlmostEqual(float(got['font-size'][:-2]), .77 * parent, delta=.2)
+            # 0.77 em of the 13 px card text: 10 px
+            self.assertEqual(
+                self.style('.o_kanban_record', 'font-size')['font-size'], '13px')
+            self.assertAlmostEqual(float(got['font-size'][:-2]), 10, delta=.2)
             self.assertEqual(got['font-weight'], '600')
             self.assertGreaterEqual(float(got['border-top-left-radius'][:-2]), 8)
             font = float(got['font-size'][:-2])

@@ -10,6 +10,7 @@ from . import (
     test_theme_components,
     test_theme_http,
     test_theme_shell,
+    test_theme_views,
     test_tours,
     test_user_settings,
 )

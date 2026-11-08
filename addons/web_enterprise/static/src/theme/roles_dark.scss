@@ -90,6 +90,9 @@ $o-cws-navbar-open-border: darken($o-action, 10%) !default;
 $o-cws-entry-hover-bg: $o-gray-300 !default;
 $o-cws-glyph-color: $o-black !default;
 $o-cws-pressed-bg: mix($o-action, $o-gray-100, 15%) !default;
+$o-cws-panel-active-bg: $o-gray-300 !default;
+$o-cws-kanban-drop-bg: #1F3738 !default;
+$o-cws-kanban-selected-bg: #20364B !default;
 $o-cws-pressed-border: lighten($o-action, 10%) !default;
 
 // Contextual text and subtle tones

@@ -1,0 +1,197 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Kanban view: cards (001b R23), columns, progress bar and totals (R24, R42).
+
+.o_kanban_renderer {
+    // the page shows through; records have no outer margin
+    --Kanban-background: transparent;
+    --KanbanGroup-background: transparent;
+    --KanbanRecord-margin-v: 0;
+    --KanbanRecord-margin-h: 0;
+    --Card-padding-v: 10px;
+    --Card-padding-h: 14px;
+    --KanbanColumn__highlight-background: #{$o-cws-kanban-drop-bg};
+    --KanbanColumn__highlight-border: #{$o-action};
+    --KanbanColumn__highlight-selected: #{$o-cws-kanban-selected-bg};
+
+    // Ungrouped: 16 px of padding on the sides and bottom, 16 px between cards; next to a
+    // search panel the left padding is 0. Below 768 px the cards are stacked full width.
+    &.o_kanban_ungrouped {
+        @include media-breakpoint-up(md) {
+            --Kanban-gap: 16px;
+            --Kanban-padding: 0 16px 16px;
+            --Card-border-radius-top: #{$o-border-radius-lg};
+            --Card-border-radius-bottom: #{$o-border-radius-lg};
+        }
+
+        @include media-breakpoint-down(md) {
+            --Kanban-gap: 2px;
+            --Kanban-padding: 0;
+            --Card-border-radius-top: 0;
+            --Card-border-radius-bottom: 0;
+
+            .o_kanban_record {
+                margin: 0;
+            }
+        }
+    }
+
+    .o_search_panel_resize + &.o_kanban_ungrouped,
+    .o_search_panel_sidebar + &.o_kanban_ungrouped {
+        @include media-breakpoint-up(md) {
+            --Kanban-padding: 0 16px 16px 0;
+        }
+    }
+
+    // A column being dragged takes the page background.
+    .o_kanban_group.o_dragged {
+        --KanbanGroup-background: #{$o-webclient-background-color};
+    }
+
+    // Grouped: the cards of a column form one stack, rounded at its two ends only (a
+    // lone card gets both).
+    &.o_kanban_grouped .o_kanban_record {
+        --Card-border-radius-top: 0;
+        --Card-border-radius-bottom: 0;
+
+        &:first-of-type {
+            --Card-border-radius-top: #{$o-border-radius-lg};
+        }
+
+        &:last-of-type {
+            --Card-border-radius-bottom: #{$o-border-radius-lg};
+        }
+    }
+
+    // Quick-create input of a new column: transparent over a grey 600 underline in every
+    // state, its add-on area separated by a 10 px grey 200 border.
+    .o_column_quick_create .input-group {
+        > .form-control,
+        > .form-control:focus {
+            background-color: transparent !important;
+            border-color: transparent transparent $o-gray-600;
+            box-shadow: none;
+        }
+
+        > .btn:first-of-type:not(:first-child) {
+            border-left: 10px solid $o-gray-200;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cards
+// ---------------------------------------------------------------------------
+
+.o_kanban_record {
+    font-size: o-to-rem(13px);
+    border-radius:
+        var(--Card-border-radius-top, 0)
+        var(--Card-border-radius-top, 0)
+        var(--Card-border-radius-bottom, 0)
+        var(--Card-border-radius-bottom, 0);
+
+    // a clickable card: grey 400 border, drawn above its neighbours
+    &:is(.o_kanban_global_click, .cursor-pointer):hover {
+        border-color: $o-gray-400;
+        z-index: 1;
+    }
+
+    // colour strip: 3 px of the index's base colour inside the border, following the
+    // card's left corner radii
+    &.o_kanban_record_colored::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 3px;
+        border: 0;
+        border-top-left-radius: calc(var(--Card-border-radius-top, 0px) - 1px);
+        border-bottom-left-radius: calc(var(--Card-border-radius-bottom, 0px) - 1px);
+    }
+
+    @for $-index from 2 through length($o-colors) {
+        &.o_kanban_color_#{$-index - 1}::after {
+            border: 0;
+            background-color: nth($o-colors, $-index);
+        }
+    }
+
+    // the image area on the left follows the card's left corner radii
+    aside.o_card_aside_full > * {
+        border-top-left-radius: calc(var(--Card-border-radius-top, 0px) - 1px);
+        border-bottom-left-radius: calc(var(--Card-border-radius-bottom, 0px) - 1px);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Columns
+// ---------------------------------------------------------------------------
+
+.o_kanban_group .o_kanban_header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: map-get($font-sizes, 4);
+
+    .o_kanban_header_title {
+        align-items: center;
+    }
+
+    // the quick-add and column settings buttons use the secondary button look
+    .o_btn_circle.btn-light {
+        $-secondary: map-get($o-btns-bs-override, "secondary");
+        @include button-variant(
+            o-safe-get($-secondary, background),
+            o-safe-get($-secondary, border),
+            o-safe-get($-secondary, color),
+            o-safe-get($-secondary, hover-background),
+            o-safe-get($-secondary, hover-border),
+            o-safe-get($-secondary, hover-color),
+            o-safe-get($-secondary, active-background),
+            o-safe-get($-secondary, active-border),
+            o-safe-get($-secondary, active-color),
+            o-safe-get($-secondary, disabled-background),
+            o-safe-get($-secondary, disabled-border),
+            o-safe-get($-secondary, disabled-color)
+        );
+    }
+}
+
+// The header spans the column: its horizontal padding is pulled outward by the same
+// amount (so the stuck layer covers the whole column).
+.o_kanban_group:not(.o_column_folded) .o_kanban_header {
+    padding-inline: var(--KanbanGroup-padding-h, 16px);
+    margin-inline: calc(-1 * var(--KanbanGroup-padding-h, 16px));
+}
+
+// Progress bar: 12.8 px high, 4 px radius, glossy segments; the segment of records
+// without a colour state is grey 400. It grows and shrinks like a collapse.
+.o_kanban_counter {
+    .o_column_progress {
+        --#{$prefix}progress-height: #{o-to-rem(12.8px)};
+        --#{$prefix}progress-border-radius: #{$o-border-radius-sm};
+        background-color: $o-gray-400 !important;
+        transition: height .35s ease;
+
+        @media (prefers-reduced-motion: reduce) {
+            transition: none;
+        }
+
+        .progress-bar {
+            background-image: $o-gradient-sm;
+
+            &.bg-300 {
+                background-color: $o-gray-400 !important;
+            }
+        }
+    }
+}
+
+// Animated numbers (column totals) are medium weight.
+.o_animated_number,
+.o_animated_number b {
+    font-weight: 500;
+}
