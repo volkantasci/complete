@@ -53,6 +53,7 @@ jobs:
       - name: Install and test modules
         shell: bash
         run: |
+          set -o pipefail
           modules=$(find addons -mindepth 1 -maxdepth 1 -type d ! -name '.*' -printf '%f\n' | sort | paste -sd, -)
           if [ -z "$modules" ]; then
             echo "No modules in addons/; skipping module tests."
@@ -61,8 +62,15 @@ jobs:
           tags=$(echo "$modules" | tr ',' '\n' | sed 's|^|/|' | paste -sd, -)
           docker compose -f docker/compose.yaml run --rm -T odoo \
             odoo -d ci_modules -i "$modules" --test-tags "$tags" --stop-after-init 2>&1 | tee odoo-test.log
-          if grep -E 'FAIL:|ERROR:' odoo-test.log; then
+          # Odoo logs each failed test as "<logger>: FAIL: <test>" or "<logger>: ERROR: <test>".
+          # Database messages that Odoo handles itself are not failures: for example, a
+          # read-only request that writes is retried with a read/write cursor.
+          if grep -E ': (FAIL|ERROR): ' odoo-test.log; then
             echo "Module tests reported failures."
+            exit 1
+          fi
+          if ! grep -qE 'odoo\.tests\.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests' odoo-test.log; then
+            echo "The log has no passing test summary."
             exit 1
           fi
       - name: Tear down
