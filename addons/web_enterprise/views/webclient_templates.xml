@@ -5,5 +5,17 @@
         <xpath expr="//meta[@name='theme-color']" position="attributes">
             <attribute name="t-att-content">request.env['ir.http']._cws_browser_chrome_colour(color_scheme)</attribute>
         </xpath>
+        <!-- the back-end page declares its scheme to the browser (R46) -->
+        <xpath expr="//t[@t-call='web.layout']" position="before">
+            <t t-set="cws_declared_scheme" t-value="'dark' if color_scheme == 'dark' else 'light'"/>
+        </xpath>
+    </template>
+
+    <!-- every page built on the base layout declares light unless it sets a scheme,
+         which covers the login page and the other public pages (R46) -->
+    <template id="layout_declared_scheme" inherit_id="web.layout">
+        <xpath expr="//meta[@http-equiv='X-UA-Compatible']" position="after">
+            <meta name="color-scheme" t-att-content="'dark' if cws_declared_scheme == 'dark' else 'light'"/>
+        </xpath>
     </template>
 </odoo>

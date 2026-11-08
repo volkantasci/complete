@@ -236,11 +236,12 @@ class TestWebClientCookie(HttpCase):
         self.assertIn('Max-Age=0', cookies[0])
 
     def test_A61_browser_chrome_colour(self):
+        # 001b R9 supersedes 001a D9: primary colour and dark chrome colour
         self.authenticate('cws_wc_light', 'cws_wc_light')
         html = self.url_open('/odoo').text
-        self.assertIn('name="theme-color" content="#71639e"', html)
+        self.assertIn('name="theme-color" content="#714B67"', html)
         self.assertNotIn('web.assets_web_dark', html)
         self.authenticate('cws_wc_dark', 'cws_wc_dark')
         html = self.url_open('/odoo').text
-        self.assertIn('name="theme-color" content="#25262b"', html)
+        self.assertIn('name="theme-color" content="#242733"', html)
         self.assertIn('web.assets_web_dark', html)

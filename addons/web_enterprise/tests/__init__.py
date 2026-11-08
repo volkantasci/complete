@@ -7,6 +7,7 @@ from . import (
     test_js,
     test_screens,
     test_theme_bundles,
+    test_theme_http,
     test_tours,
     test_user_settings,
 )

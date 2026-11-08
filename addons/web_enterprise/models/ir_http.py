@@ -14,7 +14,9 @@ SCHEMES = ('light', 'dark')
 AUDIENCES = ('user', 'admin')
 MESSAGE_PARAMETER = 'sysadmin.message'
 
-CHROME_COLOURS = {'light': '#71639e', 'dark': '#25262b'}
+# kept in step with $o-brand-primary (roles_light.scss) and $o-cws-dark-chrome
+# (roles_dark.scss)
+CHROME_COLOURS = {'light': '#714B67', 'dark': '#242733'}
 
 
 def _expire_scheme_cookie(response):
