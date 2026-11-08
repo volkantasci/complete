@@ -9,21 +9,22 @@
     --o-cws-range-track: #{$o-gray-300};
     --o-cws-range-thumb-active: #{lighten($o-brand-primary, 10%)};
 
-    // `:not(:disabled)` lifts the specificity above the Bootstrap rules, whatever the order
-    &:not(:disabled)::-webkit-slider-runnable-track {
+    // `:is(:enabled, :disabled)` lifts the specificity above the Bootstrap rules whatever the
+    // order, without leaving disabled sliders out (R39 has no disabled exception)
+    &:is(:enabled, :disabled)::-webkit-slider-runnable-track {
         background-color: var(--o-cws-range-track);
     }
 
-    &:not(:disabled)::-moz-range-track {
+    &:is(:enabled, :disabled)::-moz-range-track {
         background-color: var(--o-cws-range-track);
     }
 
-    &:not(:disabled):active::-webkit-slider-thumb {
+    &:is(:enabled, :disabled):active::-webkit-slider-thumb {
         background-color: var(--o-cws-range-thumb-active);
         background-image: none;
     }
 
-    &:not(:disabled):active::-moz-range-thumb {
+    &:is(:enabled, :disabled):active::-moz-range-thumb {
         background-color: var(--o-cws-range-thumb-active);
         background-image: none;
     }

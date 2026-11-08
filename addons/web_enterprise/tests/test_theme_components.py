@@ -358,8 +358,8 @@ OVERLAY_FRAME = {
 
 
 class OverlayMixin:
-    def _pixel(self, selector, fraction):
-        """Rendered colour at ``fraction`` of the width, mid-height, of an element.
+    def _pixel(self, selector, fraction, height=None):
+        """Rendered colour at ``fraction`` of an element's width, mid-height or ``height`` px down.
 
         The slider track and thumb are browser pseudo-elements whose computed style
         and matched rules are not exposed, so the probe reads the painted pixel.
@@ -369,14 +369,23 @@ class OverlayMixin:
             " new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))"
         )
         box = self.rect(selector)
+        # the clip is in document coordinates, the rect in viewport coordinates
+        scroll = self.js('({x: window.scrollX, y: window.scrollY})')
+        x = box['x'] + scroll['x'] + box['width'] * fraction
+        y = box['y'] + scroll['y'] + (box['height'] / 2 if height is None else height)
         shot = self.browser._websocket_request('Page.captureScreenshot', params={
             'format': 'png',
-            'clip': {'x': box['x'] + box['width'] * fraction, 'y': box['y'] + box['height'] / 2,
-                     'width': 1, 'height': 1, 'scale': 1},
+            'clip': {'x': x, 'y': y, 'width': 1, 'height': 1, 'scale': 1},
         })
         image = Image.open(io.BytesIO(base64.b64decode(shot['data']))).convert('RGB')
         red, green, blue = image.getpixel((0, 0))
         return f'rgb({red}, {green}, {blue})'
+
+    def _assert_pixel_aims_at_slider(self, selector, track):
+        """Self-check of ``_pixel``: far above the slider the point is not the track."""
+        got = self._pixel(selector, .1, height=-40)
+        with self.assertRaises(AssertionError):
+            self.assertColour(got, track, tol=0)
 
     def assertMark(self, image, mark):
         """The check mark of a control is drawn in white ('fff') or black ('000')."""
@@ -521,6 +530,7 @@ class TestThemePopovers(OverlayMixin, ThemeProbeCase):
             track = self.style('.o_cws_probe_range', '--o-cws-range-track')
             self.assertColour(track['--o-cws-range-track'], '#26272C')
             self.assertColour(self._pixel('.o_cws_probe_range', .1), '#26272C')
+            self._assert_pixel_aims_at_slider('.o_cws_probe_range', '#26272C')
             self.assertColour(
                 self.style('.o_cws_probe_table td', 'background-color')['background-color'],
                 '#3E3F47')
@@ -696,6 +706,13 @@ class TestThemeInputs(OverlayMixin, ThemeProbeCase):
             self.assertColour(range_roles['--o-cws-range-track'], '#3E3F47')
             self.assertColour(range_roles['--o-cws-range-thumb-active'], '#B2559A')
             self.assertColour(self._pixel('.o_cws_probe_range', .1), '#3E3F47')
+            self._assert_pixel_aims_at_slider('.o_cws_probe_range', '#3E3F47')
+            # R39 has no disabled exception: a disabled slider keeps the grey 300 track
+            self.js(
+                "document.querySelector('.o_content').insertAdjacentHTML('beforeend',"
+                " '<input type=\"range\" disabled class=\"form-range o_cws_probe_range_off\"/>')"
+            )
+            self.assertColour(self._pixel('.o_cws_probe_range_off', .1), '#3E3F47')
             with self.forced('.o_cws_probe_range', 'active'):
                 thumb = self._pixel('.o_cws_probe_range', .5)
             self.assertColour(thumb, '#B2559A')
