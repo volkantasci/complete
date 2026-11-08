@@ -33,6 +33,7 @@
               t-att-class="{
                 'o_focused': this.state.focusedIndex === app_index,
                 'o_disabled_offline': this.isDimmed(app),
+                'o_dragged_app': this.reorder.dragged === app.xmlid,
               }"
               t-on-click="(ev) => this.onTileClick(ev, app)"
             >

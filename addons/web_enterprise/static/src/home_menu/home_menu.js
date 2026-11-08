@@ -17,9 +17,11 @@ import { isIosApp } from "@web/core/browser/feature_detection";
 import { DebugModePlugin } from "@web/core/debug_mode_plugin";
 import { OfflinePlugin } from "@web/core/offline/offline_plugin";
 import { user } from "@web/core/user";
+import { useService } from "@web/core/utils/hooks";
 import { session } from "@web/session";
 
 import { WIDE_BREAKPOINT, useTileKeyboard } from "@web_enterprise/home_menu/home_menu_keyboard";
+import { useTileReorder } from "@web_enterprise/home_menu/home_menu_reorder";
 import { orderTiles, readSavedOrder } from "@web_enterprise/home_menu/tile_order";
 
 // Community default application icon (what `load_menus` sends for a menu without an image).
@@ -91,11 +93,13 @@ export class HomeMenu extends Component {
         this.offline = usePlugin(OfflinePlugin);
         this.state = proxy({
             focusedIndex: null,
+            savedOrder: readSavedOrder(user.settings.homemenu_config),
             width: window.innerWidth,
         });
         useListener(window, "resize", () => {
             this.state.width = window.innerWidth;
         });
+        this.shareTarget = useService("share_target");
         this.rootRef = signal.ref();
         this.inputRef = signal.ref();
         const { touch } = useTileKeyboard({
@@ -116,12 +120,20 @@ export class HomeMenu extends Component {
         this.isTouch = touch;
         // the tile list changed: nothing is focused any more
         useOnChange(
-            () => [this.props.apps],
+            () => [this.props.apps, this.state.savedOrder],
             () => {
                 this.state.focusedIndex = null;
             },
             { initialRun: false }
         );
+        this.reorder = useTileReorder({ ref: this.rootRef, onDrop: (drop) => this.onReorder(drop) });
+        // files dropped on the home menu go to the share dialog, when there is one
+        useListener(this.rootRef, "dragover", (ev) => this.onFileDrag(ev));
+        useListener(this.rootRef, "drop", (ev) => this.onFileDrag(ev));
+        // announce the tile list whenever it is (re)built
+        useEffect(() => {
+            this.env.bus.trigger("HOME-MENU:APPS-UPDATED", this.orderedApps);
+        });
         // keep the focused tile vertically centred
         useEffect(() => {
             const index = this.state.focusedIndex;
@@ -137,10 +149,14 @@ export class HomeMenu extends Component {
         });
     }
 
+    /** The applications in display order: the saved order applied to the given list. */
+    get orderedApps() {
+        return orderTiles(this.props.apps, this.state.savedOrder);
+    }
+
     get tiles() {
         const debugMode = this.debugMode.toString();
-        const saved = readSavedOrder(user.settings.homemenu_config);
-        return orderTiles(this.props.apps, saved).map((app) => ({
+        return this.orderedApps.map((app) => ({
             ...app,
             href: tileHref(app, debugMode),
             icon: tileIcon(app),
@@ -157,6 +173,39 @@ export class HomeMenu extends Component {
 
     isDimmed(app) {
         return this.offline.isOffline() && !this.offline.isAvailableOffline(app.actionID);
+    }
+
+    /**
+     * A tile was dropped: show the new order at once, then save it.
+     *
+     * @param {{ xmlid: string|null, previousXmlid: string|null }} drop
+     */
+    onReorder({ xmlid, previousXmlid }) {
+        if (!xmlid) {
+            return;
+        }
+        const order = this.orderedApps
+            .map((app) => app.xmlid)
+            .filter((id) => id && id !== xmlid);
+        order.splice(order.indexOf(previousXmlid) + 1, 0, xmlid);
+        this.state.savedOrder = order;
+        this.state.focusedIndex = null;
+        user.setUserSettings("homemenu_config", JSON.stringify(order));
+    }
+
+    /**
+     * @param {DragEvent} ev "dragover" or "drop" carrying files
+     */
+    onFileDrag(ev) {
+        const transfer = ev.dataTransfer;
+        if (!transfer || ![...(transfer.types || [])].includes("Files")) {
+            return;
+        }
+        // keep the browser from navigating to the dropped file
+        ev.preventDefault();
+        if (ev.type === "drop" && this.shareTarget.hasShareTargetItems && transfer.files.length) {
+            this.shareTarget.display(transfer.files);
+        }
     }
 
     /**
