@@ -134,3 +134,81 @@ class TestWebShellTours(HttpCase):
             f'/odoo/res.partner/{self.partner.id}', 'web_shell_back_from_first_screen',
             login='cws_a1',
         )
+
+
+class StickyKanbanFixture(HttpCase):
+    """A grouped partner kanban tall enough to scroll, reachable three ways."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        new_test_user(
+            cls.env, login='cws_k1', groups='base.group_user,base.group_system',
+            name='Shell K1',
+        )
+        cls.env['res.partner'].create([
+            {'name': f'Sticky Card {index:02d}', 'type': 'contact'} for index in range(40)
+        ])
+        Action = cls.env['ir.actions.act_window']
+        values = {
+            'name': 'Sticky Cards', 'res_model': 'res.partner',
+            'domain': [('name', '=like', 'Sticky Card%')],
+            'context': {'group_by': 'type'},
+        }
+        action = Action.create({**values, 'view_mode': 'kanban,list', 'path': 'cws-sticky'})
+        listed = Action.create({**values, 'view_mode': 'list,kanban', 'path': 'cws-sticky-list'})
+        cls.env['ir.ui.menu'].create({
+            'name': 'Sticky Cards', 'sequence': 9100,
+            'action': f'ir.actions.act_window,{action.id}',
+        })
+        cls.listed = listed
+
+
+@tagged('post_install', '-at_install')
+class TestStickyKanbanHeaderTours(StickyKanbanFixture):
+    """The pinned kanban column headers in a live, scrolling grouped view (A64)."""
+
+    browser_size = '1600x900'
+
+    def test_A64_sticky_header_live(self):
+        self.start_tour('/odoo/cws-sticky', 'web_shell_sticky_kanban_header', login='cws_k1')
+
+    def test_A64_sticky_header_from_home(self):
+        self.start_tour('/odoo', 'web_shell_sticky_kanban_header_from_home', login='cws_k1')
+
+    def test_A64_sticky_header_after_view_switch(self):
+        self.start_tour(
+            '/odoo/cws-sticky-list', 'web_shell_sticky_kanban_header_after_switch',
+            login='cws_k1',
+        )
+
+
+@tagged('post_install', '-at_install')
+class TestStickyKanbanHeaderMobileTours(StickyKanbanFixture):
+    """The same on a phone, where each column scrolls on its own."""
+
+    browser_size = '390x844'
+    touch_enabled = True
+
+    def test_A64_sticky_header_live_mobile(self):
+        self.start_tour('/odoo/cws-sticky', 'web_shell_sticky_kanban_header', login='cws_k1')
+
+
+@tagged('post_install', '-at_install')
+class TestStickyPipelineHeaderTours(HttpCase):
+    """The CRM pipeline header has its own template copy; it must stick as well (A64)."""
+
+    browser_size = '1600x900'
+
+    def test_A64_sticky_header_pipeline(self):
+        if 'crm.lead' not in self.env:
+            self.skipTest('crm is not installed')
+        admin = self.env.ref('base.user_admin')
+        self.env['crm.lead'].create([
+            {'name': f'Sticky lead {index:02d}', 'type': 'opportunity', 'user_id': admin.id}
+            for index in range(30)
+        ])
+        self.start_tour(
+            '/odoo/action-crm.crm_lead_action_pipeline', 'web_shell_sticky_kanban_header',
+            login='admin',
+        )

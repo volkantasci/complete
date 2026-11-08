@@ -325,3 +325,64 @@ tours.add("web_shell_back_from_first_screen", {
         { trigger: ".o_home_menu" },
     ],
 });
+
+/** The element a pinned header sticks inside: its nearest scrolling ancestor. */
+function pinnedScroller(header) {
+    for (let node = header.parentElement; node; node = node.parentElement) {
+        if (/auto|scroll|overlay/.test(getComputedStyle(node).overflowY)) {
+            return node;
+        }
+    }
+    return null;
+}
+
+const KANBAN_HEADER = ".o_kanban_renderer .o_kanban_group:not(.o_column_folded) .o_kanban_header";
+const settle = () => new Promise((resolve) => setTimeout(resolve, 400));
+const paddingBottom = () => getComputedStyle(document.querySelector(KANBAN_HEADER)).paddingBottom;
+
+const stickySteps = (opening) => [
+        ...opening,
+        { trigger: `${KANBAN_HEADER}:not(.o_cws_stuck)` },
+        {
+            trigger: KANBAN_HEADER,
+            run() {
+                assert(paddingBottom() === "8px", `idle padding is ${paddingBottom()}`);
+                const scroller = pinnedScroller(document.querySelector(KANBAN_HEADER));
+                assert(scroller, "no scrolling ancestor");
+                assert(
+                    scroller.scrollHeight > scroller.clientHeight,
+                    `${scroller.className} does not overflow`
+                );
+                scroller.scrollTop = 300;
+                assert(scroller.scrollTop > 0, "the view did not scroll");            },
+        },
+        { trigger: `${KANBAN_HEADER}.o_cws_stuck` },
+        {
+            trigger: `${KANBAN_HEADER}.o_cws_stuck`,
+            async run() {
+                await settle();
+                assert(paddingBottom() === "16px", `stuck padding is ${paddingBottom()}`);
+                pinnedScroller(document.querySelector(KANBAN_HEADER)).scrollTop = 0;
+            },
+        },
+        { trigger: `${KANBAN_HEADER}:not(.o_cws_stuck)` },
+        {
+            trigger: KANBAN_HEADER,
+            async run() {
+                await settle();
+                assert(paddingBottom() === "8px", `released padding is ${paddingBottom()}`);
+            },
+        },
+];
+
+tours.add("web_shell_sticky_kanban_header", { steps: () => stickySteps([]) });
+tours.add("web_shell_sticky_kanban_header_from_home", {
+    steps: () => stickySteps([{ trigger: "a.o_app:contains(Sticky Cards)", run: "click" }]),
+});
+tours.add("web_shell_sticky_kanban_header_after_switch", {
+    steps: () =>
+        stickySteps([
+            { trigger: ".o_list_view" },
+            { trigger: ".o_cp_switch_buttons .o_switch_view.o_kanban", run: "click" },
+        ]),
+});

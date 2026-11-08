@@ -14,6 +14,11 @@ import {
     onRpc,
 } from "@web/../tests/web_test_helpers";
 
+import { xml } from "@odoo/owl";
+import { registry } from "@web/core/registry";
+import { KanbanHeader } from "@web/views/kanban/kanban_header";
+import { KanbanRenderer } from "@web/views/kanban/kanban_renderer";
+import { kanbanView } from "@web/views/kanban/kanban_view";
 import { getSwitchMemory } from "@web_enterprise/views/view_switcher_patch";
 
 describe.current.tags("desktop");
@@ -165,6 +170,36 @@ describe("sticky kanban header", () => {
         for (const header of queryAll(unfolded)) {
             expect(getComputedStyle(header).paddingBottom).toBe("8px");
         }
+    });
+
+    test("A64 header with its own template copy", async () => {
+        // like the CRM pipeline: the header template does not come from web.KanbanHeader
+        class CopyHeader extends KanbanHeader {
+            static template = xml`<div class="o_kanban_header position-sticky top-0" t-ref="this.rootRef">
+                <t t-out="this.group.displayName"/>
+            </div>`;
+        }
+        class CopyRenderer extends KanbanRenderer {
+            static components = { ...KanbanRenderer.components, KanbanHeader: CopyHeader };
+        }
+        registry
+            .category("views")
+            .add("cws_copy_header", { ...kanbanView, Renderer: CopyRenderer });
+        await resize({ height: 300 });
+        await mountView({
+            resModel: "lead",
+            type: "kanban",
+            arch: `<kanban js_class="cws_copy_header" default_group_by="stage_id">
+                <templates><t t-name="card"><field name="name"/></t></templates>
+            </kanban>`,
+        });
+        expect(".o_kanban_header.o_cws_stuck").toHaveCount(0);
+        await scroll(".o_content", { top: 200 });
+        await animationFrame();
+        expect(".o_kanban_header.o_cws_stuck").toHaveCount(2);
+        await scroll(".o_content", { top: 0 });
+        await animationFrame();
+        expect(".o_kanban_header.o_cws_stuck").toHaveCount(0);
     });
 
     test("A65 folded columns never stuck", async () => {

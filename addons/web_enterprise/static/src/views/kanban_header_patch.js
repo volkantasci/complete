@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { onMounted, onWillUnmount, signal } from "@odoo/owl";
+import { onMounted, onPatched, onWillUnmount } from "@odoo/owl";
 import { patch } from "@web/core/utils/patch";
 import { KanbanHeader } from "@web/views/kanban/kanban_header";
 
@@ -14,28 +14,28 @@ function getScrollParent(el) {
     return null;
 }
 
+// The look is set on the header element itself, not through the header template: views such
+// as the CRM pipeline use a header whose template is a private copy of the Community one,
+// which never receives a class added by an extension of that template.
 patch(KanbanHeader.prototype, {
     setup() {
         super.setup(...arguments);
-        this.cwsScrolled = signal(false);
         let scroller = null;
-        const onScroll = () => this.cwsScrolled.set(scroller.scrollTop > 0);
+        const refresh = () => {
+            const stuck = Boolean(scroller && scroller.scrollTop > 0 && !this.group.isFolded);
+            this.rootRef()?.classList.toggle("o_cws_stuck", stuck);
+        };
         onMounted(() => {
             scroller = getScrollParent(this.rootRef());
-            if (scroller) {
-                scroller.addEventListener("scroll", onScroll, { passive: true });
-                onScroll();
-            }
+            scroller?.addEventListener("scroll", refresh, { passive: true });
+            refresh();
         });
+        // a re-render rewrites the class attribute of the header
+        onPatched(refresh);
         onWillUnmount(() => {
-            scroller?.removeEventListener("scroll", onScroll);
+            scroller?.removeEventListener("scroll", refresh);
             scroller = null;
-            this.cwsScrolled.set(false);
+            this.rootRef()?.classList.remove("o_cws_stuck");
         });
-    },
-
-    /** Stuck: the container is scrolled down and the column is not folded. */
-    get cwsIsStuck() {
-        return this.cwsScrolled() && !this.group.isFolded;
     },
 });
