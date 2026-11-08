@@ -40,7 +40,7 @@ export function openMenuPalette(command, searchValue, onClose) {
  * and type-to-search through the command palette (R9, R10, R11).
  *
  * Keyboard handling is decided once, when the component mounts: it needs a window of
- * 768 px or more and no touch input. The field handlers (typing, click) always apply,
+ * 768 px or more, on any device (R10); touch only skips the focus at opening (R10, R11). The field handlers (typing, click) always apply,
  * since the field is visible on touch devices.
  *
  * @param {Object} params
@@ -63,7 +63,8 @@ export function useTileKeyboard({
     const ui = useService("ui");
     const command = useService("command");
     const touch = hasTouch();
-    const enabled = window.innerWidth >= WIDE_BREAKPOINT && !touch;
+    // R10: width alone enables keyboard handling; touch only skips the focus at mount.
+    const enabled = window.innerWidth >= WIDE_BREAKPOINT;
 
     const focusField = () => {
         const field = inputRef();
@@ -102,7 +103,11 @@ export function useTileKeyboard({
     useListener(inputRef, "click", () => openPalette("/"));
 
     if (enabled) {
-        onMounted(() => inputRef()?.focus({ preventScroll: true }));
+        onMounted(() => {
+            if (!touch) {
+                inputRef()?.focus({ preventScroll: true });
+            }
+        });
         useListener(document, "keydown", (ev) => {
             if (ev.ctrlKey || ev.metaKey || ev.altKey || isKeyLeftAlone()) {
                 return;

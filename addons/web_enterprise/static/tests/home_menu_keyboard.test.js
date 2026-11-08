@@ -249,8 +249,11 @@ test("A28 typing in a dialog field does not open the palette", async () => {
 test("A29 clicking the empty background keeps type-to-search working", async () => {
     await resize({ width: 1600 });
     await mountHome();
+    document.activeElement.blur();
+    expect(document.activeElement).toBe(document.body);
     await click(".o_home_menu");
     await animationFrame();
+    expect(document.activeElement).toBe(queryFirst(".o_home_menu_search_input"));
     await press("p");
     await animationFrame();
     expect(paletteQuery()).toBe("/p");
@@ -281,6 +284,22 @@ test("A31 visible search field on touch", async () => {
     await animationFrame();
     expect(paletteQuery()).toBe("/");
     expect(".o_cws_palette_footer").toHaveCount(1);
+});
+
+test("A31b wide touch device keeps keyboard handling", async () => {
+    mockTouch(true);
+    await resize({ width: 1024 });
+    await mountHome();
+    const field = queryFirst(".o_home_menu_search_input");
+    expect(document.activeElement).not.toBe(field);
+    await pressKeys("ArrowRight");
+    expect(focusedIndexes()).toEqual([0]);
+    await press("c");
+    await animationFrame();
+    expect(paletteQuery()).toBe("/c");
+    await press("Escape");
+    await animationFrame();
+    expect(document.activeElement).toBe(field);
 });
 
 test("A32 no keyboard navigation on small screens", async () => {
