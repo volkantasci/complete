@@ -12,3 +12,11 @@ class ResUsers(models.Model):
         readonly=False,
         user_writeable=True,
     )
+
+    def write(self, vals):
+        if 'color_scheme' in vals:
+            # a user without a settings record would lose the edit (related field write)
+            settings = self.env['res.users.settings']
+            for user in self:
+                settings._find_or_create_for_user(user)
+        return super().write(vals)

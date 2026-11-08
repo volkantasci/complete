@@ -13,11 +13,12 @@ _logger = logging.getLogger(__name__)
 SCHEMES = ('light', 'dark')
 MESSAGE_PARAMETER = 'sysadmin.message'
 
+CHROME_COLOURS = {'light': '#71639e', 'dark': '#25262b'}
+
 
 def _expire_scheme_cookie(response):
     """Ask the browser to drop the colour scheme cookie."""
     response.set_cookie('color_scheme', '', max_age=0)
-CHROME_COLOURS = {'light': '#71639e', 'dark': '#25262b'}
 
 
 class IrHttp(models.AbstractModel):

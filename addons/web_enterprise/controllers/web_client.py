@@ -5,12 +5,7 @@ from odoo.http import request, route
 
 
 class WebClientHome(Home):
-    @route(
-        ['/web', '/odoo', '/odoo/<path:subpath>', '/scoped_app/<path:subpath>'],
-        type='http',
-        auth='none',
-        readonly=Home._web_client_readonly,
-    )
+    @route()
     def web_client(self, s_action=None, **kw):
         response = super().web_client(s_action=s_action, **kw)
         if response.status_code == 200:

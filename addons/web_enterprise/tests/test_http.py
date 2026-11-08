@@ -59,6 +59,12 @@ class TestColorSchemeDecision(TransactionCase):
         public = self.env.ref('base.public_user')
         self.assertEqual(self._decide(public, {'color_scheme': 'dark'}), 'light')
 
+    def test_A81b_admin_sets_portal_scheme(self):
+        self.env['res.users.settings'].search([('user_id', '=', self.portal.id)]).unlink()
+        admin = new_test_user(self.env, login='cws_http_a1', groups='base.group_system')
+        self.portal.with_user(admin).write({'color_scheme': 'dark'})
+        self.assertEqual(self._decide(self.portal), 'dark')
+
 
 class TestAdminMessage(TransactionCase):
     @classmethod

@@ -5,8 +5,8 @@ import { patch } from "@web/core/utils/patch";
 import { ControlPanel } from "@web/search/control_panel/control_panel";
 
 /**
- * Memory of the last view switch: `{ actionJsId, actionId, index }`, where `index` is the
- * position of the view the user left. It lives only while a switch is in flight.
+ * Memory of the last view switch: `{ actionJsId, actionId, viewType, index }`, where `viewType` is the
+ * view asked for and `index` the position of the view the user left.
  */
 let switchMemory = null;
 
@@ -33,7 +33,8 @@ patch(controlPanelProto, {
             memory &&
             fromAction &&
             memory.actionJsId === fromAction.jsId &&
-            memory.actionId === this.env.config.actionId;
+            memory.actionId === this.env.config.actionId &&
+            memory.viewType === this.env.config.viewType;
         this.cwsFromIndex = sameAction && memory.index < entries.length ? memory.index : this.cwsActiveIndex;
         onMounted(() => {
             switchMemory = null;
@@ -41,25 +42,18 @@ patch(controlPanelProto, {
     },
 
     switchView(viewType, newWindow) {
-        if (newWindow) {
+        if (!newWindow) {
             // a new tab leaves this window as it is: nothing to remember
-            return super.switchView(...arguments);
+            const action = this.actionService.currentController?.action;
+            switchMemory = {
+                actionJsId: action?.jsId,
+                actionId: this.env.config.actionId,
+                viewType,
+                index: this.cwsActiveIndex,
+            };
         }
-        const action = this.actionService.currentController?.action;
-        const memory = {
-            actionJsId: action?.jsId,
-            actionId: this.env.config.actionId,
-            index: this.cwsActiveIndex,
-        };
-        switchMemory = memory;
-        const clear = () => {
-            // a switch that did not happen (unsaved record, error) must not slide a later panel
-            if (switchMemory === memory) {
-                switchMemory = null;
-            }
-        };
-        const promise = this.actionService.switchView(viewType, {}, {});
-        promise.then(clear, clear);
-        return promise;
+        // A switch that never happens (unsaved record, error) leaves the memory behind:
+        // the next panel only uses it when it shows the view that was asked for.
+        return super.switchView(...arguments);
     },
 });

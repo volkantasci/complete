@@ -52,17 +52,31 @@ nav.o_main_navbar {
         }
     }
 
-    // with an application: room for the 30 px application icon and the 14 px grid icon,
-    // the name follows 16 px later and sits over the right part of the 93 px button
+    // with an application: the 30 px application icon covers the left part of the 93 px button
+    // and the name starts 16 px after the icon (x 47). At rest the grid is hidden; hovering or
+    // focusing the button fades the icon out and the grid in (our own reveal).
     .o_cws_apps_menu:has(> .o_menu_brand_icon) {
-        width: 53px;
+        width: 30px;
         margin-left: 1px;
 
         > .o_cws_grid_button:not(.o_menu_toggle_back) {
             flex: 0 0 auto;
             width: 93px;
-            padding: 0 0 0 38px;
+            padding: 0 0 0 8px;
             justify-content: flex-start;
+
+            .o_cws_grid_icon {
+                opacity: 0;
+                transition: opacity .15s;
+            }
+
+            &:is(:hover, :focus-visible) .o_cws_grid_icon {
+                opacity: 1;
+            }
+        }
+
+        &:has(> .o_cws_grid_button:is(:hover, :focus-visible)) > .o_menu_brand_icon {
+            opacity: 0;
         }
     }
 
@@ -74,13 +88,14 @@ nav.o_main_navbar {
     // the application icon overlaps the left part of the button
     .o_cws_apps_menu > .o_menu_brand_icon {
         position: absolute;
-        left: 4px;
+        left: 0;
         top: 50%;
         width: 30px;
         height: 30px;
         transform: translateY(-50%);
         object-fit: cover;
         pointer-events: none;
+        transition: opacity .15s;
     }
 
     .o_menu_brand {

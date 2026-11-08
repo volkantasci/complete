@@ -73,7 +73,16 @@ defineMenus(
         actionID: index + 1,
         xmlid: `cws_test.app_${name.toLowerCase().replace(/\W/g, "")}`,
         webIconData: "/web/static/img/default_icon_app.png",
-    })),
+    })).concat([
+        {
+            id: 900,
+            appID: 900,
+            name: "No action",
+            actionID: false,
+            xmlid: "cws_test.app_noaction",
+            webIconData: "/web/static/img/default_icon_app.png",
+        },
+    ]),
     { mode: "replace" }
 );
 
@@ -302,6 +311,14 @@ test("A71 running menu again changes nothing", async () => {
     expect(pushes.count).toBe(0);
     expect(HOME_ROOT).toHaveCount(1);
     expect(queryAll(".o_app")[1]).toHaveClass("o_focused");
+});
+
+test("A75 menus without an action get no tile", async () => {
+    await mountWebClient();
+    expect(HOME_ROOT).toHaveCount(1);
+    expect(".o_app").toHaveCount(NAMES.length);
+    expect(`.o_app[data-menu-xmlid="cws_test.app_noaction"]`).toHaveCount(0);
+    expect(`.o_app[data-menu-xmlid="cws_test.app_discuss"]`).toHaveCount(1);
 });
 
 test("A73 a missing action falls back to the home menu", async () => {

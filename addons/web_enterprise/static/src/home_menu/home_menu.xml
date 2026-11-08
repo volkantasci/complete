@@ -59,7 +59,7 @@
       role="combobox"
       aria-label="Search for a menu"
       aria-autocomplete="list"
-      aria-controls="o_cws_apps_list"
+      t-att-aria-controls="this.tiles.length > 0 ? 'o_cws_apps_list' : undefined"
       t-att-aria-expanded="this.tiles.length > 0 ? 'true' : 'false'"
       t-att-aria-activedescendant="this.state.cursor === null ? undefined : 'result_app_' + this.state.cursor"
     />

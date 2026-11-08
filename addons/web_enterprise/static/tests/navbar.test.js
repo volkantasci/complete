@@ -206,15 +206,36 @@ test("S4 grid button visible", async () => {
     expect(iconRect.height).toBe(14);
     const brandIcon = queryOne(".o_menu_brand_icon").getBoundingClientRect();
     expect(brandIcon.width).toBe(30);
-    // the grid icon is drawn beside the application icon, not under it
-    expect(iconRect.left).not.toBeLessThan(brandIcon.right);
-    // the grid icon does not take the bar colour
-    expect(getComputedStyle(icon).color).not.toBe(
-        getComputedStyle(queryOne(".o_main_navbar")).backgroundColor
+    expect(brandIcon.height).toBe(30);
+    // the application icon covers the left part of the button
+    expect(Math.abs(brandIcon.left - rect.left)).toBeLessThan(1);
+    // at rest the grid is hidden; the rule that reveals it is checked below
+    expect(getComputedStyle(icon).opacity).toBe("0");
+    const name = queryOne(".o_menu_brand");
+    const nameRect = name.getBoundingClientRect();
+    expect(nameRect.width).toBeGreaterThan(0);
+    expect(Math.round(nameRect.left - rect.left)).toBe(46);
+    expect(getComputedStyle(name).fontSize).toBe("16.8px");
+    expect(getComputedStyle(name).marginLeft).toBe("16px");
+});
+
+test("S4 grid revealed on focus", async () => {
+    await mountWebClient();
+    const icon = queryOne(".o_menu_toggle .o_cws_grid_icon");
+    expect(getComputedStyle(icon).opacity).toBe("0");
+    // Hoot cannot apply :hover or :focus-visible, so the reveal is checked as a rule
+    const rules = [...document.styleSheets].flatMap((sheet) => {
+        try {
+            return [...sheet.cssRules].map((rule) => rule.cssText);
+        } catch {
+            return [];
+        }
+    });
+    const reveal = rules.filter(
+        (text) => text.includes("focus-visible") && text.includes(".o_cws_grid_icon")
     );
-    const name = queryOne(".o_menu_brand").getBoundingClientRect();
-    expect(name.width).toBeGreaterThan(0);
-    expect(name.left - brandIcon.right).toBeGreaterThan(0);
+    expect(reveal.length).toBeGreaterThan(0);
+    expect(reveal.some((text) => text.includes("opacity: 1"))).toBe(true);
 });
 
 test("A18 scoped app link", async () => {
