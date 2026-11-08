@@ -1,10 +1,13 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 """Probe tests of the component look: buttons, badges, tags, ribbons (001b R16-R18, R41)."""
+import base64
+import io
 import json
 import re
 
 from odoo.tests import tagged
+from PIL import Image
 
 from .theme_probe import ThemeProbeCase
 
@@ -356,6 +359,26 @@ OVERLAY_FRAME = {
 
 
 class OverlayMixin:
+    def _pixel(self, selector, fraction):
+        """Rendered colour at ``fraction`` of the width, mid-height, of an element.
+
+        The slider track and thumb are browser pseudo-elements whose computed style
+        and matched rules are not exposed, so the probe reads the painted pixel.
+        """
+        self.js(
+            f"document.querySelector('{selector}').scrollIntoView({{block: 'center'}});"
+            " new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))"
+        )
+        box = self.rect(selector)
+        shot = self.browser._websocket_request('Page.captureScreenshot', params={
+            'format': 'png',
+            'clip': {'x': box['x'] + box['width'] * fraction, 'y': box['y'] + box['height'] / 2,
+                     'width': 1, 'height': 1, 'scale': 1},
+        })
+        image = Image.open(io.BytesIO(base64.b64decode(shot['data']))).convert('RGB')
+        red, green, blue = image.getpixel((0, 0))
+        return f'rgb({red}, {green}, {blue})'
+
     def assertMark(self, image, mark):
         """The check mark of a control is drawn in white ('fff') or black ('000')."""
         names = {
@@ -498,6 +521,7 @@ class TestThemePopovers(OverlayMixin, ThemeProbeCase):
             # slider pseudo-elements, which getComputedStyle cannot reach
             track = self.style('.o_cws_probe_range', '--o-cws-range-track')
             self.assertColour(track['--o-cws-range-track'], '#26272C')
+            self.assertColour(self._pixel('.o_cws_probe_range', .1), '#26272C')
             self.assertColour(
                 self.style('.o_cws_probe_table td', 'background-color')['background-color'],
                 '#3E3F47')
@@ -672,6 +696,10 @@ class TestThemeInputs(OverlayMixin, ThemeProbeCase):
                                      '--o-cws-range-thumb-active')
             self.assertColour(range_roles['--o-cws-range-track'], '#3E3F47')
             self.assertColour(range_roles['--o-cws-range-thumb-active'], '#B2559A')
+            self.assertColour(self._pixel('.o_cws_probe_range', .1), '#3E3F47')
+            with self.forced('.o_cws_probe_range', 'active'):
+                thumb = self._pixel('.o_cws_probe_range', .5)
+            self.assertColour(thumb, '#B2559A')
             knob = self.style('.o_cws_probe_switch', 'background-image')['background-image']
             plain = knob.replace(' ', '').replace('%20', '').replace('%28', '(').replace('%29', ')')
             self.assertRegex(plain, r'rgba\(255,255,255,0?\.5\)')

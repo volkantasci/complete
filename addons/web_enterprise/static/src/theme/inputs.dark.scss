@@ -9,19 +9,22 @@
     --o-cws-range-track: #{$o-gray-300};
     --o-cws-range-thumb-active: #{lighten($o-brand-primary, 10%)};
 
-    &::-webkit-slider-runnable-track {
+    // `:not(:disabled)` lifts the specificity above the Bootstrap rules, whatever the order
+    &:not(:disabled)::-webkit-slider-runnable-track {
         background-color: var(--o-cws-range-track);
     }
 
-    &::-moz-range-track {
+    &:not(:disabled)::-moz-range-track {
         background-color: var(--o-cws-range-track);
     }
 
-    &:active::-webkit-slider-thumb {
+    &:not(:disabled):active::-webkit-slider-thumb {
         background-color: var(--o-cws-range-thumb-active);
+        background-image: none;
     }
 
-    &:active::-moz-range-thumb {
+    &:not(:disabled):active::-moz-range-thumb {
         background-color: var(--o-cws-range-thumb-active);
+        background-image: none;
     }
 }
