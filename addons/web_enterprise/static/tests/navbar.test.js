@@ -1,0 +1,291 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+import { beforeEach, describe, expect, test } from "@odoo/hoot";
+import { animationFrame, press, queryAll, queryOne, resize } from "@odoo/hoot";
+import {
+    contains,
+    defineActions,
+    defineMenus,
+    defineModels,
+    fields,
+    getMockEnv,
+    getService,
+    mockService,
+    models,
+    mountWebClient,
+    onRpc,
+    toggleMenuItem,
+    toggleSearchBarMenu,
+    patchWithCleanup,
+} from "@web/../tests/web_test_helpers";
+import { registry } from "@web/core/registry";
+import { redirect } from "@web/core/utils/urls";
+import { config as transitionConfig } from "@web/core/transition";
+import { session } from "@web/session";
+import { BurgerMenu } from "@web/webclient/burger_menu/burger_menu";
+
+import { CwsBurgerMenu } from "@web_enterprise/burger_menu/burger_menu";
+
+describe.current.tags("desktop");
+
+const body = { root: document.body };
+
+const NAMES = ["Discuss", "Calendar", "CRM"];
+
+class Partner extends models.Model {
+    name = fields.Char({ required: true });
+
+    _records = [
+        { id: 1, name: "First record" },
+        { id: 2, name: "Second record" },
+    ];
+    _views = {
+        list: `<list><field name="name"/></list>`,
+        form: `<form><field name="name"/></form>`,
+        search: `<search><field name="name"/><filter name="first" string="Only first" domain="[('id', '=', 1)]"/></search>`,
+    };
+}
+defineModels([Partner]);
+
+defineActions(
+    NAMES.map((name, index) => ({
+        id: index + 1,
+        xml_id: `cws_test.action_${index + 1}`,
+        name,
+        res_model: "partner",
+        views: [
+            [false, "list"],
+            [false, "form"],
+        ],
+    }))
+);
+defineMenus(
+    [
+        ...NAMES.map((name, index) => ({
+            id: index + 1,
+            appID: index + 1,
+            name,
+            actionID: index + 1,
+            xmlid: `cws_test.app_${name.toLowerCase()}`,
+            webIconData: "/web/static/img/default_icon_app.png",
+            children:
+                name === "CRM"
+                    ? [
+                          {
+                              id: 31,
+                              appID: index + 1,
+                              name: "Pipeline",
+                              actionID: index + 1,
+                              xmlid: "cws_test.menu_pipeline",
+                          },
+                      ]
+                    : [],
+        })),
+    ],
+    { mode: "replace" }
+);
+
+onRpc("has_group", () => true);
+
+beforeEach(() => {
+    redirect("/odoo/action-3");
+    patchWithCleanup(transitionConfig, { disabled: true });
+});
+
+async function toggle(show) {
+    getService("home_menu").toggle(show);
+    await animationFrame();
+    await animationFrame();
+    await animationFrame();
+}
+
+test("A8 grid button toggles over the application", async () => {
+    await mountWebClient();
+    expect(".o_menu_toggle").toHaveCount(1);
+    expect(".o_menu_toggle").not.toHaveClass("o_menu_toggle_back");
+    await contains(".o_menu_toggle").click();
+    await animationFrame();
+    expect(".o_home_menu").toHaveCount(1);
+    expect(".o_menu_toggle").toHaveClass("o_menu_toggle_back");
+    expect(".o_menu_toggle").not.toHaveClass("o_hidden");
+    expect(".o_menu_toggle").toHaveAttribute("title", "Previous view");
+    expect(".o_menu_toggle").toHaveAttribute("aria-label", "Previous view");
+    expect(".o_menu_brand").toHaveClass("o_hidden");
+    expect(".o_menu_brand_icon").toHaveClass("o_hidden");
+    expect(".o_menu_sections").toHaveClass("o_hidden");
+    expect(".o_navbar_breadcrumbs").toHaveClass("o_hidden");
+    expect(".o_menu_brand").not.toBeVisible();
+});
+
+test("A9 back chevron restores the filtered application", async () => {
+    await mountWebClient();
+    await toggleSearchBarMenu();
+    await toggleMenuItem("Only first");
+    await animationFrame();
+    expect(".o_searchview_facet").toHaveCount(1);
+    expect(".o_data_row").toHaveCount(1);
+
+    await contains(".o_menu_toggle").click();
+    await animationFrame();
+    expect(".o_home_menu").toHaveCount(1);
+    await contains(".o_menu_toggle").click();
+    await animationFrame();
+    expect(".o_home_menu").toHaveCount(0);
+    expect(".o_searchview_facet").toHaveCount(1);
+    expect(".o_data_row").toHaveCount(1);
+    expect(".o_menu_brand").not.toHaveClass("o_hidden");
+    expect(".o_menu_toggle").toHaveAttribute("title", "Home menu");
+
+    // same restoration with Escape
+    await contains(".o_menu_toggle").click();
+    await animationFrame();
+    expect(".o_home_menu").toHaveCount(1);
+    await press("Escape");
+    await animationFrame();
+    await animationFrame();
+    expect(".o_home_menu").toHaveCount(0);
+    expect(".o_searchview_facet").toHaveCount(1);
+    expect(".o_data_row").toHaveCount(1);
+});
+
+test("A10 no grid button with nothing behind", async () => {
+    redirect("/odoo");
+    await mountWebClient();
+    expect(".o_home_menu").toHaveCount(1);
+    expect(".o_menu_toggle").toHaveClass("o_hidden");
+    expect(".o_menu_toggle").not.toBeVisible();
+});
+
+test("A16 failed start-up keeps the grid button", async () => {
+    redirect("/odoo/action-9999");
+    expect.errors(1);
+    onRpc("/web/action/load", () => {
+        throw new Error("boom");
+    });
+    await mountWebClient();
+    await animationFrame();
+    expect(".o_menu_toggle").not.toHaveClass("o_hidden");
+    expect(".o_menu_toggle").toBeVisible();
+    await contains(".o_menu_toggle").click();
+    await animationFrame();
+    expect(".o_home_menu").toHaveCount(1);
+    expect.verifyErrors(["RPC_ERROR: boom"]);
+});
+
+test("S4 brand and grid button", async () => {
+    await mountWebClient();
+    expect(".o_menu_brand_icon").toHaveCount(1);
+    expect(".o_menu_brand_icon").not.toHaveClass("o_hidden");
+    expect(".o_menu_brand").toHaveText("CRM");
+    expect(".o_menu_toggle").toHaveAttribute("accesskey", "h");
+    expect(".o_menu_toggle").toHaveAttribute("data-hotkey", "h");
+    expect(".o_menu_toggle").toHaveAttribute("title", "Home menu");
+    expect(".o_menu_toggle").toHaveAttribute("aria-label", "Home menu");
+    expect(".o_menu_toggle svg rect").toHaveCount(9);
+    const { height } = queryOne(".o_menu_toggle").getBoundingClientRect();
+    expect(height).toBe(26);
+    expect(getComputedStyle(queryOne(".o_menu_toggle")).borderRadius).toBe("6px");
+});
+
+test("A18 scoped app link", async () => {
+    mockService("pwa", () => ({
+        isScopedApp: true,
+        startUrl: "/scoped_app/crm",
+        canPromptToInstall: false,
+        isAvailable: false,
+        isSupportedOnBrowser: false,
+        hasScopeBeenInstalled: () => false,
+        decline() {},
+        show() {},
+        getManifest() {},
+    }));
+    await mountWebClient();
+    expect("a.o_cws_scoped_link").toHaveCount(1);
+    expect("a.o_cws_scoped_link").toHaveAttribute("href", "/scoped_app/crm");
+    expect("a.o_cws_scoped_link").toHaveText("CRM");
+    expect("a.o_cws_scoped_link .o_menu_brand_icon").toHaveCount(1);
+    expect("button.o_menu_toggle").toHaveCount(0);
+    // never toggles the home menu
+    queryOne("a.o_cws_scoped_link").addEventListener("click", (ev) => ev.preventDefault());
+    await contains("a.o_cws_scoped_link").click();
+    await animationFrame();
+    expect(".o_home_menu").toHaveCount(0);
+    expect(getService("home_menu").hasHomeMenu).toBe(false);
+});
+
+test("section weight", async () => {
+    await mountWebClient();
+    const button = queryOne(".o_menu_sections .o_nav_entry, .o_menu_sections .dropdown-toggle");
+    expect(getComputedStyle(button).fontWeight).toBe("400");
+});
+
+test("R15 navbar transparent while the home menu is shown", async () => {
+    await mountWebClient();
+    await toggle(true);
+    expect(document.body).toHaveClass("o_home_menu_background");
+    expect(getComputedStyle(queryOne(".o_main_navbar")).backgroundColor).toBe(
+        "rgba(0, 0, 0, 0)"
+    );
+});
+
+describe("mobile", () => {
+    beforeEach(async () => {
+        await resize({ width: 390, height: 844 });
+    });
+
+    test("A42 mobile sidebar and All Apps", async () => {
+        await mountWebClient();
+        expect("a.o_menu_toggle").toHaveCount(1);
+        expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(0);
+        await contains("a.o_menu_toggle").click();
+        await animationFrame();
+        expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(1);
+        await contains(".o_app_menu_sidebar .o_sidebar_topbar a.btn-primary", body).click();
+        await animationFrame();
+        await animationFrame();
+        expect(".o_home_menu").toHaveCount(1);
+        expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(0);
+        expect("a.o_menu_toggle").toHaveClass("o_menu_toggle_back");
+        expect("a.o_menu_toggle").toHaveAttribute("title", "Previous view");
+        expect("a.o_menu_toggle i").toHaveAttribute("data-icon", "chevron_backward");
+        await contains("a.o_menu_toggle").click();
+        await animationFrame();
+        await animationFrame();
+        expect(".o_home_menu").toHaveCount(0);
+        expect(".o_list_view").toHaveCount(1);
+        expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(0);
+    });
+
+    test("A43 burger without current app on the home menu", async () => {
+        const burgers = [];
+        patchWithCleanup(CwsBurgerMenu.prototype, {
+            setup() {
+                super.setup(...arguments);
+                burgers.push(this);
+            },
+        });
+        await mountWebClient();
+        expect(burgers).toHaveLength(1);
+        const [burger] = burgers;
+        expect(burger).toBeInstanceOf(BurgerMenu);
+        expect(registry.category("systray").get("burger_menu").Component).toBe(CwsBurgerMenu);
+        expect(burger.currentApp.name).toBe("CRM");
+        await toggle(true);
+        // the media query of the toggle follows the real window, not the mocked width
+        queryOne(".o_mobile_menu_toggle", body).click();
+        await animationFrame();
+        expect(queryAll(".o_burger_menu", body)).toHaveCount(1);
+        expect(burger.currentApp).toBe(null);
+    });
+});
+
+test("A83 help entry untouched", async () => {
+    patchWithCleanup(session, { support_url: "https://help.example.test/doc" });
+    await mountWebClient();
+    const expected = registry.category("user_menuitems").get("support")(getMockEnv()).href;
+    await contains(".o_user_menu").click();
+    const link = queryAll(".o-dropdown--menu a, .o-dropdown--menu .dropdown-item").find((el) =>
+        el.textContent.includes("Help")
+    );
+    expect(link.getAttribute("href")).toBe(expected);
+});

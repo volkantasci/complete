@@ -1,0 +1,92 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Scoped to the top bar: it must not hide anything else in the web client.
+.o_main_navbar .o_hidden {
+    display: none !important;
+}
+
+nav.o_main_navbar {
+    // the grid button
+    .o_menu_toggle {
+        color: var(--bs-primary);
+    }
+
+    // the back state is a plain chevron: keep the Community flip animation off
+    .o_menu_toggle.o_menu_toggle_back {
+        transform: none;
+        transition: none;
+    }
+
+    .o_cws_apps_menu {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .o_cws_grid_button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 26px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+
+        &:hover {
+            background: rgba($black, .1);
+        }
+    }
+
+    // the application icon overlaps the left part of the button
+    .o_cws_apps_menu > .o_menu_brand_icon {
+        position: absolute;
+        left: 4px;
+        top: 50%;
+        width: 22px;
+        height: 22px;
+        transform: translateY(-50%);
+        object-fit: cover;
+        pointer-events: none;
+    }
+
+    .o_menu_brand {
+        margin-left: 16px;
+        font-size: 16.8px;
+    }
+
+    .o_cws_scoped_link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+
+        .o_menu_brand_icon {
+            width: 22px;
+            height: 22px;
+            object-fit: cover;
+        }
+
+        .o_cws_scoped_name {
+            font-size: 16.8px;
+        }
+    }
+
+    .o_menu_sections {
+        .o_nav_entry,
+        .dropdown-toggle {
+            font-weight: 400;
+        }
+    }
+}
+
+// R15: the home menu shows through a transparent top bar.
+body.o_home_menu_background .o_main_navbar {
+    background: transparent;
+    border-bottom: 0;
+
+    .o_menu_systray :is(.o_nav_entry, .dropdown-toggle:not(:disabled)):hover {
+        background: rgba($black, .1);
+    }
+}
