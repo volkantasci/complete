@@ -1,0 +1,240 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Light role values: the default theme of Complete (001b R1-R4).
+//
+// This file is inserted before the Community primary variables, so every
+// !default below wins over the Community !default of the same variable. The
+// dark values live in roles_dark.scss, which is placed before this file in the
+// dark bundles; a variable it already set is not set again here. Values that
+// follow from other roles are written as formulas (R3) and are therefore shared
+// by both schemes: they are only repeated in the dark file where the formula
+// differs.
+
+// ---------------------------------------------------------------------------
+// Scheme and options
+// ---------------------------------------------------------------------------
+
+$o-cws-scheme: light !default;
+$o-webclient-color-scheme: $o-cws-scheme !default;
+
+$o-enable-backdrop-blur: true !default;
+$o-cws-blur: 4px !default;
+$o-cws-blur-sm: 2px !default;
+$o-cws-blur-lg: 6px !default;
+$o-backdrop-blur: blur($o-cws-blur) !default;
+$o-backdrop-blur-sm: blur($o-cws-blur-sm) !default;
+$o-backdrop-blur-lg: blur($o-cws-blur-lg) !default;
+
+$enable-gradients: true !default;
+
+// ---------------------------------------------------------------------------
+// Base colours
+// ---------------------------------------------------------------------------
+
+$o-white: #FFFFFF !default;
+$o-black: #000000 !default;
+
+$o-gray-100: #F8F9FA !default;
+$o-gray-200: #E7EBED !default;
+$o-gray-300: #DEE2E6 !default;
+$o-gray-400: #CED4DA !default;
+$o-gray-500: #ADB5BD !default;
+$o-gray-600: #6C757D !default;
+$o-gray-700: #495057 !default;
+$o-gray-800: #343A40 !default;
+$o-gray-900: #212529 !default;
+
+$o-grays: (
+    100: $o-gray-100,
+    200: $o-gray-200,
+    300: $o-gray-300,
+    400: $o-gray-400,
+    500: $o-gray-500,
+    600: $o-gray-600,
+    700: $o-gray-700,
+    800: $o-gray-800,
+    900: $o-gray-900,
+) !default;
+
+$o-brand-primary: #714B67 !default;
+$o-action: #017E84 !default;
+$o-success: #00A945 !default;
+$o-info: #17A2B8 !default;
+$o-warning: #F59E0B !default;
+$o-danger: #EF4444 !default;
+
+// Contextual secondary, light and dark (Bootstrap names).
+$secondary: $o-gray-700 !default;
+$light: $o-white !default;
+$dark: $o-gray-900 !default;
+
+$o-main-favorite-color: #F3CC00 !default;
+$o-main-code-color: #D2317B !default;
+
+// Browser toolbar colour of the dark scheme (R9); constant in both schemes.
+$o-cws-dark-chrome: #242733 !default;
+
+// ---------------------------------------------------------------------------
+// Surfaces, text and lines
+// ---------------------------------------------------------------------------
+
+$o-webclient-background-color: $o-gray-100 !default;
+$o-view-background-color: #FFFFFF !default;
+$o-cws-overlay-bg: $o-white !default;
+$o-border-color: $o-gray-300 !default;
+$o-cws-overlay-border: $o-border-color !default;
+
+$o-main-text-color: $o-gray-900 !default;
+$o-main-headings-color: $o-black !default;
+$tooltip-bg: $o-view-background-color !default;
+$tooltip-color: $o-main-text-color !default;
+$o-opacity-muted: .76 !default;
+$o-main-color-muted: rgba($o-gray-700, $o-opacity-muted) !default;
+$o-cws-text-secondary: rgba($o-main-text-color, .75) !default;
+$o-cws-text-tertiary: rgba($o-main-text-color, .5) !default;
+$border-color-translucent: rgba($o-black, .175) !default;
+
+$o-cws-field-underline: $o-gray-200 !default;
+$o-cws-input-border: $o-gray-400 !default;
+
+$o-main-link-color: $o-action !default;
+$o-cws-link-hover: mix($o-black, $o-action, 30%) !default;
+$link-hover-color: $o-cws-link-hover !default;
+
+$mark-bg: #FFF3CD !default;
+$mark-color: $o-gray-900 !default;
+
+$o-cws-backdrop-bg: $o-black !default;
+$modal-backdrop-bg: $o-cws-backdrop-bg !default;
+
+// ---------------------------------------------------------------------------
+// States
+// ---------------------------------------------------------------------------
+
+$o-cws-active-bg: mix($o-action, $o-white, 10%) !default;
+$o-component-active-bg: $o-cws-active-bg !default;
+$o-component-active-border: $o-action !default;
+$o-component-active-color: $o-black !default;
+
+$o-cws-focus-border: mix($o-action, $o-gray-400, 50%) !default;
+$input-focus-border-color: $o-cws-focus-border !default;
+
+$o-cws-primary-hover: darken($o-brand-primary, 10%) !default;
+$o-cws-primary-pressed: mix($o-brand-primary, $o-white, 10%) !default;
+
+$o-cws-row-hover-bg: rgba($o-action, .055) !default;
+$o-cws-cell-active-bg: rgba($o-action, .05) !default;
+$o-cws-row-selected-bg: #D1ECF1 !default;
+$o-cws-row-selected-line: #A7BDC1 !default;
+
+$o-cws-navbar-open-bg: $o-cws-active-bg !default;
+$o-cws-navbar-open-border: $o-action !default;
+
+// Pressed light and secondary buttons.
+$o-cws-pressed-bg: $o-cws-active-bg !default;
+$o-cws-pressed-border: $o-action !default;
+
+// ---------------------------------------------------------------------------
+// Contextual text and subtle tones
+// ---------------------------------------------------------------------------
+
+$o-cws-text-tones: (
+    "primary": $o-brand-primary,
+    "success": #008818,
+    "info": #0180A5,
+    "warning": #9A6B01,
+    "danger": #D23F3A,
+) !default;
+$o-theme-text-colors: $o-cws-text-tones !default;
+
+// tone: (bg, border, emphasis)
+$o-cws-subtle: (
+    "primary": (bg: #E3DBE1, border: #C6B7C2, emphasis: #2D1E29),
+    "secondary": (bg: #DBDCDD, border: #B6B9BC, emphasis: #1D2023),
+    "success": (bg: #CCEEDA, border: #99DDB5, emphasis: #00441C),
+    "info": (bg: #D1ECF1, border: #A2DAE3, emphasis: #09414A),
+    "warning": (bg: #FDECCE, border: #FBD89D, emphasis: #623F04),
+    "danger": (bg: #FCDADA, border: #F9B4B4, emphasis: #601B1B),
+) !default;
+
+@function o-cws-subtle($tone, $part) {
+    @return map-get(map-get($o-cws-subtle, $tone), $part);
+}
+
+$primary-bg-subtle: o-cws-subtle("primary", bg) !default;
+$primary-border-subtle: o-cws-subtle("primary", border) !default;
+$primary-text-emphasis: o-cws-subtle("primary", emphasis) !default;
+$secondary-bg-subtle: o-cws-subtle("secondary", bg) !default;
+$secondary-border-subtle: o-cws-subtle("secondary", border) !default;
+$secondary-text-emphasis: o-cws-subtle("secondary", emphasis) !default;
+$success-bg-subtle: o-cws-subtle("success", bg) !default;
+$success-border-subtle: o-cws-subtle("success", border) !default;
+$success-text-emphasis: o-cws-subtle("success", emphasis) !default;
+$info-bg-subtle: o-cws-subtle("info", bg) !default;
+$info-border-subtle: o-cws-subtle("info", border) !default;
+$info-text-emphasis: o-cws-subtle("info", emphasis) !default;
+$warning-bg-subtle: o-cws-subtle("warning", bg) !default;
+$warning-border-subtle: o-cws-subtle("warning", border) !default;
+$warning-text-emphasis: o-cws-subtle("warning", emphasis) !default;
+$danger-bg-subtle: o-cws-subtle("danger", bg) !default;
+$danger-border-subtle: o-cws-subtle("danger", border) !default;
+$danger-text-emphasis: o-cws-subtle("danger", emphasis) !default;
+
+// ---------------------------------------------------------------------------
+// Record colour palette (index 0 to 11)
+// ---------------------------------------------------------------------------
+
+$o-colors:
+    #A2A2A2, #EE2D2D, #DC8534, #E8BB1D, #5794DD, #9F628F,
+    #DB8865, #41A9A2, #304BE0, #EE2F8A, #61C36E, #9872E6
+    !default;
+$o-colors-border:
+    #8F8F8F, #D76A58, #CC7724, #C09910, #179DC5, #B271C6,
+    #AF8563, #17A49D, #5D8EE4, #D06792, #4CA65A, #8F7EDE
+    !default;
+$o-colors-bg-subtle:
+    #D7D7D7, #FEDBD5, #FEDEC5, #F4DC9D, #C2ECFE, #EBCAF6,
+    #F2E1D4, #AEF4EE, #C3D9FE, #FEC5D9, #BAE5BD, #E4E1FE
+    !default;
+$o-colors-text-emphasis:
+    #3D3D3D, #6B1F15, #5C3003, #4C3B04, #044457, #542662,
+    #4D3827, #034744, #193A76, #671D3F, #044B18, #3E2F72
+    !default;
+
+// ---------------------------------------------------------------------------
+// Typography and shape
+// ---------------------------------------------------------------------------
+
+$h1-font-size: o-to-rem(33.6px) !default;
+$headings-font-weight: 500 !default;
+
+$o-border-radius: o-to-rem(6px) !default;
+$o-border-radius-sm: o-to-rem(4px) !default;
+$o-border-radius-lg: o-to-rem(8px) !default;
+$o-border-radius-xl: o-to-rem(12px) !default;
+
+// ---------------------------------------------------------------------------
+// Elevation and gloss
+// ---------------------------------------------------------------------------
+
+$o-cws-shadow: 0 8px 16px rgba(#000, .15) !default;
+$o-cws-shadow-sm: 0 2px 4px rgba(#000, .075) !default;
+$o-cws-shadow-lg: 0 16px 48px rgba(#000, .175) !default;
+$box-shadow: $o-cws-shadow !default;
+$box-shadow-sm: $o-cws-shadow-sm !default;
+$box-shadow-lg: $o-cws-shadow-lg !default;
+
+// The white role is black in the dark scheme, so the gloss follows the scheme.
+$o-cws-gloss-btn: .15 !default;
+$o-gradient-btn: linear-gradient(145deg, rgba($o-white, $o-cws-gloss-btn), transparent) !default;
+$o-gradient-sm: linear-gradient(180deg, rgba($o-white, .15), transparent) !default;
+$o-gradient: linear-gradient(145deg, rgba($o-white, .25), transparent) !default;
+$o-gradient-lg: linear-gradient(145deg, rgba($o-white, .55), transparent) !default;
+
+// ---------------------------------------------------------------------------
+// Charts and home menu
+// ---------------------------------------------------------------------------
+
+$o-cws-graph-area-end: #FFFFFF !default;
+$o-cws-home-contrast: darken($o-gray-100, 5%) !default;

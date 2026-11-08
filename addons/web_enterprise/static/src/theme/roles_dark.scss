@@ -1,0 +1,137 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Dark role values of the default theme (001b R1-R4).
+//
+// Placed before roles_light.scss by the bundle web.dark_mode_variables, so
+// that these values are set first and the light !default values are skipped.
+// The white role is black here and the black role is white; the grey ramp is
+// reversed. Only the values that differ from the light file are listed: the
+// formulas of the light file (hover, focus, gloss, link hover ...) are
+// evaluated again with these base values.
+//
+// A third party file placed before this one in web.dark_mode_variables, or a
+// variable set here without !default, wins over these values.
+
+$o-cws-scheme: dark !default;
+
+$o-white: #000000 !default;
+$o-black: #FFFFFF !default;
+
+$o-gray-100: #1F1F23 !default;
+$o-gray-200: #2C2E35 !default;
+$o-gray-300: #3E3F47 !default;
+$o-gray-400: #56575E !default;
+$o-gray-500: #6E6F77 !default;
+$o-gray-600: #88898F !default;
+$o-gray-700: #B3B4B8 !default;
+$o-gray-800: #D1D1D3 !default;
+$o-gray-900: #EBEBEB !default;
+
+$o-grays: (
+    100: $o-gray-100,
+    200: $o-gray-200,
+    300: $o-gray-300,
+    400: $o-gray-400,
+    500: $o-gray-500,
+    600: $o-gray-600,
+    700: $o-gray-700,
+    800: $o-gray-800,
+    900: $o-gray-900,
+) !default;
+
+$o-brand-primary: #92427D !default;
+$o-action: #1CBCB1 !default;
+$o-success: #22B053 !default;
+$o-info: #71ADEA !default;
+$o-warning: #E39C50 !default;
+$o-danger: #CB2F2F !default;
+
+$secondary: $o-gray-700 !default;
+$light: $o-gray-300 !default;
+$dark: $o-gray-700 !default;
+
+$o-main-favorite-color: #FFD532 !default;
+$o-main-code-color: #C58BC8 !default;
+
+$o-cws-dark-chrome: #242733 !default;
+
+// Surfaces, text and lines
+$o-view-background-color: $o-gray-200 !default;
+$o-cws-overlay-bg: $o-gray-300 !default;
+$o-cws-overlay-border: $o-gray-400 !default;
+
+$tooltip-bg: $o-gray-300 !default;
+$tooltip-color: $o-gray-900 !default;
+
+$o-cws-field-underline: $o-gray-300 !default;
+$o-cws-input-border: $o-gray-300 !default;
+$input-placeholder-color: mix($o-gray-600, $o-gray-700, 80%) !default;
+
+$mark-bg: #FFDEBC !default;
+$mark-color: #40382F !default;
+
+// The modal backdrop is the white role, which is black here.
+$o-cws-backdrop-bg: $o-white !default;
+
+// States
+$o-cws-active-bg: mix($o-action, $o-gray-300, 10%) !default;
+$o-cws-primary-hover: lighten($o-brand-primary, 3%) !default;
+$o-cws-primary-pressed: lighten($o-brand-primary, 6%) !default;
+
+$o-cws-row-hover-bg: rgba($o-action, .1) !default;
+$o-cws-cell-active-bg: rgba($o-action, .1) !default;
+$o-cws-row-selected-bg: #223446 !default;
+$o-cws-row-selected-line: #4E5D6B !default;
+
+$o-cws-navbar-open-bg: mix($o-action, $o-gray-100, 15%) !default;
+$o-cws-navbar-open-border: darken($o-action, 10%) !default;
+$o-cws-pressed-bg: mix($o-action, $o-gray-100, 15%) !default;
+$o-cws-pressed-border: lighten($o-action, 10%) !default;
+
+// Contextual text and subtle tones
+$o-cws-text-tones: (
+    "primary": #C175AD,
+    "success": #30C06E,
+    "info": #71ADEA,
+    "warning": #D89D54,
+    "danger": #FF5757,
+) !default;
+
+$o-cws-subtle: (
+    "primary": (bg: #662E58, border: #3A1A32, emphasis: #D3B3CB),
+    "secondary": (bg: #242425, border: #48484A, emphasis: #E1E1E3),
+    "success": (bg: #187B3A, border: #0E4621, emphasis: #A7DFBA),
+    "info": (bg: #4F79A4, border: #71ADEA, emphasis: #F1F7FD),
+    "warning": (bg: #9F6D38, border: #5B3E20, emphasis: #F4D7B9),
+    "danger": (bg: #8E2121, border: #511313, emphasis: #EAACAC),
+) !default;
+
+// Record colour palette: the dark base colours are a fixed list, not derived
+// from the light ones.
+$o-colors:
+    #E58585, #FF4949, #FF9C41, #E1B000, #5EA6FF, #F040EC,
+    #FF9467, #00CEBE, #405EFF, #FF4BA0, #00DC67, #A67AFF
+    !default;
+$o-colors-border:
+    #B1B1B1, #F8907E, #EE9B56, #D1AD41, #37C2EF, #D396E6,
+    #D1A888, #1CCBC2, #86B1FD, #F28DB4, #75C77F, #B0A2FD
+    !default;
+$o-colors-bg-subtle:
+    #2E2E2E, #58271F, #542D06, #392C02, #043E50, #3D2046,
+    #463324, #04413E, #172D53, #4A1B2F, #0D3715, #38305C
+    !default;
+$o-colors-text-emphasis:
+    #D7D7D7, #FEC9BF, #FECCA6, #EED592, #A0E3FE, #F1C5FE,
+    #EBD2BF, #8EEBE3, #C3D9FE, #FEC5D9, #B0E8B5, #D6D1FE
+    !default;
+
+// Elevation and gloss
+$o-cws-shadow: 0 8px 16px rgba(#000, .3) !default;
+$o-cws-shadow-sm: 0 2px 4px rgba(#000, .15) !default;
+$o-cws-shadow-lg: 0 16px 48px rgba(#000, .3) !default;
+$o-cws-gloss-btn: .08 !default;
+
+// Charts and home menu
+$o-cws-graph-area-end: #262A36 !default;
+$o-cws-home-contrast: darken($o-gray-100, 4%) !default;
