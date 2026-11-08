@@ -1,0 +1,11 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+
+  <t t-name="web_enterprise.PaletteFooter">
+    <span class="o_cws_palette_footer">
+      <span class="fw-bolder text-primary">TIP</span> — press <span class="fw-bolder text-primary" t-out="this.keyName"/> + <span class="fw-bolder text-primary">K</span> on any screen to bring up this search
+    </span>
+  </t>
+
+</templates>

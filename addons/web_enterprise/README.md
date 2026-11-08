@@ -1,0 +1,220 @@
+# Web Shell (`web_enterprise`)
+
+Gives the Community web client a home menu, a top bar adapted to it, mobile
+navigation, an administrator message, a per-user colour scheme preference and
+three view behaviours. User guide:
+[docs/modules/web_shell.md](../../docs/modules/web_shell.md).
+
+The module name `web_enterprise` is the original module name, kept so that
+existing databases and modules that depend on it keep working (see
+[docs/module-authoring.md](../../docs/module-authoring.md#naming)). It depends
+on `web` and `base_setup`, installs itself automatically (`auto_install`) and
+adds no menu and no setting to the general settings page.
+
+This slice is the behaviour of the shell. The look of it (colours, the dark
+stylesheet, the sliding animation of the view switcher) is slice 001b. Today the dark scheme only switches to the stylesheet
+that Community provides.
+
+## What it provides
+
+| Part | Technical name | Purpose |
+|---|---|---|
+| Tile order | field `res.users.settings.homemenu_config` | JSON text: the list of application identifiers (menu xml ids) in the order the user chose. Read-only in forms; the browser writes it through the user settings. An empty, missing or unreadable value means the default order. |
+| Colour scheme setting | field `res.users.settings.color_scheme` | Selection `system`, `light`, `dark`. Required, default `system`. Writing an empty value is ignored (the stored value stays). |
+| Colour scheme on users | field `res.users.color_scheme` | Related to the setting above, labelled "Color Scheme", writable by the user themself (`user_writeable`). Shown as "Theme" on the preferences dialog and on the user form (Preferences tab). |
+| Administrator message | system parameter `sysadmin.message` | JSON object `{"message": "<p>...</p>", "warning_type": "user" or "admin"}`. `message` is rich text; `warning_type` is the audience: `user` = every internal user, `admin` = administrators only. Set by an administrator or the hosting operator; nothing in this module writes it. |
+| Session key | `sysadmin_message` in the session info | `{message, warning_type}` with the message sanitized (`html_sanitize`). Sent to internal users only. Only a two-part value reaches the browser: a JSON object whose `message` is text and whose `warning_type` is `user` or `admin`. Any other value (not JSON, not an object, a missing part, another audience) is logged as an error and skipped; the session still starts. |
+| Colour scheme cookie | cookie `color_scheme` | `light` or `dark`. Written by the server on every successful answer of the web client route (`/web`, `/odoo`, `/odoo/...`, `/scoped_app/...`), with a lifetime of one year, and by the browser when its decision differs. Deleted at logout. |
+| Server decision | `ir.http.color_scheme()` | The scheme a page is rendered with. Public user: `light`. Setting `light` or `dark`: that value. Otherwise the cookie, if it is `light` or `dark`. Otherwise `light`. |
+| Browser colour | `ir.http._cws_browser_chrome_colour(scheme)` and the `theme-color` meta tag | The colour mobile browsers paint their toolbar with: one value for light, one for dark. |
+| Home menu action | client action `menu` | The home menu as a screen of the action stack. Browser tab title "Home". Asking for it while it is shown changes nothing. |
+| Home menu service | service `home_menu` | `hasHomeMenu` (the home menu is shown), `hasBackgroundAction` (an application is open behind it), `toggle(show?)` (without argument: the opposite of the current state; requests run one at a time and each waits one browser tick). |
+| Colour scheme service | service `color_scheme` | `activeScheme`: `"light"` or `"dark"`, the scheme this page load works with. Also does the browser check and the reload described below. |
+| Bus events | `HOME-MENU:TOGGLED`, `HOME-MENU:APPS-UPDATED` | On the environment bus. `HOME-MENU:TOGGLED` carries `true` or `false` when the home menu is shown or hidden. `HOME-MENU:APPS-UPDATED` carries the ordered application list after the home menu is built or reordered. |
+| Body class | `o_home_menu_background` | On `<body>` while the home menu is shown. |
+| Burger menu | systray entry `burger_menu` | Replaces the Community entry (same name, sequence 0). While the home menu is shown it behaves as if no application were open. |
+| Page hooks | classes `o_home_menu`, `o_home_menu_search_input`, `o_apps`, `o_app`, `o_menuitem`, `o_app_icon`, `o_caption`, `o_draggable`, `o_focused`, `o_dragged_app`, `o_disabled_offline`, `o_menu_toggle`, `o_menu_toggle_back`, `o_menu_brand`, `o_menu_brand_icon`, `o_menu_sections`, `o_hidden`; attribute `data-menu-xmlid` on a tile; ids `result_app_<index>` | The compatibility names listed in `model.md` ("Page hooks"), kept on the equivalent elements so that tours, tests and other modules find them. |
+| JS extension points | `WebClient._loadDefaultApp` and the top bar `NavBar` | `_loadDefaultApp` opens the home menu (empty address, unknown action, back from the first screen). The top bar gets the grid button, the back chevron, the hidden application chrome and the mobile sidebar behaviour. |
+| View extension points | `data-cws-views`, `data-cws-active`, `data-cws-from`, CSS variables `--cws-switch-from`, `--cws-switch-to` | On the control panel view switcher: number of views, active position, position the highlight starts from (all counted from 0). Slice 001b styles the slide. |
+| Stuck header | class `o_cws_stuck` | On a kanban column header of an unfolded column while the scroll container is scrolled down by more than 0 px. The module itself adds the extra bottom padding and the frosted backdrop; slice 001b may restyle it. |
+
+Own CSS classes start with `o_cws_`; the classes `o_home_menu`, `o_app`,
+`o_caption` and `o_draggable` are the compatibility names that `model.md`
+requires, so that tours and other modules can find the tiles.
+
+## Rules in short
+
+- **Landing page.** The home menu is the default screen: empty address, an
+  action that no longer exists (with nothing behind it), or back on the first
+  screen. Its address is `/odoo`. An address that names an action opens that
+  action, not the home menu.
+- **Tiles.** One tile per top-level menu that the user may see and that has an
+  action, in menu order, with the Community icon rules (uploaded image, else
+  glyph with its colour and background, else the default image). A tile is a
+  link, so "open in a new tab" works. 6 tiles per row from 768 px wide, 4 below.
+- **Opening a tile** starts a new action stack (breadcrumbs emptied, the
+  background application dropped) and adds one browser history entry.
+- **Toggling.** In an application the top bar button is one button: the grid,
+  the application icon and the application name together. Clicking any of them
+  (the name too) toggles the home menu. The button shows the home menu over the
+  open application and brings the application back exactly as it was. Pending
+  edits of an open form are saved first, with no confirmation. Escape and the
+  back chevron do the same as the button. On the home menu with nothing behind
+  it the button is hidden. On small screens the button opens the Community
+  sidebar; its "All Apps" entry shows the home menu.
+- **Order.** Press and hold a tile for 0.5 s. A move of 10 px or more before the
+  hold ends cancels the press. After the hold, a move of 10 px or more from the
+  held position starts the drag. The new full order is saved at once to the
+  user's own settings. When the menu is built, applications missing from the
+  saved list come first in their default order, then the listed ones in the
+  saved order; unknown identifiers are ignored.
+- **Keyboard** (window 768 px or wider when the home menu opens). Arrow keys and
+  Tab move between tiles, Enter opens the focused tile, Escape goes back. The row
+  length for the arrows is the one currently shown (6 or 4), also after a resize.
+- **Type to search.** Typing opens the command palette in menu-search mode
+  (query starts with `/`). Its footer tip names Control+K (Command on Apple
+  computers). Closing the palette gives the focus back to the search field. Keys
+  stay where they are when a dropdown, an overlay or a text entry has the focus.
+  On touch devices the search field is visible at the top of the page.
+- **Colour scheme.** See the next section.
+- **Administrator message.** Shown above the tiles to internal users when
+  `warning_type` is `user`, or `admin` and the viewer is in the settings group.
+  There is no expiry. An empty message shows nothing.
+- **View behaviours.** The view switcher reports its positions (the highlight
+  starts from the previous view when the user switches inside the same action
+  and window, otherwise from the active one). Unfolded kanban columns get
+  `o_cws_stuck` while scrolled (extra padding and a frosted backdrop). The class
+  is set from JavaScript on the live header, so copies of the header template in
+  other modules (for example the CRM pipeline) get it too. On small screens
+  (decided once when the pivot is created) the pivot removes its hover tooltips
+  again after each render.
+
+### How the colour scheme is decided
+
+1. **Server cookie.** Every successful answer of the web client route sets the
+   cookie `color_scheme` to the server decision (`ir.http.color_scheme()`). It
+   lasts one year (`Max-Age` 31536000). On a first visit the
+   browser therefore already finds a value, written by the server. The same
+   decision picks the colour of the `theme-color` meta tag.
+2. **Browser check.** When the web client starts, the service `color_scheme`
+   works out the effective scheme: a setting of `light` or `dark` wins; with
+   `system` the operating system's dark-mode request decides. It compares it with
+   the cookie.
+3. **Single reload.** If they are equal nothing happens. If they differ, the
+   browser writes the new value into the cookie and reloads the page when a value
+   was remembered before, or when the new value is `dark`. The web client is not
+   drawn before that reload, so the wrong scheme never flashes. A guard in
+   `sessionStorage` (`cws_scheme_reloaded`) allows one reload per scheme, so a
+   cookie that cannot be written never causes a reload loop. Example: a user
+   with `system` on a dark operating system first gets `light` from the server;
+   the browser corrects the cookie to `dark` and reloads once.
+4. **Why a reload.** Other modules read the remembered value once, when their
+   code loads, and the server chooses the stylesheet. A change takes full effect
+   only on a fresh page load. Saving the preferences dialog reloads the web
+   client for that reason.
+5. **Logout** expires the cookie at once.
+
+## Administrator message
+
+Open Settings, Technical, System Parameters (developer mode) and create or edit
+the key `sysadmin.message`. Example value:
+
+```json
+{"message": "<p><b>Maintenance:</b> the platform goes offline tonight from 11 pm.</p>", "warning_type": "user"}
+```
+
+Use `"admin"` instead of `"user"` to show it to administrators only. Remove the
+parameter (or empty the message) to hide it.
+
+## Decisions
+
+- **D1. No expiry.** The message is shown whenever its audience rule allows it;
+  Complete has no subscription expiry to tie it to.
+- **D2. Help link.** The help entry of the user menu keeps its Community
+  target.
+- **D3. Row length after a resize.** Arrow keys use the row length currently
+  shown (6 or 4) and re-check it on resize.
+- **D4. Pivot indentation.** No compact indentation on phones; the Community one
+  (5 px plus 30 px per level) stays.
+- **D5. Typing in dropdowns and rich text.** A key pressed while a dropdown or a
+  text entry has the focus stays there; it does not jump to the home menu search.
+- **D6. Unreadable saved order.** A saved order that is not valid JSON, or not a
+  list, is ignored and the default order shows.
+- **D7. One top bar button.** The grid, the application icon and the
+  application name are one button; the name never reopens the application.
+- **D8. Scheme cookie lifetime.** The server writes the colour scheme cookie
+  with a lifetime of one year, so it outlives the browser session.
+- **D12. Early move cancels.** A move of 10 px or more before the hold ends
+  cancels that press; the Community behaviour of ignoring it is not kept.
+- **D13. Malformed administrator message.** A value that is not the two-part
+  message is skipped and logged; it never reaches the browser.
+- **D14. Palette tip.** The footer of the command palette is worded by Complete,
+  with the same meaning and the key names in bold.
+
+## Not included
+
+- Studio promotion: the Studio button in the system tray, the extra "Add Custom
+  Field" entry in the optional columns menu, the "Automations" kanban entry
+  when the Community automation module is missing. Complete builds no vendor
+  licensing or promotion.
+- Phone app promotion: the dialog on phone numbers that advertises a separate
+  application. The Community phone link stays.
+- Subscription and licensing (slice 001d): expiration and registration panels,
+  expiration details in the session, edition and licence text in settings.
+- Map features (slice 005): map token setting, geolocation helper, partner
+  coordinates.
+- Visual theme (slice 001b): colours, typography, the dark stylesheet, chart
+  styling, animations.
+- Mobile app bridge (slice 001c), except the one-row-per-app tile layout inside
+  the iOS app, which is part of the home menu.
+- A custom home menu background image (it needs Studio).
+
+## Provenance
+
+Written in a clean room from the spec package of slice `001a-web-shell`. See
+[docs/process.md](../../docs/process.md).
+
+## Tests
+
+| Layer | What it checks | Where |
+|---|---|---|
+| Python | install, session key and message audience data, the server colour decision and cookie, the user setting and its rules | `tests/test_install.py`, `tests/test_user_settings.py`, `tests/test_http.py` |
+| Hoot (browser unit tests) | tile order, tile navigation, keyboard, reordering, home menu and services, navbar, colour scheme service, view behaviours | `static/tests/*.test.js`, run by `tests/test_js.py` (class `TestWebShellHootSuite`) |
+| Tours | end-to-end flows against the real server (landing page, toggling, saved order, message audience, Theme field, dark reload) | `static/tests/tours/web_shell_tours.js`, run by `tests/test_tours.py` |
+| Screenshots | the screens in `docs/assets/web_shell/`, taken on demand, not part of the normal run | `tests/test_screens.py` (tag `web_shell_screens`) |
+
+Everything except the screenshots, in a container (use a fresh database name, or
+add `-u web_enterprise` to reuse one):
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d <db> -i web_enterprise --test-tags /web_enterprise --stop-after-init
+```
+
+Only the Hoot suite:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d <db> -i web_enterprise --test-tags /web_enterprise:TestWebShellHootSuite --stop-after-init
+```
+
+Screenshots (needs a database with demo data and the Contacts, CRM, Sales,
+Calendar and Project applications). Container output must never land in the
+module or in any tracked directory. Send it to the repository's git-ignored
+`.cache/web_shell_screens/` with an explicit bind mount, and run the container
+as root so that the files belong to your host user and can be deleted. Create
+the host directory first (`mkdir -p .cache/web_shell_screens`), then, with the
+absolute path of your checkout:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm --user root -v /path/to/complete/.cache/web_shell_screens:/mnt/cws_shots odoo odoo -d <db> -i web_enterprise,contacts,crm,sale_management,calendar,project --with-demo --screenshots /mnt/cws_shots --test-tags web_shell_screens --stop-after-init
+```
+
+Moving the pictures you keep into `docs/assets/web_shell/` is a plain `mv`.
+
+From the owner's shell the Makefile does the module run:
+
+```
+make test MODULES=web_enterprise
+```
+
+In a guarded session use the podman command in
+[docs/isolation.md](../../docs/isolation.md#containers) instead of `make test`.

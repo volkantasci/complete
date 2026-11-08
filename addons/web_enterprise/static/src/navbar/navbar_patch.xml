@@ -1,0 +1,95 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+
+  <t t-name="web_enterprise.NavBar.AppsMenu" t-inherit="web.NavBar.AppsMenu" t-inherit-mode="extension">
+    <!-- mobile: the CE toggle keeps opening the sidebar; it gets the back state -->
+    <xpath position="attributes" expr="//a[@accesskey='h']">
+      <attribute name="t-att-class">{
+        'hasImage': this.currentApp?.webIconData,
+        'o_menu_toggle_back': this.hasBackChevron,
+        'o_hidden': this.isGridButtonHidden,
+      }</attribute>
+      <attribute name="t-att-title">this.gridButtonTitle</attribute>
+      <attribute name="t-att-aria-label">this.gridButtonTitle</attribute>
+    </xpath>
+    <!-- desktop: grid button, or the link of a single-application web app -->
+    <xpath expr="//t[@t-else]" position="replace">
+      <t t-else="">
+        <a t-if="this.isScopedApp" class="o_menu_toggle o_cws_scoped_link" t-att-href="this.scopedAppHref" t-att-title="this.currentApp?.name">
+          <t t-call="web_enterprise.NavBar.BrandIcon"/>
+          <span class="o_cws_scoped_name" t-out="this.currentApp?.name"/>
+        </a>
+        <div t-else="" class="o_navbar_apps_menu o_cws_apps_menu">
+          <button
+            type="button"
+            class="o_menu_toggle o_cws_grid_button"
+            t-att-class="{ 'o_menu_toggle_back': this.hasBackChevron, 'o_hidden': this.isGridButtonHidden }"
+            accesskey="h"
+            data-hotkey="h"
+            data-available-offline=""
+            t-att-title="this.gridButtonTitle"
+            t-att-aria-label="this.gridButtonTitle"
+            t-att-aria-describedby="this.currentApp and !this.hasBackChevron ? 'o_cws_brand_name' : undefined"
+            t-on-click="this.onGridButtonClick"
+          >
+            <i t-if="this.hasBackChevron" class="oi" data-icon="chevron_backward" aria-hidden="true"/>
+            <svg t-else="" class="o_cws_grid_icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <t t-foreach="[0, 1, 2]" t-as="row" t-key="row">
+                <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
+                  <rect width="3" height="3" t-att-x="0.5 + col * 5" t-att-y="0.5 + row * 5" fill="currentColor"/>
+                </t>
+              </t>
+            </svg>
+            <span t-if="this.currentApp" id="o_cws_brand_name" class="o_menu_brand o_cws_brand_name" t-att-class="{ 'o_hidden': this.isAppChromeHidden }" t-out="this.currentApp.name"/>
+          </button>
+          <t t-if="this.currentApp">
+            <t t-call="web_enterprise.NavBar.BrandIcon"/>
+          </t>
+        </div>
+      </t>
+    </xpath>
+  </t>
+
+  <!-- the application icon, from the icon data or the glyph -->
+  <t t-name="web_enterprise.NavBar.BrandIcon">
+    <t t-if="this.currentApp">
+      <img
+        t-if="this.currentApp.webIconData"
+        class="o_menu_brand_icon"
+        t-att-class="{ 'o_hidden': this.isAppChromeHidden }"
+        t-att-src="this.currentApp.webIconData"
+        alt=""
+      />
+      <i
+        t-elif="this.currentApp.webIconClass"
+        class="oi o_menu_brand_icon"
+        t-att-class="{ 'o_hidden': this.isAppChromeHidden }"
+        t-att-data-icon="this.appGlyphName"
+        t-att-style="'color:' + this.currentApp.webIconColor"
+      />
+    </t>
+  </t>
+
+  <t t-name="web_enterprise.NavBar" t-inherit="web.NavBar" t-inherit-mode="extension">
+    <!-- the name is part of the grid button, so the Community brand link goes -->
+    <xpath expr="//DropdownItem[@t-if='!this.ui.isSmall and this.currentApp']" position="replace"/>
+    <xpath expr="//div[hasclass('o_navbar_breadcrumbs')]" position="attributes">
+      <attribute name="t-att-class">{ 'o_hidden': this.isAppChromeHidden }</attribute>
+    </xpath>
+  </t>
+
+  <t t-name="web_enterprise.NavBar.SectionsMenu" t-inherit="web.NavBar.SectionsMenu" t-inherit-mode="extension">
+    <xpath expr="//div[hasclass('o_menu_sections')]" position="attributes">
+      <attribute name="t-att-class">{ 'o_hidden': this.isAppChromeHidden }</attribute>
+    </xpath>
+  </t>
+
+  <!-- the icon of the mobile toggle -->
+  <t t-name="web_enterprise.NavBar.AppsMenu.Sidebar" t-inherit="web.NavBar.AppsMenu.Sidebar" t-inherit-mode="extension">
+    <xpath expr="//i[@data-icon='menu']" position="replace">
+      <i class="oi" t-att-data-icon="this.hasBackChevron ? 'chevron_backward' : 'menu'" aria-hidden="true"/>
+    </xpath>
+  </t>
+
+</templates>

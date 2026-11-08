@@ -1,0 +1,31 @@
+# Copyright 2026 Complete contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+module: web_enterprise
+slice: 001a-web-shell
+spec_sha256: 8f078bb61c318f9735c56dcf7ae5c02c2e5b004399639929e8bb870cd8d3a26d
+ee_build: "20261106"
+implementer_sessions:
+  - 20a89f88-639b-47e2-a8d8-709659e7d130
+verifier_session: d0482d55-f3a1-4e4b-be03-1c5061a29557
+overlap:
+  ratio: 0.0013
+  longest_run: 1
+  reviewed_matches:
+    - file: addons/web_enterprise/models/res_users.py
+      line: 9
+      reason: required interface
+    - file: addons/web_enterprise/models/res_users_settings.py
+      line: 10
+      reason: required interface
+    - file: addons/web_enterprise/static/tests/navbar.test.js
+      line: 188
+      reason: common test idiom
+audit_log_sha256: 67ec1d7b971e9eca3df2dbbf5327f5df5d7442e98e92d01009b53cd07f7d2ce4
+escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since"
+dates:
+  spec_approved: "2026-11-07"
+  implemented: "2026-11-08"
+  verified: "2026-11-08"
+approvals:
+  - "owner: spec approved at CP-spec (2026-11-07)"
+  - "owner: release approved at CP-release (2026-11-08)"
