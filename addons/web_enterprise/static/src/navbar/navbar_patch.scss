@@ -6,23 +6,116 @@
     display: none !important;
 }
 
-// R-O12: the grid icon takes the navbar foreground role on the CE theme (brand-coloured bar).
-// Slice 001b re-applies the brand role (var(--bs-primary)) once the bar has a light background.
-$o-cws-grid-icon-color: var(--NavBar-entry-color, #{$o-navbar-entry-color});
+// R5, R6: the bar is the page itself (transparent over the page background) and its entries
+// read as body text. Community reads these custom properties with its own fallbacks.
+nav.o_main_navbar {
+    --o-cws-grid-icon-color: #{$o-cws-glyph-color};
+    --NavBar-entry-color: #{$o-main-text-color};
+    --NavBar-entry-color--hover: #{$o-black};
+    --NavBar-entry-color--active: #{$o-black};
+    --NavBar-brand-color: #{$o-main-text-color};
+    --NavBar-entry-backgroundColor: transparent;
+    --NavBar-entry-backgroundColor--hover: #{$o-cws-entry-hover-bg};
+    --NavBar-entry-backgroundColor--focus: #{$o-cws-entry-hover-bg};
+    --NavBar-entry-backgroundColor--active: #{$o-cws-navbar-open-bg};
+    --NavBar-entry-borderColor-active: #{$o-cws-navbar-open-border};
+    --NavBar-entry-margin-left: 1px;
+    --NavBar-entry-margin-right: 1px;
+    --NavBar-entry-padding-left: 8px;
+    --NavBar-entry-padding-right: 8px;
+
+    background: transparent;
+    border-bottom: 0;
+
+    .o_menu_systray {
+        --NavBar-entry-padding-left: 8px;
+        --NavBar-entry-padding-right: 8px;
+        --o-navbar-badge-bg: #{$o-danger};
+        --o-navbar-badge-color: #{$o-cws-on-danger};
+        --o-navbar-badge-text-shadow: none;
+
+        // counters of the tray: danger fill, glossy pill, 0.7 em of the entry font
+        .badge {
+            border-radius: 50rem;
+            padding: 2px 4px;
+            background-image: $o-gradient-sm;
+            font-size: .7em;
+            font-weight: 500;
+        }
+
+        // the avatar entry fills the bar: automatic height, and a negative margin equal to its
+        // own vertical padding
+        .o_user_menu {
+            height: auto;
+            padding-top: 4px !important;
+            padding-bottom: 4px !important;
+            margin-top: -4px;
+            margin-bottom: -4px;
+        }
+    }
+
+    // an entry whose menu is open (more specific than the Community state rules)
+    &.o_main_navbar :is(.o_menu_sections, .o_menu_systray) .dropdown-toggle[aria-expanded="true"] {
+        --NavBar-entry-backgroundColor: #{$o-cws-navbar-open-bg};
+        --NavBar-entry-backgroundColor--hover: #{$o-cws-navbar-open-bg};
+        --NavBar-entry-backgroundColor--focus: #{$o-cws-navbar-open-bg};
+        --NavBar-entry-color: #{$o-black};
+        border-color: #{$o-cws-navbar-open-border};
+        background: #{$o-cws-navbar-open-bg};
+        color: #{$o-black};
+    }
+}
+
+// the super-user marker is drawn over the tray's edge, outside its entries, so that the tray
+// keeps its width
+body.o_is_superuser nav.o_main_navbar .o_menu_systray {
+    position: relative;
+    border-image: none;
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        padding: 2px;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+            135deg,
+            $o-cws-superuser-stripe-a,
+            $o-cws-superuser-stripe-a 10px,
+            $o-cws-superuser-stripe-b 10px,
+            $o-cws-superuser-stripe-b 20px
+        );
+        mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        mask-composite: exclude;
+    }
+}
 
 nav.o_main_navbar {
-    --o-cws-grid-icon-color: #{$o-cws-grid-icon-color};
-
     .o_cws_grid_icon {
         display: block;
         flex: 0 0 auto;
         color: var(--o-cws-grid-icon-color);
+
+        .o_cws_dots,
+        .o_cws_chevron {
+            transform-box: fill-box;
+            transform-origin: center;
+        }
+
+        .o_cws_chevron {
+            opacity: 0;
+        }
     }
 
     // the back state is a plain chevron: keep the Community flip animation off
     .o_menu_toggle.o_menu_toggle_back {
         transform: none;
         transition: none;
+    }
+
+    // R7, R8: the glyph takes the black role under the pointer or the keyboard focus
+    .o_cws_grid_button:is(:hover, :focus-visible) {
+        --o-cws-grid-icon-color: #{$o-black};
     }
 
     .o_cws_apps_menu {
@@ -38,6 +131,7 @@ nav.o_main_navbar {
         justify-content: center;
         height: 26px;
         padding: 0 8px;
+        margin: 0;
         border: 0;
         border-radius: 6px;
         background: transparent;
@@ -46,9 +140,32 @@ nav.o_main_navbar {
             width: 38px;
             padding: 0;
         }
+    }
 
-        &:hover {
-            background: rgba($black, .1);
+    // the back state is one chevron, the mirror image of the one the hover morph draws
+    .o_cws_grid_button.o_menu_toggle_back .o_cws_grid_icon {
+        transform: scaleX(-1);
+
+        .o_cws_dots {
+            opacity: 0;
+        }
+
+        .o_cws_chevron {
+            opacity: 1;
+        }
+    }
+
+    // mobile: the Community sidebar icon, in the entry colour; the back chevron points right
+    a.o_menu_toggle {
+        --NavBar-entry-padding-left: 8px;
+
+        &.o_menu_toggle_back {
+            color: var(--o-cws-grid-icon-color);
+
+            .oi {
+                display: inline-block;
+                transform: scaleX(-1);
+            }
         }
     }
 
@@ -71,16 +188,62 @@ nav.o_main_navbar {
             .o_cws_grid_icon {
                 opacity: 0;
                 margin-right: 8px;
-                transition: opacity .15s;
+                // hidden behind the application icon, shifted right by 3/4 of its width
+                transform: translateX(75%);
             }
 
-            &:is(:hover, :focus-visible) .o_cws_grid_icon {
-                opacity: 1;
+            @include media-breakpoint-up(md) {
+                &:is(:hover, :focus-visible) {
+                    .o_cws_grid_icon {
+                        opacity: 1;
+                        transform: none;
+                    }
+
+                    // the dots draw together into a chevron pointing left
+                    .o_cws_dots {
+                        opacity: 0;
+                        transform: scale(.3);
+                    }
+
+                    .o_cws_chevron {
+                        opacity: 1;
+                    }
+
+                    .o_menu_brand {
+                        transform: translateX(-8px);
+                    }
+                }
             }
         }
 
-        &:has(> .o_cws_grid_button:is(:hover, :focus-visible)) > .o_menu_brand_icon {
-            opacity: 0;
+        // the application icon turns edge-on and fades
+        @include media-breakpoint-up(md) {
+            &:has(> .o_cws_grid_button:not(.o_menu_toggle_back):is(:hover, :focus-visible)) > .o_menu_brand_icon {
+                opacity: 0;
+                transform: translateY(-50%) rotateY(-90deg);
+            }
+        }
+
+        // R7, R-O8: 0.3 s morph, 0.2 s icon turn, 0.4 s name move; none with reduced motion
+        @media (prefers-reduced-motion: no-preference) {
+            > .o_cws_grid_button:not(.o_menu_toggle_back) {
+                .o_cws_grid_icon {
+                    transition: opacity .3s, transform .3s;
+                }
+
+                .o_cws_dots,
+                .o_cws_chevron {
+                    transition: opacity .3s, transform .3s;
+                }
+
+                .o_menu_brand {
+                    transition: transform .4s;
+                }
+            }
+
+            > .o_menu_brand_icon {
+                transition: opacity .2s, transform .2s;
+            }
         }
     }
 
@@ -99,11 +262,11 @@ nav.o_main_navbar {
         transform: translateY(-50%);
         object-fit: cover;
         pointer-events: none;
-        transition: opacity .15s;
     }
 
     .o_cws_grid_button .o_menu_brand {
         margin-left: 16px;
+        margin-right: 0;
         font-size: 16.8px;
         line-height: 1;
         white-space: nowrap;

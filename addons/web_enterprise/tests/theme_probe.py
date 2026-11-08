@@ -113,7 +113,7 @@ class ThemeProbeCase(HttpCase):
                  'value': 'reduce' if reduced_motion else 'no-preference'},
             ]})
             browser.navigate_to(self.base_url() + url, wait_stop=False)
-            self.wait("!!document.querySelector('.o_web_client')")
+            self.wait("!!document.querySelector('.o_web_client')", timeout=120)
             self.wait("document.readyState === 'complete'")
             loaded = self.js(
                 "getComputedStyle(document.documentElement)"

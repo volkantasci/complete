@@ -139,6 +139,26 @@ test("A8 grid button toggles over the application", async () => {
     }
 });
 
+test("A16 grid button shows explicitly, chevron hides explicitly", async () => {
+    await mountWebClient();
+    const homeMenu = getService("home_menu");
+    const calls = [];
+    patchWithCleanup(homeMenu, {
+        toggle(show) {
+            calls.push(show);
+            return super.toggle(...arguments);
+        },
+    });
+    await contains(GRID_BUTTON).click();
+    await animationFrame();
+    expect(calls).toEqual([true]);
+    expect(HOME_ROOT).toHaveCount(1);
+    await contains(GRID_BUTTON).click();
+    await animationFrame();
+    expect(calls).toEqual([true, false]);
+    expect(HOME_ROOT).toHaveCount(0);
+});
+
 test("A87 clicking the application name toggles the home menu", async () => {
     let actionLoads = 0;
     onRpc("/web/action/load", () => {
@@ -363,7 +383,8 @@ test("R15 entries read as body text on the home menu", async () => {
     const inApp = entry();
     await toggle(true);
     const onHome = entry();
-    expect(onHome).not.toBe(inApp);
+    // 001b R5/R6: the bar is the page, so its entries read as body text inside an application too
+    expect(inApp).toBe(getComputedStyle(document.body).color);
     expect(onHome).toBe(getComputedStyle(document.body).color);
     expect(getComputedStyle(queryOne(".o_menu_toggle")).color).toBe(
         getComputedStyle(document.body).color

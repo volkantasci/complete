@@ -49,8 +49,9 @@ patch(NavBar.prototype, {
         return app ? `/${root}/${app}` : window.location.pathname;
     },
 
+    /** Explicit requests: the grid button shows the home menu, the chevron hides it. */
     onGridButtonClick() {
-        return this.homeSvc.toggle();
+        return this.homeSvc.toggle(!this.hasBackChevron);
     },
 
     // Mobile: inside an application the toggle opens the sidebar; over the home menu

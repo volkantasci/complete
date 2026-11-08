@@ -132,6 +132,18 @@ $o-cws-row-selected-line: #A7BDC1 !default;
 $o-cws-navbar-open-bg: $o-cws-active-bg !default;
 $o-cws-navbar-open-border: $o-action !default;
 
+// Top-bar entry under the pointer or the keyboard focus (grey 200 light, grey 300 dark),
+// and the grid glyph and back chevron (primary light, the black role dark).
+$o-cws-entry-hover-bg: $o-gray-200 !default;
+$o-cws-glyph-color: $o-brand-primary !default;
+
+// Text on the danger fill (tray counters): white in both schemes.
+$o-cws-on-danger: #FFFFFF !default;
+
+// Stripes of the super-user marker around the tray (same in both schemes).
+$o-cws-superuser-stripe-a: #D9B904 !default;
+$o-cws-superuser-stripe-b: #373435 !default;
+
 // Pressed light and secondary buttons.
 $o-cws-pressed-bg: $o-cws-active-bg !default;
 $o-cws-pressed-border: $o-action !default;

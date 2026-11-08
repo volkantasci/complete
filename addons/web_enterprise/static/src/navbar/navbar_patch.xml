@@ -33,13 +33,15 @@
             t-att-aria-describedby="this.currentApp and !this.hasBackChevron ? 'o_cws_brand_name' : undefined"
             t-on-click="this.onGridButtonClick"
           >
-            <i t-if="this.hasBackChevron" class="oi" data-icon="chevron_backward" aria-hidden="true"/>
-            <svg t-else="" class="o_cws_grid_icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <t t-foreach="[0, 1, 2]" t-as="row" t-key="row">
-                <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
-                  <rect width="3" height="3" t-att-x="0.5 + col * 5" t-att-y="0.5 + row * 5" fill="currentColor"/>
+            <svg class="o_cws_grid_icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <g class="o_cws_dots">
+                <t t-foreach="[0, 1, 2]" t-as="row" t-key="row">
+                  <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
+                    <rect width="3" height="3" t-att-x="0.5 + col * 5" t-att-y="0.5 + row * 5" fill="currentColor"/>
+                  </t>
                 </t>
-              </t>
+              </g>
+              <path class="o_cws_chevron" d="M9.5 2.5 5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span t-if="this.currentApp" id="o_cws_brand_name" class="o_menu_brand o_cws_brand_name" t-att-class="{ 'o_hidden': this.isAppChromeHidden }" t-out="this.currentApp.name"/>
           </button>
