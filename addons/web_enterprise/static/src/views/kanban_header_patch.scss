@@ -1,0 +1,32 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+.o_kanban_header {
+    padding-bottom: 8px;
+    transition: padding-bottom .2s;
+
+    // a folded column keeps 8px below its header on desktop (Community zeroes its padding)
+    .o_kanban_group.o_column_folded & {
+        padding-bottom: 8px !important;
+    }
+
+    &.o_cws_stuck {
+        // the Community spacing utilities on the header are important
+        padding-bottom: 16px !important;
+
+        &::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background: linear-gradient(
+                to bottom,
+                var(--body-bg) 0%,
+                rgba(var(--body-bg-rgb), .75) 80%,
+                transparent 100%
+            );
+            -webkit-backdrop-filter: blur(var(--o-backdrop-blur, 6px));
+            backdrop-filter: blur(var(--o-backdrop-blur, 6px));
+        }
+    }
+}

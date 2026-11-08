@@ -1,0 +1,15 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+
+  <t t-name="web_enterprise.ControlPanel" t-inherit="web.ControlPanel" t-inherit-mode="extension">
+    <!-- slice 001b animates the highlight with these values -->
+    <xpath expr="//nav[hasclass('o_cp_switch_buttons')]" position="attributes">
+      <attribute name="t-att-data-cws-views">this.cwsViewCount</attribute>
+      <attribute name="t-att-data-cws-active">this.cwsActiveIndex</attribute>
+      <attribute name="t-att-data-cws-from">this.cwsFromIndex</attribute>
+      <attribute name="t-att-style">'--cws-switch-from: ' + this.cwsFromIndex + '; --cws-switch-to: ' + this.cwsActiveIndex</attribute>
+    </xpath>
+  </t>
+
+</templates>
