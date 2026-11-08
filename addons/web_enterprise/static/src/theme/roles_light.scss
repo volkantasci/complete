@@ -380,3 +380,54 @@ $o-btns-bs-outline-override: map-merge((
         disabled-color: $o-gray-900,
     ),
 ), $o-cws-btns-outline-extra) !default;
+
+// ---------------------------------------------------------------------------
+// Dropdowns, popovers, dialogs, tooltips (R19, R35, R36)
+// ---------------------------------------------------------------------------
+
+$dropdown-bg: $o-cws-overlay-bg !default;
+$dropdown-border-color: $o-cws-overlay-border !default;
+$dropdown-border-width: 1px !default;
+$dropdown-border-radius: $o-border-radius-xl !default;
+$dropdown-inner-border-radius: calc(#{$o-border-radius-xl} - 1px) !default;
+$dropdown-padding-y: o-to-rem(4px) !default;
+$dropdown-padding-x: o-to-rem(4px) !default;
+$dropdown-box-shadow: $o-cws-shadow !default;
+$dropdown-divider-bg: $o-cws-overlay-border !default;
+$dropdown-divider-margin-y: o-to-rem(8px) !default;
+$dropdown-item-border-radius: $o-border-radius-lg !default;
+$dropdown-link-hover-color: $o-black !default;
+$dropdown-link-hover-bg: rgba($o-black, .08) !default;
+
+$popover-bg: $o-cws-overlay-bg !default;
+$popover-border-color: $o-cws-overlay-border !default;
+$popover-border-radius: $o-border-radius-xl !default;
+$popover-box-shadow: $o-cws-shadow !default;
+$popover-font-size: o-to-rem(13px) !default;
+
+$modal-content-border-color: $border-color-translucent !default;
+$modal-content-box-shadow-xs: $o-cws-shadow !default;
+$modal-content-box-shadow-sm-up: $o-cws-shadow !default;
+
+// Command palette (R40).
+$o-cws-palette-inset: 8px !default;
+
+// ---------------------------------------------------------------------------
+// Inputs, check boxes and radios (R39)
+// ---------------------------------------------------------------------------
+
+$o-input-padding-y: 1px !default;
+$o-input-padding-x: 0 !default;
+$o-input-border-required: $o-black !default;
+$input-border-color: $o-cws-input-border !default;
+$input-focus-box-shadow: none !default;
+
+$o-form-check-input-border-color: $o-gray-400 !default;
+$form-check-input-checked-color: $o-white !default;
+$form-check-input-checked-border-color: $o-action !default;
+$form-check-input-checked-bg-color: $o-action !default;
+$form-check-input-indeterminate-color: $o-white !default;
+$form-check-input-indeterminate-border-color: $o-action !default;
+$form-check-input-indeterminate-bg-color: $o-action !default;
+$form-check-input-focus-box-shadow: 0 0 0 4px rgba($o-action, .25) !default;
+$form-check-input-focus-border: $o-action !default;

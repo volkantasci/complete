@@ -93,6 +93,7 @@ DATE_FORM = """
         <group>
             <field name="name" readonly="0"/>
             <field name="rate"/>
+            <field name="currency_id" readonly="0" options="{'no_create': True, 'no_open': True}"/>
         </group>
     </sheet>
 </form>

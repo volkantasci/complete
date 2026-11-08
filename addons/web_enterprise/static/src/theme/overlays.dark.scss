@@ -1,0 +1,34 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Dropdowns and popovers, dark scheme only (001b R19, R35).
+
+// A hovered or focused item carries the dark button gloss (the white role is black here).
+.o-dropdown--menu .dropdown-item:not(.disabled, :disabled):is(:hover, :focus-visible, .focus) {
+    background-image: $o-gradient-btn;
+}
+
+// Popover contents (R35): tables and forms take the overlay background, range sliders
+// have a track 10 points darker, secondary buttons are lighter.
+.popover {
+    .table {
+        --#{$prefix}table-bg: #{$o-cws-overlay-bg};
+    }
+
+    .o_form_view,
+    .o_form_sheet_bg,
+    .o_form_sheet {
+        background-color: $o-cws-overlay-bg;
+    }
+
+    .form-range {
+        --o-cws-range-track: #{darken($o-cws-overlay-bg, 10%)};
+    }
+
+    .btn-secondary {
+        --#{$prefix}btn-bg: #{lighten($o-cws-overlay-bg, 10%)};
+        --#{$prefix}btn-hover-bg: #{lighten($o-cws-overlay-bg, 15%)};
+        --#{$prefix}btn-border-color: #{lighten($o-cws-overlay-bg, 10%)};
+        --#{$prefix}btn-hover-border-color: #{lighten($o-cws-overlay-bg, 15%)};
+    }
+}

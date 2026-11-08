@@ -239,3 +239,8 @@ $o-cws-btns-outline-extra: (
         disabled-color: $o-black,
     ),
 ) !default;
+
+// Range sliders and switches (R39)
+$form-switch-color: rgba($o-black, .5) !default;
+$form-switch-focus-color: $o-black !default;
+$form-switch-checked-color: $o-view-background-color !default;

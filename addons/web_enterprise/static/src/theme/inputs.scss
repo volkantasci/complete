@@ -1,0 +1,9 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Inputs, check boxes, radios, range sliders and switches (001b R39).
+
+// Check boxes, radios and switches carry the control gloss once checked.
+.form-check-input:is(:checked, :indeterminate) {
+    --#{$prefix}gradient: #{$o-gradient-sm};
+}
