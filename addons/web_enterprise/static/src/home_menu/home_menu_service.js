@@ -29,7 +29,7 @@ patch(ActionPlugin.prototype, {
     },
 });
 
-export const homeMenuService = {
+export const cwsHomeMenuService = {
     dependencies: ["action", "menu"],
     start(env, { action }) {
         const state = proxy({ hasHomeMenu: false, hasBackgroundAction: false });
@@ -74,4 +74,5 @@ export const homeMenuService = {
     },
 };
 
-registry.category("services").add("home_menu", homeMenuService);
+const serviceRegistry = registry.category("services");
+serviceRegistry.add("home_menu", cwsHomeMenuService);

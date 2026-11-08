@@ -6,7 +6,8 @@ import { PivotRenderer } from "@web/views/pivot/pivot_renderer";
 
 const TOOLTIP_ATTRIBUTES = ["data-tooltip", "data-tooltip-info", "data-tooltip-template", "title"];
 
-patch(PivotRenderer.prototype, {
+const pivotRendererProto = PivotRenderer.prototype;
+patch(pivotRendererProto, {
     setup() {
         super.setup(...arguments);
         // evaluated once: resizing the window later changes nothing

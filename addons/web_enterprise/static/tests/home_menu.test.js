@@ -12,7 +12,7 @@ import { OfflinePlugin } from "@web/core/offline/offline_plugin";
 import { user } from "@web/core/user";
 import { session } from "@web/session";
 
-import { HomeMenu, tileHref, tileIcon } from "@web_enterprise/home_menu/home_menu";
+import { CwsHomeMenu, tileHref, tileIcon } from "@web_enterprise/home_menu/home_menu";
 
 describe.current.tags("desktop");
 
@@ -44,7 +44,7 @@ function makeApps(overrides = {}) {
 }
 
 async function mountHome({ apps = makeApps(), onOpenApp = () => {} } = {}) {
-    return mountWithCleanup(HomeMenu, { props: { apps, onOpenApp } });
+    return mountWithCleanup(CwsHomeMenu, { props: { apps, onOpenApp } });
 }
 
 function setMessage(value, { isSystem = false } = {}) {
@@ -233,7 +233,7 @@ test("a11y roles", async () => {
     expect(input).toHaveAttribute("aria-expanded", "true");
     expect(input).toHaveAttribute("placeholder", "Search for a menu...");
     expect(input).not.toHaveAttribute("aria-activedescendant");
-    component.state.focusedIndex = 2;
+    component.state.cursor = 2;
     await animationFrame();
     expect(input).toHaveAttribute("aria-activedescendant", "result_app_2");
     expect(queryAll(".o_app")[2]).toHaveClass("o_focused");

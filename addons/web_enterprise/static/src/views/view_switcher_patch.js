@@ -15,7 +15,8 @@ export function getSwitchMemory() {
     return switchMemory;
 }
 
-patch(ControlPanel.prototype, {
+const controlPanelProto = ControlPanel.prototype;
+patch(controlPanelProto, {
     setup() {
         super.setup(...arguments);
         const entries = this.env.config.viewSwitcherEntries || [];

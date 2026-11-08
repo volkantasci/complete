@@ -11,8 +11,10 @@ import {
 } from "@web/../tests/web_test_helpers";
 import { user } from "@web/core/user";
 
-import { HomeMenu } from "@web_enterprise/home_menu/home_menu";
+import { CwsHomeMenu } from "@web_enterprise/home_menu/home_menu";
 import { precedingIndex, precedingXmlid } from "@web_enterprise/home_menu/home_menu_reorder";
+
+const FOCUSED_TILE = ".o_app.o_focused";
 
 describe.current.tags("desktop");
 
@@ -61,7 +63,7 @@ async function mountHome({ homemenuConfig = false } = {}) {
         saved.push(kwargs.new_settings);
         return kwargs.new_settings;
     });
-    const component = await mountWithCleanup(HomeMenu, {
+    const component = await mountWithCleanup(CwsHomeMenu, {
         props: { apps: makeApps(), onOpenApp: (app) => opened.push(app.name) },
     });
     await animationFrame();
@@ -124,15 +126,15 @@ test("A33b a tile dropped further on goes right after the preceding tile", async
 test("A33c the order shows before the server answers and resets the keyboard focus", async () => {
     const { component } = await mountHome();
     onRpc("res.users.settings", "set_res_users_settings", () => new Promise(() => {}));
-    component.state.focusedIndex = 5;
+    component.state.cursor = 5;
     const { moveTo, drop } = await drag(".o_app:eq(3)");
     await advanceTime(500);
     await moveTo(".o_app:eq(0)");
     await drop();
     await animationFrame();
     expect(captions()[0]).toBe("Contacts");
-    expect(component.state.focusedIndex).toBe(null);
-    expect(".o_app.o_focused").toHaveCount(0);
+    expect(component.state.cursor).toBe(null);
+    expect(FOCUSED_TILE).toHaveCount(0);
 });
 
 test("A33d the saved order survives a new mount and the click ending a drag is swallowed", async () => {

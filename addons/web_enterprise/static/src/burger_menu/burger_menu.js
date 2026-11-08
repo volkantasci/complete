@@ -11,11 +11,11 @@ export class CwsBurgerMenu extends BurgerMenu {
     setup() {
         super.setup();
         this.menuService = useService("menu");
-        this.homeMenu = useService("home_menu");
+        this.homeSvc = useService("home_menu");
     }
 
     get currentApp() {
-        return this.homeMenu.hasHomeMenu ? null : this.menuService.getCurrentApp() || null;
+        return this.homeSvc.hasHomeMenu ? null : this.menuService.getCurrentApp() || null;
     }
 }
 

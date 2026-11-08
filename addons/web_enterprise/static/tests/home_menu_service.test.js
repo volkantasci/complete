@@ -18,6 +18,10 @@ import {
 import { browser, location } from "@web/core/browser/browser";
 import { redirect } from "@web/core/utils/urls";
 
+const HOME_ROOT = ".o_home_menu";
+const BG_CLASS = "o_home_menu_background";
+const HOME_ACTION = "menu";
+
 describe.current.tags("desktop");
 
 const NAMES = [
@@ -38,8 +42,8 @@ class Partner extends models.Model {
     name = fields.Char({ required: true });
 
     _records = [
-        { id: 1, name: "First record" },
-        { id: 2, name: "Second record" },
+        { id: 1, name: "Alpha record" },
+        { id: 2, name: "Beta record" },
     ];
     _views = {
         list: `<list><field name="name"/></list>`,
@@ -126,7 +130,7 @@ function breadcrumbCount() {
 
 test("A1 home menu is the landing page", async () => {
     await mountWebClient();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     expect(".o_list_view, .o_form_view").toHaveCount(0);
     expect(location.pathname).toBe("/odoo");
     expect(document.title).toInclude("Home");
@@ -135,7 +139,7 @@ test("A1 home menu is the landing page", async () => {
 test("A2 address naming an action skips the home menu", async () => {
     redirect("/odoo/action-1");
     await mountWebClient();
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(".o_list_view").toHaveCount(1);
     expect(getService("home_menu").hasHomeMenu).toBe(false);
 });
@@ -146,7 +150,7 @@ test("A4 clicking a tile adds one history entry", async () => {
     await openTile(1);
     expect(pushes.count).toBe(1);
     expect(".o_list_view").toHaveCount(1);
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
 });
 
 test("A10 nothing behind the home menu on landing", async () => {
@@ -156,9 +160,9 @@ test("A10 nothing behind the home menu on landing", async () => {
     expect(homeMenu.hasBackgroundAction).toBe(false);
     await press("Escape");
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     await toggle(false);
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
 });
 
 test("A11 a tile chosen over an application starts a new stack", async () => {
@@ -173,9 +177,9 @@ test("A11 a tile chosen over an application starts a new stack", async () => {
     expect(breadcrumbCount()).toBe(1);
     expect(getService("action").currentController.action.id).toBe(2);
     await toggle();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     await toggle();
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(getService("action").currentController.action.id).toBe(2);
     expect(".o_list_view").toHaveCount(1);
 });
@@ -189,7 +193,7 @@ test("A12 unsaved form changes are saved on toggle", async () => {
     await toggle(true);
     expect.verifySteps(["web_save"]);
     expect(".modal").toHaveCount(0);
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     await toggle(false);
     expect(".o_form_view").toHaveCount(1);
     expect(".o_field_widget[name=name] input").toHaveValue("changed");
@@ -202,7 +206,7 @@ test("A12b invalid edits keep the form open", async () => {
     await contains(".o_field_widget[name=name] input").edit("", { confirm: false });
     await toggle(true);
     expect(".o_form_view").toHaveCount(1);
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(".o_notification").toHaveCount(1);
     expect(getService("home_menu").hasHomeMenu).toBe(false);
 });
@@ -219,7 +223,7 @@ test("A13 fast repeated toggling", async () => {
     await settle(Promise.all([first, second, third]));
     expect(homeMenu.hasHomeMenu).toBe(true);
     expect(homeMenu.hasBackgroundAction).toBe(true);
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     expect(".o_list_view").toHaveCount(0);
     expect(sampled.some(Boolean)).toBe(false);
 });
@@ -228,10 +232,10 @@ test("A13b toggle then a tile", async () => {
     redirect("/odoo/action-1");
     await mountWebClient();
     const pending = getService("home_menu").toggle(true);
-    await waitFor(".o_home_menu");
+    await waitFor(HOME_ROOT);
     await contains(".o_home_menu .o_app:eq(2)").click();
     await settle(pending);
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(".o_list_view").toHaveCount(1);
     expect(getService("action").currentController.action.id).toBe(3);
     expect(getService("home_menu").hasHomeMenu).toBe(false);
@@ -244,7 +248,7 @@ test("A14 browser back returns to the home menu", async () => {
     browser.history.back();
     await animationFrame();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     expect(getService("home_menu").hasBackgroundAction).toBe(false);
 });
 
@@ -258,7 +262,7 @@ test("A15 a dialog action opens over the home menu", async () => {
     });
     await animationFrame();
     expect(".modal").toHaveCount(1);
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
 });
 
 test("A16 a failed start-up action leaves no home menu", async () => {
@@ -268,7 +272,7 @@ test("A16 a failed start-up action leaves no home menu", async () => {
         throw new Error("boom");
     });
     await mountWebClient();
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(".o_list_view").toHaveCount(0);
     expect(getService("home_menu").hasHomeMenu).toBe(false);
     expect.verifyErrors(["boom"]);
@@ -276,13 +280,13 @@ test("A16 a failed start-up action leaves no home menu", async () => {
 
 test("A41 the background class follows the home menu", async () => {
     await mountWebClient();
-    expect(document.body).toHaveClass("o_home_menu_background");
+    expect(document.body).toHaveClass(BG_CLASS);
     await openTile(0);
-    expect(document.body).not.toHaveClass("o_home_menu_background");
+    expect(document.body).not.toHaveClass(BG_CLASS);
     await toggle(true);
-    expect(document.body).toHaveClass("o_home_menu_background");
+    expect(document.body).toHaveClass(BG_CLASS);
     await toggle(false);
-    expect(document.body).not.toHaveClass("o_home_menu_background");
+    expect(document.body).not.toHaveClass(BG_CLASS);
 });
 
 test("A71 running menu again changes nothing", async () => {
@@ -293,17 +297,17 @@ test("A71 running menu again changes nothing", async () => {
     expect(".o_app.o_focused").toHaveCount(1);
     expect(queryAll(".o_app")[1]).toHaveClass("o_focused");
     const pushes = countPushes();
-    await getService("action").doAction("menu");
+    await getService("action").doAction(HOME_ACTION);
     await animationFrame();
     expect(pushes.count).toBe(0);
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     expect(queryAll(".o_app")[1]).toHaveClass("o_focused");
 });
 
 test("A73 a missing action falls back to the home menu", async () => {
     redirect("/odoo/action-999");
     await mountWebClient();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
 });
 
 test("A74 the in-app back on the first screen shows the home menu", async () => {
@@ -313,7 +317,7 @@ test("A74 the in-app back on the first screen shows the home menu", async () => 
     getService("action").currentController.config.historyBack();
     await animationFrame();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
 });
 
 test("events: HOME-MENU:TOGGLED fires on show and hide", async () => {

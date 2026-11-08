@@ -26,6 +26,12 @@ import { BurgerMenu } from "@web/webclient/burger_menu/burger_menu";
 
 import { CwsBurgerMenu } from "@web_enterprise/burger_menu/burger_menu";
 
+const HOME_ROOT = ".o_home_menu";
+const GRID_BUTTON = ".o_menu_toggle";
+const BACK_STATE = "o_menu_toggle_back";
+const BRAND = ".o_menu_brand";
+const BG_CLASS = "o_home_menu_background";
+
 describe.current.tags("desktop");
 
 const body = { root: document.body };
@@ -36,8 +42,8 @@ class Partner extends models.Model {
     name = fields.Char({ required: true });
 
     _records = [
-        { id: 1, name: "First record" },
-        { id: 2, name: "Second record" },
+        { id: 1, name: "Alpha record" },
+        { id: 2, name: "Beta record" },
     ];
     _views = {
         list: `<list><field name="name"/></list>`,
@@ -101,20 +107,20 @@ async function toggle(show) {
 
 test("A8 grid button toggles over the application", async () => {
     await mountWebClient();
-    expect(".o_menu_toggle").toHaveCount(1);
-    expect(".o_menu_toggle").not.toHaveClass("o_menu_toggle_back");
-    await contains(".o_menu_toggle").click();
+    expect(GRID_BUTTON).toHaveCount(1);
+    expect(GRID_BUTTON).not.toHaveClass(BACK_STATE);
+    await contains(GRID_BUTTON).click();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(1);
-    expect(".o_menu_toggle").toHaveClass("o_menu_toggle_back");
-    expect(".o_menu_toggle").not.toHaveClass("o_hidden");
-    expect(".o_menu_toggle").toHaveAttribute("title", "Previous view");
-    expect(".o_menu_toggle").toHaveAttribute("aria-label", "Previous view");
-    expect(".o_menu_brand").toHaveClass("o_hidden");
+    expect(HOME_ROOT).toHaveCount(1);
+    expect(GRID_BUTTON).toHaveClass(BACK_STATE);
+    expect(GRID_BUTTON).not.toHaveClass("o_hidden");
+    expect(GRID_BUTTON).toHaveAttribute("title", "Previous view");
+    expect(GRID_BUTTON).toHaveAttribute("aria-label", "Previous view");
+    expect(BRAND).toHaveClass("o_hidden");
     expect(".o_menu_brand_icon").toHaveClass("o_hidden");
     expect(".o_menu_sections").toHaveClass("o_hidden");
     expect(".o_navbar_breadcrumbs").toHaveClass("o_hidden");
-    expect(".o_menu_brand").not.toBeVisible();
+    expect(BRAND).not.toBeVisible();
 });
 
 test("A9 back chevron restores the filtered application", async () => {
@@ -125,25 +131,25 @@ test("A9 back chevron restores the filtered application", async () => {
     expect(".o_searchview_facet").toHaveCount(1);
     expect(".o_data_row").toHaveCount(1);
 
-    await contains(".o_menu_toggle").click();
+    await contains(GRID_BUTTON).click();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(1);
-    await contains(".o_menu_toggle").click();
+    expect(HOME_ROOT).toHaveCount(1);
+    await contains(GRID_BUTTON).click();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(".o_searchview_facet").toHaveCount(1);
     expect(".o_data_row").toHaveCount(1);
-    expect(".o_menu_brand").not.toHaveClass("o_hidden");
-    expect(".o_menu_toggle").toHaveAttribute("title", "Home menu");
+    expect(BRAND).not.toHaveClass("o_hidden");
+    expect(GRID_BUTTON).toHaveAttribute("title", "Home menu");
 
     // same restoration with Escape
-    await contains(".o_menu_toggle").click();
+    await contains(GRID_BUTTON).click();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     await press("Escape");
     await animationFrame();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(".o_searchview_facet").toHaveCount(1);
     expect(".o_data_row").toHaveCount(1);
 });
@@ -151,9 +157,9 @@ test("A9 back chevron restores the filtered application", async () => {
 test("A10 no grid button with nothing behind", async () => {
     redirect("/odoo");
     await mountWebClient();
-    expect(".o_home_menu").toHaveCount(1);
-    expect(".o_menu_toggle").toHaveClass("o_hidden");
-    expect(".o_menu_toggle").not.toBeVisible();
+    expect(HOME_ROOT).toHaveCount(1);
+    expect(GRID_BUTTON).toHaveClass("o_hidden");
+    expect(GRID_BUTTON).not.toBeVisible();
 });
 
 test("A16 failed start-up keeps the grid button", async () => {
@@ -164,11 +170,11 @@ test("A16 failed start-up keeps the grid button", async () => {
     });
     await mountWebClient();
     await animationFrame();
-    expect(".o_menu_toggle").not.toHaveClass("o_hidden");
-    expect(".o_menu_toggle").toBeVisible();
-    await contains(".o_menu_toggle").click();
+    expect(GRID_BUTTON).not.toHaveClass("o_hidden");
+    expect(GRID_BUTTON).toBeVisible();
+    await contains(GRID_BUTTON).click();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
     expect.verifyErrors(["RPC_ERROR: boom"]);
 });
 
@@ -176,11 +182,11 @@ test("S4 brand and grid button", async () => {
     await mountWebClient();
     expect(".o_menu_brand_icon").toHaveCount(1);
     expect(".o_menu_brand_icon").not.toHaveClass("o_hidden");
-    expect(".o_menu_brand").toHaveText("CRM");
-    expect(".o_menu_toggle").toHaveAttribute("accesskey", "h");
-    expect(".o_menu_toggle").toHaveAttribute("data-hotkey", "h");
-    expect(".o_menu_toggle").toHaveAttribute("title", "Home menu");
-    expect(".o_menu_toggle").toHaveAttribute("aria-label", "Home menu");
+    expect(BRAND).toHaveText("CRM");
+    expect(GRID_BUTTON).toHaveAttribute("accesskey", "h");
+    expect(GRID_BUTTON).toHaveAttribute("data-hotkey", "h");
+    expect(GRID_BUTTON).toHaveAttribute("title", "Home menu");
+    expect(GRID_BUTTON).toHaveAttribute("aria-label", "Home menu");
     expect(".o_menu_toggle svg rect").toHaveCount(9);
     const { height } = queryOne(".o_menu_toggle").getBoundingClientRect();
     expect(height).toBe(26);
@@ -233,7 +239,7 @@ test("A18 scoped app link", async () => {
     queryOne("a.o_cws_scoped_link").addEventListener("click", (ev) => ev.preventDefault());
     await contains("a.o_cws_scoped_link").click();
     await animationFrame();
-    expect(".o_home_menu").toHaveCount(0);
+    expect(HOME_ROOT).toHaveCount(0);
     expect(getService("home_menu").hasHomeMenu).toBe(false);
 });
 
@@ -246,7 +252,7 @@ test("section weight", async () => {
 test("R15 navbar transparent while the home menu is shown", async () => {
     await mountWebClient();
     await toggle(true);
-    expect(document.body).toHaveClass("o_home_menu_background");
+    expect(document.body).toHaveClass(BG_CLASS);
     expect(getComputedStyle(queryOne(".o_main_navbar")).backgroundColor).toBe(
         "rgba(0, 0, 0, 0)"
     );
@@ -283,15 +289,15 @@ describe("mobile", () => {
         await contains(".o_app_menu_sidebar .o_sidebar_topbar a.btn-primary", body).click();
         await animationFrame();
         await animationFrame();
-        expect(".o_home_menu").toHaveCount(1);
+        expect(HOME_ROOT).toHaveCount(1);
         expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(0);
-        expect("a.o_menu_toggle").toHaveClass("o_menu_toggle_back");
+        expect("a.o_menu_toggle").toHaveClass(BACK_STATE);
         expect("a.o_menu_toggle").toHaveAttribute("title", "Previous view");
         expect("a.o_menu_toggle i").toHaveAttribute("data-icon", "chevron_backward");
         await contains("a.o_menu_toggle").click();
         await animationFrame();
         await animationFrame();
-        expect(".o_home_menu").toHaveCount(0);
+        expect(HOME_ROOT).toHaveCount(0);
         expect(".o_list_view").toHaveCount(1);
         expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(0);
     });

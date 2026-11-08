@@ -6,7 +6,7 @@ from odoo import api, fields, models
 class ResUsersSettings(models.Model):
     _inherit = 'res.users.settings'
 
-    homemenu_config = fields.Json(string="Home Menu Configuration", readonly=True)
+    homemenu_config = fields.Json(readonly=True, string="Saved Home Menu Layout")
     color_scheme = fields.Selection(
         [('system', "System"), ('light', "Light"), ('dark', "Dark")],
         string="Color Scheme",

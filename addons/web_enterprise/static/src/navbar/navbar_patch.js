@@ -12,22 +12,27 @@ const SCOPED_PREFIX = "/scoped_app";
 patch(NavBar.prototype, {
     setup() {
         super.setup(...arguments);
-        this.homeMenu = useService("home_menu");
+        this.homeSvc = useService("home_menu");
+    },
+
+    /** Glyph name of the current application, for the font icon. */
+    get appGlyphName() {
+        return this.currentApp?.webIconClass;
     },
 
     /** The home menu is shown over an application: the grid button goes back. */
     get hasBackChevron() {
-        return this.homeMenu.hasHomeMenu && this.homeMenu.hasBackgroundAction;
+        return this.homeSvc.hasHomeMenu && this.homeSvc.hasBackgroundAction;
     },
 
     /** The home menu is shown with nothing behind it: nothing to go back to. */
     get isGridButtonHidden() {
-        return this.homeMenu.hasHomeMenu && !this.homeMenu.hasBackgroundAction;
+        return this.homeSvc.hasHomeMenu && !this.homeSvc.hasBackgroundAction;
     },
 
     /** The application icon, name, sections and breadcrumbs leave the bar over the home menu. */
     get isAppChromeHidden() {
-        return this.homeMenu.hasHomeMenu;
+        return this.homeSvc.hasHomeMenu;
     },
 
     /** The brand is replaced by the scoped link, which carries the name itself. */
@@ -50,15 +55,15 @@ patch(NavBar.prototype, {
     },
 
     onGridButtonClick() {
-        return this.homeMenu.toggle();
+        return this.homeSvc.toggle();
     },
 
     // Mobile: inside an application the toggle opens the sidebar; over the home menu
     // it brings the application back.
     _openAppMenuSidebar() {
-        if (this.homeMenu.hasHomeMenu) {
-            if (this.homeMenu.hasBackgroundAction) {
-                return this.homeMenu.toggle(false);
+        if (this.homeSvc.hasHomeMenu) {
+            if (this.homeSvc.hasBackgroundAction) {
+                return this.homeSvc.toggle(false);
             }
             return;
         }
@@ -66,7 +71,7 @@ patch(NavBar.prototype, {
     },
 
     async onAllAppsBtnClick() {
-        await this.homeMenu.toggle(true);
+        await this.homeSvc.toggle(true);
         this._closeAppMenuSidebar();
     },
 });

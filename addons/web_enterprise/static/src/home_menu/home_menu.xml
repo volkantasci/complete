@@ -2,45 +2,45 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
 
-  <t t-name="web_enterprise.HomeMenu">
+  <t t-name="web_enterprise.CwsHomeMenu">
     <div class="o_home_menu" t-ref="this.rootRef" t-att-class="{ 'o_cws_ios_list': this.isIosList, 'o_cws_touch': this.isTouch }">
       <div class="o_cws_column">
       <t t-set="tiles" t-value="this.tiles"/>
       <t t-set="message" t-value="this.adminMessage"/>
       <!-- on touch devices the field leads the column, above the message (R11) -->
-      <t t-if="this.isTouch" t-call="web_enterprise.HomeMenu.SearchField"/>
+      <t t-if="this.isTouch" t-call="web_enterprise.CwsHomeMenu.SearchField"/>
       <div t-if="message" class="o_cws_admin_message" t-out="message"/>
-      <t t-if="!this.isTouch" t-call="web_enterprise.HomeMenu.SearchField"/>
+      <t t-if="!this.isTouch" t-call="web_enterprise.CwsHomeMenu.SearchField"/>
       <div t-if="tiles.length" class="o_apps" id="o_cws_apps_list" role="listbox">
-        <t t-foreach="tiles" t-as="app" t-key="app.id">
+        <t t-foreach="tiles" t-as="tile" t-key="tile.id">
           <div class="o_draggable">
             <a
               class="o_app o_menuitem"
               role="option"
-              t-attf-id="result_app_{{app_index}}"
-              t-att-href="app.href"
-              t-att-data-menu-xmlid="app.xmlid"
+              t-attf-id="result_app_{{tile_index}}"
+              t-att-href="tile.href"
+              t-att-data-menu-xmlid="tile.xmlid"
               t-att-class="{
-                'o_focused': this.state.focusedIndex === app_index,
-                'o_disabled_offline': this.isDimmed(app),
-                'o_dragged_app': this.reorder.dragged === app.xmlid,
+                'o_focused': this.state.cursor === tile_index,
+                'o_disabled_offline': this.isDimmed(tile),
+                'o_dragged_app': this.reorder.dragged === tile.xmlid,
               }"
-              t-on-click="(ev) => this.onTileClick(ev, app)"
+              t-on-click="(ev) => this.onTileClick(ev, tile)"
             >
               <img
-                t-if="app.icon.kind !== 'glyph'"
+                t-if="tile.icon.kind !== 'glyph'"
                 class="o_app_icon"
-                t-att-src="app.icon.src"
+                t-att-src="tile.icon.src"
                 alt=""
               />
               <div
                 t-else=""
                 class="o_app_icon o_cws_glyph_icon"
-                t-att-style="'background:' + app.icon.background"
+                t-att-style="'background:' + tile.icon.background"
               >
-                <i class="oi oi-3x" t-att-data-icon="app.icon.glyph" t-att-style="'color:' + app.icon.color"/>
+                <i class="oi oi-3x" t-att-data-icon="tile.icon.glyph" t-att-style="'color:' + tile.icon.color"/>
               </div>
-              <div class="o_caption" t-out="app.name"/>
+              <div class="o_caption" t-out="tile.name"/>
             </a>
           </div>
         </t>
@@ -49,7 +49,7 @@
     </div>
   </t>
 
-  <t t-name="web_enterprise.HomeMenu.SearchField">
+  <t t-name="web_enterprise.CwsHomeMenu.SearchField">
     <input
       type="text"
       t-ref="this.inputRef"
@@ -61,7 +61,7 @@
       aria-autocomplete="list"
       aria-controls="o_cws_apps_list"
       t-att-aria-expanded="this.tiles.length > 0 ? 'true' : 'false'"
-      t-att-aria-activedescendant="this.state.focusedIndex === null ? undefined : 'result_app_' + this.state.focusedIndex"
+      t-att-aria-activedescendant="this.state.cursor === null ? undefined : 'result_app_' + this.state.cursor"
     />
   </t>
 

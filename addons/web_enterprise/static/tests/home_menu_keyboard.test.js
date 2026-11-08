@@ -21,8 +21,11 @@ import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
 import { MainComponentsContainer } from "@web/core/main_components_container";
 
-import { HomeMenu } from "@web_enterprise/home_menu/home_menu";
+import { CwsHomeMenu } from "@web_enterprise/home_menu/home_menu";
 import { rowLengthForWidth } from "@web_enterprise/home_menu/home_menu_keyboard";
+
+const FOCUSED_TILE = ".o_app.o_focused";
+const HOME_ROOT = ".o_home_menu";
 
 describe.current.tags("desktop");
 
@@ -58,7 +61,7 @@ async function mountHome({ apps = makeApps(), onOpenApp = () => {}, onEscape } =
     if (onEscape) {
         props.onEscape = onEscape;
     }
-    const component = await mountWithCleanup(HomeMenu, { props });
+    const component = await mountWithCleanup(CwsHomeMenu, { props });
     await animationFrame();
     return component;
 }
@@ -96,8 +99,8 @@ class OpenDropdown extends Component {
 }
 
 class AppsHost extends Component {
-    static components = { HomeMenu };
-    static template = xml`<HomeMenu apps="this.state.apps" onOpenApp="() => {}"/>`;
+    static components = { CwsHomeMenu };
+    static template = xml`<CwsHomeMenu apps="this.state.apps" onOpenApp="() => {}"/>`;
     setup() {
         this.state = proxy({ apps: makeApps() });
     }
@@ -169,7 +172,7 @@ test("Escape without onEscape does nothing", async () => {
     await resize({ width: 1600 });
     await mountHome();
     await pressKeys("Escape");
-    expect(".o_home_menu").toHaveCount(1);
+    expect(HOME_ROOT).toHaveCount(1);
 });
 
 test("the focused index resets when the apps change", async () => {
@@ -191,7 +194,7 @@ test("A25 keys are left to an open dropdown", async () => {
     await animationFrame();
     expect(".o-dropdown--menu").toHaveCount(1);
     await pressKeys("ArrowDown");
-    expect(".o_app.o_focused").toHaveCount(0);
+    expect(FOCUSED_TILE).toHaveCount(0);
 });
 
 test("A26 typing opens the palette with the footer", async () => {
@@ -341,7 +344,7 @@ test("A32 no keyboard navigation on small screens", async () => {
     await mountHome();
     expect(document.activeElement).not.toBe(queryFirst(".o_home_menu_search_input"));
     await pressKeys("ArrowRight", "ArrowDown");
-    expect(".o_app.o_focused").toHaveCount(0);
+    expect(FOCUSED_TILE).toHaveCount(0);
 });
 
 test("A79 narrow window without touch", async () => {
@@ -351,7 +354,7 @@ test("A79 narrow window without touch", async () => {
     expect(field).toHaveClass("o_cws_search_hidden");
     expect(document.activeElement).not.toBe(field);
     await pressKeys("ArrowRight");
-    expect(".o_app.o_focused").toHaveCount(0);
+    expect(FOCUSED_TILE).toHaveCount(0);
     await press("x");
     await animationFrame();
     expect(".o_command_palette").toHaveCount(0);

@@ -1,5 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
+from http import HTTPStatus
 from unittest.mock import Mock, patch
 
 from odoo.addons.web_enterprise.models import ir_http as ir_http_module
@@ -153,7 +154,7 @@ class TestWebClientCookie(HttpCase):
         # Not logged in: the redirect to the login page carries no cookie.
         self.logout()
         response = self.url_open('/odoo', allow_redirects=False)
-        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.status_code, HTTPStatus.SEE_OTHER)
         self.assertFalse(self._scheme_cookies(response))
 
     def test_A56_first_page_sets_cookie(self):

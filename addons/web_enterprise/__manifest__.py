@@ -8,7 +8,10 @@
     'license': 'AGPL-3',
     'author': 'Complete contributors',
     'website': 'https://github.com/volkantasci/complete',
-    'depends': ['web', 'base_setup'],
+    'depends': [
+        'web',
+        'base_setup',
+    ],
     'auto_install': True,
     'data': [
         'views/res_users_views.xml',
@@ -24,7 +27,7 @@
             'web_enterprise/static/src/views/pivot_renderer_patch.js',
         ],
         'web.assets_unit_tests': [
-            'web_enterprise/static/tests/**/*.test.js',
+            'web_enterprise/static/tests/*.test.js',
         ],
         'web.assets_tests': [
             'web_enterprise/static/tests/tours/**/*',

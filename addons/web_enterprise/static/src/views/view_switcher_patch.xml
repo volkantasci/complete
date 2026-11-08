@@ -4,7 +4,7 @@
 
   <t t-name="web_enterprise.ControlPanel" t-inherit="web.ControlPanel" t-inherit-mode="extension">
     <!-- slice 001b animates the highlight with these values -->
-    <xpath expr="//nav[hasclass('o_cp_switch_buttons')]" position="attributes">
+    <xpath position="attributes" expr="//nav[hasclass('o_cp_switch_buttons')]">
       <attribute name="t-att-data-cws-views">this.cwsViewCount</attribute>
       <attribute name="t-att-data-cws-active">this.cwsActiveIndex</attribute>
       <attribute name="t-att-data-cws-from">this.cwsFromIndex</attribute>

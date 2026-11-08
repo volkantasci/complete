@@ -13,7 +13,7 @@ import {
     usePlugin,
     useProps,
 } from "@odoo/owl";
-import { isIosApp } from "@web/core/browser/feature_detection";
+import { isIosApp as runsOnIosApp } from "@web/core/browser/feature_detection";
 import { DebugModePlugin } from "@web/core/debug_mode_plugin";
 import { OfflinePlugin } from "@web/core/offline/offline_plugin";
 import { user } from "@web/core/user";
@@ -80,8 +80,8 @@ function readAdminMessage() {
     return allowed ? markup(data.message) : null;
 }
 
-export class HomeMenu extends Component {
-    static template = "web_enterprise.HomeMenu";
+export class CwsHomeMenu extends Component {
+    static template = "web_enterprise.CwsHomeMenu";
     props = useProps({
         apps: t.array(),
         onOpenApp: t.function(),
@@ -92,24 +92,24 @@ export class HomeMenu extends Component {
         this.debugMode = usePlugin(DebugModePlugin);
         this.offline = usePlugin(OfflinePlugin);
         this.state = proxy({
-            focusedIndex: null,
+            cursor: null,
             savedOrder: readSavedOrder(user.settings.homemenu_config),
             width: window.innerWidth,
         });
         useListener(window, "resize", () => {
             this.state.width = window.innerWidth;
         });
-        this.shareTarget = useService("share_target");
+        this.incomingShare = useService("share_target");
         this.rootRef = signal.ref();
         this.inputRef = signal.ref();
         const { touch } = useTileKeyboard({
             getCount: () => this.tiles.length,
-            getFocused: () => this.state.focusedIndex,
+            getFocused: () => this.state.cursor,
             setFocused: (index) => {
-                this.state.focusedIndex = index;
+                this.state.cursor = index;
             },
             openFocused: () => {
-                const app = this.tiles[this.state.focusedIndex];
+                const app = this.tiles[this.state.cursor];
                 if (app) {
                     this.props.onOpenApp(app);
                 }
@@ -122,7 +122,7 @@ export class HomeMenu extends Component {
         useOnChange(
             () => [this.props.apps, this.state.savedOrder],
             () => {
-                this.state.focusedIndex = null;
+                this.state.cursor = null;
             },
             { initialRun: false }
         );
@@ -136,7 +136,7 @@ export class HomeMenu extends Component {
         });
         // keep the focused tile vertically centred
         useEffect(() => {
-            const index = this.state.focusedIndex;
+            const index = this.state.cursor;
             const root = this.rootRef();
             if (index !== null && root) {
                 root.querySelectorAll(".o_app")[index]?.scrollIntoView({ block: "center" });
@@ -168,7 +168,7 @@ export class HomeMenu extends Component {
     }
 
     get isIosList() {
-        return isIosApp() && this.state.width < WIDE_BREAKPOINT;
+        return runsOnIosApp() && this.state.width < WIDE_BREAKPOINT;
     }
 
     isDimmed(app) {
@@ -189,8 +189,9 @@ export class HomeMenu extends Component {
             .filter((id) => id && id !== xmlid);
         order.splice(order.indexOf(previousXmlid) + 1, 0, xmlid);
         this.state.savedOrder = order;
-        this.state.focusedIndex = null;
-        user.setUserSettings("homemenu_config", JSON.stringify(order));
+        this.state.cursor = null;
+        const serialized = JSON.stringify(order);
+        user.setUserSettings("homemenu_config", serialized);
     }
 
     /**
@@ -203,8 +204,8 @@ export class HomeMenu extends Component {
         }
         // keep the browser from navigating to the dropped file
         ev.preventDefault();
-        if (ev.type === "drop" && this.shareTarget.hasShareTargetItems && transfer.files.length) {
-            this.shareTarget.display(transfer.files);
+        if (ev.type === "drop" && this.incomingShare.hasShareTargetItems && transfer.files.length) {
+            this.incomingShare.display(transfer.files);
         }
     }
 

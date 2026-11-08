@@ -12,6 +12,8 @@ import {
     effectiveScheme,
 } from "@web_enterprise/color_scheme/color_scheme_service";
 
+const SCHEME_COOKIE = "color_scheme";
+
 describe.current.tags("headless");
 
 const GUARD_KEY = "cws_scheme_reloaded";
@@ -65,7 +67,7 @@ test("A58 system follows the OS", async () => {
         prefersDark: true,
         remembered: "light",
     });
-    expect(cookie.get("color_scheme")).toBe("dark");
+    expect(cookie.get(SCHEME_COOKIE)).toBe("dark");
     expect.verifySteps(["reload"]);
     await animationFrame();
     expect(settled()).toBe(false);
@@ -74,14 +76,14 @@ test("A58 system follows the OS", async () => {
 test("A58b system with a light OS and no cookie", async () => {
     const { started } = startService({ preference: "system", prefersDark: false });
     const service = await started;
-    expect(cookie.get("color_scheme")).toBe("light");
+    expect(cookie.get(SCHEME_COOKIE)).toBe("light");
     expect.verifySteps([]);
     expect(service.activeScheme).toBe("light");
 });
 
 test("A57 dark preference reloads once", async () => {
     const first = startService({ preference: "dark", remembered: "light" });
-    expect(cookie.get("color_scheme")).toBe("dark");
+    expect(cookie.get(SCHEME_COOKIE)).toBe("dark");
     expect.verifySteps(["reload"]);
     await animationFrame();
     expect(first.settled()).toBe(false);
@@ -99,7 +101,7 @@ test("A78 first visit dark OS", async () => {
         prefersDark: true,
         remembered: "light",
     });
-    expect(cookie.get("color_scheme")).toBe("dark");
+    expect(cookie.get(SCHEME_COOKIE)).toBe("dark");
     expect.verifySteps(["reload"]);
     await animationFrame();
     expect(settled()).toBe(false);
@@ -132,7 +134,7 @@ test("guard key is cleared when the cookie matches", async () => {
 test("first visit in light only stores the value", async () => {
     const { started } = startService({ preference: "light" });
     const service = await started;
-    expect(cookie.get("color_scheme")).toBe("light");
+    expect(cookie.get(SCHEME_COOKIE)).toBe("light");
     expect(service.activeScheme).toBe("light");
     expect.verifySteps([]);
 });
