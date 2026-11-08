@@ -79,10 +79,12 @@ class TestThemeBundles(TransactionCase):
             '.p-pressed{color:#ebf0f5}',              # mix(primary, white, 10%)
             '.p-active{background-color:#f7eee6}',    # mix(action, white, 10%)
             '.p-focus{border-color:#bc956d}',         # mix(action, grey 400, 50%)
+            '.p-lightsecondary{color:#e7ebed}',       # grey 200 (R5)
         ], light)
         dark = self._probe_css(dark=True)
         self._assert_in([
             '.p-hover{color:#376ea4}',                # lighten(primary, 3%)
+            '.p-lightsecondary{color:#3e3f47}',       # grey 300 (R5)
             '.p-colour3{color:#e1b000}',              # fixed dark base colour
         ], dark)
 
