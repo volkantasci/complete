@@ -193,6 +193,8 @@ Owner decisions, in one line each:
   longer opens the application.
 - **D2.** While the home menu is shown, the Community apps-menu tour step leaves
   it alone, so the next step finds the tile (helper `showAppsMenuItem`).
+- **D8.** A tour that meets that step while the home menu is shown skips it, in
+  automatic and in interactive tours, and goes on with its next step.
 - **D3.** The back chevron is primary at rest in light and white in dark; black
   only under the pointer.
 - **D4.** The login card has the rounded corners of about 6 px that are drawn,

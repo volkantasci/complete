@@ -10,14 +10,20 @@ const HOME_TAG = "menu";
 const BACKGROUND_CLASS = "o_home_menu_background";
 
 /**
- * D2 (R45): the Community tour step that opens the apps menu must leave the home menu where
- * it is. The tour utilities live in the back-end bundle of the optional `web_tour` module, which
- * is not a dependency: the step is adapted only if its module is loaded, right when it starts
- * (a tour may compute its steps before any service starts). The step keeps its `run` (the
- * string "click": the interactive mode skips a step whose `run` is a function) and changes
- * only its trigger. Inside an application the trigger is the grid button, which shows the home
- * menu; while the home menu is shown the grid button is the back chevron, which must not
- * match, and the trigger is the page itself, whose click does nothing.
+ * D2 and D8 (R45): the Community tour step that opens the apps menu must leave the home menu
+ * where it is, and must not wait for anything when a tour meets it there. The tour utilities
+ * live in the back-end bundle of the optional `web_tour` module, which is not a dependency: the
+ * step is adapted only if its module is loaded, right when it starts (a tour may compute its
+ * steps before any service starts).
+ *
+ * The tour engines evaluate a step's `isActive` list on every visit, in automatic and in
+ * interactive tours, and move on past a step for which a selector of that list finds nothing.
+ * The step therefore gains the selector of "no home menu shown": while the home menu is shown
+ * the step is not played at all, and an interactive tour never shows a pointer for it.
+ * Inside an application the step is played as before: its target is the grid button.
+ * The trigger keeps an alternative for one moment only, the step reached right after a click
+ * that asked for the home menu, before the page has the marker class: the page itself, whose
+ * click does nothing, then stands in for the grid button, which would close the menu again.
  */
 export function adaptTourAppsMenuStep(stepUtils) {
     patch(stepUtils, {
@@ -25,6 +31,7 @@ export function adaptTourAppsMenuStep(stepUtils) {
             const step = super.showAppsMenuItem(...arguments);
             return {
                 ...step,
+                isActive: [...(step.isActive || []), `body:not(.${BACKGROUND_CLASS})`],
                 trigger: `${step.trigger}:not(.o_menu_toggle_back), body.${BACKGROUND_CLASS}`,
             };
         },

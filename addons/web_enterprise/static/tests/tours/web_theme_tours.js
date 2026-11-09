@@ -72,3 +72,17 @@ tours.add("web_theme_A106_step_on_empty_home_menu", {
         ...openFromTile(),
     ],
 });
+
+// A133: an interactive tour (it has a text on the tile step) that begins with the Community step
+tours.add("web_theme_A133_interactive_start", {
+    steps: () => [
+        stepUtils.showAppsMenuItem(),
+        {
+            trigger: `.o_home_menu ${TILE}`,
+            content: "tile text",
+            tooltipPosition: "right",
+            run: "click",
+        },
+        { trigger: ".o_list_view .o_data_row" },
+    ],
+});

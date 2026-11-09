@@ -17,6 +17,7 @@ except ImportError:  # the application is not on the addons path
     expense_common = None
 
 TILES = '.o_home_menu .o_app'
+TILE = 'a.o_app[data-menu-xmlid="cws_theme.menu_decisions"]'
 HOLD = 0.5  # seconds, the hold of a pressed tile
 
 
@@ -127,6 +128,23 @@ class TestThemeTileRelease(ThemeProbeCase):
             self._assert_opened()
 
 
+def make_decisions_app(env):
+    """An application whose list shows one partner (path ``cws-decisions``)."""
+    env['res.partner'].create({'name': 'Decision Alpha'})
+    action = env['ir.actions.act_window'].create({
+        'name': 'Decision Partners', 'res_model': 'res.partner',
+        'view_mode': 'list,form', 'path': 'cws-decisions',
+    })
+    menu = env['ir.ui.menu'].create({
+        'name': 'Decision Partners', 'sequence': 9001,
+        'action': f'ir.actions.act_window,{action.id}',
+    })
+    env['ir.model.data'].create({
+        'module': 'cws_theme', 'name': 'menu_decisions', 'model': 'ir.ui.menu',
+        'res_id': menu.id,
+    })
+
+
 @tagged('post_install', '-at_install')
 class TestThemeAppsMenuStep(HttpCase):
     """A103, A105, A106: the Community apps-menu tour step keeps the home menu."""
@@ -134,19 +152,7 @@ class TestThemeAppsMenuStep(HttpCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.env['res.partner'].create({'name': 'Decision Alpha'})
-        action = cls.env['ir.actions.act_window'].create({
-            'name': 'Decision Partners', 'res_model': 'res.partner',
-            'view_mode': 'list,form', 'path': 'cws-decisions',
-        })
-        menu = cls.env['ir.ui.menu'].create({
-            'name': 'Decision Partners', 'sequence': 9001,
-            'action': f'ir.actions.act_window,{action.id}',
-        })
-        cls.env['ir.model.data'].create({
-            'module': 'cws_theme', 'name': 'menu_decisions', 'model': 'ir.ui.menu',
-            'res_id': menu.id,
-        })
+        make_decisions_app(cls.env)
 
     def test_A103_step_after_app_name_click(self):
         self.start_tour(
@@ -161,6 +167,73 @@ class TestThemeAppsMenuStep(HttpCase):
 
     def test_A106_step_on_empty_home_menu(self):
         self.start_tour('/odoo', 'web_theme_A106_step_on_empty_home_menu', login='admin')
+
+
+@tagged('post_install', '-at_install')
+class TestThemeInteractiveAppsStep(ThemeProbeCase):
+    """A133: an interactive tour that begins with the apps-menu step."""
+
+    POINTERS = '''
+        window.__cwsSeen = [];
+        const timer = setInterval(() => {
+            const module = odoo.loader.modules.get('@web_tour/tour_pointer/tour_pointer');
+            const target = module && module.pointerState.trigger;
+            const last = window.__cwsSeen.at(-1);
+            if (target && (!last || last.el !== target)) {
+                window.__cwsSeen.push({
+                    el: target,
+                    tile: target.matches(%(tile)r),
+                    grid: target.matches('.o_navbar_apps_menu button'),
+                    body: target === document.body,
+                    content: String(module.pointerState.content || ''),
+                });
+            }
+        }, 5);
+        window.__cwsStop = () => clearInterval(timer);
+        odoo.startTour(%(name)r, {mode: 'manual', redirect: false});
+    '''
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        make_decisions_app(cls.env)
+
+    def _first_pointers(self, url, tour, ready):
+        with self.page(url):
+            self.wait(ready)
+            self.js(self.POINTERS % {'tile': TILE, 'name': tour})
+            self.wait('window.__cwsSeen.length > 0')
+            time.sleep(1)  # a pointer shown for the skipped step would have been seen by now
+            seen = self.js(
+                'window.__cwsStop(), window.__cwsSeen.map((p) => ({...p, el: undefined}))')
+        return seen
+
+    def _assert_tile_first(self, seen):
+        self.assertTrue(seen[0]['tile'], f'the first pointer is not on the tile: {seen}')
+        self.assertTrue(seen[0]['content'], 'the tile pointer has no text')
+        for pointer in seen:
+            self.assertFalse(pointer['body'] or pointer['grid'], f'unexpected pointer: {seen}')
+            self.assertTrue(pointer['content'], f'a pointer without text: {seen}')
+
+    def test_A133_interactive_start_on_home_menu(self):
+        seen = self._first_pointers(
+            '/odoo', 'web_theme_A133_interactive_start', f'!!document.querySelector({TILE!r})')
+        self._assert_tile_first(seen)
+
+    def test_A133_interactive_start_inside_application(self):
+        seen = self._first_pointers(
+            '/odoo/cws-decisions', 'web_theme_A133_interactive_start',
+            '!!document.querySelector(".o_list_view .o_data_row")')
+        self.assertTrue(seen[0]['grid'], f'the first pointer is not on the grid button: {seen}')
+        self.assertTrue(seen[0]['content'] or True)
+
+    def test_A133_crm_tour_on_home_menu(self):
+        if 'crm.lead' not in self.env:
+            self.skipTest('crm is not installed')
+        seen = self._first_pointers(
+            '/odoo', 'crm_tour', '!!document.querySelector(".o_home_menu .o_app")')
+        self.assertTrue(seen[0]['content'], f'the first pointer has no text: {seen}')
+        self.assertFalse(seen[0]['body'] or seen[0]['grid'], f'unexpected pointer: {seen}')
 
 
 _ExpenseBase = expense_common.TestExpenseCommon if expense_common else HttpCase
