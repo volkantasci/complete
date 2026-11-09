@@ -334,6 +334,15 @@ $o-cws-scale-shade: (
     200: 63%,
     300: 53%,
 ) !default;
+// The tile text reads steps 700 and 800 (800 on an active tile): light partners of the dark
+// steps, so that the text is light on the dark fills. Step 700 is the colour of the numbers on
+// the original's dark tiles: the base colour with 40 % white, (254, 178, 114) for orange,
+// (169, 142, 218) for purple, (116, 199, 212) for cyan. Step 800 (ruling R-O12) has 60 %.
+// step: share of white mixed into the base colour
+$o-cws-scale-tint: (
+    700: 40%,
+    800: 60%,
+) !default;
 
 $purple-100: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 100)) !default;
 $purple-200: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 200)) !default;
@@ -347,3 +356,12 @@ $cyan-300: mix(#000000, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-
 $red-100: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 100)) !default;
 $red-200: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 200)) !default;
 $red-300: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 300)) !default;
+
+$purple-700: mix(#FFFFFF, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-tint, 700)) !default;
+$purple-800: mix(#FFFFFF, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-tint, 800)) !default;
+$orange-700: mix(#FFFFFF, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-tint, 700)) !default;
+$orange-800: mix(#FFFFFF, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-tint, 800)) !default;
+$cyan-700: mix(#FFFFFF, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-tint, 700)) !default;
+$cyan-800: mix(#FFFFFF, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-tint, 800)) !default;
+$red-700: mix(#FFFFFF, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-tint, 700)) !default;
+$red-800: mix(#FFFFFF, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-tint, 800)) !default;

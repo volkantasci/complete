@@ -12,6 +12,7 @@ from odoo.tests import tagged
 
 from .test_theme_shell import GRID_BUTTON, GRID_ICON, SECTION_TOGGLE, ShellProbeCase
 from .theme_fixtures import KANBAN, LIST, MARK, _action
+from .theme_probe import parse_colour
 
 PAGE = {'light': '#F8F9FA', 'dark': '#1F1F23'}
 VIEW = {'light': '#FFFFFF', 'dark': '#2C2E35'}
@@ -558,6 +559,17 @@ HOVER_ALPHA = {'light': .055, 'dark': .10}
 SELECTED = {'light': ('#D1ECF1', '#A7BDC1'), 'dark': ('#223446', '#4E5D6B')}
 BLACK_ROLE = {'light': '#000000', 'dark': '#FFFFFF'}
 COLOUR_RE = re.compile(r'rgba?\([^)]*\)')
+
+
+def contrast(front, back):
+    """WCAG contrast ratio of two opaque colours given as CSS strings."""
+    def luminance(value):
+        channels = [c / 255 for c in parse_colour(value)[:3]]
+        red, green, blue = (c / 12.92 if c <= .03928 else ((c + .055) / 1.055) ** 2.4
+                            for c in channels)
+        return .2126 * red + .7152 * green + .0722 * blue
+    lighter, darker = sorted((luminance(front), luminance(back)), reverse=True)
+    return (lighter + .05) / (darker + .05)
 
 
 def first_colour(value):
@@ -1612,26 +1624,37 @@ class TestThemeRoleUsage(ShellProbeCase):
                 'background-color'], '#1F1F23')
 
     def test_A4_dark_dashboard_tiles(self):
-        # R2: the Sales dashboard tiles take the shaded steps of the colour scales in dark
+        # R2: the Sales dashboard tiles take the shaded steps of the colour scales in dark, and
+        # their text the light steps
         if 'sale.order' not in self.env:
             self.skipTest('sale is not installed')
         tiles = {
-            # (rest, active); the capture has (41, 24, 72), (93, 46, 7), (8, 61, 69)
-            'purple': ('#291847', '#341F5B'),
-            'orange': ('#5E2F07', '#773B09'),
-            'cyan': ('#093C44', '#0B4C56'),
-            'red': ('#51141A', '#671920'),
+            # (fill, active fill, text, active text); the capture has the fills (41, 24, 72),
+            # (93, 46, 7), (8, 61, 69) and the numbers (169, 142, 218), (254, 178, 114),
+            # (116, 199, 212)
+            'purple': ('#291847', '#341F5B', '#A98EDA', '#C5B3E6'),
+            'orange': ('#5E2F07', '#773B09', '#FEB272', '#FECBA1'),
+            'cyan': ('#093C44', '#0B4C56', '#74C7D4', '#A2DAE3'),
+            'red': ('#51141A', '#671920', '#EA868F', '#F1AEB5'),
         }
         with self.page(self.crumbs_url, scheme='dark'):
             self.wait("!!document.querySelector('.o_data_row, .o_list_view')")
-            self.inject('<div class="o_dashboard_card"></div>')
-            names = [f'--DashboardCard__{name}-bg-color' for name in tiles]
-            names += [f'--DashboardCard__{name}-bg-color--active' for name in tiles]
-            got = self.style('#cws_probe .o_dashboard_card', *names)
-            for name, (rest, active) in tiles.items():
-                self.assertColour(got[f'--DashboardCard__{name}-bg-color'], rest, tol=2)
-                self.assertColour(
-                    got[f'--DashboardCard__{name}-bg-color--active'], active, tol=2)
+            self.inject(''.join(
+                f'<div class="o_dashboard_card o_dashboard_card_{name}">'
+                '<div class="o_dashboard_card_data">1</div></div>' for name in tiles))
+            for name, (fill, active_fill, text, active_text) in tiles.items():
+                card = f'#cws_probe .o_dashboard_card_{name}'
+                got = self.style(card, '--btn-bg', '--btn-hover-bg')
+                self.assertColour(got['--btn-bg'], fill, tol=2)
+                self.assertColour(got['--btn-hover-bg'], active_fill, tol=2)
+                shown = self.style(f'{card} .o_dashboard_card_data', 'color')['color']
+                self.assertColour(shown, text, tol=2)
+                # the text is readable on its tile
+                self.assertGreaterEqual(contrast(shown, got['--btn-bg']), 4.5, name)
+                self.js(f"document.querySelector({card!r}).classList.add('active')")
+                active = self.style(f'{card} .o_dashboard_card_data', 'color')['color']
+                self.assertColour(active, active_text, tol=2)
+                self.assertGreaterEqual(contrast(active, got['--btn-hover-bg']), 4.5, name)
 
     def test_R5_breadcrumbs(self):
         for scheme, body, muted in (

@@ -185,6 +185,7 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
                     tile: target.matches(%(tile)r),
                     grid: target.matches('.o_navbar_apps_menu button'),
                     body: target === document.body,
+                    home: !!document.querySelector('.o_home_menu'),
                     content: String(module.pointerState.content || ''),
                 });
             }
@@ -255,9 +256,14 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
                 " && !document.querySelector('.o_home_menu')")
             seen = self.js(
                 'window.__cwsStop(), window.__cwsSeen.map((p) => ({...p, el: undefined}))')
+        # the grid button may be pointed at, with its text, until the home menu is drawn
         for pointer in seen:
             self.assertTrue(pointer['content'], f'a pointer without text: {seen}')
-            self.assertFalse(pointer['body'] or pointer['grid'], f'unexpected pointer: {seen}')
+            self.assertFalse(pointer['body'], f'unexpected pointer: {seen}')
+        shown = [pointer for pointer in seen if pointer['home']]
+        self.assertTrue(shown, f'no pointer on the home menu: {seen}')
+        self.assertFalse(any(p['grid'] for p in shown), f'grid pointer on the home menu: {seen}')
+        self.assertTrue(shown[0]['tile'], f'the first pointer on the home menu: {seen}')
         self.assertEqual(
             [p['content'] for p in seen if p['tile']], ['tile text'], f'tile pointer: {seen}')
 
