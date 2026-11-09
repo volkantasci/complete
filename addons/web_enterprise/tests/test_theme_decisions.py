@@ -18,6 +18,7 @@ except ImportError:  # the application is not on the addons path
 
 TILES = '.o_home_menu .o_app'
 TILE = 'a.o_app[data-menu-xmlid="cws_theme.menu_decisions"]'
+CRM_TILE = 'a.o_app[data-menu-xmlid="crm.crm_menu_root"]'
 HOLD = 0.5  # seconds, the hold of a pressed tile
 
 
@@ -317,11 +318,12 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
         return before, after
 
     def _assert_community_outcome(self, before, after):
-        # Community runner (observed on a database without this module's patch, and by reading
+        # Community runner (observed with the narrowed patch in place, and derived from reading
         # the engine): the second step stays the current one and waits when the menu closes; it
         # does not move on to the third step. The runner of the earlier rounds ended on index 2
         # with the third step's pointer.
         self.assertEqual(before['index'], 1, before)
+        self.assertEqual(after['errors'], 0, f'a page error occurred: {after}')
         self.assertEqual(after['index'], 1, f'the tour left the second step: {before} {after}')
         self.assertTrue(after['running'], after)
         self.assertFalse(after['menu'], after)
@@ -352,7 +354,7 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
         grid = '.o_navbar_apps_menu button'
         with self.page('/odoo/action-crm.crm_lead_action_pipeline'):
             self.wait('!!document.querySelector(".o_opportunity_kanban .o_kanban_renderer")')
-            self.js(self.POINTERS % {'tile': TILE, 'name': 'crm_tour'})
+            self.js(self.POINTERS % {'tile': CRM_TILE, 'name': 'crm_tour'})
             self.wait('window.__cwsSeen.length > 0')
             self.assertTrue(self.js('window.__cwsSeen[0].grid'))
             self._click(grid)
@@ -367,6 +369,7 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
             self.assertFalse(pointer['body'], f'a pointer on the page: {seen}')
         after = [p for p in seen[1:] if p['home']]
         self.assertTrue(after, f'no pointer on the home menu: {seen}')
+        self.assertTrue(any(p['tile'] for p in after), f'no tile pointer on the home menu: {seen}')
         self.assertFalse(any(p['grid'] for p in after), f'a grid pointer on the home menu: {seen}')
 
     def test_A133_crm_tour_on_home_menu(self):
