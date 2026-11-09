@@ -210,15 +210,31 @@ Owner decisions, in one line each:
   automatic and in interactive tours (also when it is started from the home
   menu or when the home menu opens right after the step began), and goes on
   with its next step. The helper adds a condition to the step so that it only
-  applies outside the home menu, and the interactive engine moves on past a
-  current step that has become inactive.
+  applies outside the home menu. The helper also marks that step; the
+  interactive runner patch moves on past a current step that has become
+  inactive only when the step carries the mark (D10 narrows the first form).
+- **D9.** More of the original's measured look holds. A switcher group of one
+  to four buttons with no active button shows the pill under its first button
+  (more than four: no pill); ribbon bands carry the 25 % gloss tone; the
+  pressed slider thumb carries the control gloss over its fill; searchable
+  selection lists have a grey 100 background in light; in dark the hover text
+  of an inactive switcher button stays grey 900 and the active text is the
+  black role; the home menu scrolls at full width, so its thin scroll bar runs
+  along the window edge while the tiles stay in the 850 px column.
+- **D10.** D8 is the only change Complete makes to how tours run. The
+  interactive runner patch acts only on the marked apps-menu step: for every
+  other step, including one that becomes inactive, it calls the Community
+  method, so those steps run as on a Community database.
 
 Verifier findings fixed in the rework round: F1 kanban title row 25.2 px and
 column header 74.2 px (80.2 px on a phone), F2 to F6 card badges and tags at 10
 to 11 px with weight 600, a white list area, transparent breadcrumbs, the
 chatter beside the form at the height of the header buttons, a 33 px settings
 search field and 8 px calendar filter spacing, F7 the dark switcher hover fill,
-F8 notebook tabs keep the surrounding text colour on hover.
+F8 notebook tabs keep the surrounding text colour on hover. Round 2: F9 plain
+badges in cards keep their size when the card footer has a larger font, and F10
+an open tray entry over the home menu has no ring (border transparent, no fill,
+only the hover wash).
 
 ### How it is built
 
@@ -267,8 +283,8 @@ from the light ones.
 |---|---|---|
 | Probe harness | loads a real back-end page in Chrome (light or dark, desktop or phone), and reads computed styles, sizes and states | `tests/theme_probe.py` (`ThemeProbeCase`), fixtures in `tests/theme_fixtures.py` |
 | Bundles | where each role and component file lands in each bundle and in which order | `tests/test_theme_bundles.py` |
-| Roles, components, views | colours, sizes and states per area (including the D7 corrections: tooltip A128, tray and avatar A129 to A131, switchers A132), no light surface in dark, native scheme, role usage, RTL, switcher widths | `tests/test_theme_shell.py`, `test_theme_components.py`, `test_theme_views.py`, `test_theme_http.py` |
-| Decisions | D1 tile release, D2 and D8 apps-menu step (including a tour started by hand from the home menu) and the expenses tour | `tests/test_theme_decisions.py` |
+| Roles, components, views | colours, sizes and states per area (including the D7 corrections: tooltip A128, tray and avatar A129 to A131, switchers A132; the D9 looks: pill A134, selection lists A135), no light surface in dark, native scheme, role usage, RTL, switcher widths | `tests/test_theme_shell.py`, `test_theme_components.py`, `test_theme_views.py`, `test_theme_http.py` |
+| Decisions | D1 tile release, D2 and D8 apps-menu step (including a tour started by hand from the home menu), D10 other steps run as on Community (A136: section menu and CRM Sales menu tours, plus a Hoot test of the runner patch) and the expenses tour | `tests/test_theme_decisions.py` |
 | Screenshots | the screens in `docs/assets/web_theme/`, on demand | class `ThemeScreens` in `tests/test_screens.py` (tag `web_theme_screens`) |
 
 Run them like the 001a tests (command below; the whole module is

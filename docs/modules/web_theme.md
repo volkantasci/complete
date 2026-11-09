@@ -100,7 +100,18 @@ you chose.
   hover state in every position, not only at the ends.
 - **Tours.** If a guided tour is started while the home menu is shown, its
   "open the apps menu" step is skipped by itself and the tour goes on with the
-  application tile.
+  application tile. This is the only change to how tours run; every other step
+  behaves as it does without the theme.
+- **Switchers with nothing selected.** A small group of buttons with no active
+  button, such as the sort buttons of a graph, shows the sliding highlight
+  under its first button. In the dark look a hovered button keeps its grey text
+  and the active one is white.
+- **Ribbons, sliders and lists.** Ribbon bands have a softer shine, a slider
+  thumb that is pressed shows a light shine, and selection lists such as the
+  language field of the preferences are light grey in the light look.
+- **Scrolling the home menu.** The home menu scrolls over the whole window
+  width, so its thin scroll bar sits at the window edge, while the tiles stay
+  in a centred column.
 - **Native controls.** Scroll bars, the browser's own date and time fields and
   the list of a native drop-down follow the look you chose, so in the dark look
   they are dark too.
