@@ -102,3 +102,29 @@ tours.add("web_theme_A133_interactive_after_name_click", {
         { trigger: ".o_list_view .o_data_row" },
     ],
 });
+
+// A136: a tour whose second step is active only while a section menu is open. The first step
+// waits (no run) for the user to open the menu, so the second step is played with the menu open;
+// the Community runner would skip a second step that is inactive at the moment it is played.
+const sectionMenuTour = (toggle, item) => ({
+    steps: () => [
+        { trigger: `${toggle}[aria-expanded=true]` },
+        {
+            isActive: [".o-dropdown--menu"],
+            trigger: `.o-dropdown--menu .dropdown-item:contains(${item})`,
+            content: "item text",
+            tooltipPosition: "right",
+            run: "click",
+        },
+        // the step a skip forward would show, with a pointer of its own
+        { trigger: ".o_main_navbar", content: "third text", tooltipPosition: "bottom", run: "click" },
+    ],
+});
+tours.add(
+    "web_theme_A136_section_menu",
+    sectionMenuTour(".o_menu_sections .dropdown-toggle:contains(Section Group)", "Section Two")
+);
+tours.add(
+    "web_theme_A136_crm_sales_menu",
+    sectionMenuTour(".o_menu_sections .dropdown-toggle:contains(Sales)", "My Pipeline")
+);

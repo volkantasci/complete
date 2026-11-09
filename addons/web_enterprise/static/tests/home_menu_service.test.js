@@ -17,7 +17,11 @@ import {
 } from "@web/../tests/web_test_helpers";
 import { browser, location } from "@web/core/browser/browser";
 import { redirect } from "@web/core/utils/urls";
-import { adaptTourAppsMenuStep } from "@web_enterprise/home_menu/home_menu_service";
+import {
+    adaptInteractiveTour,
+    adaptTourAppsMenuStep,
+    APPS_MENU_STEP_MARK,
+} from "@web_enterprise/home_menu/home_menu_service";
 
 const HOME_ROOT = ".o_home_menu";
 const BG_CLASS = "o_home_menu_background";
@@ -375,6 +379,8 @@ test("A103 apps-menu step is skipped while the home menu is shown", async () => 
     expect(document.body).toHaveClass(BG_CLASS);
     expect(document.body.matches(step.isActive.at(-1))).toBe(false);
     expect(step.tooltipPosition).toBe("bottom");
+    // the mark of the step the interactive runner may treat differently (D10)
+    expect(step[APPS_MENU_STEP_MARK]).toBe(true);
     // the run stays the string: the interactive mode skips a step whose run is a function
     expect(step.run).toBe("click");
     // a tour step finds visible elements only
@@ -396,4 +402,41 @@ test("A103 apps-menu step is skipped while the home menu is shown", async () => 
     expect(matches()).toEqual([]);
     await animationFrame();
     expect(getService("home_menu").hasHomeMenu).toBe(true);
+});
+
+test("A136 the interactive runner is changed for the apps-menu step only", async () => {
+    // a stand-in runner with the members the patched method reads; its own method is the
+    // "Community" behaviour, which records every call
+    class Runner {
+        constructor(step) {
+            const action = { step };
+            this.currentAction = action;
+            this.actions = [action, { step: {} }, { step: {} }];
+            this.currentActionIndex = 0;
+        }
+        play() {
+            expect.step("play");
+        }
+        _onMutation() {
+            expect.step("community");
+            return "community result";
+        }
+    }
+    adaptInteractiveTour(Runner);
+    const inactive = { active: false };
+    // another step that turned inactive: the Community method runs, nothing else
+    const other = new Runner({ ...inactive });
+    expect(other._onMutation()).toBe("community result");
+    expect(other.currentActionIndex).toBe(0);
+    expect.verifySteps(["community"]);
+    // the apps-menu step that turned inactive: the runner moves on
+    const marked = new Runner({ ...inactive, [APPS_MENU_STEP_MARK]: true });
+    marked._onMutation();
+    expect(marked.currentActionIndex).toBe(1);
+    expect.verifySteps(["play"]);
+    // the apps-menu step still active: the Community method runs
+    const active = new Runner({ active: true, [APPS_MENU_STEP_MARK]: true });
+    expect(active._onMutation()).toBe("community result");
+    expect(active.currentActionIndex).toBe(0);
+    expect.verifySteps(["community"]);
 });

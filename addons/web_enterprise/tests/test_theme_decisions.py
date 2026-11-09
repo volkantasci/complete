@@ -145,6 +145,24 @@ def make_decisions_app(env):
     })
 
 
+def make_sections_app(env):
+    """An application (path ``cws-sections``) whose top bar has one section menu with two items."""
+    action = env['ir.actions.act_window'].create({
+        'name': 'Section Partners', 'res_model': 'res.partner',
+        'view_mode': 'list,form', 'path': 'cws-sections',
+    })
+    root = env['ir.ui.menu'].create({
+        'name': 'Section App', 'sequence': 9002,
+        'action': f'ir.actions.act_window,{action.id}',
+    })
+    group = env['ir.ui.menu'].create({'name': 'Section Group', 'parent_id': root.id})
+    for name in ('Section One', 'Section Two'):
+        env['ir.ui.menu'].create({
+            'name': name, 'parent_id': group.id,
+            'action': f'ir.actions.act_window,{action.id}',
+        })
+
+
 @tagged('post_install', '-at_install')
 class TestThemeAppsMenuStep(HttpCase):
     """A103, A105, A106: the Community apps-menu tour step keeps the home menu."""
@@ -198,6 +216,7 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
     def setUpClass(cls):
         super().setUpClass()
         make_decisions_app(cls.env)
+        make_sections_app(cls.env)
 
     def _first_pointers(self, url, tour, ready):
         with self.page(url):
@@ -266,6 +285,89 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
         self.assertTrue(shown[0]['tile'], f'the first pointer on the home menu: {seen}')
         self.assertEqual(
             [p['content'] for p in seen if p['tile']], ['tile text'], f'tile pointer: {seen}')
+
+    # -- A136 (D10): no other step of any tour is changed -------------------------
+
+    STATE = """({
+        index: odoo.loader.modules.get('@web_tour/tour_state').tourState.getCurrentIndex(),
+        running: !!odoo.loader.modules.get('@web_tour/tour_state').tourState.getCurrentTour(),
+        menu: !!document.querySelector('.o-dropdown--menu'),
+        errors: window.__cwsErrors.length,
+        texts: window.__cwsSeen.map((p) => p.content),
+    })"""
+
+    def _section_tour(self, url, ready, tour, toggle):
+        """Open the menu, reach the second step, close the menu with Escape; return the state
+        reached with the menu open and the state a moment after it closed."""
+        with self.page(url):
+            self.wait(ready)
+            self.js('window.__cwsErrors = []; addEventListener("error", (e) => '
+                    'window.__cwsErrors.push(String(e.message)))')
+            self.js(self.POINTERS % {'tile': TILE, 'name': tour})
+            self._click(toggle)
+            self.wait("!!document.querySelector('.o-dropdown--menu')")
+            # the second step is current and points at the item, with its text
+            self.wait("window.__cwsSeen.some((p) => p.content === 'item text')")
+            before = self.js(self.STATE)
+            self.key('Escape')
+            self.wait("!document.querySelector('.o-dropdown--menu')")
+            time.sleep(1)
+            after = self.js(self.STATE)
+            self.js('window.__cwsStop()')
+        return before, after
+
+    def _assert_community_outcome(self, before, after):
+        # Community runner (observed on a database without this module's patch, and by reading
+        # the engine): the second step stays the current one and waits when the menu closes; it
+        # does not move on to the third step. The runner of the earlier rounds ended on index 2
+        # with the third step's pointer.
+        self.assertEqual(before['index'], 1, before)
+        self.assertEqual(after['index'], 1, f'the tour left the second step: {before} {after}')
+        self.assertTrue(after['running'], after)
+        self.assertFalse(after['menu'], after)
+        self.assertNotIn('third text', after['texts'], f'a skip forward: {after}')
+
+    def test_A136_section_menu_closed_with_escape(self):
+        before, after = self._section_tour(
+            '/odoo/cws-sections', '!!document.querySelector(".o_menu_sections .dropdown-toggle")',
+            'web_theme_A136_section_menu',
+            '.o_menu_sections .dropdown-toggle')
+        self._assert_community_outcome(before, after)
+
+    def test_A136_crm_sales_menu_closed_with_escape(self):
+        if 'crm.lead' not in self.env:
+            self.skipTest('crm is not installed')
+        before, after = self._section_tour(
+            '/odoo/action-crm.crm_lead_action_pipeline',
+            '!!document.querySelector(".o_menu_sections .dropdown-toggle")',
+            'web_theme_A136_crm_sales_menu',
+            '.o_menu_sections .dropdown-toggle')
+        self._assert_community_outcome(before, after)
+
+    def test_A136_crm_tour_inside_application(self):
+        """The Community CRM tour, started inside CRM: the pointers after the first are the ones
+        of the Community runner (the tile, with the step's text)."""
+        if 'crm.lead' not in self.env:
+            self.skipTest('crm is not installed')
+        grid = '.o_navbar_apps_menu button'
+        with self.page('/odoo/action-crm.crm_lead_action_pipeline'):
+            self.wait('!!document.querySelector(".o_opportunity_kanban .o_kanban_renderer")')
+            self.js(self.POINTERS % {'tile': TILE, 'name': 'crm_tour'})
+            self.wait('window.__cwsSeen.length > 0')
+            self.assertTrue(self.js('window.__cwsSeen[0].grid'))
+            self._click(grid)
+            self.wait('window.__cwsSeen.some((p) => p.home && p.content)')
+            time.sleep(.5)
+            seen = self.js(
+                'window.__cwsStop(), window.__cwsSeen.map((p) => ({...p, el: undefined}))')
+            # stop here: the next step opens the application, the ones after create data
+            self.js("odoo.loader.modules.get('@web_tour/tour_state').tourState.clear()")
+        for pointer in seen:
+            self.assertTrue(pointer['content'], f'a pointer without text: {seen}')
+            self.assertFalse(pointer['body'], f'a pointer on the page: {seen}')
+        after = [p for p in seen[1:] if p['home']]
+        self.assertTrue(after, f'no pointer on the home menu: {seen}')
+        self.assertFalse(any(p['grid'] for p in after), f'a grid pointer on the home menu: {seen}')
 
     def test_A133_crm_tour_on_home_menu(self):
         if 'crm.lead' not in self.env:
