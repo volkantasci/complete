@@ -3,13 +3,14 @@
 """Probe tests of the standard views: control panel, search bar, kanban, search panel
 (001b R15, R23-R25, R32, R33, R38 colour picker and company switcher field, R42)."""
 import colorsys
+import json
 import math
 import re
 
 from odoo import fields
 from odoo.tests import tagged
 
-from .test_theme_shell import SECTION_TOGGLE, ShellProbeCase
+from .test_theme_shell import GRID_BUTTON, GRID_ICON, SECTION_TOGGLE, ShellProbeCase
 from .theme_fixtures import KANBAN, LIST, MARK, _action
 
 PAGE = {'light': '#F8F9FA', 'dark': '#1F1F23'}
@@ -1190,3 +1191,394 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
             self.wait(f"!!document.querySelector('{option}')")
             got = self.style(option, 'background-color')
             self.assertColour(got['background-color'], '#3E3F47')
+
+
+# -- A4: no light surface in dark -------------------------------------------------------------
+
+# One helper run in each page: every visible element of at least 40x40 px whose own background
+# colour is opaque must be no lighter than #3E3F47 (relative luminance); images, canvases and
+# the record colour fills are left out.
+SWEEP_JS = r"""(() => {
+    const lum = (r, g, b) => {
+        const f = (c) => {
+            c /= 255;
+            return c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4;
+        };
+        return .2126 * f(r) + .7152 * f(g) + .0722 * f(b);
+    };
+    const limit = lum(0x3E, 0x3F, 0x47);
+    const ctx = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+    const rgba = (css) => {
+        const m = css.match(/^rgba?\(([^)]*)\)$/);
+        if (m && !m[1].includes('/')) {
+            const p = m[1].split(',').map(parseFloat);
+            return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1];
+        }
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = '#000';
+        ctx.fillStyle = css;
+        ctx.fillRect(0, 0, 1, 1);
+        const d = ctx.getImageData(0, 0, 1, 1).data;
+        return [d[0], d[1], d[2], d[3] / 255];
+    };
+    const skipTag = /^(IMG|CANVAS|SVG|VIDEO|IFRAME|HTML|SCRIPT|STYLE|PICTURE|INPUT)$/i;
+    const skipClass = /(color_?\d|colorlist|o_cws_color|calendar_color|fc-event)/;
+    const name = (el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '')
+        + [...el.classList].slice(0, 4).map((c) => '.' + c).join('');
+    const out = [];
+    for (const el of document.querySelectorAll('body *')) {
+        const classes = el.getAttribute('class') || '';
+        if (skipTag.test(el.tagName) || el.closest('svg') || skipClass.test(classes)) {
+            continue;
+        }
+        const r = el.getBoundingClientRect();
+        if (r.width < 40 || r.height < 40 || r.bottom <= 0 || r.right <= 0
+            || r.top >= innerHeight || r.left >= innerWidth) {
+            continue;
+        }
+        const cs = getComputedStyle(el);
+        if (cs.visibility !== 'visible' || cs.display === 'none') {
+            continue;
+        }
+        let hidden = false;
+        for (let p = el; p && p !== document.body; p = p.parentElement) {
+            if (getComputedStyle(p).opacity === '0') { hidden = true; break; }
+        }
+        if (hidden) {
+            continue;
+        }
+        const [R, G, B, A] = rgba(cs.backgroundColor);
+        if (A < .98) {
+            continue;
+        }
+        if (lum(R, G, B) > limit + 1e-6) {
+            out.push(`${name(el)} < ${el.parentElement ? name(el.parentElement) : ''} `
+                + `${Math.round(r.width)}x${Math.round(r.height)} ${cs.backgroundColor}`);
+        }
+    }
+    return out;
+})()"""
+
+
+@tagged('post_install', '-at_install')
+class TestThemeNoLightSurface(ShellProbeCase):
+    def settle(self):
+        self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+
+    def sweep(self, label):
+        self.settle()
+        found = self.js(SWEEP_JS)
+        self.assertEqual(found, [], f'light surfaces in dark, {label}:\n' + '\n'.join(found))
+
+    def go(self, url, ready):
+        self.js('window.__cws_before = true')
+        self.browser.navigate_to(self.base_url() + url, wait_stop=False)
+        self.wait(f"!window.__cws_before && !!document.querySelector({ready!r})", timeout=60)
+
+    def test_A4_no_light_surface_in_dark(self):
+        fixtures = self.fixtures
+        with self.page('/odoo', scheme='dark'):
+            self.wait("!!document.querySelector('.o_home_menu .o_app')")
+            # the helper itself: it reports a light box and ignores an image
+            self.js("""(() => {
+                const box = document.createElement('div');
+                box.id = 'cws_light_box';
+                box.style.cssText = 'position: fixed; top: 60px; left: 60px; width: 60px; '
+                    + 'height: 60px; background: #F8F9FA; z-index: 9999';
+                document.body.append(box);
+            })()""")
+            self.assertEqual(len(self.js(SWEEP_JS)), 1)
+            self.js("document.getElementById('cws_light_box').remove()")
+            self.sweep('home menu')
+            for label, url, ready in (
+                ('kanban', self.app_url, '.o_kanban_record'),
+                ('list', f"/odoo/action-{fixtures['list_action']}", '.o_data_row'),
+                ('grouped list', f"/odoo/action-{fixtures['list_grouped_action']}",
+                 '.o_group_header'),
+                ('form', fixtures['form_record_url'], '.o_form_sheet'),
+                ('settings', fixtures['settings_url'], '.o_setting_box'),
+                ('calendar', f"/odoo/action-{fixtures['calendar_action']}", '.fc-view'),
+                ('pivot', f"/odoo/action-{fixtures['pivot_action']}", '.o_pivot table'),
+                ('graph', f"/odoo/action-{fixtures['graph_action']}",
+                 '.o_graph_canvas_container canvas'),
+                ('apps kanban', fixtures['apps_kanban_url'], '.o_kanban_record'),
+            ):
+                self.go(url, ready)
+                self.sweep(label)
+            # an open dropdown: the search options of the list
+            self.go(f"/odoo/action-{fixtures['list_action']}", '.o_data_row')
+            self.js("document.querySelector('.o_searchview_dropdown_toggler').click()")
+            self.wait("!!document.querySelector('.o_searchview_dropdown_toggler.show')"
+                      " || !!document.querySelector('.o-dropdown--menu')")
+            self.sweep('search options dropdown')
+            # the user menu, a second dropdown
+            self.go(f"/odoo/action-{fixtures['list_action']}", '.o_data_row')
+            self.js("document.querySelector('.o_user_menu').click()")
+            self.wait("!!document.querySelector('.o-dropdown--menu .dropdown-item')")
+            self.sweep('user menu')
+            # the date picker
+            self.go(fixtures['date_form_url'], '.o_field_date button')
+            self.js("document.querySelector('.o_field_date button').click()")
+            self.wait("!!document.querySelector('.o_datetime_picker')")
+            self.sweep('date picker')
+            # the preferences dialog
+            self.go(fixtures['apps_kanban_url'], '.o_kanban_record')
+            self.js("document.querySelector('.o_user_menu').click()")
+            self.wait("!!document.querySelector('[data-menu=\"preferences\"]')")
+            self.js("document.querySelector('[data-menu=\"preferences\"]').click()")
+            self.wait("!!document.querySelector('.o_dialog .modal-content .o_form_view')")
+            self.sweep('preferences dialog')
+
+
+# -- A126: native controls follow the scheme -------------------------------------------------
+
+@tagged('post_install', '-at_install')
+class TestThemeNativeScheme(ShellProbeCase):
+    def test_A126_native_scheme(self):
+        for scheme in SCHEMES:
+            with self.page(self.fixtures['form_record_url'], scheme=scheme):
+                self.wait("!!document.querySelector('.o_form_sheet')")
+                self.assertEqual(
+                    self.style('html', 'color-scheme')['color-scheme'], scheme)
+                self.assertEqual(self.js(
+                    "document.querySelector('meta[name=color-scheme]').content"), scheme)
+                # native parts inherit the declared scheme: a date input, a time input, a
+                # select (its open list) and a scroll box
+                self.js("""(() => {
+                    const box = document.createElement('div');
+                    box.id = 'cws_native';
+                    box.innerHTML = '<input type="date"/><input type="time"/>'
+                        + '<select><option>a</option></select>'
+                        + '<div style="overflow: scroll; height: 20px"></div>';
+                    document.body.append(box);
+                })()""")
+                for selector in ('#cws_native input[type=date]', '#cws_native input[type=time]',
+                                 '#cws_native select', '#cws_native div'):
+                    self.assertEqual(
+                        self.style(selector, 'color-scheme')['color-scheme'], scheme, selector)
+
+
+# -- R5 remainder: role usage ------------------------------------------------------------------
+
+@tagged('post_install', '-at_install')
+class TestThemeRoleUsage(ShellProbeCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        action = _action(
+            cls.env, 'crumbs',
+            [('list', LIST), ('form', '<form><sheet><field name="name"/></sheet></form>')])
+        cls.crumbs_url = f'/odoo/action-{action.id}'
+
+    def inject(self, html):
+        self.js(f"""(() => {{
+            document.querySelectorAll('#cws_probe').forEach((e) => e.remove());
+            const box = document.createElement('div');
+            box.id = 'cws_probe';
+            box.innerHTML = {json.dumps(html)};
+            document.querySelector('.o_content').append(box);
+        }})()""")
+
+    def test_R5_breadcrumbs(self):
+        for scheme, body, muted in (
+            ('light', '#212529', ('#495057', .76)), ('dark', '#EBEBEB', ('#B3B4B8', .76)),
+        ):
+            with self.page(self.crumbs_url, scheme=scheme):
+                self.wait("!!document.querySelector('.o_data_row')")
+                self.js("document.querySelector('.o_data_row .o_data_cell').click()")
+                self.wait("!!document.querySelector('.o_form_view')"
+                          " && !!document.querySelector('.o_back_button a')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+                last = self.style('.o_last_breadcrumb_item', 'color')['color']
+                self.assertColour(last, body)
+                sep = self.style('.o_back_button a', 'color', pseudo='::after')['color']
+                self.assertColour(sep, muted[0], alpha=muted[1])
+                # plain navigation links are body coloured; the active tab of a plain row
+                # takes the heading colour
+                self.inject(
+                    '<ul class="nav"><li class="nav-item"><a class="nav-link">x</a></li></ul>'
+                    '<ul class="nav nav-tabs"><li class="nav-item">'
+                    '<a class="nav-link active">y</a></li></ul>')
+                self.assertColour(
+                    self.style('#cws_probe .nav:not(.nav-tabs) .nav-link', 'color')['color'],
+                    body)
+                self.assertColour(
+                    self.style('#cws_probe .nav-tabs .nav-link.active', 'color')['color'],
+                    '#000000' if scheme == 'light' else '#FFFFFF')
+
+    def test_R5_dark_only_details(self):
+        with self.page(self.app_url, scheme='dark'):
+            self.wait("!!document.querySelector('.o_kanban_record')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+            # generic progress bar: grey 400 track, bar in the primary text tone
+            self.inject('<div class="progress"><div class="progress-bar" style="width: 50%">'
+                        '</div></div>'
+                        '<table class="table"><tbody><tr><td>cell</td></tr></tbody></table>'
+                        '<kbd>K</kbd>')
+            self.assertColour(
+                self.style('#cws_probe .progress', 'background-color')['background-color'],
+                '#56575E')
+            self.assertColour(
+                self.style('#cws_probe .progress-bar', 'background-color')['background-color'],
+                '#C175AD')
+            # generic table: view background, grey 300 lines
+            cell = self.style('#cws_probe .table td', 'background-color', 'border-bottom-color')
+            self.assertColour(cell['background-color'], '#2C2E35')
+            self.assertColour(cell['border-bottom-color'], '#3E3F47')
+            # keyboard keys: light keys, text grey 200 on grey 900, a soft inner shadow
+            key = self.style('#cws_probe kbd', 'color', 'background-color', 'box-shadow')
+            self.assertColour(key['color'], '#2C2E35')
+            self.assertColour(key['background-color'], '#EBEBEB')
+            self.assertIn('inset', key['box-shadow'])
+            # dropdown section headers: grey 700
+            self.js("document.querySelector('.o_searchview_dropdown_toggler').click()")
+            self.wait("!!document.querySelector('.o-dropdown--menu')")
+            self.js("""(() => {
+                const header = document.createElement('h6');
+                header.className = 'dropdown-header';
+                header.id = 'cws_header';
+                header.textContent = 'h';
+                document.querySelector('.o-dropdown--menu').prepend(header);
+            })()""")
+            self.assertColour(self.style('#cws_header', 'color')['color'], '#B3B4B8')
+
+
+# -- A121 / E9: right-to-left mirroring -------------------------------------------------------
+
+@tagged('post_install', '-at_install')
+class TestThemeRtl(ShellProbeCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.env['res.lang']._activate_lang('ar_001')
+        action = _action(
+            cls.env, 'rtl_switch',
+            [('kanban', KANBAN.replace('{group}', 'type')), ('list', LIST)])
+        cls.rtl_switch_url = f'/odoo/action-{action.id}'
+
+    def rtl_page(self, url, **kwargs):
+        return self.page(url, lang='ar_001', **kwargs)
+
+    def test_A121_rtl(self):
+        # kanban: the colour strip is on the right edge
+        with self.rtl_page(self.app_url):
+            self.ready_kanban()
+            self.assertTrue(self.js("document.body.classList.contains('o_rtl')"))
+            self.assertEqual(self.style('.o_kanban_view', 'direction')['direction'], 'rtl')
+            strip = '.o_kanban_record.o_kanban_color_4'
+            got = self.style(strip, 'left', 'right', 'width', pseudo='::after')
+            self.assertEqual((got['right'], got['width']), ('0px', '3px'))
+            self.assertNotEqual(got['left'], '0px')
+        # view switcher: the highlight lies on the active button, in the mirrored order
+        with self.rtl_page(self.rtl_switch_url):
+            self.ready_kanban()
+            nav = '.o_control_panel nav.o_cp_switch_buttons'
+            self.wait(f"document.querySelectorAll('{nav} .btn').length > 1")
+            first, second = (self.rect(f'{nav} .btn', index=i) for i in (0, 1))
+            self.assertGreater(first['x'], second['x'])
+            self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+            pill = self.js(f"""(() => {{
+                const el = document.querySelector('{nav}');
+                const cs = getComputedStyle(el, '::before');
+                const r = el.getBoundingClientRect();
+                const border = parseFloat(getComputedStyle(el).borderRightWidth);
+                return {{right: r.right - border - parseFloat(cs.right),
+                         width: parseFloat(cs.width), display: cs.display}};
+            }})()""")
+            active = self.rect(f'{nav} .btn.active')
+            self.assertEqual(pill['display'], 'block')
+            self.assertAlmostEqual(pill['right'], active['x'] + active['width'], delta=2)
+            self.assertAlmostEqual(pill['width'], active['width'], delta=2)
+            # a switcher group of text buttons: same
+            self.js("""(() => {
+                const group = document.createElement('div');
+                group.className = 'btn-group o_switcher';
+                group.id = 'cws_rtl_group';
+                group.style.cssText = 'position: fixed; top: 300px; right: 300px; z-index: 9999';
+                group.innerHTML = '<button class="btn btn-secondary active">one</button>'
+                    + '<button class="btn btn-secondary">two</button>';
+                document.body.append(group);
+            })()""")
+            box = self.rect('#cws_rtl_group .btn.active')
+            pill = self.js("""(() => {
+                const el = document.querySelector('#cws_rtl_group');
+                const cs = getComputedStyle(el, '::before');
+                const r = el.getBoundingClientRect();
+                const border = parseFloat(getComputedStyle(el).borderRightWidth);
+                return {right: r.right - border - parseFloat(cs.right),
+                        width: parseFloat(cs.width)};
+            })()""")
+            self.assertAlmostEqual(pill['right'], box['x'] + box['width'], delta=2)
+        # the back chevron points left: the light-scheme flip is not applied
+        with self.rtl_page(self.app_url):
+            self.wait_app()
+            self.js(f"document.querySelector({GRID_BUTTON!r}).click()")
+            self.wait("document.body.classList.contains('o_home_menu_background')"
+                      f" && !!document.querySelector('{GRID_BUTTON}.o_menu_toggle_back')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+            self.assertEqual(
+                self.style(GRID_ICON, 'transform')['transform'], 'none')
+        # settings: the accent bar of the selected tab is on its right edge
+        with self.rtl_page(self.fixtures['settings_url']):
+            tab = '.o_base_settings_view .settings_tab .tab.selected'
+            self.wait(f"!!document.querySelector('{tab}')")
+            shadow = self.style(tab, 'box-shadow')['box-shadow']
+            offset = re.search(r'\) (-?\d+)px', shadow)
+            self.assertTrue(offset, shadow)
+            self.assertLess(int(offset.group(1)), 0, shadow)
+            self.assertEqual(self.style(tab, 'border-top-left-radius')['border-top-left-radius'],
+                             '8px')
+            self.assertEqual(
+                self.style(tab, 'border-top-right-radius')['border-top-right-radius'], '0px')
+        # calendar: the last column, now on the left, has no border on that side
+        with self.rtl_page(f"/odoo/action-{self.fixtures['calendar_action']}"):
+            self.wait("!!document.querySelector('.fc-scrollgrid-sync-table td')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+            got = self.js("""(() => {
+                const cells = [...document.querySelectorAll('.fc-scrollgrid-sync-table tr')][0]
+                    .querySelectorAll('td');
+                const cs = getComputedStyle(cells[cells.length - 1]);
+                return [cs.borderLeftWidth, cs.borderRightWidth,
+                        getComputedStyle(cells[0]).borderRightWidth];
+            })()""")
+            self.assertEqual(got[0], '0px')
+
+    def ready_kanban(self):
+        self.wait("!!document.querySelector('.o_kanban_record')")
+        self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+
+    def wait_app(self):
+        self.wait(f"!!document.querySelector('{GRID_BUTTON}')")
+        self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+
+
+# -- R21: text-button switcher groups share the width equally -----------------------------------
+
+@tagged('post_install', '-at_install')
+class TestThemeSwitcherWidths(ShellProbeCase):
+    def test_R21_text_buttons_share_width(self):
+        with self.page(self.app_url):
+            self.wait("!!document.querySelector('.o_kanban_record')")
+            self.js("""(() => {
+                const group = document.createElement('div');
+                group.className = 'btn-group o_switcher';
+                group.id = 'cws_text_group';
+                group.style.cssText = 'position: fixed; top: 300px; left: 300px; z-index: 9999';
+                group.innerHTML = '<button class="btn btn-secondary">a</button>'
+                    + '<button class="btn btn-secondary active">a much longer label</button>'
+                    + '<button class="btn btn-secondary">mid label</button>';
+                document.body.append(group);
+            })()""")
+            widths = [self.rect('#cws_text_group .btn', index=i)['width'] for i in range(3)]
+            self.assertAlmostEqual(widths[0], widths[1], delta=.5)
+            self.assertAlmostEqual(widths[1], widths[2], delta=.5)
+            pill = self.js("""(() => {
+                const el = document.querySelector('#cws_text_group');
+                const cs = getComputedStyle(el, '::before');
+                const r = el.getBoundingClientRect();
+                return {x: r.x + parseFloat(getComputedStyle(el).borderLeftWidth)
+                    + parseFloat(cs.left), width: parseFloat(cs.width)};
+            })()""")
+            active = self.rect('#cws_text_group .btn.active')
+            self.assertAlmostEqual(pill['x'], active['x'], delta=2)
+            self.assertAlmostEqual(pill['width'], active['width'], delta=2)

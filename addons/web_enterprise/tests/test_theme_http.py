@@ -50,3 +50,12 @@ class TestThemeHttp(HttpCase):
         self.opener.cookies.set('color_scheme', 'dark')
         html = self.url_open('/web/login').text
         self.assertEqual(_meta(html, 'color-scheme'), ['light'])
+
+    def test_A127_offline_page_declares_scheme(self):
+        # the offline page paints itself dark from the cookie, so it declares dark then
+        self.opener.cookies.set('color_scheme', 'dark')
+        html = self.url_open('/odoo/offline').text
+        self.assertEqual(_meta(html, 'color-scheme'), ['dark'])
+        self.opener.cookies.set('color_scheme', 'light')
+        html = self.url_open('/odoo/offline').text
+        self.assertEqual(_meta(html, 'color-scheme'), ['light'])

@@ -74,6 +74,14 @@ nav.o_cp_switch_buttons {
     }
 }
 
+// The buttons of a group share its width equally (the highlight slots assume it): one grid
+// track per button, all as wide as the widest label.
+.o_switcher {
+    display: inline-grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+}
+
 // The highlight of a group: count and active position are read from its buttons.
 .o_switcher {
     @for $-n from 1 through $o-cws-switch-max {

@@ -146,6 +146,11 @@ nav.o_main_navbar {
     .o_cws_grid_button.o_menu_toggle_back .o_cws_grid_icon {
         transform: scaleX(-1);
 
+        // right-to-left (E9): the flip is not applied, so the chevron points left
+        .o_rtl & {
+            transform: none;
+        }
+
         .o_cws_dots {
             opacity: 0;
         }
@@ -165,6 +170,10 @@ nav.o_main_navbar {
             .oi {
                 display: inline-block;
                 transform: scaleX(-1);
+
+                .o_rtl & {
+                    transform: none;
+                }
             }
         }
     }

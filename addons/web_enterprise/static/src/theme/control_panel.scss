@@ -62,3 +62,15 @@
         }
     }
 }
+
+// Breadcrumbs (R5): the current item is in body text, the separators in muted text.
+.o_control_panel .o_breadcrumb {
+    .o_last_breadcrumb_item {
+        color: $o-main-text-color;
+    }
+
+    .o_back_button a::after,
+    .breadcrumb-item + .breadcrumb-item::before {
+        color: $text-muted;
+    }
+}

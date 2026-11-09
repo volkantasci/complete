@@ -93,6 +93,11 @@ $o-opacity-muted: .76 !default;
 $o-main-color-muted: rgba($o-gray-700, $o-opacity-muted) !default;
 $o-cws-text-secondary: rgba($o-main-text-color, .75) !default;
 $o-cws-text-tertiary: rgba($o-main-text-color, .5) !default;
+
+// Plain navigation links are body text; the active tab of a plain tab row takes the heading
+// colour (R5).
+$nav-link-color: $o-main-text-color !default;
+$nav-tabs-link-active-color: $o-main-headings-color !default;
 $border-color-translucent: rgba($o-black, .175) !default;
 
 $o-cws-field-underline: $o-gray-200 !default;

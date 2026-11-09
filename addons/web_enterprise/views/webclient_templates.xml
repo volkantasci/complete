@@ -18,4 +18,22 @@
             <meta name="color-scheme" t-att-content="'dark' if cws_declared_scheme == 'dark' else 'light'"/>
         </xpath>
     </template>
+    <!-- the offline page paints itself dark from the remembered scheme (cookie), so it
+         declares dark then; the script covers a copy that the service worker cached -->
+    <template id="webclient_offline_declared_scheme" inherit_id="web.webclient_offline">
+        <xpath expr="//t[@t-call='web.layout']" position="before">
+            <t t-set="cws_declared_scheme" t-value="'dark' if request.cookies.get('color_scheme') == 'dark' else 'light'"/>
+        </xpath>
+        <xpath expr="//t[@t-set='head']" position="inside">
+            <script type="text/javascript">
+                if (document.cookie.split(';').map((c) =&gt; c.trim()).includes('color_scheme=dark')) {
+                    document.documentElement.style.colorScheme = 'dark';
+                    const meta = document.querySelector('meta[name="color-scheme"]');
+                    if (meta) {
+                        meta.setAttribute('content', 'dark');
+                    }
+                }
+            </script>
+        </xpath>
+    </template>
 </odoo>
