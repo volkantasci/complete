@@ -6,9 +6,13 @@ import { sortBy } from "@web/core/utils/arrays";
 import { patch } from "@web/core/utils/patch";
 import { GraphRenderer } from "@web/views/graph/graph_renderer";
 
-// Fixed end colours of the line area gradient (001b R28); the same values are the
-// graph-area-end role of the two role files.
-const AREA_END = { light: "#FFFFFF", dark: "#262A36" };
+// The end colour of the line area gradient is the graph-area-end role (001b R28, R-O2), read
+// from the page; it differs by scheme because the dark bundle sets another value.
+const AREA_END_PROPERTY = "--o-cws-graph-area-end";
+
+function areaEndColour() {
+    return getComputedStyle(document.documentElement).getPropertyValue(AREA_END_PROPERTY).trim();
+}
 
 function isDark(scheme) {
     return scheme === "dark";
@@ -16,9 +20,9 @@ function isDark(scheme) {
 
 /**
  * Fill of the area under a line: from a lighter variant of the line colour
- * (darker in the dark scheme) at the top of the chart area to a fixed end
- * colour at the bottom. Before the chart has a size the plain base colour is
- * returned.
+ * (darker in the dark scheme) at the top of the chart area to the end colour
+ * role at the bottom. Before the chart has a size, or when the page defines no
+ * end colour, the plain base colour is returned.
  * @param {Object} chart Chart.js instance
  * @param {string} baseColour #rrggbb
  * @param {string} scheme "light" or "dark"
@@ -26,13 +30,14 @@ function isDark(scheme) {
  */
 export function lineAreaFill(chart, baseColour, scheme) {
     const area = chart?.chartArea;
-    if (!area || !chart.ctx) {
+    const end = areaEndColour();
+    if (!area || !chart.ctx || !end) {
         return baseColour;
     }
     const top = isDark(scheme) ? darkenColor(baseColour, 0.5) : lightenColor(baseColour, 0.5);
     const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
     gradient.addColorStop(0, top);
-    gradient.addColorStop(1, isDark(scheme) ? AREA_END.dark : AREA_END.light);
+    gradient.addColorStop(1, end);
     return gradient;
 }
 
