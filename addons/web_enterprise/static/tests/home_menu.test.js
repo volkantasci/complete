@@ -231,7 +231,7 @@ test("a11y roles", async () => {
     const input = queryFirst(".o_home_menu_search_input");
     expect(input).toHaveAttribute("role", "combobox");
     expect(input).toHaveAttribute("aria-expanded", "true");
-    expect(input).toHaveAttribute("placeholder", "Search for a menu...");
+    expect(input).toHaveAttribute("placeholder", "Find an app or menu...");
     expect(input).not.toHaveAttribute("aria-activedescendant");
     component.state.cursor = 2;
     await animationFrame();

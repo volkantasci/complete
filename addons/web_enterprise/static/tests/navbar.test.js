@@ -289,7 +289,7 @@ test("S4 grid button visible", async () => {
     await mountWebClient();
     const button = queryOne(".o_menu_toggle");
     const rect = button.getBoundingClientRect();
-    expect(rect.width).toBe(93);
+    expect(rect.width).toBe(94);
     expect(rect.height).toBe(26);
     const icon = queryOne(".o_menu_toggle .o_cws_grid_icon");
     const iconRect = icon.getBoundingClientRect();
@@ -297,10 +297,10 @@ test("S4 grid button visible", async () => {
     expect(iconRect.width).toBe(14);
     expect(iconRect.height).toBe(14);
     const brandIcon = queryOne(".o_menu_brand_icon").getBoundingClientRect();
-    expect(brandIcon.width).toBe(30);
-    expect(brandIcon.height).toBe(30);
-    // the application icon covers the left part of the button
-    expect(Math.abs(brandIcon.left - rect.left)).toBeLessThan(1);
+    expect(brandIcon.width).toBe(26);
+    expect(brandIcon.height).toBe(26);
+    // the application icon covers the left part of the button, 12 px in
+    expect(Math.abs(brandIcon.left - rect.left - 12)).toBeLessThan(1);
     // at rest the grid is hidden; the rule that reveals it is checked below
     expect(getComputedStyle(icon).opacity).toBe("0");
     const name = queryOne(".o_menu_brand");
@@ -308,7 +308,7 @@ test("S4 grid button visible", async () => {
     expect(nameRect.width).toBeGreaterThan(0);
     expect(Math.round(nameRect.left - rect.left)).toBe(46);
     expect(getComputedStyle(name).fontSize).toBe("16.8px");
-    expect(getComputedStyle(name).marginLeft).toBe("16px");
+    expect(getComputedStyle(name).marginLeft).toBe("15px");
     // the name belongs to the button, inside its box
     expect(queryOne(`${GRID_BUTTON} ${BRAND}`)).toBe(name);
     expect(nameRect.right).toBeLessThan(rect.right + 0.5);

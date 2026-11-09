@@ -142,6 +142,11 @@ nav.o_main_navbar {
         }
     }
 
+    // R8: the back chevron button sits 9 px from the edge of the bar (painted glyph at x 24)
+    .o_cws_apps_menu:has(> .o_cws_grid_button.o_menu_toggle_back) {
+        margin-left: 9px;
+    }
+
     // the back state is one chevron, the mirror image of the one the hover morph draws
     .o_cws_grid_button.o_menu_toggle_back .o_cws_grid_icon {
         transform: scaleX(-1);
@@ -160,13 +165,18 @@ nav.o_main_navbar {
         }
     }
 
-    // mobile: the Community sidebar icon, in the entry colour; the back chevron points right
+    // mobile: the Community sidebar icon, in the glyph role colour (primary in light, the black
+    // role in dark; R7, D3), 9 px from the edge of the bar like the back chevron; the back
+    // chevron points right
     a.o_menu_toggle {
         --NavBar-entry-padding-left: 8px;
+        --NavBar-entry-color: var(--o-cws-grid-icon-color);
+        --NavBar-entry-color--hover: var(--o-cws-grid-icon-color);
+        --NavBar-entry-color--active: var(--o-cws-grid-icon-color);
+        color: var(--o-cws-grid-icon-color);
+        margin-left: 9px;
 
         &.o_menu_toggle_back {
-            color: var(--o-cws-grid-icon-color);
-
             .oi {
                 display: inline-block;
                 transform: scaleX(-1);
@@ -189,14 +199,14 @@ nav.o_main_navbar {
 
         > .o_cws_grid_button:not(.o_menu_toggle_back) {
             flex: 0 0 auto;
-            min-width: 93px;
-            padding: 0 0 0 8px;
+            min-width: 94px;
+            padding: 0 0 0 17px;
             justify-content: flex-start;
             white-space: nowrap;
 
             .o_cws_grid_icon {
                 opacity: 0;
-                margin-right: 8px;
+                margin-right: 0;
                 // hidden behind the application icon, shifted right by 3/4 of its width
                 transform: translateX(75%);
             }
@@ -258,23 +268,22 @@ nav.o_main_navbar {
 
     .o_cws_apps_menu:has(> .o_cws_grid_button.o_menu_toggle_back) {
         width: auto;
-        margin-left: 0;
     }
 
     // the application icon overlaps the left part of the button
     .o_cws_apps_menu > .o_menu_brand_icon {
         position: absolute;
-        left: 0;
+        left: 12px;
         top: 50%;
-        width: 30px;
-        height: 30px;
+        width: 26px;
+        height: 26px;
         transform: translateY(-50%);
         object-fit: cover;
         pointer-events: none;
     }
 
     .o_cws_grid_button .o_menu_brand {
-        margin-left: 16px;
+        margin-left: 15px;
         margin-right: 0;
         font-size: 16.8px;
         line-height: 1;

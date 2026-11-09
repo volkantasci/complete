@@ -59,6 +59,8 @@ $o-cws-dark-chrome: #242733 !default;
 // Surfaces, text and lines
 $o-view-background-color: $o-gray-200 !default;
 $o-cws-overlay-bg: $o-gray-300 !default;
+// The mobile bottom sheet: grey 300, like the other overlays.
+$o-cws-sheet-bg: $o-gray-300 !default;
 $o-cws-overlay-border: $o-gray-400 !default;
 
 $tooltip-bg: $o-gray-300 !default;
@@ -77,6 +79,8 @@ $o-cws-backdrop-bg: $o-white !default;
 
 // States
 $o-cws-active-bg: mix($o-action, $o-gray-300, 10%) !default;
+// The list selection counter: grey 300 fill, action border and text.
+$o-cws-selection-bg: $o-gray-300 !default;
 $o-cws-primary-hover: lighten($o-brand-primary, 3%) !default;
 $o-cws-primary-pressed: lighten($o-brand-primary, 6%) !default;
 

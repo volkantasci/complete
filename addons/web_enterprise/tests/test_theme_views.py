@@ -602,6 +602,53 @@ class TestThemeListPivotGraph(ShellProbeCase):
     def test_A64_row_hover_selection_dark(self):
         self._hover_selection('dark')
 
+    def _select_two(self):
+        self.js("""for (const box of [...document.querySelectorAll(
+            '.o_data_row .o_list_record_selector input')].slice(0, 2)) { box.click(); }""")
+        self.wait("document.querySelectorAll('.o_data_row_selected').length === 2")
+        self.js("new Promise((resolve) => setTimeout(resolve, 300))")
+
+    def _hovered_selected_row(self, scheme):
+        bg, line = SELECTED[scheme]
+        with self.list_page(scheme):
+            self.list_ready()
+            self._select_two()
+            cell = '.o_data_row_selected > td.o_data_cell'
+            with self.forced('.o_data_row_selected', 'hover', index=0):
+                got = self.style(cell, 'background-color', 'box-shadow', 'border-bottom-color',
+                                 'color', index=0)
+            # selected wins over hover: the fill stays, no hover tint is laid over it
+            self.assertColour(got['background-color'], bg)
+            self.assertIn(got['box-shadow'], ('none', ''), got)
+            self.assertColour(got['border-bottom-color'], line)
+            self.assertColour(got['color'], BLACK_ROLE[scheme])
+
+    def test_A64_hovered_selected_row_light(self):
+        self._hovered_selected_row('light')
+
+    def test_A64_hovered_selected_row_dark(self):
+        self._hovered_selected_row('dark')
+
+    def _selection_counter(self, scheme):
+        fill = {'light': '#E6F2F3', 'dark': '#3E3F47'}[scheme]
+        with self.list_page(scheme):
+            self.list_ready()
+            self._select_two()
+            item = '.o_selection_box .list-group-item.active'
+            got = self.style(item, 'background-color', 'color', 'border-top-color',
+                             'border-top-width', 'border-left-width')
+            self.assertColour(got['background-color'], fill)
+            self.assertColour(got['color'], ACTION[scheme])
+            self.assertColour(got['border-top-color'], ACTION[scheme])
+            self.assertEqual((got['border-top-width'], got['border-left-width']), ('1px', '1px'))
+            self.assertColour(self.style(f'{item} b', 'color')['color'], ACTION[scheme])
+
+    def test_A64_selection_counter_light(self):
+        self._selection_counter('light')
+
+    def test_A64_selection_counter_dark(self):
+        self._selection_counter('dark')
+
     def _grouped(self, scheme):
         with self.list_page(scheme, grouped=True):
             self.list_ready('.o_group_header')
@@ -1133,6 +1180,33 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
             self.assertColour(other['background-color'], '#56575E')
             active = self.style(f'{item}.selected', 'border-top-color')
             self.assertColour(active['border-top-color'], '#1CBCB1')
+
+    def _sheet_fill(self, scheme):
+        sheet = {'light': '#F8F9FA', 'dark': '#3E3F47'}[scheme]
+        button = {'light': '#FFFFFF', 'dark': '#56575E'}[scheme]
+        with self.page(self.switch_url, scheme=scheme, size=(390, 844), touch=True):
+            self.ready('.o_cp_switch_buttons')
+            self.js("document.querySelector('.o_cp_switch_buttons .btn').click()")
+            self.wait("!!document.querySelector('.o_bottom_sheet .o_cp_switch_buttons .selected')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+            got = self.style('.o_bottom_sheet .o_bottom_sheet_sheet', 'background-color')
+            self.assertColour(got['background-color'], sheet)
+            # the body is not a second panel inside the sheet: same fill, no visible frame
+            body = self.style('.o_bottom_sheet .o_bottom_sheet_body', 'background-color',
+                              'border-top-color', 'box-shadow')
+            self.assertColour(body['background-color'], sheet)
+            self.assertColour(body['border-top-color'], sheet)
+            self.assertEqual(body['box-shadow'], 'none')
+            other = self.style(
+                '.o_bottom_sheet .o_cp_switch_buttons .o-dropdown-item:not(.selected)',
+                'background-color')
+            self.assertColour(other['background-color'], button)
+
+    def test_R37_sheet_fill_light(self):
+        self._sheet_fill('light')
+
+    def test_R37_sheet_fill_dark(self):
+        self._sheet_fill('dark')
 
     def test_A92_bottom_sheet_statusbar_dark(self):
         with self.page(self.fixtures['form_record_url'], scheme='dark',

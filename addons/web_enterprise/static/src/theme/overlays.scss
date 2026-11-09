@@ -60,3 +60,21 @@
         box-shadow: $o-cws-shadow;
     }
 }
+
+// R37 (S31): the mobile bottom sheet and the backing Community draws behind it while it snaps.
+.o_bottom_sheet {
+    .o_bottom_sheet_sheet {
+        background-color: $o-cws-sheet-bg;
+    }
+
+    // the body is a Community dropdown menu: here it is the sheet itself, not a panel on it
+    .o_bottom_sheet_body {
+        background-color: $o-cws-sheet-bg;
+        border-color: $o-cws-sheet-bg;
+        box-shadow: none;
+    }
+
+    &.o_bottom_sheet_snapping .o_bottom_sheet_rail::before {
+        background: $o-cws-sheet-bg;
+    }
+}

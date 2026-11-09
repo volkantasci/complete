@@ -82,6 +82,8 @@ $o-cws-dark-chrome: #242733 !default;
 $o-webclient-background-color: $o-gray-100 !default;
 $o-view-background-color: #FFFFFF !default;
 $o-cws-overlay-bg: $o-white !default;
+// The mobile bottom sheet: grey 100 (its buttons stay white).
+$o-cws-sheet-bg: $o-gray-100 !default;
 $o-border-color: $o-gray-300 !default;
 $o-cws-overlay-border: $o-border-color !default;
 
@@ -122,6 +124,8 @@ $o-cws-active-bg: mix($o-action, $o-white, 10%) !default;
 $o-component-active-bg: $o-cws-active-bg !default;
 $o-component-active-border: $o-action !default;
 $o-component-active-color: $o-black !default;
+// The list selection counter: component active fill, action border and text.
+$o-cws-selection-bg: $o-cws-active-bg !default;
 
 $o-cws-focus-border: mix($o-action, $o-gray-400, 50%) !default;
 $input-focus-border-color: $o-cws-focus-border !default;

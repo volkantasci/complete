@@ -26,6 +26,12 @@
             color: $o-black;
         }
 
+        // R26: selected wins over hover, no hover tint is laid over a selected row.
+        .o_data_row.o_data_row_selected:hover > td {
+            --#{$prefix}table-bg-state: transparent;
+            box-shadow: none;
+        }
+
         // First record row under a group header: a faint inner shadow along its top.
         tr.o_group_header + tr.o_data_row > td {
             background-image:

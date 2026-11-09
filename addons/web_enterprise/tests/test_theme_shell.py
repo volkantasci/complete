@@ -347,6 +347,69 @@ class TestThemeShell(ShellProbeCase):
             # the name moves 8 px to the left
             self.assertIn('-8', hovered['name']['transform'])
 
+    def _brand_geometry(self, scheme):
+        # the application icon: 26 px box, painted from x 13 (S5, S6); the name stays at x 47
+        with self.app_page(scheme):
+            self.wait_app()
+            icon = self.rect(BRAND_ICON)
+            self.assertAlmostEqual(icon['x'], 13, delta=1.5)
+            self.assertAlmostEqual(icon['width'], 26, delta=1)
+            self.assertAlmostEqual(icon['height'], 26, delta=1)
+            self.assertAlmostEqual(icon['y'] + icon['height'] / 2, 23, delta=1.5)
+            self.assertAlmostEqual(self.rect(BRAND_NAME)['x'], 47, delta=1.5)
+            # hovered: the chevron (6 by 12 on its path, 8 by 14 painted) is centred on x 25
+            with self.forced(GRID_BUTTON, 'hover'):
+                self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+                chevron = self.rect(f'{GRID_ICON} .o_cws_chevron')
+                self.assertAlmostEqual(chevron['x'] + chevron['width'] / 2, 25, delta=1.5)
+                self.assertAlmostEqual(chevron['width'], 6, delta=1)
+                self.assertAlmostEqual(chevron['height'], 12, delta=1)
+                self.assertAlmostEqual(chevron['y'] + chevron['height'] / 2, 23, delta=1.5)
+                self.assertAlmostEqual(self.rect(BRAND_NAME)['x'], 39, delta=1.5)
+
+    def test_A14_brand_geometry_light(self):
+        self._brand_geometry('light')
+
+    def test_A14_brand_geometry_dark(self):
+        self._brand_geometry('dark')
+
+    def _back_chevron_geometry(self, scheme):
+        # S8: the back chevron button is 38 by 26 and its painted chevron is centred on x 28
+        with self.app_page(scheme):
+            self.wait_app()
+            self.js(f"document.querySelector({GRID_BUTTON!r}).click()")
+            self.wait("document.body.classList.contains('o_home_menu_background')"
+                      f" && !!document.querySelector('{GRID_BUTTON}.o_menu_toggle_back')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+            chevron = self.rect(f'{GRID_ICON} .o_cws_chevron')
+            self.assertAlmostEqual(chevron['x'] + chevron['width'] / 2, 28, delta=2)
+            self.assertAlmostEqual(chevron['width'], 6, delta=1)
+            self.assertAlmostEqual(chevron['height'], 12, delta=1)
+            self.assertAlmostEqual(chevron['y'] + chevron['height'] / 2, 23, delta=1.5)
+
+    def test_R8_back_chevron_geometry_light(self):
+        self._back_chevron_geometry('light')
+
+    def test_R8_back_chevron_geometry_dark(self):
+        self._back_chevron_geometry('dark')
+
+    def _mobile_toggle(self, scheme):
+        roles = ROLES[scheme]
+        with self.app_page(scheme, size=MOBILE, touch=True):
+            self.wait("!!document.querySelector('.o_main_navbar a.o_menu_toggle')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+            toggle = '.o_main_navbar a.o_menu_toggle'
+            self.assertColour(self.style(toggle, 'color')['color'], roles['glyph'])
+            self.assertColour(self.style(f'{toggle} .oi', 'color')['color'], roles['glyph'])
+            self.assertNotEqual(
+                self.style(toggle, 'color')['color'], self.style('body', 'color')['color'])
+
+    def test_R7_mobile_sidebar_toggle_light(self):
+        self._mobile_toggle('light')
+
+    def test_R7_mobile_sidebar_toggle_dark(self):
+        self._mobile_toggle('dark')
+
     def test_A15_reduced_motion_grid(self):
         with self.app_page(reduced_motion=True):
             self.wait_app()
@@ -846,6 +909,17 @@ class TestThemeHomeMenu(ShellProbeCase):
 
     def test_A30_A125_touch_search_dark(self):
         self._touch_search('dark', 39, '#3C3E4A')
+
+    def test_D5_touch_tiles_follow_the_taller_dark_field(self):
+        tiles = {}
+        for scheme in ('light', 'dark'):
+            with self.home_page(scheme, size=MOBILE, touch=True):
+                self.wait_home()
+                tiles[scheme] = self.rect(TILE_ICON)['y']
+        # the page opens scrolled by 46 px; the dark field is 2 px taller and nothing makes up
+        # for it, so its first tile row sits 2 px lower (S1, S4 dark captures: row at y 67)
+        self.assertAlmostEqual(tiles['dark'] - tiles['light'], 2, delta=.5)
+        self.assertAlmostEqual(tiles['dark'], 67, delta=1.5)
 
     def test_A30_touch_search_width(self):
         with self.home_page(size=(800, 900), touch=True):

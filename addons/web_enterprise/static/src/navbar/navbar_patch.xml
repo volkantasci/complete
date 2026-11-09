@@ -41,7 +41,7 @@
                   </t>
                 </t>
               </g>
-              <path class="o_cws_chevron" d="M9.5 2.5 5 7l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path class="o_cws_chevron" d="M10 1 4 7l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span t-if="this.currentApp" id="o_cws_brand_name" class="o_menu_brand o_cws_brand_name" t-att-class="{ 'o_hidden': this.isAppChromeHidden }" t-out="this.currentApp.name"/>
           </button>

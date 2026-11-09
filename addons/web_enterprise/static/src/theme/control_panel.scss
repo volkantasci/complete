@@ -74,3 +74,10 @@
         color: $text-muted;
     }
 }
+
+// The selection counter ("N selected"): component active fill, 1 px action border, action text.
+.o_selection_box {
+    --list-group-active-bg: #{$o-cws-selection-bg};
+    --list-group-active-color: #{$o-action};
+    --list-group-active-border-color: #{$o-action};
+}

@@ -98,8 +98,10 @@ body.o_home_menu_background .o_main_navbar .o_menu_systray .dropdown-toggle[aria
         // first row of tiles starts 65 px from the top of the screen (S1 mobile)
         .o_apps {
             padding-top: 10px;
-            // the page opens scrolled by 46 px; the field and its margins take 8 + height + 16
-            margin-top: 46px - (8px + $o-cws-touch-search-height + 16px);
+            // the page opens scrolled by 46 px; the field and its margins take 8 + 37 + 16 in
+            // the light field. The dark field is 2 px taller (its border) and nothing makes up
+            // for it: the tiles sit 2 px lower and the border's last line shows under the bar.
+            margin-top: 46px - (8px + 37px + 16px);
         }
 
         .o_cws_touch_search {
