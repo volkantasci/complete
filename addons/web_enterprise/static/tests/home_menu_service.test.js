@@ -368,8 +368,8 @@ test("A103 apps-menu step is skipped while the home menu is shown", async () => 
     adaptTourAppsMenuStep(stepUtils);
     await mountWebClient();
     const step = stepUtils.showAppsMenuItem();
-    // the other keys and the trigger are kept (the trigger gains an alternative for the home menu)
-    expect(step.trigger.startsWith(".o_navbar_apps_menu button:enabled")).toBe(true);
+    // the other keys are kept; the trigger only excludes the back chevron
+    expect(step.trigger).toBe(".o_navbar_apps_menu button:enabled:not(.o_menu_toggle_back)");
     // it is skipped while the home menu is shown (D8): the page must not have the marker class
     expect(step.isActive).toEqual(["community", "desktop", `body:not(.${BG_CLASS})`]);
     expect(document.body).toHaveClass(BG_CLASS);
@@ -379,9 +379,9 @@ test("A103 apps-menu step is skipped while the home menu is shown", async () => 
     expect(step.run).toBe("click");
     // a tour step finds visible elements only
     const matches = () => [...document.querySelectorAll(step.trigger)].filter(isVisible);
-    // the home menu is shown (nothing behind it): only the page matches, a click on it does nothing
+    // the home menu is shown (nothing behind it): the step is not active and has no target
     expect(document.body).toHaveClass(BG_CLASS);
-    expect(matches()).toEqual([document.body]);
+    expect(matches()).toEqual([]);
     // inside an application: the grid button matches, not the page
     await openTile(0);
     expect(document.body).not.toHaveClass(BG_CLASS);
@@ -389,11 +389,11 @@ test("A103 apps-menu step is skipped while the home menu is shown", async () => 
     expect(matches()).toHaveLength(1);
     expect(matches()[0]).toBe(document.querySelector(".o_navbar_apps_menu button"));
     expect(matches()[0]).not.toHaveClass("o_menu_toggle_back");
-    // the home menu over the application: the back chevron does not match, the page does
+    // the home menu over the application: the back chevron does not match
     await toggle(true);
     expect(document.querySelector(".o_navbar_apps_menu button")).toHaveClass("o_menu_toggle_back");
     expect(document.body.matches(step.isActive.at(-1))).toBe(false);
-    expect(matches()).toEqual([document.body]);
+    expect(matches()).toEqual([]);
     await animationFrame();
     expect(getService("home_menu").hasHomeMenu).toBe(true);
 });

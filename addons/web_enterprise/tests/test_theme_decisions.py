@@ -225,7 +225,41 @@ class TestThemeInteractiveAppsStep(ThemeProbeCase):
             '/odoo/cws-decisions', 'web_theme_A133_interactive_start',
             '!!document.querySelector(".o_list_view .o_data_row")')
         self.assertTrue(seen[0]['grid'], f'the first pointer is not on the grid button: {seen}')
-        self.assertTrue(seen[0]['content'] or True)
+        self.assertTrue(seen[0]['content'], f'the grid button pointer has no text: {seen}')
+
+    def _click(self, selector):
+        self.pointer_to(selector)
+        box = self.rect(selector)
+        x, y = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
+        for kind in ('mousePressed', 'mouseReleased'):
+            self.browser._websocket_request('Input.dispatchMouseEvent', params={
+                'type': kind, 'x': x, 'y': y, 'button': 'left', 'clickCount': 1,
+                'buttons': 1 if kind == 'mousePressed' else 0,
+            })
+
+    def test_A133_interactive_after_app_name_click(self):
+        """The name is clicked for real, the apps-menu step turns inactive: the tour goes on."""
+        brand = '.o_navbar .o_menu_toggle .o_menu_brand'
+        with self.page('/odoo/cws-decisions'):
+            self.wait('!!document.querySelector(".o_list_view .o_data_row")')
+            self.js(self.POINTERS % {
+                'tile': TILE, 'name': 'web_theme_A133_interactive_after_name_click'})
+            self.wait('window.__cwsSeen.length > 0')
+            self.assertEqual(self.js('window.__cwsSeen.at(-1).content'), 'name text')
+            self._click(brand)
+            self.wait('window.__cwsSeen.some((p) => p.tile)')
+            self.js(f'document.querySelector({TILE!r}).click()')
+            self.wait(
+                "!odoo.loader.modules.get('@web_tour/tour_state').tourState.getCurrentTour()"
+                " && !!document.querySelector('.o_list_view .o_data_row')"
+                " && !document.querySelector('.o_home_menu')")
+            seen = self.js(
+                'window.__cwsStop(), window.__cwsSeen.map((p) => ({...p, el: undefined}))')
+        for pointer in seen:
+            self.assertTrue(pointer['content'], f'a pointer without text: {seen}')
+            self.assertFalse(pointer['body'] or pointer['grid'], f'unexpected pointer: {seen}')
+        self.assertEqual(
+            [p['content'] for p in seen if p['tile']], ['tile text'], f'tile pointer: {seen}')
 
     def test_A133_crm_tour_on_home_menu(self):
         if 'crm.lead' not in self.env:

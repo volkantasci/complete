@@ -86,3 +86,19 @@ tours.add("web_theme_A133_interactive_start", {
         { trigger: ".o_list_view .o_data_row" },
     ],
 });
+
+// A133: an interactive tour whose user clicks the application name and meets the Community step
+// right after the home menu was asked for
+tours.add("web_theme_A133_interactive_after_name_click", {
+    steps: () => [
+        { trigger: NAME, content: "name text", tooltipPosition: "bottom", run: "click" },
+        stepUtils.showAppsMenuItem(),
+        {
+            trigger: `.o_home_menu ${TILE}`,
+            content: "tile text",
+            tooltipPosition: "right",
+            run: "click",
+        },
+        { trigger: ".o_list_view .o_data_row" },
+    ],
+});
