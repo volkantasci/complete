@@ -68,7 +68,7 @@ export function pieSliceFill(chart, baseColour, scheme) {
 
 const scheme = () => cookie.get("color_scheme") || "light";
 
-patch(GraphRenderer.prototype, {
+const cwsGraphRendererPatch = {
     getElementOptions() {
         const options = super.getElementOptions(...arguments);
         if (options.bar) {
@@ -125,18 +125,21 @@ patch(GraphRenderer.prototype, {
 
     getTooltipItems(data, metaData, tooltipModel) {
         const items = super.getTooltipItems(...arguments);
-        if (metaData.mode === "pie") {
-            // same order as in CE: data points sorted by value, largest first
-            const points = sortBy(tooltipModel.dataPoints, "raw", "desc");
-            const current = scheme();
-            items.forEach((item, position) => {
-                const point = points[position];
-                const base = data.datasets[point.datasetIndex]?.cwsBaseColours?.[point.dataIndex];
-                if (base) {
-                    item.boxColor = `radial-gradient(circle, ${base}, ${sliceEdgeColour(base, current)})`;
-                }
-            });
+        if (metaData.mode !== "pie") {
+            return items;
         }
+        // same order as in CE: data points sorted by value, largest first
+        const points = sortBy(tooltipModel.dataPoints, "raw", "desc");
+        const current = scheme();
+        items.forEach((item, position) => {
+            const point = points[position];
+            const base = data.datasets[point.datasetIndex]?.cwsBaseColours?.[point.dataIndex];
+            if (base) {
+                item.boxColor = `radial-gradient(circle, ${base}, ${sliceEdgeColour(base, current)})`;
+            }
+        });
         return items;
     },
-});
+};
+
+patch(GraphRenderer.prototype, cwsGraphRendererPatch);

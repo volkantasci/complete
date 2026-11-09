@@ -5,8 +5,9 @@
 
 .o_form_view {
     // the status-bar row and the sheet area have no top padding of their own
-    --formView-statusbar-padding-top: 0;
-    --formView-sheetBg-padding-top: 0;
+    @each $-prop in (--formView-statusbar-padding-top, --formView-sheetBg-padding-top) {
+        #{$-prop}: 0;
+    }
 
     .o_form_sheet {
         --formView-sheet-border-radius-md: #{$o-border-radius-lg};
@@ -31,7 +32,7 @@
 
         &.btn-outline-secondary,
         .o_button_more {
-            --#{$prefix}btn-bg: #{$o-view-background-color};
+            --#{$prefix}btn-bg: #{$o-cws-surface};
             --#{$prefix}btn-border-color: #{$o-cws-btn-secondary-border};
             --#{$prefix}btn-hover-bg: #{$o-cws-btn-secondary-hover-bg};
             --#{$prefix}btn-hover-border-color: #{$o-cws-stat-hover-border};

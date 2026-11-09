@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // R11: in the dark scheme tile names are white (the black role) over the soft dark shadow.
-.o_home_menu .o_app .o_caption {
-    color: $o-black;
+.o_home_menu .o_app {
+    .o_caption {
+        color: $o-black;
+    }
 }

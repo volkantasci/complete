@@ -15,7 +15,7 @@
 }
 
 // The active category value: component active background, medium weight, black-role text.
-.o_search_panel_category_value_header {
+.o_search_panel_category_value_header:where(.list-group-item) {
     --list-group-active-bg: #{$o-cws-panel-active-bg};
     --list-group-active-color: #{$o-black};
     --list-group-active-border-color: transparent;

@@ -56,7 +56,7 @@
     --CommandPalette__item-border-radius: #{$o-border-radius-lg};
 
     &.modal-content {
-        border-radius: $o-border-radius-lg;
+        border-radius: o-to-rem(map-get($o-cws-radii, lg));
         box-shadow: $o-cws-shadow;
     }
 }

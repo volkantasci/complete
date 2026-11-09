@@ -63,7 +63,7 @@
     }
 
     .o_arrow_button:not(.d-none) {
-        --#{$prefix}btn-hover-bg: #{$o-gray-300};
+        --#{$prefix}btn-hover-bg: #{map-get($o-grays, 300)};
         --#{$prefix}btn-active-bg: #{$o-gray-400};
         --#{$prefix}btn-disabled-bg: #{$o-cws-active-bg};
         --#{$prefix}btn-disabled-color: #{$o-component-active-color};

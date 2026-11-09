@@ -5,6 +5,6 @@
 .o_bottom_sheet .o_search_panel_category_value_header {
     &.active,
     &.active:hover {
-        background-color: $o-gray-400;
+        background-color: map-get($o-grays, 400);
     }
 }

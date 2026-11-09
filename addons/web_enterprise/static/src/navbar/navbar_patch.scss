@@ -1,6 +1,8 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
+$-flat-text: none;
+
 // Scoped to the top bar: it must not hide anything else in the web client.
 .o_main_navbar .o_hidden {
     display: none !important;
@@ -32,7 +34,7 @@ nav.o_main_navbar {
         --NavBar-entry-padding-right: 8px;
         --o-navbar-badge-bg: #{$o-danger};
         --o-navbar-badge-color: #{$o-cws-on-danger};
-        --o-navbar-badge-text-shadow: none;
+        --o-navbar-badge-text-shadow: #{$-flat-text};
 
         // counters of the tray: danger fill, glossy pill, 0.7 em of the entry font
         .badge {

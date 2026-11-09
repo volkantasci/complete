@@ -3,6 +3,8 @@
 
 // Smaller dark adjustments (001b R30, R31, R33, R37, R38).
 
+$-sheet-line: map-get($o-grays, 400);
+
 // The search field of the company switcher has a grey 400 border.
 .o_switch_company_menu_dropdown .form-control[role="search"] {
     border-color: $o-gray-400;
@@ -21,8 +23,8 @@
 
 // R30: stat buttons in a bottom sheet have grey 400 borders.
 .o_bottom_sheet .o-form-buttonbox {
-    --o-stat-button-border-color: #{$o-gray-400};
-    --button-box-border-color: #{$o-gray-400};
+    --o-stat-button-border-color: #{$-sheet-line};
+    --button-box-border-color: #{$-sheet-line};
 }
 
 // R31: the settings tab text is the body colour (also hovered or selected).
@@ -37,12 +39,14 @@
 // R37: bottom sheet. Active status-bar entries: grey 400 at 50 % with contrasting text; the
 // buttons that switch views: grey 400 fill (the active one keeps the component active look).
 .o_bottom_sheet .o_bottom_sheet_sheet {
-    --BottomSheetStatusBar__entry-background--active: #{rgba($o-gray-400, .5)};
+    --BottomSheetStatusBar__entry-background--active: #{rgba($-sheet-line, .5)};
     --BottomSheetStatusBar__entry-color--active: #{$o-black};
 
-    .o_cp_switch_buttons .o-dropdown-item {
-        --#{$prefix}btn-bg: #{$o-gray-400};
-        --#{$prefix}btn-active-border-color: #{$o-component-active-border};
+    .o_cp_switch_buttons {
+        .o-dropdown-item {
+            --#{$prefix}btn-bg: #{$-sheet-line};
+            --#{$prefix}btn-active-border-color: #{$o-component-active-border};
+        }
     }
 }
 

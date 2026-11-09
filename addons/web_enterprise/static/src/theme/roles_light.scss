@@ -18,15 +18,16 @@
 $o-cws-scheme: light !default;
 $o-webclient-color-scheme: $o-cws-scheme !default;
 
-$o-enable-backdrop-blur: true !default;
 $o-cws-blur: 4px !default;
 $o-cws-blur-sm: 2px !default;
 $o-cws-blur-lg: 6px !default;
+$o-enable-backdrop-blur: $o-cws-blur > 0 !default;
 $o-backdrop-blur: blur($o-cws-blur) !default;
 $o-backdrop-blur-sm: blur($o-cws-blur-sm) !default;
 $o-backdrop-blur-lg: blur($o-cws-blur-lg) !default;
 
-$enable-gradients: true !default;
+$o-cws-use-gradients: true !default;
+$enable-gradients: $o-cws-use-gradients !default;
 
 // ---------------------------------------------------------------------------
 // Base colours
@@ -65,7 +66,7 @@ $o-warning: #F59E0B !default;
 $o-danger: #EF4444 !default;
 
 // Contextual secondary, light and dark (Bootstrap names).
-$secondary: $o-gray-700 !default;
+$secondary: map-get($o-grays, 700) !default;
 $light: $o-white !default;
 $dark: $o-gray-900 !default;
 
@@ -81,6 +82,7 @@ $o-cws-dark-chrome: #242733 !default;
 
 $o-webclient-background-color: $o-gray-100 !default;
 $o-view-background-color: #FFFFFF !default;
+$o-cws-surface: $o-view-background-color !default;
 $o-cws-overlay-bg: $o-white !default;
 // The mobile bottom sheet: grey 100 (its buttons stay white).
 $o-cws-sheet-bg: $o-gray-100 !default;
@@ -98,15 +100,18 @@ $o-cws-text-tertiary: rgba($o-main-text-color, .5) !default;
 
 // Plain navigation links are body text; the active tab of a plain tab row takes the heading
 // colour (R5).
-$nav-link-color: $o-main-text-color !default;
-$nav-tabs-link-active-color: $o-main-headings-color !default;
+$o-cws-ink: $o-main-text-color !default;
+$o-cws-ink-heading: $o-main-headings-color !default;
+$nav-link-color: $o-cws-ink !default;
+$nav-tabs-link-active-color: $o-cws-ink-heading !default;
 $border-color-translucent: rgba($o-black, .175) !default;
 
 $o-cws-field-underline: $o-gray-200 !default;
 $o-cws-input-border: $o-gray-400 !default;
-$o-form-lightsecondary: $o-gray-200 !default;
+$o-form-lightsecondary: map-get($o-grays, 200) !default;
 
-$o-main-link-color: $o-action !default;
+$o-cws-link: $o-action !default;
+$o-main-link-color: $o-cws-link !default;
 $o-cws-link-hover: mix($o-black, $o-action, 30%) !default;
 $link-hover-color: $o-cws-link-hover !default;
 
@@ -235,10 +240,11 @@ $o-colors-text-emphasis:
 $h1-font-size: o-to-rem(33.6px) !default;
 $headings-font-weight: 500 !default;
 
-$o-border-radius: o-to-rem(6px) !default;
-$o-border-radius-sm: o-to-rem(4px) !default;
-$o-border-radius-lg: o-to-rem(8px) !default;
-$o-border-radius-xl: o-to-rem(12px) !default;
+$o-cws-radii: (sm: 4px, md: 6px, lg: 8px, xl: 12px) !default;
+$o-border-radius: o-to-rem(map-get($o-cws-radii, md)) !default;
+$o-border-radius-sm: o-to-rem(map-get($o-cws-radii, sm)) !default;
+$o-border-radius-lg: o-to-rem(map-get($o-cws-radii, lg)) !default;
+$o-border-radius-xl: o-to-rem(map-get($o-cws-radii, xl)) !default;
 
 // ---------------------------------------------------------------------------
 // Elevation and gloss
@@ -299,9 +305,9 @@ $o-cws-touch-search-border: transparent !default;
 // No shadow at rest, under the pointer or when pressed, and no transition.
 $btn-box-shadow: none !default;
 $btn-active-box-shadow: none !default;
-$btn-transition: none !default;
+$btn-transition: unquote("none") !default;
 
-$o-badge-min-width: 2.7ch !default;
+$o-badge-min-width: 2.7 * 1ch !default;
 
 // Text on the primary fill: the white role in light, the black role (white) in dark.
 $o-cws-on-primary: $o-white !default;
@@ -339,7 +345,7 @@ $o-btns-bs-override: map-merge((
         disabled-color: $o-cws-on-primary,
     ),
     "secondary": (
-        background: $o-view-background-color,
+        background: $o-cws-surface,
         border: $o-cws-btn-secondary-border,
         color: $o-gray-900,
 
@@ -429,17 +435,19 @@ $o-cws-palette-inset: 8px !default;
 // Inputs, check boxes and radios (R39)
 // ---------------------------------------------------------------------------
 
-$o-input-padding-y: 1px !default;
-$o-input-padding-x: 0 !default;
-$o-input-border-required: $o-black !default;
+$o-cws-field-pad: (x: 0, y: 1px) !default;
+$o-input-padding-y: map-get($o-cws-field-pad, y) !default;
+$o-input-padding-x: map-get($o-cws-field-pad, x) !default;
+$o-input-border-required: $o-main-headings-color !default;
 $input-border-color: $o-cws-input-border !default;
 $input-focus-box-shadow: none !default;
 
-$o-form-check-input-border-color: $o-gray-400 !default;
-$form-check-input-checked-color: $o-white !default;
+$o-form-check-input-border-color: map-get($o-grays, 400) !default;
+$o-cws-check-mark: $o-white !default;
+$form-check-input-checked-color: $o-cws-check-mark !default;
 $form-check-input-checked-border-color: $o-action !default;
 $form-check-input-checked-bg-color: $o-action !default;
-$form-check-input-indeterminate-color: $o-white !default;
+$form-check-input-indeterminate-color: $o-cws-check-mark !default;
 $form-check-input-indeterminate-border-color: $o-action !default;
 $form-check-input-indeterminate-bg-color: $o-action !default;
 $form-check-input-focus-box-shadow: 0 0 0 4px rgba($o-action, .25) !default;

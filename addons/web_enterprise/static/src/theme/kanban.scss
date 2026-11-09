@@ -46,7 +46,7 @@
 
     // A column being dragged takes the page background.
     .o_kanban_group.o_dragged {
-        --KanbanGroup-background: #{$o-webclient-background-color};
+        --KanbanGroup-background: var(--o-cws-page-bg);
     }
 
     // Grouped: the cards of a column form one stack, rounded at its two ends only (a
@@ -130,33 +130,35 @@
 // Columns
 // ---------------------------------------------------------------------------
 
-.o_kanban_group .o_kanban_header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: map-get($font-sizes, 4);
+.o_kanban_group {
+    .o_kanban_header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: map-get($font-sizes, 4);
 
-    .o_kanban_header_title {
-        align-items: center;
-    }
+        .o_kanban_header_title {
+            align-items: center;
+        }
 
-    // the quick-add and column settings buttons use the secondary button look
-    .o_btn_circle.btn-light {
-        $-secondary: map-get($o-btns-bs-override, "secondary");
-        @include button-variant(
-            o-safe-get($-secondary, background),
-            o-safe-get($-secondary, border),
-            o-safe-get($-secondary, color),
-            o-safe-get($-secondary, hover-background),
-            o-safe-get($-secondary, hover-border),
-            o-safe-get($-secondary, hover-color),
-            o-safe-get($-secondary, active-background),
-            o-safe-get($-secondary, active-border),
-            o-safe-get($-secondary, active-color),
-            o-safe-get($-secondary, disabled-background),
-            o-safe-get($-secondary, disabled-border),
-            o-safe-get($-secondary, disabled-color)
-        );
+        // the quick-add and column settings buttons use the secondary button look
+        .o_btn_circle.btn-light {
+            $-secondary: map-get($o-btns-bs-override, "secondary");
+            @include button-variant(
+                o-safe-get($-secondary, background),
+                o-safe-get($-secondary, border),
+                o-safe-get($-secondary, color),
+                o-safe-get($-secondary, hover-background),
+                o-safe-get($-secondary, hover-border),
+                o-safe-get($-secondary, hover-color),
+                o-safe-get($-secondary, active-background),
+                o-safe-get($-secondary, active-border),
+                o-safe-get($-secondary, active-color),
+                o-safe-get($-secondary, disabled-background),
+                o-safe-get($-secondary, disabled-border),
+                o-safe-get($-secondary, disabled-color)
+            );
+        }
     }
 }
 

@@ -33,13 +33,16 @@ KANBAN = f"""
 </kanban>
 """
 
-LIST = """
+_BADGE_TONES = {'contact': 'success', 'invoice': 'warning',
+                'delivery': 'danger', 'other': 'info'}
+BADGE_ATTRS = 'widget="badge" ' + ' '.join(
+    f'decoration-{tone}="type == \'{value}\'"' for value, tone in _BADGE_TONES.items())
+
+LIST = f"""
 <list string="Fixture" multi_edit="1">
     <field name="name"/>
-    <field name="type" widget="badge"
-        decoration-success="type == 'contact'" decoration-warning="type == 'invoice'"
-        decoration-danger="type == 'delivery'" decoration-info="type == 'other'"/>
-    <field name="category_id" widget="many2many_tags" options="{'color_field': 'color'}"/>
+    <field name="type" {BADGE_ATTRS}/>
+    <field name="category_id" widget="many2many_tags" options="{{'color_field': 'color'}}"/>
     <field name="color"/>
 </list>
 """
@@ -109,12 +112,9 @@ CALENDAR = """
 </calendar>
 """
 
-PIVOT = """
-<pivot string="Fixture">
-    <field name="type" type="row"/>
-    <field name="color" type="measure"/>
-</pivot>
-"""
+PIVOT = '<pivot string="Fixture">' + ''.join(
+    f'<field name="{field}" type="{role}"/>'
+    for field, role in (('type', 'row'), ('color', 'measure'))) + '</pivot>'
 
 GRAPH = """
 <graph string="Fixture">
@@ -128,12 +128,13 @@ def _action(env, name, views, group_by=None, mode=None, model='res.partner', dom
     """Create views and an action showing only the fixture records of ``model``."""
     view_records = []
     for index, (kind, arch) in enumerate(views):
-        view = env['ir.ui.view'].create({
+        view_values = {
             'name': f'{MARK}.{name}.{kind}',
             'model': model,
             'type': kind,
             'arch': arch,
-        })
+        }
+        view = env['ir.ui.view'].create(view_values)
         view_records.append((0, 0, {'sequence': index, 'view_mode': kind, 'view_id': view.id}))
     context = {'group_by': [group_by]} if group_by else {}
     return env['ir.actions.act_window'].create({

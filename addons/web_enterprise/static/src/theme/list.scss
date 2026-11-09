@@ -58,6 +58,9 @@
 .o_search_panel_resize ~ .o_list_renderer {
     border: $border-width solid $o-border-color;
     border-bottom-width: 0;
-    border-radius: $o-border-radius-xl $o-border-radius-xl 0 0;
+    border-start-start-radius: $o-border-radius-xl;
+    border-start-end-radius: $o-border-radius-xl;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
     margin-right: 16px;
 }

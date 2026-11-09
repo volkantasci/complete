@@ -49,14 +49,10 @@ nav.o_cp_switch_buttons {
 
     > .btn:not(#_),
     > .btn:not(:first-child):not(:last-child):not(#_) {
-        --#{$prefix}btn-bg: transparent;
-        --#{$prefix}btn-border-color: transparent;
-        --#{$prefix}btn-hover-bg: transparent;
-        --#{$prefix}btn-hover-border-color: transparent;
-        --#{$prefix}btn-active-bg: transparent;
-        --#{$prefix}btn-active-border-color: transparent;
-        --#{$prefix}btn-disabled-bg: transparent;
-        --#{$prefix}btn-disabled-border-color: transparent;
+        @each $-state in ("", "hover-", "active-", "disabled-") {
+            --#{$prefix}btn-#{$-state}bg: transparent;
+            --#{$prefix}btn-#{$-state}border-color: transparent;
+        }
         --#{$prefix}gradient: none;
 
         position: relative;
