@@ -561,12 +561,16 @@ class ThemeScreens(ThemeProbeCase):
         self.each('05-app-kanban', PIPELINE, prepare, mobile=True)
 
     def test_s06_grid_button_hover(self):
+        self.seed()
+
         def prepare(mobile):
             self.ready('.o_kanban_view .o_kanban_record')
             self.hover('.o_navbar .o_menu_toggle')
         self.each('06-grid-button-hover', PIPELINE, prepare)
 
     def test_s07_section_menu(self):
+        self.seed()
+
         def prepare(mobile):
             self.ready('.o_kanban_view .o_kanban_record')
             self.tap('.o_menu_sections .dropdown-toggle', 'Sales')
@@ -574,6 +578,8 @@ class ThemeScreens(ThemeProbeCase):
         self.each('07-section-menu-open', PIPELINE, prepare)
 
     def test_s08_home_over_app(self):
+        self.seed()
+
         def prepare(mobile):
             self.ready('.o_kanban_view .o_kanban_record')
             self.tap('.o_navbar .o_menu_toggle')
@@ -739,6 +745,9 @@ class ThemeScreens(ThemeProbeCase):
             self.ready('.o_graph_renderer canvas')
             if mode != 'bar':
                 self.tap(f'.o_graph_button[data-mode={mode}], button[data-mode={mode}]')
+            # park the pointer on the empty top bar: no tooltip of the switcher in the capture
+            self.mouse('mouseMoved', 800, 22)
+            time.sleep(1.2)
         self.each(stem, PIPELINE, prepare)
 
     def test_s24_graph_bar(self):
@@ -753,19 +762,24 @@ class ThemeScreens(ThemeProbeCase):
     # -- S27-S32 overlays --------------------------------------------------------------------
 
     def test_s27_user_menu(self):
+        self.seed()
+
         def prepare(mobile):
-            self.home()
+            # the spec capture opens the menu over the pipeline
+            self.ready('.o_kanban_view .o_kanban_record')
             self.tap('.o_user_menu .dropdown-toggle, .o_user_menu')
             self.ready('.o-dropdown--menu')
-        self.each('27-user-menu', '/odoo', prepare)
+        self.each('27-user-menu', PIPELINE, prepare)
 
     def test_s28_dialog(self):
+        self.seed()
+
         def prepare(mobile):
-            self.home()
+            self.ready('.o_kanban_view .o_kanban_record')
             self.tap('.o_user_menu .dropdown-toggle, .o_user_menu')
             self.tap('.o-dropdown-item', 'Preferences')
             self.ready('.modal .o_field_widget[name=color_scheme]')
-        self.each('28-dialog', '/odoo', prepare)
+        self.each('28-dialog', PIPELINE, prepare)
 
     def test_s29_search_options(self):
         def prepare(mobile):
@@ -783,6 +797,8 @@ class ThemeScreens(ThemeProbeCase):
         self.each('30-command-palette', PIPELINE, prepare)
 
     def test_s31_bottom_sheet(self):
+        self.seed()
+
         def prepare(mobile):
             self.ready('.o_kanban_view .o_kanban_record')
             self.tap('.o_cp_switch_buttons button')

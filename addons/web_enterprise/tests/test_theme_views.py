@@ -336,18 +336,20 @@ class TestThemeViews(ShellProbeCase):
     def test_A58_column_header_dark(self):
         self._column_header('dark')
 
-    def _header_height(self, scheme, **kwargs):
+    def _header_height(self, scheme, mobile=False, **kwargs):
         # R24: the title row is 1.5 times its 16.8 px text, so the header is 74.2 px and
-        # the progress bar starts where the original's does
+        # the progress bar starts where the original's does; on a phone the row is 31.2 px
+        # (RW5 measurement of the original's phone capture), so the header is 80.2 px
+        extra = 6 if mobile else 0
         with self.kanban_page(scheme, **kwargs):
             self.ready()
             self.wait("!!document.querySelector('.o_kanban_header .o_column_progress')")
             row = self.rect('.o_kanban_header_title')
             header = self.rect(HEADER)
-            self.assertAlmostEqual(row['height'], 25.2, delta=.5)
-            self.assertAlmostEqual(header['height'], 74.2, delta=1)
+            self.assertAlmostEqual(row['height'], 25.2 + extra, delta=.5)
+            self.assertAlmostEqual(header['height'], 74.2 + extra, delta=1)
             counter = self.rect('.o_kanban_header .o_kanban_counter')
-            self.assertAlmostEqual(counter['y'] - header['y'], 11.8 + 25.2 + 4, delta=1)
+            self.assertAlmostEqual(counter['y'] - header['y'], 11.8 + 25.2 + extra + 4, delta=1)
 
     def test_A12_A62_header_height_light(self):
         self._header_height('light')
@@ -356,10 +358,10 @@ class TestThemeViews(ShellProbeCase):
         self._header_height('dark')
 
     def test_A12_A62_header_height_mobile_light(self):
-        self._header_height('light', size=(390, 844), touch=True)
+        self._header_height('light', mobile=True, size=(390, 844), touch=True)
 
     def test_A12_A62_header_height_mobile_dark(self):
-        self._header_height('dark', size=(390, 844), touch=True)
+        self._header_height('dark', mobile=True, size=(390, 844), touch=True)
 
     def _progress(self, scheme):
         grey = GREY_400[scheme]

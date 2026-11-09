@@ -172,6 +172,12 @@
 // Community template gives it the large one with an important utility class.
 .o_kanban_group:not(.o_column_folded) .o_kanban_header .o_kanban_header_title {
     line-height: $line-height-base !important;
+
+    // on a phone the row is 31.2 px high (measured on the original's phone capture: the
+    // title text sits 3 px and the progress bar 6 px lower than on a desktop)
+    @include media-breakpoint-down(md) {
+        min-height: 31.2px;
+    }
 }
 
 // Above the title row an unfolded header (a folded one on a phone keeps its 8 px) has 11.8 px (the Community utility class gives 8 px),
