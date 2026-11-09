@@ -11,9 +11,9 @@ existing databases and modules that depend on it keep working (see
 on `web` and `base_setup`, installs itself automatically (`auto_install`) and
 adds no menu and no setting to the general settings page.
 
-This slice is the behaviour of the shell. The look of it (colours, the dark
-stylesheet, the sliding animation of the view switcher) is slice 001b. Today the dark scheme only switches to the stylesheet
-that Community provides.
+Slice 001a is the behaviour of the shell. Slice 001b is its look: the theme,
+described in the "Theme" section below. User guide of the theme:
+[docs/modules/web_theme.md](../../docs/modules/web_theme.md).
 
 ## What it provides
 
@@ -163,15 +163,109 @@ parameter (or empty the message) to hide it.
   expiration details in the session, edition and licence text in settings.
 - Map features (slice 005): map token setting, geolocation helper, partner
   coordinates.
-- Visual theme (slice 001b): colours, typography, the dark stylesheet, chart
-  styling, animations.
+- Studio-only look settings (a custom home menu background image).
 - Mobile app bridge (slice 001c), except the one-row-per-app tile layout inside
   the iOS app, which is part of the home menu.
 - A custom home menu background image (it needs Studio).
 
+## Theme
+
+Slice 001b gives the back end its look, in the light and in the dark scheme. It
+adds no menu, setting, model or text.
+
+### What it provides
+
+- **Colour roles**, each with a light and a dark value (base colours, surfaces,
+  text, lines, states), plus type, radii, shadows, blur and motion. The default
+  values are in `static/src/theme/roles_light.scss` and `roles_dark.scss`.
+- **A complete dark stylesheet**: the whole back end is built a second time with
+  the dark roles; it is not a filter over the light page. Dark-only rules of
+  other modules join the same stylesheet.
+- **Restyled shell**: top bar, grid button and back chevron, home menu
+  background, tiles, tray counters, touch search field, browser chrome colour.
+- **Components and views**: buttons, badges, tags, dropdowns, popovers,
+  dialogs, notebooks, switchers, status bar, inputs, control panel, kanban,
+  list, pivot, graph, calendar, form, settings, search panel, command palette,
+  mobile bottom sheet and the login page background.
+
+Owner decisions, in one line each:
+
+- **D1.** Releasing a tile after an early move (which cancels the drag) no
+  longer opens the application.
+- **D2.** While the home menu is shown, the Community apps-menu tour step leaves
+  it alone, so the next step finds the tile (helper `showAppsMenuItem`).
+- **D3.** The back chevron is primary at rest in light and white in dark; black
+  only under the pointer.
+- **D4.** The login card has the rounded corners of about 6 px that are drawn,
+  not square ones.
+- **D5.** The touch search field is 39 px high in dark and 37 px in light.
+- **D6.** Native controls follow the scheme (see "Declared colour scheme").
+
+### How it is built
+
+Files are in `static/src/theme/` unless noted.
+
+| Part | Where |
+|---|---|
+| Light roles | `roles_light.scss`, inserted **before** `web/static/src/scss/primary_variables.scss` in `web.assets_backend` and `web.assets_backend_lazy`, so Community variables take our values |
+| Dark roles | `roles_dark.scss`, put in the bundle `web.dark_mode_variables` before the light file. Both dark bundles, `web.assets_web_dark` and `web.assets_backend_lazy_dark`, include that bundle |
+| Component rules | one file per area (`buttons`, `badges_tags`, `inputs`, `overlays`, `notebook_statusbar`, `switchers`, `control_panel`, `kanban`, `list`, `calendar`, `form`, `settings`, `search_panel`, `graph_pivot`) written with role variables only; raw colour values exist only in the two role files |
+| Dark-only rules | files named `*.dark.scss` (home menu, navbar, inputs, kanban, overlays, search panel, misc). They are removed from `web.assets_backend` and added to `web.assets_web_dark` |
+| Graph and pivot | `graph_pivot.scss`, `views/graph_fill_patch.js` and `views/pivot_renderer_patch.js` go in the lazy bundle with the views |
+| Login page | `login_page.frontend.scss`, in `web.assets_frontend` (public pages have no roles and are always light) |
+| Role custom properties | `role_properties.scss` publishes the base roles as `--o-cws-*` (for example `--o-cws-primary`, `--o-cws-page-bg`, `--o-cws-view-bg`, `--o-cws-border`, `--o-cws-dark-chrome`) for scripts and for the few rules that cannot take a Sass value. The values come from whichever role files the bundle was built with, so they follow the scheme |
+
+### Overriding roles
+
+Another module or theme changes a colour by shipping its own role file:
+
+- dark scheme: add the file to `web.dark_mode_variables` with `('before',
+  'web_enterprise/static/src/theme/roles_dark.scss', '<your file>')`, so your
+  `!default`-style assignments are read first;
+- light scheme: add the file to `web.assets_backend` (and the lazy bundle)
+  `('before', 'web_enterprise/static/src/theme/roles_light.scss', '<your file>')`.
+
+Derived roles (hover and pressed states, gloss, mixes) are computed from the base
+roles, so changing a base role such as the primary colour keeps them consistent
+(spec rule R3). The dark base colours are a fixed list and are not recomputed
+from the light ones.
+
+### Declared colour scheme and browser colour
+
+- The page declares its scheme twice: the meta tag `color-scheme`
+  (`dark` in the dark scheme, otherwise `light`) and the CSS property
+  `color-scheme` set from the role file on `:root`. Scroll bars, native date and
+  time inputs and native select pop-ups therefore follow the scheme (R46, D6).
+  Public pages such as the login page declare `light`.
+- The `theme-color` meta tag carries the primary colour in the light scheme and
+  the *dark chrome* role (`#242733`) in the dark scheme (R9). It replaces the
+  interim rule of 001a, via `ir.http._cws_browser_chrome_colour(scheme)`.
+
+### Theme tests
+
+| Layer | What it checks | Where |
+|---|---|---|
+| Probe harness | loads a real back-end page in Chrome (light or dark, desktop or phone), and reads computed styles, sizes and states | `tests/theme_probe.py` (`ThemeProbeCase`), fixtures in `tests/theme_fixtures.py` |
+| Bundles | where each role and component file lands in each bundle and in which order | `tests/test_theme_bundles.py` |
+| Roles, components, views | colours, sizes and states per area, no light surface in dark, native scheme, role usage, RTL, switcher widths | `tests/test_theme_shell.py`, `test_theme_components.py`, `test_theme_views.py`, `test_theme_http.py` |
+| Decisions | D1 tile release, D2 apps-menu step and the expenses tour | `tests/test_theme_decisions.py` |
+| Screenshots | the screens in `docs/assets/web_theme/`, on demand | class `ThemeScreens` in `tests/test_screens.py` (tag `web_theme_screens`) |
+
+Run them like the 001a tests (command below; the whole module is
+`--test-tags /web_enterprise`, one class is `/web_enterprise:ClassName`). Two
+groups need an optional module and skip themselves without it: the activity view
+checks need `mail`, and the expenses tour needs `hr_expense`. To run them, install
+the module with the database, for example `-i web_enterprise,mail,hr_expense`.
+
+Theme screenshots use the same container recipe as the 001a ones, with
+`--test-tags web_theme_screens` and a database with demo data and the CRM,
+Contacts, Calendar, Project and Sales applications. The files are written to
+`<screenshots dir>/web_theme/`.
+
 ## Provenance
 
-Written in a clean room from the spec package of slice `001a-web-shell`. See
+Written in a clean room from the spec packages of slices `001a-web-shell` and
+`001b-web-theme`. See
 [docs/process.md](../../docs/process.md).
 
 ## Tests
