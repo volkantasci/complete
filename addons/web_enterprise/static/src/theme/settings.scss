@@ -3,11 +3,11 @@
 
 // Settings form (001b R31): tabs, title bands and the search field.
 
-$-none: 0;
-
 .o_base_settings_view {
     // the control panel has no bottom margin
-    --settings__controlPanel-margin-bottom: #{$-none};
+    @each $-prop in (--settings__controlPanel-margin-bottom) {
+        #{$-prop}: 0;
+    }
 
     .o_form_renderer {
         --settings__tab-bg: #{map-get($o-grays, 100)};

@@ -15,16 +15,18 @@
 }
 
 // The active category value: component active background, medium weight, black-role text.
-.o_search_panel_category_value_header:where(.list-group-item) {
-    --list-group-active-bg: #{$o-cws-panel-active-bg};
-    --list-group-active-color: #{$o-black};
-    --list-group-active-border-color: transparent;
+:where(.o_search_panel, .o_bottom_sheet) {
+    .o_search_panel_category_value_header {
+        --list-group-active-bg: #{$o-cws-panel-active-bg};
+        --list-group-active-color: #{$o-black};
+        --list-group-active-border-color: transparent;
 
-    &.active,
-    &.active:hover {
-        background-color: $o-cws-panel-active-bg;
-        color: $o-black;
-        border-radius: $o-border-radius;
-        font-weight: 500 !important;
+        &.active,
+        &.active:hover {
+            background-color: $o-cws-panel-active-bg;
+            color: $o-black;
+            border-radius: $o-border-radius;
+            font-weight: 500 !important;
+        }
     }
 }

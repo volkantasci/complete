@@ -72,7 +72,11 @@ $o-cws-dark-chrome: #242733 !default;
 // Surfaces, text and lines
 $o-view-background-color: map-get($o-grays, 200) !default;
 // Alias of the field and table surface.
-$o-cws-surface: $o-view-background-color !default;
+$o-cws-fills: (
+    field: $o-view-background-color,
+    switch-on: $o-view-background-color,
+    table: $o-view-background-color,
+) !default;
 $o-cws-overlay-bg: $o-gray-300 !default;
 // The mobile bottom sheet: grey 300, like the other overlays.
 $o-cws-sheet-bg: $o-gray-300 !default;
@@ -188,12 +192,16 @@ $o-cws-btn-secondary-disabled-bg: $o-gray-300 !default;
 
 // Danger, outline primary, outline danger and outline light are restyled in dark only;
 // the light scheme keeps the Community buttons. Text on a fill is the black role (white).
-$o-cws-danger-rest: $o-danger;
-$o-cws-danger-hover: lighten($o-danger, 3%);
-$o-cws-danger-pressed: lighten($o-danger, 6%);
-$o-cws-light-outline-hover: map-get($o-grays, 300);
-$o-cws-light-outline-pressed-bg: mix($o-action, map-get($o-grays, 100), 15%);
-$o-cws-light-outline-pressed-border: lighten($o-action, 10%);
+$o-cws-danger-steps: (
+    rest: $o-danger,
+    hover: lighten($o-danger, 3%),
+    pressed: lighten($o-danger, 6%),
+);
+$o-cws-light-outline: (
+    hover: map-get($o-grays, 300),
+    pressed-bg: mix($o-action, map-get($o-grays, 100), 15%),
+    pressed-border: lighten($o-action, 10%),
+);
 
 $o-cws-btns-extra: (
     "danger": (
@@ -201,16 +209,16 @@ $o-cws-btns-extra: (
         border: $o-danger,
         color: $o-black,
 
-        hover-background: $o-cws-danger-hover,
-        hover-border: $o-cws-danger-hover,
+        hover-background: map-get($o-cws-danger-steps, hover),
+        hover-border: map-get($o-cws-danger-steps, hover),
         hover-color: $o-black,
 
-        active-background: $o-cws-danger-pressed,
-        active-border: $o-cws-danger-pressed,
+        active-background: map-get($o-cws-danger-steps, pressed),
+        active-border: map-get($o-cws-danger-steps, pressed),
         active-color: $o-black,
 
-        disabled-background: $o-cws-danger-rest,
-        disabled-border: $o-cws-danger-rest,
+        disabled-background: map-get($o-cws-danger-steps, rest),
+        disabled-border: map-get($o-cws-danger-steps, rest),
         disabled-color: $o-black,
     ),
 ) !default;
@@ -238,12 +246,12 @@ $o-cws-btns-outline-extra: (
         border: map-get($o-cws-text-tones, "danger"),
         color: map-get($o-cws-text-tones, "danger"),
 
-        hover-background: $o-cws-danger-hover,
-        hover-border: $o-cws-danger-hover,
+        hover-background: map-get($o-cws-danger-steps, hover),
+        hover-border: map-get($o-cws-danger-steps, hover),
         hover-color: $o-black,
 
-        active-background: $o-cws-danger-pressed,
-        active-border: $o-cws-danger-pressed,
+        active-background: map-get($o-cws-danger-steps, pressed),
+        active-border: map-get($o-cws-danger-steps, pressed),
         active-color: $o-black,
 
         disabled-background: transparent,
@@ -255,12 +263,12 @@ $o-cws-btns-outline-extra: (
         border: $o-gray-300,
         color: $o-black,
 
-        hover-background: $o-cws-light-outline-hover,
-        hover-border: $o-cws-light-outline-hover,
+        hover-background: map-get($o-cws-light-outline, hover),
+        hover-border: map-get($o-cws-light-outline, hover),
         hover-color: $o-black,
 
-        active-background: $o-cws-light-outline-pressed-bg,
-        active-border: $o-cws-light-outline-pressed-border,
+        active-background: map-get($o-cws-light-outline, pressed-bg),
+        active-border: map-get($o-cws-light-outline, pressed-border),
         active-color: $o-black,
 
         disabled-background: transparent,
@@ -270,9 +278,10 @@ $o-cws-btns-outline-extra: (
 ) !default;
 
 // Range sliders and switches (R39)
-$form-switch-color: transparentize($o-black, .5) !default;
-$form-switch-focus-color: $o-cws-glyph-color !default;
-$form-switch-checked-color: $o-cws-surface !default;
+$o-cws-switch: (track: transparentize($o-black, .5), focus: $o-black) !default;
+$form-switch-color: map-get($o-cws-switch, track) !default;
+$form-switch-focus-color: map-get($o-cws-switch, focus) !default;
+$form-switch-checked-color: map-get($o-cws-fills, switch-on) !default;
 
 // Segmented switchers (R21), notebook tabs (R20)
 $o-cws-switch-pill-bg: $o-gray-400 !default;
@@ -295,7 +304,7 @@ $o-cws-settings-band-bg: $o-gray-300 !default;
 $dropdown-header-color: map-get($o-grays, 700) !default;
 $progress-bg: map-get($o-grays, 400) !default;
 $progress-bar-bg: map-get($o-cws-text-tones, "primary") !default;
-$table-bg: $o-cws-surface !default;
+$table-bg: map-get($o-cws-fills, table) !default;
 $table-border-color: map-get($o-grays, 300) !default;
 $kbd-color: map-get($o-grays, 200) !default;
 $kbd-bg: map-get($o-grays, 900) !default;

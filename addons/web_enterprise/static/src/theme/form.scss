@@ -32,10 +32,14 @@
 
         &.btn-outline-secondary,
         .o_button_more {
-            --#{$prefix}btn-bg: #{$o-cws-surface};
-            --#{$prefix}btn-border-color: #{$o-cws-btn-secondary-border};
-            --#{$prefix}btn-hover-bg: #{$o-cws-btn-secondary-hover-bg};
-            --#{$prefix}btn-hover-border-color: #{$o-cws-stat-hover-border};
+            @each $-part, $-value in (
+                bg: map-get($o-cws-fills, field),
+                border-color: $o-cws-btn-secondary-border,
+                hover-bg: $o-cws-btn-secondary-hover-bg,
+                hover-border-color: $o-cws-stat-hover-border
+            ) {
+                --#{$prefix}btn-#{$-part}: #{$-value};
+            }
         }
 
         .o_button_icon {
