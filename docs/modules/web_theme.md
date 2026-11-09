@@ -37,21 +37,25 @@ scroll.
 
 ![A kanban view, dark](../assets/web_theme/05-app-kanban-dark.png)
 
-Lists have a quiet header, a highlighted row under the pointer and a counter
-when rows are selected.
+Cards carry small badges and tags with a semi-bold label. Lists have a quiet
+header, a highlighted row under the pointer and a counter when rows are
+selected, and they sit on a white (dark grey in the dark look) area.
 
 ![A list, light](../assets/web_theme/11-list.png)
 
 ![A list, dark](../assets/web_theme/11-list-dark.png)
 
 Forms show the record on a sheet over the page background, with a status bar
-and a button box.
+and a button box. The breadcrumbs have no fill of their own, and on a wide
+screen the chatter sits beside the sheet, level with the header buttons.
 
 ![A form, light](../assets/web_theme/16-form.png)
 
 ![A form, dark](../assets/web_theme/16-form-dark.png)
 
 The settings page, the calendar and the graph view follow the same colours.
+The settings search field is a little lower than before, and the filter
+sections in the calendar side panel are closer together.
 
 ![The settings page, light](../assets/web_theme/21-settings.png)
 
@@ -88,6 +92,15 @@ you chose.
 - **The back arrow.** The arrow that returns from the home menu to your
   application is brand-coloured in the light look and white in the dark look,
   and turns black only when you point at it.
+- **Top bar.** The entries of the tray are tighter, the avatar fills the bar's
+  height, and in the dark look the application name is white.
+- **Tooltips.** In the light look a tooltip is a black rounded label with light
+  text.
+- **Switchers.** The buttons of the view switcher and of other switchers show a
+  hover state in every position, not only at the ends.
+- **Tours.** If a guided tour is started while the home menu is shown, its
+  "open the apps menu" step is skipped by itself and the tour goes on with the
+  application tile.
 - **Native controls.** Scroll bars, the browser's own date and time fields and
   the list of a native drop-down follow the look you chose, so in the dark look
   they are dark too.
