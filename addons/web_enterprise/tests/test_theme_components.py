@@ -492,6 +492,12 @@ class TestThemeDropdowns(OverlayMixin, ThemeProbeCase):
                     margins = self.style(selector, 'margin-top', 'margin-bottom')
                     self.assertEqual(set(margins.values()), {'0px'}, f'{selector} {margins}')
                 self.assertFrame(menu, 12, scheme)
+                # the active row of the autocomplete takes the dark hover gloss (R19)
+                row = f'{menu} .ui-menu-item > a:not(.o_m2o_start_typing, .o_m2o_no_result)'
+                self.js(f"document.querySelector({row!r}).classList.add('ui-state-active')")
+                got = self.style(row, 'background-image')['background-image']
+                if scheme == 'dark':
+                    self.assertIn('gradient', got)
 
 
 @tagged('post_install', '-at_install')

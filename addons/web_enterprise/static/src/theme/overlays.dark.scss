@@ -4,7 +4,8 @@
 // Dropdowns and popovers, dark scheme only (001b R19, R35).
 
 // A hovered or focused item carries the dark button gloss (the white role is black here).
-.o-dropdown--menu .dropdown-item:not(.disabled, :disabled):is(:hover, :focus-visible, .focus) {
+.o-dropdown--menu .dropdown-item:not(.disabled, :disabled):is(:hover, :focus-visible, .focus),
+.o-dropdown--menu .ui-menu-item > a.ui-state-active:not(.o_m2o_start_typing, .o_m2o_no_result) {
     background-image: $o-gradient-btn;
 }
 

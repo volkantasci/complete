@@ -226,6 +226,11 @@ nav.o_main_navbar {
 
                     .o_cws_chevron {
                         opacity: 1;
+
+                        // right-to-left (E9): the chevron points right
+                        .o_rtl & {
+                            transform: scaleX(-1);
+                        }
                     }
 
                     .o_menu_brand {

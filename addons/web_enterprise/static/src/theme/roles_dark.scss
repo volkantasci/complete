@@ -196,12 +196,12 @@ $o-cws-danger-steps: (
     rest: $o-danger,
     hover: lighten($o-danger, 3%),
     pressed: lighten($o-danger, 6%),
-);
+) !default;
 $o-cws-light-outline: (
     hover: map-get($o-grays, 300),
     pressed-bg: mix($o-action, map-get($o-grays, 100), 15%),
     pressed-border: lighten($o-action, 10%),
-);
+) !default;
 
 $o-cws-btns-extra: (
     "danger": (

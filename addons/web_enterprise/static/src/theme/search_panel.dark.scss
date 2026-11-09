@@ -8,3 +8,10 @@
         background-color: map-get($o-grays, 400);
     }
 }
+
+// The mobile search screen in dark (R33): grey 200 background, grey 100 header. Light keeps
+// the Community colours.
+.o_web_client .o_mobile_search {
+    --mobileSearch-bg: #{map-get($o-grays, 200)};
+    --mobileSearch__header-bg: #{map-get($o-grays, 100)};
+}

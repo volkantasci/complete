@@ -1453,6 +1453,21 @@ class TestThemeRoleUsage(ShellProbeCase):
             document.querySelector('.o_content').append(box);
         }})()""")
 
+    def test_R33_mobile_search_screen_dark(self):
+        # the screen is drawn by the dashboards module; its markup is injected here
+        with self.page(self.crumbs_url, scheme='dark', size=(390, 844), touch=True):
+            self.wait("!!document.querySelector('.o_data_row, .o_list_view')")
+            self.js("""(() => {
+                const screen = document.createElement('div');
+                screen.className = 'o_mobile_search';
+                screen.innerHTML = '<div class="o_mobile_search_header"></div>';
+                document.querySelector('.o_web_client').append(screen);
+            })()""")
+            self.assertColour(self.style('.o_mobile_search', 'background-color')[
+                'background-color'], '#2C2E35')
+            self.assertColour(self.style('.o_mobile_search_header', 'background-color')[
+                'background-color'], '#1F1F23')
+
     def test_R5_breadcrumbs(self):
         for scheme, body, muted in (
             ('light', '#212529', ('#495057', .76)), ('dark', '#EBEBEB', ('#B3B4B8', .76)),
@@ -1607,6 +1622,9 @@ class TestThemeRtl(ShellProbeCase):
         # (the painted path, through its effective screen transform)
         self.assertEqual(self.chevron_direction(), 'left')
         self.assertEqual(self.chevron_direction(lang='en_US'), 'right')
+        # E9: the hover morph chevron points left in a left-to-right language, right in the other
+        self.assertEqual(self.hover_chevron_direction(lang='en_US'), 'left')
+        self.assertEqual(self.hover_chevron_direction(), 'right')
         # settings: the accent bar of the selected tab is on its right edge
         with self.rtl_page(self.fixtures['settings_url']):
             tab = '.o_base_settings_view .settings_tab .tab.selected'
@@ -1642,26 +1660,39 @@ class TestThemeRtl(ShellProbeCase):
             self.wait("document.body.classList.contains('o_home_menu_background')"
                       f" && !!document.querySelector('{GRID_BUTTON}.o_menu_toggle_back')")
             self.js("new Promise((resolve) => setTimeout(resolve, 600))")
-            return self.js(f"""(() => {{
-                const path = document.querySelector({GRID_ICON + ' .o_cws_chevron'!r});
-                const matrix = path.getScreenCTM();
-                const length = path.getTotalLength();
-                const points = [];
-                for (let i = 0; i <= 20; i++) {{
-                    const p = path.getPointAtLength(length * i / 20);
-                    points.push({{x: matrix.a * p.x + matrix.c * p.y + matrix.e,
-                                  y: matrix.b * p.x + matrix.d * p.y + matrix.f}});
-                }}
-                // the apex is the point of the path nearest to its vertical middle
-                const top = Math.min(...points.map((p) => p.y));
-                const bottom = Math.max(...points.map((p) => p.y));
-                const middle = (top + bottom) / 2;
-                const apex = points.reduce((a, b) =>
-                    Math.abs(b.y - middle) < Math.abs(a.y - middle) ? b : a);
-                const ends = points.filter((p) => p.y === top || p.y === bottom);
-                const endX = ends.reduce((sum, p) => sum + p.x, 0) / ends.length;
-                return apex.x < endX ? 'left' : 'right';
-            }})()""")
+            return self.painted_chevron_direction()
+
+    def hover_chevron_direction(self, lang='ar_001'):
+        """Which way the chevron of the hover morph points (E9)."""
+        with self.page(self.app_url, lang=lang):
+            self.wait_app()
+            with self.forced(GRID_BUTTON, 'hover'):
+                self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+                chevron = self.style(f'{GRID_ICON} .o_cws_chevron', 'opacity')
+                self.assertEqual(chevron['opacity'], '1')
+                return self.painted_chevron_direction()
+
+    def painted_chevron_direction(self):
+        return self.js(f"""(() => {{
+            const path = document.querySelector({GRID_ICON + ' .o_cws_chevron'!r});
+            const matrix = path.getScreenCTM();
+            const length = path.getTotalLength();
+            const points = [];
+            for (let i = 0; i <= 20; i++) {{
+                const p = path.getPointAtLength(length * i / 20);
+                points.push({{x: matrix.a * p.x + matrix.c * p.y + matrix.e,
+                              y: matrix.b * p.x + matrix.d * p.y + matrix.f}});
+            }}
+            // the apex is the point of the path nearest to its vertical middle
+            const top = Math.min(...points.map((p) => p.y));
+            const bottom = Math.max(...points.map((p) => p.y));
+            const middle = (top + bottom) / 2;
+            const apex = points.reduce((a, b) =>
+                Math.abs(b.y - middle) < Math.abs(a.y - middle) ? b : a);
+            const ends = points.filter((p) => p.y === top || p.y === bottom);
+            const endX = ends.reduce((sum, p) => sum + p.x, 0) / ends.length;
+            return apex.x < endX ? 'left' : 'right';
+        }})()""")
 
     def ready_kanban(self):
         self.wait("!!document.querySelector('.o_kanban_record')")
