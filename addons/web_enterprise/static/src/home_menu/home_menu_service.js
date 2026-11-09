@@ -13,11 +13,11 @@ const BACKGROUND_CLASS = "o_home_menu_background";
  * D2 (R45): the Community tour step that opens the apps menu must leave the home menu where
  * it is. The tour utilities live in the back-end bundle of the optional `web_tour` module, which
  * is not a dependency: the step is adapted only if its module is loaded, right when it starts
- * (a tour may compute its steps before any service starts). Inside an application the step
- * still clicks its target (the grid button, which shows the home menu); while the home menu is
- * shown it does nothing, so it cannot bring the application back. The trigger gains an
- * alternative that matches the page while the home menu is shown, for the case where the grid
- * button is hidden.
+ * (a tour may compute its steps before any service starts). The step keeps its `run` (the
+ * string "click": the interactive mode skips a step whose `run` is a function) and changes
+ * only its trigger. Inside an application the trigger is the grid button, which shows the home
+ * menu; while the home menu is shown the grid button is the back chevron, which must not
+ * match, and the trigger is the page itself, whose click does nothing.
  */
 export function adaptTourAppsMenuStep(stepUtils) {
     patch(stepUtils, {
@@ -25,13 +25,7 @@ export function adaptTourAppsMenuStep(stepUtils) {
             const step = super.showAppsMenuItem(...arguments);
             return {
                 ...step,
-                trigger: `${step.trigger}, body.${BACKGROUND_CLASS}`,
-                run(helpers) {
-                    if (document.body.classList.contains(BACKGROUND_CLASS)) {
-                        return;
-                    }
-                    return helpers.click();
-                },
+                trigger: `${step.trigger}:not(.o_menu_toggle_back), body.${BACKGROUND_CLASS}`,
             };
         },
     });

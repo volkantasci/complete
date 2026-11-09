@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, test } from "@odoo/hoot";
-import { animationFrame, press, queryAll, waitFor } from "@odoo/hoot";
+import { animationFrame, isVisible, press, queryAll, waitFor } from "@odoo/hoot";
 import {
     contains,
     defineActions,
@@ -372,20 +372,23 @@ test("A103 apps-menu step does nothing while the home menu is shown", async () =
     expect(step.trigger.startsWith(".o_navbar_apps_menu button:enabled")).toBe(true);
     expect(step.isActive).toEqual(["community", "desktop"]);
     expect(step.tooltipPosition).toBe("bottom");
-    let clicks = 0;
-    const helpers = { click: () => clicks++ };
-    // the home menu is shown (nothing behind it): no click
+    // the run stays the string: the interactive mode skips a step whose run is a function
+    expect(step.run).toBe("click");
+    // a tour step finds visible elements only
+    const matches = () => [...document.querySelectorAll(step.trigger)].filter(isVisible);
+    // the home menu is shown (nothing behind it): only the page matches, a click on it does nothing
     expect(document.body).toHaveClass(BG_CLASS);
-    step.run.call({ anchor: document.body }, helpers);
-    expect(clicks).toBe(0);
-    // inside an application: the step clicks its target
+    expect(matches()).toEqual([document.body]);
+    // inside an application: the grid button matches, not the page
     await openTile(0);
     expect(document.body).not.toHaveClass(BG_CLASS);
-    step.run.call({ anchor: document.body }, helpers);
-    expect(clicks).toBe(1);
-    // the home menu over the application: no click again, the application is not restored
+    expect(matches()).toHaveLength(1);
+    expect(matches()[0]).toBe(document.querySelector(".o_navbar_apps_menu button"));
+    expect(matches()[0]).not.toHaveClass("o_menu_toggle_back");
+    // the home menu over the application: the back chevron does not match, the page does
     await toggle(true);
-    step.run.call({ anchor: document.body }, helpers);
-    expect(clicks).toBe(1);
+    expect(document.querySelector(".o_navbar_apps_menu button")).toHaveClass("o_menu_toggle_back");
+    expect(matches()).toEqual([document.body]);
+    await animationFrame();
     expect(getService("home_menu").hasHomeMenu).toBe(true);
 });
