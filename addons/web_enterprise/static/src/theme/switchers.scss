@@ -4,7 +4,8 @@
 // Segmented switchers (001b R21): the control-panel view switcher and the groups of
 // up to four toggle buttons marked `.o_switcher`. The highlight is the `::before` of the
 // container. Its slot is (padding-box width - 8px - (n - 1) * gap) / n, the gap being 4px
-// minus the border width, so that it matches the active button exactly.
+// minus the border width, so that it matches the active button exactly. The 3px gap is the
+// 4px gap of R21 less the 1px overlap of each button over its predecessor.
 
 $o-cws-switch-ease: cubic-bezier(0.2, 1.12, 0.2, 1.12) !default;
 $o-cws-switch-time: .2s !default;
@@ -59,14 +60,17 @@ nav.o_cp_switch_buttons {
         z-index: 1;
         margin: 0;
         padding: 2px 6px;
-        border: 0;
+        border: 1px solid transparent;
         border-radius: 6px;
         background-image: none;
         box-shadow: none;
     }
 
-    > .btn:not(.active, #_):hover {
+    // Hover on an inactive button (D7). The extra id terms keep this above the reset of the
+    // middle buttons, whose chain of :not() is the more specific of the two rules.
+    > .btn:not(.active):not(#_):not(#__):hover {
         --#{$prefix}btn-hover-bg: #{$o-cws-switch-hover-bg};
+        --#{$prefix}btn-hover-color: #{$o-cws-switch-hover-color};
     }
 }
 

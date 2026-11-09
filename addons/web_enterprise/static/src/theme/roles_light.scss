@@ -95,8 +95,9 @@ $o-cws-overlay-border: $o-border-color !default;
 
 $o-main-text-color: $o-gray-900 !default;
 $o-main-headings-color: $o-black !default;
-$tooltip-bg: $o-view-background-color !default;
-$tooltip-color: $o-main-text-color !default;
+// Tooltip (D7): a black label with grey 200 text in light.
+$tooltip-bg: $o-black !default;
+$tooltip-color: $o-gray-200 !default;
 $o-opacity-muted: .76 !default;
 $o-main-color-muted: rgba($o-gray-700, $o-opacity-muted) !default;
 $o-cws-text-secondary: rgba($o-main-text-color, .75) !default;
@@ -448,7 +449,9 @@ $o-input-border-required: $o-main-headings-color !default;
 $input-border-color: $o-cws-input-border !default;
 $input-focus-box-shadow: none !default;
 
-$o-form-check-input-border-color: map-get($o-grays, 400) !default;
+// Unchecked boxes and radios (D7): view background, grey 500 border in light.
+$o-form-check-input-border-color: map-get($o-grays, 500) !default;
+$form-check-input-bg: $o-view-background-color !default;
 $o-cws-check: (mark: $o-white) !default;
 $form-check-input-checked-color: map-get($o-cws-check, mark) !default;
 $form-check-input-checked-border-color: $o-action !default;
@@ -461,7 +464,9 @@ $form-check-input-focus-border: $o-action !default;
 
 // Segmented switchers (R21), notebook tabs (R20)
 $o-cws-switch-pill-bg: $o-gray-200 !default;
-$o-cws-switch-hover-bg: rgba($o-gray-300, .5) !default;
+// Hover on an inactive switcher button (D7): no fill in light, the text turns black.
+$o-cws-switch-hover-bg: transparent !default;
+$o-cws-switch-hover-color: $o-black !default;
 $o-cws-tab-bg: $o-gray-100 !default;
 $o-cws-tab-hover-bg: $o-gray-200 !default;
 $o-cws-tab-border: $o-border-color !default;

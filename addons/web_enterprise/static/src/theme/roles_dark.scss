@@ -279,6 +279,9 @@ $o-cws-btns-outline-extra: (
     ),
 ) !default;
 
+// Unchecked boxes and radios (D7): grey 400 border in dark.
+$o-form-check-input-border-color: $o-gray-400 !default;
+
 // Range sliders and switches (R39)
 $o-cws-switch: (track: transparentize($o-black, .5), focus: $o-black) !default;
 $form-switch-color: map-get($o-cws-switch, track) !default;
@@ -288,6 +291,7 @@ $form-switch-checked-color: map-get($o-cws-fills, switch-on) !default;
 // Segmented switchers (R21), notebook tabs (R20)
 $o-cws-switch-pill-bg: $o-gray-400 !default;
 $o-cws-switch-hover-bg: $o-gray-300 !default;
+$o-cws-switch-hover-color: $o-black !default;
 $o-cws-tab-bg: $o-gray-300 !default;
 $o-cws-tab-hover-bg: $o-gray-400 !default;
 $o-cws-tab-border: $o-gray-200 !default;

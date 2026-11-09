@@ -16,8 +16,10 @@
         border-top-right-radius: 6px;
         background-color: $o-cws-tab-bg;
 
+        // hover: the fill only; the text keeps the surrounding colour (not the link hover one)
         &:hover {
             background-color: $o-cws-tab-hover-bg;
+            color: inherit;
         }
 
         &.active,

@@ -45,7 +45,11 @@
     --#{$prefix}popover-body-color: #{$tooltip-color};
     --popover-arrow-color: #{$tooltip-bg};
 
+    // the label: a pill inside the frame, 4px by 8px of padding
     .o-tooltip {
+        padding: 4px 8px;
+        border-radius: var(--#{$prefix}border-radius-pill);
+        background-color: $tooltip-bg;
         color: $tooltip-color;
     }
 }
