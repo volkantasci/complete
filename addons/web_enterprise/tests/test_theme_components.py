@@ -378,23 +378,40 @@ class OverlayMixin:
         """Rendered colour at ``fraction`` of an element's width, mid-height or ``height`` px down.
 
         The slider track and thumb are browser pseudo-elements whose computed style
-        and matched rules are not exposed, so the probe reads the painted pixel.
+        and matched rules are not exposed, so the probe reads the painted pixel. It waits
+        until nothing animates and the box has not moved over two frames, samples whole
+        pixels (the clip of a pixel starts on an integer) and keeps the most common of
+        three samples.
         """
-        self.js(
-            f"document.querySelector('{selector}').scrollIntoView({{block: 'center'}});"
-            " new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))"
-        )
-        box = self.rect(selector)
-        # the clip is in document coordinates, the rect in viewport coordinates
-        scroll = self.js('({x: window.scrollX, y: window.scrollY})')
-        x = box['x'] + scroll['x'] + box['width'] * fraction
-        y = box['y'] + scroll['y'] + (box['height'] / 2 if height is None else height)
-        shot = self.browser._websocket_request('Page.captureScreenshot', params={
-            'format': 'png',
-            'clip': {'x': x, 'y': y, 'width': 1, 'height': 1, 'scale': 1},
-        })
-        image = Image.open(io.BytesIO(base64.b64decode(shot['data']))).convert('RGB')
-        red, green, blue = image.getpixel((0, 0))
+        box = self.js(f"""(async () => {{
+            const el = document.querySelector({json.dumps(selector)});
+            const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+            el.scrollIntoView({{block: 'center'}});
+            let last = '';
+            for (let tries = 0; tries < 120; tries++) {{
+                await frame();
+                const r = el.getBoundingClientRect();
+                const now = [r.x, r.y, r.width, r.height].join();
+                if (now === last && !document.getAnimations().some(
+                        (a) => a.effect.getComputedTiming().iterations !== Infinity)) {{
+                    // the clip is in document coordinates, the rect in viewport coordinates
+                    return {{x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height}};
+                }}
+                last = now;
+            }}
+            throw new Error('the element never settled');
+        }})()""")
+        x = int(box['x'] + box['width'] * fraction)
+        y = int(box['y'] + (box['height'] / 2 if height is None else height))
+        samples = []
+        for _ in range(3):
+            shot = self.browser._websocket_request('Page.captureScreenshot', params={
+                'format': 'png',
+                'clip': {'x': x, 'y': y, 'width': 1, 'height': 1, 'scale': 1},
+            })
+            image = Image.open(io.BytesIO(base64.b64decode(shot['data']))).convert('RGB')
+            samples.append(image.getpixel((0, 0)))
+        red, green, blue = max(set(samples), key=samples.count)
         return f'rgb({red}, {green}, {blue})'
 
     def _assert_pixel_aims_at_slider(self, selector, track):
@@ -539,8 +556,15 @@ class TestThemePopovers(OverlayMixin, ThemeProbeCase):
             self.js(
                 "document.querySelector('.o_datetime_picker').insertAdjacentHTML("
                 "'beforeend', '<button class=\"btn btn-secondary o_cws_probe_btn\">x</button>"
-                "<input type=\"range\" class=\"form-range o_cws_probe_range\"/>"
                 "<table class=\"table o_cws_probe_table\"><tr><td>x</td></tr></table>')"
+            )
+            # the slider sits in a fixed box of the page, away from the animated popover, with
+            # the popover class that scopes the darker track
+            self.js(
+                "document.body.insertAdjacentHTML('beforeend', '<div class=\"popover\""
+                " style=\"position: fixed; top: 40px; left: 40px; width: 240px; z-index: 2000;"
+                " transition: none\">"
+                "<input type=\"range\" class=\"form-range o_cws_probe_range\"/></div>')"
             )
             btn = '.o_cws_probe_btn'
             self.assertColour(self.style(btn, 'background-color')['background-color'], '#565762')
@@ -808,7 +832,6 @@ class SwitcherMixin:
         """Button size, distance between neighbours and container size of ``container``."""
         boxes = self.js(f"""(() => {{
             const group = document.querySelector({json.dumps(container)});
-            const cs = getComputedStyle(group);
             const rects = [...group.querySelectorAll(':scope > .btn')].map((b) => {{
                 const r = b.getBoundingClientRect();
                 return [r.x, r.y, r.width, r.height];
