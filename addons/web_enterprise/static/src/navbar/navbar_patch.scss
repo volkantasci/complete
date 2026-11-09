@@ -348,3 +348,18 @@ body.o_home_menu_background .o_main_navbar {
         background: rgba($black, .1);
     }
 }
+
+// R12: over the home menu an open tray entry keeps its transparent border and has no fill
+// of its own (the application look of an open entry is not used here); only the pointer
+// wash shows.
+body.o_home_menu_background nav.o_main_navbar.o_main_navbar .o_menu_systray {
+    .dropdown-toggle[aria-expanded="true"] {
+        border-color: transparent;
+        background: transparent;
+        outline: 0;
+
+        &:hover {
+            background: rgba($black, .1);
+        }
+    }
+}

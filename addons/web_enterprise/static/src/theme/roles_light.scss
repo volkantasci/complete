@@ -90,6 +90,8 @@ $o-cws-fills: (
 $o-cws-overlay-bg: $o-white !default;
 // The mobile bottom sheet: grey 100 (its buttons stay white).
 $o-cws-sheet-bg: $o-gray-100 !default;
+// Searchable selection lists (R19, D9): grey 100 in light, the overlay background in dark.
+$o-cws-select-menu-bg: $o-gray-100 !default;
 $o-border-color: $o-gray-300 !default;
 $o-cws-overlay-border: $o-border-color !default;
 
@@ -467,6 +469,8 @@ $o-cws-switch-pill-bg: $o-gray-200 !default;
 // Hover on an inactive switcher button (D7): no fill in light, the text turns black.
 $o-cws-switch-hover-bg: transparent !default;
 $o-cws-switch-hover-color: $o-black !default;
+// The active button's text: the black role (white in dark).
+$o-cws-switch-active-color: $o-black !default;
 $o-cws-tab-bg: $o-gray-100 !default;
 $o-cws-tab-hover-bg: $o-gray-200 !default;
 $o-cws-tab-border: $o-border-color !default;

@@ -9,7 +9,7 @@ import re
 from odoo.tests import tagged
 from PIL import Image
 
-from .theme_probe import ThemeProbeCase
+from .theme_probe import ThemeProbeCase, parse_colour
 
 NEW = '.o_control_panel .o-kanban-button-new'
 BUTTON_PROPS = ('background-color', 'border-top-color', 'color')
@@ -262,8 +262,13 @@ class TestThemeBadgesTags(ThemeProbeCase):
                 self.wait("!!document.querySelector('.o_kanban_record .o_tag')")
                 self.assertEqual(
                     self.style('.o_kanban_record', 'font-size')['font-size'], '13px')
+                # the footer is where CRM shows the overdue-days badge, and it runs at 14 px
+                self.wait("!!document.querySelector('.o_kanban_record footer .badge')")
+                self.assertEqual(
+                    self.style('.o_kanban_record footer', 'font-size')['font-size'], '14px')
                 for selector, size, border, high in (
                     ('.o_kanban_record .badge.text-bg-primary', 10.8, 0, 18.0),
+                    ('.o_kanban_record footer .badge.o_cws_b_footer', 10.8, 0, 18.0),
                     ('.o_kanban_record .o_tag', 10, 1, 18.7),
                 ):
                     got = self.style(selector, *props)
@@ -359,7 +364,7 @@ class TestThemeRibbon(ThemeProbeCase):
                 self.assertEqual(got['text-shadow'], 'none')
                 self.assertRegex(
                     got['background-image'],
-                    r'linear-gradient\(145deg, rgba\(' + tone + r', 0\.(15|08)\)')
+                    r'linear-gradient\(145deg, rgba\(' + tone + r', 0\.25\)')
 
 
 SHADOW = re.compile(r'rgba\(0, 0, 0, ([0-9.]+)\) (-?\d+)px (-?\d+)px (\d+)px (-?\d+)px')
@@ -509,7 +514,7 @@ class TestThemeDropdowns(OverlayMixin, ThemeProbeCase):
                 self.assertEqual(
                     self.style(MENU, 'border-top-left-radius')['border-top-left-radius'], '12px')
 
-    def test_A113_select_menu_padding(self):
+    def test_A113_autocomplete_menu_padding(self):
         # the Currency many2one (autocomplete) of a Currency Rate form (res.currency.rate)
         for scheme in ('light', 'dark'):
             with self.page(self.fixtures['date_form_url'], scheme=scheme):
@@ -644,6 +649,53 @@ class TestThemeDialogPalette(OverlayMixin, ThemeProbeCase):
         self.js("document.querySelector('[data-menu=\"preferences\"]').click()")
         self.wait("!!document.querySelector('.o_dialog .modal-content .o_form_view')")
 
+    def _open_language_list(self):
+        self._open_preferences()
+        toggler = '.o_dialog .o_field_widget[name="lang"] .o_select_menu_toggler'
+        self.wait(f"!!document.querySelector('{toggler}')")
+        self.js(f"document.querySelector('{toggler}').click()")
+        self.wait("!!document.querySelector('.o_select_menu_menu .o_select_menu_item')")
+        self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+
+    def test_A113_select_menu_padding(self):
+        menu = '.o_select_menu_menu'
+        item = f'{menu} .o_select_menu_item'
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme):
+                self._open_language_list()
+                got = self.style(menu, 'padding-top', 'padding-bottom', 'padding-left',
+                                 'padding-right')
+                self.assertEqual(set(got.values()), {'4px'}, got)
+                margins = self.style(item, 'margin-top', 'margin-bottom')
+                self.assertEqual(set(margins.values()), {'0px'}, margins)
+                choices = self.style(f'{menu} .o_select_menu-choices', 'padding-top',
+                                     'padding-bottom')
+                self.assertEqual(set(choices.values()), {'0px'}, choices)
+
+    def test_A135_selection_list_look(self):
+        menu = '.o_select_menu_menu'
+        item = f'{menu} .o_select_menu_item'
+        for scheme, background, border, alpha, wash in (
+            ('light', '#F8F9FA', '#DEE2E6', .15, '#000000'),
+            ('dark', '#3E3F47', '#56575E', .30, '#FFFFFF'),
+        ):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme):
+                self._open_language_list()
+                got = self.style(
+                    menu, 'background-color', 'border-top-color', 'border-top-width',
+                    'border-top-left-radius', 'border-bottom-right-radius', 'box-shadow')
+                self.assertColour(got['background-color'], background)
+                self.assertColour(got['border-top-color'], border)
+                self.assertEqual(got['border-top-width'], '1px')
+                self.assertEqual(got['border-top-left-radius'], '12px')
+                self.assertEqual(got['border-bottom-right-radius'], '12px')
+                self.assertShadow(got['box-shadow'], alpha)
+                self.assertEqual(
+                    self.style(item, 'border-top-left-radius')['border-top-left-radius'], '8px')
+                with self.forced(item, 'hover'):
+                    self.assertColour(
+                        self.style(item, 'background-color')['background-color'], wash, alpha=.08)
+
     def test_A90_dialog_backdrop(self):
         for scheme, view_bg, line in (
             ('light', '#FFFFFF', '#000000'), ('dark', '#2C2E35', '#FFFFFF')
@@ -769,6 +821,17 @@ class TestThemeInputs(OverlayMixin, ThemeProbeCase):
                 shadow = self.style(box, 'box-shadow')['box-shadow']
             self.assertIn('0px 0px 0px 4px', shadow)
             self.assertColour(shadow.split(') ')[0] + ')', '#017E84', alpha=.25)
+        with self._list('light'):
+            self.wait("!!document.querySelector('.o_content')")
+            self.js(
+                "document.querySelector('.o_content').insertAdjacentHTML('beforeend',"
+                " '<input type=\"range\" class=\"form-range o_cws_probe_range\"/>')")
+            self.assertColour(
+                self.style('.o_cws_probe_range', '--o-cws-range-thumb-active')[
+                    '--o-cws-range-thumb-active'], '#F8FBFB')
+            with self.forced('.o_cws_probe_range', 'active'):
+                # the fill (tint of the component active background) under a white gloss
+                self.assertColour(self._pixel('.o_cws_probe_range', .5), '#F9FBFB', tol=3)
         with self._list('dark'):
             self.wait("!!document.querySelector('.o_content')")
             self.js(
@@ -793,7 +856,12 @@ class TestThemeInputs(OverlayMixin, ThemeProbeCase):
             self.assertColour(self._pixel('.o_cws_probe_range_off', .1), '#3E3F47')
             with self.forced('.o_cws_probe_range', 'active'):
                 thumb = self._pixel('.o_cws_probe_range', .5)
-            self.assertColour(thumb, '#B2559A')
+                # D9: the black gloss over the fill reads about #A64F8F on average
+                self.assertColour(thumb, '#A64F8F', tol=4)
+                # the gloss fades downwards: the upper half is darker than the lower half
+                upper = parse_colour(self._pixel('.o_cws_probe_range', .5, height=7))
+                lower = parse_colour(self._pixel('.o_cws_probe_range', .5, height=17))
+                self.assertLess(upper[0], lower[0] - 6, (upper, lower))
             knob = self.style('.o_cws_probe_switch', 'background-image')['background-image']
             plain = knob.replace(' ', '').replace('%20', '').replace('%28', '(').replace('%29', ')')
             self.assertRegex(plain, r'rgba\(255,255,255,0?\.5\)')
@@ -807,9 +875,10 @@ GRAPH_MODES = '.o_switcher[aria-label="Change graph"]'
 GRAPH_SORT = '.o_switcher[aria-label="Sort graph"]'
 SWITCHER_COLOURS = {
     # scheme: (view background, pill, hover fill (hex, alpha), hover text)
-    # D7: no hover fill in light (the text turns black), grey 300 in dark
+    # D7: no hover fill in light (the text turns black), grey 300 in dark where the text
+    # stays grey 900 (D9)
     'light': ('#FFFFFF', '#E7EBED', ('#000000', 0), '#000000'),
-    'dark': ('#2C2E35', '#56575E', ('#3E3F47', 1.0), '#FFFFFF'),
+    'dark': ('#2C2E35', '#56575E', ('#3E3F47', 1.0), '#EBEBEB'),
 }
 
 
@@ -944,8 +1013,13 @@ class TestThemeSwitchers(SwitcherMixin, ThemeProbeCase):
                 self.assertAlmostEqual(self.rect(NAV)['width'], 252, delta=1)
                 self.assertAlmostEqual(self.rect(NAV)['height'], 37, delta=1)
                 with self.forced(f'{NAV} .btn.active', 'hover'):
-                    got = self.style(f'{NAV} .btn.active', 'background-color')
+                    got = self.style(f'{NAV} .btn.active', 'background-color', 'color')
                 self.assertColour(got['background-color'], '#000000', alpha=0)
+                # D9: the active button's text is the black role
+                active_text = '#000000' if scheme == 'light' else '#FFFFFF'
+                self.assertColour(got['color'], active_text)
+                self.assertColour(
+                    self.style(f'{NAV} .btn.active', 'color')['color'], active_text)
 
     def test_F7_view_switcher_hover(self):
         # a real pointer, on an inactive button at every position (the first, the middle
@@ -1089,6 +1163,25 @@ class TestThemeSwitchers(SwitcherMixin, ThemeProbeCase):
                     self.assertColour(button['border-top-color'], '#000000', alpha=0)
                     self.assertEqual(button['padding-left'], '6px')
 
+    def test_A134_graph_sort_pill(self):
+        # neither sort button is active: the highlight sits under the first one
+        for scheme, (_bg, pill, *_rest) in SWITCHER_COLOURS.items():
+            with self.page(f"/odoo/action-{self.fixtures['graph_action']}", scheme=scheme):
+                self.wait(f"document.querySelectorAll('{GRAPH_SORT} .btn').length === 2")
+                self.assertEqual(
+                    self.js(f"document.querySelectorAll('{GRAPH_SORT} .btn.active').length"), 0)
+                got = self.pill(GRAPH_SORT)
+                self.assertEqual(got['display'], 'block')
+                self.assertAlmostEqual(got['width'], 28, delta=.5)
+                box = self.rect(GRAPH_SORT)
+                self.assertAlmostEqual(got['x'] - box['x'], 5, delta=.5)  # 1px border + 4px inset
+                self.assertColour(
+                    self.style(GRAPH_SORT, 'background-color',
+                               pseudo='::before')['background-color'], pill)
+                self.assertPillOn(GRAPH_SORT, f'{GRAPH_SORT} .btn:first-child')
+                # the mode switcher's highlight sits under the active mode
+                self.assertPillOn(GRAPH_MODES, f'{GRAPH_MODES} .btn.active')
+
     def test_A50b_one_button_and_fast_switch(self):
         with self.page(f"/odoo/action-{self.fixtures['graph_action']}"):
             self.wait(f"!!document.querySelector('{GRAPH_MODES} .btn.active')")
@@ -1109,11 +1202,14 @@ class TestThemeSwitchers(SwitcherMixin, ThemeProbeCase):
     def test_A119_no_pill(self):
         with self._open():
             self._ready()
-            for count, active in ((5, 0), (3, None), (0, None)):
+            for count, active in ((5, 0), (5, None), (0, None)):
                 self.inject_switcher(count, active)
                 got = self.pill('.o_cws_probe_switcher')
                 self.assertEqual((got['display'], got['content']), ('none', 'none'),
                                  (count, active))
+            # D9: three buttons and none active: the highlight is under the first one
+            self.inject_switcher(3, None)
+            self.assertPillOn('.o_cws_probe_switcher', '.o_cws_probe_b')
             # the buttons keep the transparent look
             self.inject_switcher(5, 0)
             got = self.style('.o_cws_probe_b', 'background-color', 'border-top-width')

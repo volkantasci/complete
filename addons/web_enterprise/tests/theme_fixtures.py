@@ -25,6 +25,11 @@ KANBAN = f"""
                 <span class="badge text-bg-light o_cws_b_light"><field name="type"/></span>
                 <span class="badge text-bg-dark o_cws_b_dark"><field name="type"/></span>
             </div>
+            <footer>
+                <span class="badge rounded-pill text-bg-danger o_cws_b_footer">
+                    <field name="type"/>
+                </span>
+            </footer>
         </t>
         <t t-name="menu">
             <field name="color" widget="kanban_color_picker"/>

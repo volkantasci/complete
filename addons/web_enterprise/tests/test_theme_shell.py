@@ -950,16 +950,34 @@ class TestThemeHomeMenu(ShellProbeCase):
     def test_A28_tray_wash_dark(self):
         self._tray_wash('dark', '#FFFFFF')
 
-    def test_A110_tray_open_no_outline(self):
-        with self.home_page():
+    def _open_tray_entry(self, scheme, wash):
+        with self.home_page(scheme):
             self.wait_home()
             entry = USER_MENU
             self.js(f"document.querySelector({entry!r}).click()")
             self.wait(f"document.querySelector({entry!r}).getAttribute('aria-expanded') === 'true'")
+            self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+            # the pointer is away from the entry: no outline, a transparent ring, no fill
             with self.forced(entry, 'focus', 'focus-visible'):
-                got = self.style(entry, 'outline-style', 'outline-width')
+                got = self.style(entry, 'outline-style', 'outline-width', 'border-top-width',
+                                 'border-top-color', 'border-left-color', 'border-bottom-color',
+                                 'border-right-color', 'background-color')
                 self.assertTrue(
                     got['outline-style'] == 'none' or got['outline-width'] == '0px', got)
+                self.assertEqual(got['border-top-width'], '2px')
+                for side in ('top', 'left', 'bottom', 'right'):
+                    self.assertEqual(parse_colour(got[f'border-{side}-color'])[3], 0, got)
+                self.assertEqual(parse_colour(got['background-color'])[3], 0, got)
+            with self.forced(entry, 'hover'):
+                got = self.style(entry, 'background-color', 'border-top-color')
+                self.assertColour(got['background-color'], wash, alpha=0.1)
+                self.assertEqual(parse_colour(got['border-top-color'])[3], 0, got)
+
+    def test_A110_tray_open_no_outline(self):
+        self._open_tray_entry('light', '#000000')
+
+    def test_A110_tray_open_no_outline_dark(self):
+        self._open_tray_entry('dark', '#FFFFFF')
 
     def test_A111_scrollbar_and_glyph_tile(self):
         with self.home_page():

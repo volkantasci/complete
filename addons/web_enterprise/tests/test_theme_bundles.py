@@ -60,6 +60,21 @@ class TestThemeBundles(TransactionCase):
             '--o-cws-scheme:dark',
         ], dark)
 
+    def test_A116_range_thumb_gloss(self):
+        # D9 / R39: the pressed thumb keeps the control gloss over its fill, in both schemes
+        for bundle, fill, tone in (
+            ('web.assets_web', '#f8fbfb', '255,255,255'),
+            ('web.assets_web_dark', '#b2559a', '0,0,0'),
+        ):
+            css = self._css(bundle)
+            self.assertIn(f'--o-cws-range-thumb-active:{fill}', css)
+            self.assertRegex(
+                css,
+                r':active::-webkit-slider-thumb[^{}]*\{'
+                r'background-color:var\(--o-cws-range-thumb-active\);'
+                r'background-image:linear-gradient\(180deg,rgba\(' + tone
+                + r',0?\.15\),transparent\)')
+
     def test_A5_dark_bundle_takes_third_party_files(self):
         self._asset('web.dark_mode_variables', 'before',
                     f'{FIXTURES}/marker_variables.dark.scss', ROLES_DARK)

@@ -66,6 +66,14 @@ nav.o_cp_switch_buttons {
         box-shadow: none;
     }
 
+    // the active button reads in the black role, under the pointer too
+    > .btn.active:not(#_):not(#__) {
+        --#{$prefix}btn-color: #{$o-cws-switch-active-color};
+        --#{$prefix}btn-hover-color: #{$o-cws-switch-active-color};
+        --#{$prefix}btn-active-color: #{$o-cws-switch-active-color};
+        color: $o-cws-switch-active-color;
+    }
+
     // Hover on an inactive button (D7). The extra id terms keep this above the reset of the
     // middle buttons, whose chain of :not() is the more specific of the two rules.
     > .btn:not(.active):not(#_):not(#__):hover {
@@ -101,6 +109,25 @@ nav.o_cp_switch_buttons {
                 @media (prefers-reduced-motion: reduce) {
                     transition: none;
                 }
+            }
+        }
+    }
+}
+
+// A group of one to four buttons with none active (the graph's sort switcher) keeps the
+// highlight under its first button (D9). More than four buttons never show it.
+.o_switcher {
+    @for $-n from 1 through $o-cws-switch-max {
+        &:has(> :nth-child(#{$-n})):not(:has(> :nth-child(#{$-n + 1}))):not(:has(> .active))::before {
+            --cws-sw-n: #{$-n};
+            --cws-sw-i: 0;
+            --cws-pill-w: calc((100% - 8px - (#{$-n} - 1) * #{$o-cws-switch-gap}) / #{$-n});
+
+            content: "";
+            display: block;
+
+            @media (prefers-reduced-motion: reduce) {
+                transition: none;
             }
         }
     }

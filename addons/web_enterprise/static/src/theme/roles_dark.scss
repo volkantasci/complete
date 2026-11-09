@@ -80,6 +80,7 @@ $o-cws-fills: (
 $o-cws-overlay-bg: $o-gray-300 !default;
 // The mobile bottom sheet: grey 300, like the other overlays.
 $o-cws-sheet-bg: $o-gray-300 !default;
+$o-cws-select-menu-bg: $o-cws-overlay-bg !default;
 $o-cws-overlay-border: $o-gray-400 !default;
 
 $tooltip-bg: map-get($o-grays, 300) !default;
@@ -291,7 +292,9 @@ $form-switch-checked-color: map-get($o-cws-fills, switch-on) !default;
 // Segmented switchers (R21), notebook tabs (R20)
 $o-cws-switch-pill-bg: $o-gray-400 !default;
 $o-cws-switch-hover-bg: $o-gray-300 !default;
-$o-cws-switch-hover-color: $o-black !default;
+// the text of an inactive button keeps the surrounding text colour under the pointer (D9)
+$o-cws-switch-hover-color: $o-gray-900 !default;
+$o-cws-switch-active-color: $o-black !default;
 $o-cws-tab-bg: $o-gray-300 !default;
 $o-cws-tab-hover-bg: $o-gray-400 !default;
 $o-cws-tab-border: $o-gray-200 !default;

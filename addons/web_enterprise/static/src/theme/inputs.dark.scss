@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Range sliders, dark scheme only (001b R39): the track is grey 300 and a pressed thumb
-// is the primary lightened by 10. The colours are custom properties so that a container
-// (a popover, R35) can change the track.
+// is the primary lightened by 10 (the gloss over it is in inputs.scss). The colours are
+// custom properties so that a container (a popover, R35) can change the track.
 
 .form-range {
     --o-cws-range-track: #{$o-gray-300};
@@ -17,15 +17,5 @@
 
     &:is(:enabled, :disabled)::-moz-range-track {
         background-color: var(--o-cws-range-track);
-    }
-
-    &:is(:enabled, :disabled):active::-webkit-slider-thumb {
-        background-color: var(--o-cws-range-thumb-active);
-        background-image: none;
-    }
-
-    &:is(:enabled, :disabled):active::-moz-range-thumb {
-        background-color: var(--o-cws-range-thumb-active);
-        background-image: none;
     }
 }

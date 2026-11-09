@@ -27,15 +27,16 @@
 }
 
 // Badges and tags on cards are smaller and bolder than in lists (D7): the same bold weight
-// and padding in em, plain badges at 10.8 px and tags at 10 px of the 13 px card text.
+// and padding in em of the badge's own size. The sizes are absolute (rem): the card footer
+// runs at 14 px, so a size in em would resolve against a different parent there.
 .o_kanban_record .badge {
-    --o-Badge-fontSize: .8308em;
+    --o-Badge-fontSize: #{o-to-rem(10.8px)};
     --o-Badge-fontWeight: 600;
     --#{$prefix}badge-padding-y: .25em;
     --#{$prefix}badge-padding-x: .82em;
 
     &.o_tag {
-        --o-Badge-fontSize: .7692em;
+        --o-Badge-fontSize: #{o-to-rem(10px)};
     }
 }
 
@@ -49,9 +50,9 @@
     }
 }
 
-// Ribbons: no shadow, no text shadow, the button gloss over the band.
+// Ribbons: no shadow, no text shadow, the normal gloss tone (25 %) over the band (D9).
 .ribbon span {
     box-shadow: none;
     text-shadow: none;
-    background-image: $o-gradient-btn;
+    background-image: $o-gradient;
 }
