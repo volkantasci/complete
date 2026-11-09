@@ -40,8 +40,9 @@
 
 // Searchable selection lists (the Language field of the preferences dialog is one): their own
 // background role, the same 4 px padding as other menus, and the items sit flush against
-// each other (Community adds a margin above the first and below the last choice).
-.o_select_menu_menu {
+// each other (Community adds a margin above the first and below the last choice). The phone's
+// bottom sheet keeps the Community list as it is.
+.o_select_menu_menu:not(.o_bottom_sheet *) {
     background-color: $o-cws-select-menu-bg;
     // the component adds `p-0` (important); the menu padding of other menus applies here
     padding: $dropdown-padding-y $dropdown-padding-x !important;

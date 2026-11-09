@@ -672,6 +672,20 @@ class TestThemeDialogPalette(OverlayMixin, ThemeProbeCase):
                                      'padding-bottom')
                 self.assertEqual(set(choices.values()), {'0px'}, choices)
 
+    def test_R19_bottom_sheet_list_keeps_no_padding(self):
+        # on a phone the list is shown in a bottom sheet, which has no padding of its own
+        with self.page(self.fixtures['apps_kanban_url'], size=(390, 844), touch=True):
+            self._open_preferences()
+            toggler = '.o_dialog .o_field_widget[name="lang"] .o_select_menu_toggler'
+            self.wait(f"!!document.querySelector('{toggler}')")
+            self.js(f"document.querySelector('{toggler}').click()")
+            sheet = '.o_bottom_sheet .o_select_menu_menu'
+            self.wait(f"!!document.querySelector('{sheet}')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+            got = self.style(sheet, 'padding-top', 'padding-bottom', 'padding-left',
+                             'padding-right')
+            self.assertEqual(set(got.values()), {'0px'}, got)
+
     def test_A135_selection_list_look(self):
         menu = '.o_select_menu_menu'
         item = f'{menu} .o_select_menu_item'
