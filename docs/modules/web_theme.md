@@ -106,9 +106,11 @@ you chose.
   button, such as the sort buttons of a graph, shows the sliding highlight
   under its first button. In the dark look a hovered button keeps its grey text
   and the active one is white.
-- **Ribbons, sliders and lists.** Ribbon bands have a softer shine, a slider
-  thumb that is pressed shows a light shine, and selection lists such as the
-  language field of the preferences are light grey in the light look.
+- **Ribbons, sliders and lists.** Ribbon bands carry a stronger shine than
+  before, a slider thumb that is pressed shows the same shine as the other
+  controls (black in the dark look), and selection lists such as the language
+  field of the preferences are light grey in the light look. On a phone the
+  bottom sheet keeps its own, unpadded list.
 - **Scrolling the home menu.** The home menu scrolls over the whole window
   width, so its thin scroll bar sits at the window edge, while the tiles stay
   in a centred column.
