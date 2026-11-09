@@ -54,7 +54,7 @@ screen the chatter sits beside the sheet, level with the header buttons.
 ![A form, dark](../assets/web_theme/16-form-dark.png)
 
 The settings page, the calendar and the graph view follow the same colours.
-The settings search field is a little lower than before, and the filter
+The settings search field is a little shorter than before (33 px high), and the filter
 sections in the calendar side panel are closer together.
 
 ![The settings page, light](../assets/web_theme/21-settings.png)

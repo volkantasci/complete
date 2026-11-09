@@ -193,25 +193,32 @@ Owner decisions, in one line each:
   longer opens the application.
 - **D2.** While the home menu is shown, the Community apps-menu tour step leaves
   it alone, so the next step finds the tile (helper `showAppsMenuItem`).
-- **D8.** A tour that meets that step while the home menu is shown skips it, in
-  automatic and in interactive tours (also when it is started from the home
-  menu), and goes on with its next step. The helper adds a condition to the step
-  so that it only applies outside the home menu.
-- **D7.** Where the measured look of the original differed from the first
-  specification, the measured look holds. This round: tooltip as a black pill
-  label (grey label in dark), tray entries with 4 px padding and a transparent
-  border, a 36 px avatar entry, the application name in the black role in dark,
-  the 12 px radius on the focused tile, card badges and tags at 10 to 11 px with
-  weight 600, a white list area, transparent breadcrumbs, the chatter beside the
-  form at the height of the header buttons, a 33 px settings search field,
-  8 px calendar filter spacing, a 1 px transparent border on switcher buttons
-  and a hover fill that also reaches the middle buttons of a switcher.
 - **D3.** The back chevron is primary at rest in light and white in dark; black
   only under the pointer.
 - **D4.** The login card has the rounded corners of about 6 px that are drawn,
   not square ones.
 - **D5.** The touch search field is 39 px high in dark and 37 px in light.
 - **D6.** Native controls follow the scheme (see "Declared colour scheme").
+- **D7.** Where the measured look of the original differed from the first
+  specification, the measured look holds. This round: tooltip as a black pill
+  label (grey label in dark), tray entries with 4 px padding and a transparent
+  border, a 36 px avatar entry, the application name in the black role in dark,
+  the 12 px radius on the focused tile, check boxes and radios on the view
+  background, and a 1 px transparent border on switcher buttons with a hover
+  state (no fill in light, the text turns black).
+- **D8.** A tour that meets that step while the home menu is shown skips it, in
+  automatic and in interactive tours (also when it is started from the home
+  menu or when the home menu opens right after the step began), and goes on
+  with its next step. The helper adds a condition to the step so that it only
+  applies outside the home menu, and the interactive engine moves on past a
+  current step that has become inactive.
+
+Verifier findings fixed in the rework round: F1 kanban title row 25.2 px and
+column header 74.2 px (80.2 px on a phone), F2 to F6 card badges and tags at 10
+to 11 px with weight 600, a white list area, transparent breadcrumbs, the
+chatter beside the form at the height of the header buttons, a 33 px settings
+search field and 8 px calendar filter spacing, F7 the dark switcher hover fill,
+F8 notebook tabs keep the surrounding text colour on hover.
 
 ### How it is built
 
