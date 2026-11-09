@@ -125,10 +125,6 @@ nav.o_cp_switch_buttons {
 
             content: "";
             display: block;
-
-            @media (prefers-reduced-motion: reduce) {
-                transition: none;
-            }
         }
     }
 }

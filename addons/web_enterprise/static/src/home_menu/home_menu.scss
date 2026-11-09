@@ -37,11 +37,6 @@ body.o_home_menu_background {
     border-radius: 8px;
     background: rgba($body-color, .5);
 }
-
-// R12: a tray entry whose menu is open shows no focus outline over the home menu.
-body.o_home_menu_background .o_main_navbar .o_menu_systray .dropdown-toggle[aria-expanded="true"] {
-    outline: 0;
-}
 .o_home_menu {
     --o-cws-active-rgb: #{red($o-component-active-bg)}, #{green($o-component-active-bg)}, #{blue($o-component-active-bg)};
 
