@@ -1,0 +1,54 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Form sheet and button box (001b R30).
+
+.o_form_view {
+    // the status-bar row and the sheet area have no top padding of their own
+    --formView-statusbar-padding-top: 0;
+    --formView-sheetBg-padding-top: 0;
+
+    .o_form_sheet {
+        --formView-sheet-border-radius-md: #{$o-border-radius-lg};
+        --formView-sheet-padding-y-md: 24px;
+        --formView-sheet-padding-x-md: 24px;
+        --formView-sheet-padding-y-lg: 24px;
+        --formView-sheet-padding-x-lg: 24px;
+        --formView-sheet-padding-y-xxl: 24px;
+        --formView-sheet-padding-x-xxl: 24px;
+    }
+}
+
+// Stat buttons: view background, secondary borders, 33 px high, 12 px label, medium value.
+.o-form-buttonbox {
+    --o-stat-text-color: #{map-get($o-cws-text-tones, "primary")};
+    --o-stat-button-color: #{$o-cws-stat-icon-color};
+
+    .oe_stat_button {
+        @include media-breakpoint-up(md) {
+            height: 33px;
+        }
+
+        &.btn-outline-secondary,
+        .o_button_more {
+            --#{$prefix}btn-bg: #{$o-view-background-color};
+            --#{$prefix}btn-border-color: #{$o-cws-btn-secondary-border};
+            --#{$prefix}btn-hover-bg: #{$o-cws-btn-secondary-hover-bg};
+            --#{$prefix}btn-hover-border-color: #{$o-cws-stat-hover-border};
+        }
+
+        .o_button_icon {
+            font-size: 21px;
+        }
+
+        .o_stat_info,
+        .o_stat_text {
+            font-size: 12px;
+        }
+
+        .o_stat_value {
+            font-weight: $o-font-weight-medium;
+            font-size: 12px;
+        }
+    }
+}

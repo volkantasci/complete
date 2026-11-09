@@ -1,0 +1,30 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Login page (001b R34, E4). Frontend bundle only: it has the Community frontend variables and
+// no theme roles, and the page is light whatever scheme the browser remembers. The five
+// layers repeat the home menu background (R10, light values; mixin o-cws-home-background in
+// home_menu.scss); the contrast haze is the page colour darkened by 5 points at 95 %.
+
+$o-cws-login-page: $gray-100;
+$o-cws-login-haze: rgba(darken($o-cws-login-page, 5%), .95);
+$o-cws-login-dot: rgba($black, 1);
+
+body:has(.o_database_list) {
+    background-color: $o-cws-login-page;
+    background-image:
+        linear-gradient(45deg, $o-cws-login-page 0%, transparent 50%),
+        linear-gradient(135deg, $o-cws-login-page 0%, transparent 30%, transparent 60%, $o-cws-login-page 95%),
+        linear-gradient(to bottom, $o-cws-login-page, transparent),
+        radial-gradient(circle at center, $o-cws-login-haze 0, $o-cws-login-haze 20%, transparent 400%),
+        radial-gradient(circle at center, $o-cws-login-dot 0, $o-cws-login-dot 1px, transparent 1px);
+    background-size: auto, auto, 100% 40%, auto, 12px 12px;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+
+    // D4: the card is white with a small shadow and corners rounded by 6 px.
+    .card.o_database_list {
+        border-radius: 6px;
+        background-color: $white !important;
+        box-shadow: $box-shadow-sm;
+    }
+}

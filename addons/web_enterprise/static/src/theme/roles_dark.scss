@@ -257,3 +257,9 @@ $o-cws-tab-border: $o-gray-200 !default;
 $o-cws-tab-vertical-border: $o-gray-400 !default;
 $o-cws-tab-accent: map-get($o-cws-text-tones, "primary") !default;
 $o-cws-tab-active-color: map-get($o-cws-text-tones, "primary") !default;
+
+// Form stat buttons (R30), settings tabs and bands (R31).
+$o-cws-stat-icon-color: currentColor !default;
+$o-cws-stat-hover-border: $o-gray-400 !default;
+$o-cws-settings-tab-active-bg: mix($o-action, $o-gray-100, 10%) !default;
+$o-cws-settings-band-bg: $o-gray-300 !default;

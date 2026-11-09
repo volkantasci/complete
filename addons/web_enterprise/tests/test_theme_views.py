@@ -6,9 +6,11 @@ import colorsys
 import math
 import re
 
+from odoo import fields
 from odoo.tests import tagged
 
 from .test_theme_shell import SECTION_TOGGLE, ShellProbeCase
+from .theme_fixtures import KANBAN, LIST, MARK, _action
 
 PAGE = {'light': '#F8F9FA', 'dark': '#1F1F23'}
 VIEW = {'light': '#FFFFFF', 'dark': '#2C2E35'}
@@ -831,3 +833,360 @@ class TestThemeListPivotGraph(ShellProbeCase):
             self.chart_ready('bar')
             self.assertEqual(
                 self.style('.o_graph_renderer > :first-child', 'margin-top')['margin-top'], '0px')
+
+
+WEEK_CALENDAR = """
+<calendar string="Fixture" date_start="create_date" mode="week" color="color">
+    <field name="name"/>
+    <field name="country_id" filters="1"/>
+</calendar>
+"""
+SCHEDULE_CALENDAR = """
+<calendar string="Fixture" date_start="lastcall" mode="week" schedule="1">
+    <field name="cron_name"/>
+</calendar>
+"""
+BORDER_SECONDARY = {'light': '#CED4DA', 'dark': '#3E3F47'}
+TABS = '.o_base_settings_view .settings_tab'
+
+
+def rgb(value):
+    """The first rgb() colour of a computed style value, as a hex string."""
+    match = re.search(r'rgba?\((\d+),\s*(\d+),\s*(\d+)', value)
+    assert match, value
+    return '#' + ''.join(f'{int(c):02X}' for c in match.groups())
+
+
+@tagged('post_install', '-at_install')
+class TestThemeCalendarFormSettings(ShellProbeCase):
+    """Calendar, form sheet and stat buttons, settings, login page, bottom sheet
+    (001b R29-R31, R34, R37, R38)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        env = cls.env
+        country = env['res.country'].search([], limit=2)
+        partners = env['res.partner'].search([('ref', '=', MARK)])
+        for index, partner in enumerate(partners):
+            partner.country_id = country[index % len(country)]
+        # a partner form with a property (a selection with two values)
+        definition = env['properties.base.definition']._get_definition_for_property_field(
+            'res.partner', 'properties')
+        definition.properties_definition = [{
+            'name': 'cws_sel', 'string': 'Sel', 'type': 'selection',
+            'selection': [['a', 'A'], ['b', 'B']],
+        }]
+        properties_action = _action(
+            env, 'properties',
+            [('form', '<form><sheet><field name="name"/>'
+             '<field name="properties_base_definition_id" invisible="1"/>'
+             '<field name="properties"/></sheet></form>')])
+        cls.properties_url = f'/odoo/action-{properties_action.id}/{partners[0].id}'
+        week = _action(env, 'week', [('calendar', WEEK_CALENDAR)])
+        cls.week_url = f'/odoo/action-{week.id}'
+        env['ir.cron'].search([], limit=1).lastcall = fields.Datetime.now()
+        schedule = _action(
+            env, 'schedule', [('calendar', SCHEDULE_CALENDAR)], model='ir.cron',
+            domain=[('id', '>', 0)])
+        cls.schedule_url = f'/odoo/action-{schedule.id}'
+        switch = _action(
+            env, 'switch', [('kanban', KANBAN.replace('{group}', 'type')), ('list', LIST)])
+        cls.switch_url = f'/odoo/action-{switch.id}'
+
+    def ready(self, selector):
+        self.wait(f"!!document.querySelector('{selector}')")
+        self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+
+    # -- A77 / A78 / A117 calendar ----------------------------------------------------
+
+    def test_A77_calendar_frame(self):
+        with self.page(self.week_url, size=(1600, 900)):
+            self.ready('.fc-timegrid-col')
+            area = self.style('.o_calendar_container', 'background-color')
+            self.assertColour(area['background-color'], '#000000', alpha=0)
+            header = self.style(
+                '.o_calendar_header', 'border-bottom-width', 'padding-top', 'padding-bottom',
+                'margin-bottom')
+            self.assertEqual(tuple(header.values()), ('0px', '0px', '0px', '16px'))
+            frame = self.style(
+                '.o_calendar_renderer', 'background-color', 'border-top-width',
+                'border-left-width', 'border-right-width', 'border-bottom-width',
+                'border-top-left-radius', 'border-top-right-radius',
+                'border-bottom-left-radius', 'border-bottom-right-radius',
+                'margin-left', 'margin-right')
+            self.assertColour(frame['background-color'], VIEW['light'])
+            self.assertEqual(
+                [frame[k] for k in ('border-top-width', 'border-left-width',
+                                    'border-right-width', 'border-bottom-width')],
+                ['1px', '1px', '1px', '0px'])
+            self.assertEqual(
+                [frame[k] for k in ('border-top-left-radius', 'border-top-right-radius',
+                                    'border-bottom-left-radius', 'border-bottom-right-radius')],
+                ['12px', '12px', '0px', '0px'])
+            self.assertEqual((frame['margin-left'], frame['margin-right']), ('16px', '16px'))
+            # the last column draws no right border of its own
+            widths = self.js(
+                "[...document.querySelectorAll('.o_calendar_renderer "
+                ".fc-timegrid-cols td:last-child, .o_calendar_renderer "
+                ".fc-col-header-cell:last-child')]"
+                ".map((el) => getComputedStyle(el).borderRightWidth)")
+            self.assertTrue(widths)
+            self.assertEqual(set(widths), {'0px'})
+
+    def test_A78_calendar_side_panel(self):
+        with self.page(self.week_url, size=(1600, 900)):
+            self.ready('.o_calendar_filter')
+            panel = self.style(
+                '.o_calendar_sidepanel_container', 'background-color', 'padding-left',
+                'padding-right')
+            self.assertColour(panel['background-color'], '#000000', alpha=0)
+            self.assertEqual((panel['padding-left'], panel['padding-right']), ('0px', '16px'))
+            self.assertEqual(
+                self.style('.o_calendar_sidepanel_content', 'margin-right')['margin-right'],
+                '8px')
+            self.assertEqual(
+                self.style('.o_calendar_filter', 'margin-top')['margin-top'], '16px')
+        with self.page(self.week_url, size=(390, 844), touch=True):
+            self.ready('.o_other_calendar_panel')
+            got = self.style('.o_other_calendar_panel', 'padding-left', 'padding-right')
+            self.assertEqual((got['padding-left'], got['padding-right']), ('8px', '16px'))
+
+    def test_A117_unscheduled_zone(self):
+        with self.page(self.schedule_url, size=(1600, 900)):
+            self.ready('.fc-event')
+            # the zone shows while a scheduled event is dragged
+            self.pointer_to('.fc-event')  # scrolls it into view
+            box = self.rect('.fc-event')
+            request = self.browser._websocket_request
+            x, y = box['x'] + 10, box['y'] + min(box['height'] / 2, 10)
+            request('Input.dispatchMouseEvent', params={
+                'type': 'mouseMoved', 'x': x, 'y': y})
+            request('Input.dispatchMouseEvent', params={
+                'type': 'mousePressed', 'x': x, 'y': y, 'button': 'left', 'clickCount': 1})
+            for step in range(1, 11):
+                self.js("new Promise((resolve) => setTimeout(resolve, 60))")
+                request('Input.dispatchMouseEvent', params={
+                    'type': 'mouseMoved', 'x': x - 20 * step, 'y': y + 15 * step,
+                    'button': 'left', 'buttons': 1})
+            try:
+                self.wait("!!document.querySelector('.o_calendar_unschedule_zone')", timeout=10)
+                got = self.style(
+                    '.o_calendar_unschedule_zone', 'border-top-left-radius',
+                    'border-bottom-right-radius', 'margin-bottom')
+                self.assertEqual(tuple(got.values()), ('12px', '12px', '16px'))
+            finally:
+                request('Input.dispatchMouseEvent', params={
+                    'type': 'mouseReleased', 'x': x - 200, 'y': y + 150,
+                    'button': 'left', 'clickCount': 1})
+
+    # -- A80 sheet and stat button ----------------------------------------------------
+
+    def _sheet(self, scheme):
+        value = {'light': '#714B67', 'dark': '#C175AD'}[scheme]
+        hover = {'light': '#E7EBED', 'dark': '#3E3F47'}[scheme]
+        button = '.o-form-buttonbox .oe_stat_button.btn-outline-secondary'
+        with self.page(self.fixtures['form_record_url'], scheme=scheme, size=(1600, 900)):
+            self.ready(button)
+            sheet = self.style(
+                '.o_form_sheet', 'border-top-left-radius', 'border-bottom-right-radius',
+                'padding-top', 'padding-left', 'padding-right', 'padding-bottom',
+                'border-top-width', 'border-left-width', 'background-color')
+            self.assertEqual(sheet['border-top-left-radius'], '8px')
+            self.assertEqual(sheet['border-bottom-right-radius'], '8px')
+            self.assertEqual(
+                [sheet[k] for k in ('padding-top', 'padding-left', 'padding-right',
+                                    'padding-bottom')], ['24px'] * 4)
+            self.assertEqual((sheet['border-top-width'], sheet['border-left-width']),
+                             ('1px', '1px'))
+            self.assertColour(sheet['background-color'], VIEW[scheme])
+            # no top padding of the status bar row and the sheet area
+            self.assertEqual(
+                self.style('.o_form_statusbar', 'padding-top')['padding-top'], '0px')
+            self.assertEqual(
+                self.style('.o_form_sheet_bg', 'padding-top')['padding-top'], '0px')
+            rest = self.style(button, 'background-color', 'border-top-color')
+            self.assertColour(rest['background-color'], VIEW[scheme])
+            self.assertColour(rest['border-top-color'], BORDER_SECONDARY[scheme])
+            self.assertAlmostEqual(self.rect(button)['height'], 33, delta=.6)
+            text = self.style(f'{button} .o_stat_text', 'font-size')
+            self.assertEqual(text['font-size'], '12px')
+            figure = self.style(f'{button} .o_stat_value', 'color', 'font-weight')
+            self.assertColour(figure['color'], value)
+            self.assertEqual(figure['font-weight'], '500')
+            icon = self.style(f'{button} .o_button_icon', 'color', 'font-size')
+            self.assertEqual(icon['font-size'], '21px')
+            if scheme == 'light':
+                self.assertColour(icon['color'], value)
+            else:
+                self.assertEqual(icon['color'], self.style(button, 'color')['color'])
+            with self.forced(button, 'hover'):
+                got = self.style(button, 'background-color', 'border-top-color')
+                self.assertColour(got['background-color'], hover)
+                self.assertColour(got['border-top-color'], GREY_400[scheme])
+
+    def test_A80_sheet_and_stat_button_light(self):
+        self._sheet('light')
+
+    def test_A80_sheet_and_stat_button_dark(self):
+        self._sheet('dark')
+
+    # -- A82 settings -----------------------------------------------------------------
+
+    def _settings(self, scheme):
+        active = {'light': '#E6F2F3', 'dark': '#1F2F31'}[scheme]
+        accent = {'light': '#017E84', 'dark': '#1CBCB1'}[scheme]
+        column = {'light': '#F8F9FA', 'dark': '#1F1F23'}[scheme]
+        band = {'light': '#E7EBED', 'dark': '#3E3F47'}[scheme]
+        selected = f'{TABS} .tab.selected'
+        with self.page(self.fixtures['settings_url'], scheme=scheme, size=(1600, 900)):
+            self.ready(selected)
+            self.assertEqual(
+                self.style('.o_control_panel', 'margin-bottom')['margin-bottom'], '0px')
+            got = self.style(
+                selected, 'background-color', 'height', 'font-size', 'padding-left',
+                'padding-right', 'box-shadow', 'border-top-left-radius',
+                'border-bottom-left-radius', 'border-top-right-radius',
+                'border-bottom-right-radius')
+            self.assertColour(got['background-color'], active)
+            self.assertEqual(got['height'], '40px')
+            self.assertEqual(got['font-size'], '13px')
+            self.assertEqual((got['padding-left'], got['padding-right']), ('16px', '32px'))
+            self.assertEqual(
+                [got[k] for k in ('border-top-left-radius', 'border-bottom-left-radius',
+                                  'border-top-right-radius', 'border-bottom-right-radius')],
+                ['0px', '0px', '8px', '8px'])
+            shadow = got['box-shadow']
+            self.assertRegex(shadow, r'2px 0px 0px 0px inset|inset 2px 0px 0px 0px')
+            self.assertColour(rgb(shadow), accent)
+            self.assertColour(self.style(TABS, 'background-color')['background-color'], column)
+            self.wait("!!document.querySelector('.settings .app_settings_block h2')")
+            title = self.style(
+                '.settings .app_settings_block h2', 'background-color', 'font-size',
+                'font-weight', 'padding-left', 'color')
+            self.assertColour(title['background-color'], band)
+            self.assertEqual(
+                (title['font-size'], title['font-weight'], title['padding-left']),
+                ('15px', '500', '32px'))
+            self.assertColour(title['color'], {'light': '#000000', 'dark': '#FFFFFF'}[scheme])
+            field = self.style(
+                '.o_base_settings_view .o_searchview', 'border-top-left-radius',
+                'border-top-right-radius', 'background-color')
+            self.assertEqual(
+                (field['border-top-left-radius'], field['border-top-right-radius']),
+                ('6px', '6px'))
+            if scheme == 'dark':
+                self.assertColour(field['background-color'], PAGE['dark'])
+
+    def test_A82_settings_tabs_light(self):
+        self._settings('light')
+
+    def test_A82_settings_tabs_dark(self):
+        self._settings('dark')
+
+    # -- A86 / A124 login page ----------------------------------------------------------
+
+    def test_A86_login_page(self):
+        # a remembered dark scheme does not reach the login page (E4)
+        with self.page('/web/login', scheme='dark', login=None):
+            self.wait("!!document.querySelector('.oe_login_form')")
+            self.assertEqual(
+                self.js("document.querySelector('meta[name=color-scheme]').content"), 'light')
+            self.assertEqual(self.js(
+                "getComputedStyle(document.documentElement)"
+                ".getPropertyValue('--o-cws-scheme').trim()"), '')
+            body = self.style(
+                'body', 'background-color', 'background-image', 'background-size')
+            self.assertColour(body['background-color'], PAGE['light'])
+            # five layers: three linear gradients, the haze and the dot grid
+            self.assertEqual(body['background-image'].count('gradient('), 5)
+            self.assertEqual(body['background-image'].count('radial-gradient('), 2)
+            self.assertIn('12px 12px', body['background-size'])
+            self.assertIn('rgb(0, 0, 0)', body['background-image'])  # the dots
+            self.assertIn('rgba(233, 236, 239, 0.95)', body['background-image'])  # the haze
+            card = self.style('.card.o_database_list', 'background-color', 'box-shadow')
+            self.assertColour(card['background-color'], '#FFFFFF')
+            self.assertNotEqual(card['box-shadow'], 'none')
+
+    def test_A124_login_card_corners(self):
+        for size, touch in (((1600, 900), False), ((390, 844), True)):
+            with self.page('/web/login', scheme='light', login=None, size=size, touch=touch):
+                self.wait("!!document.querySelector('.oe_login_form')")
+                got = self.style(
+                    '.card.o_database_list', 'border-top-left-radius',
+                    'border-top-right-radius', 'border-bottom-right-radius',
+                    'border-bottom-left-radius')
+                for value in got.values():
+                    self.assertAlmostEqual(px(value), 6, delta=1, msg=str(size))
+
+    # -- A92 bottom sheet --------------------------------------------------------------
+
+    def test_A92_bottom_sheet_views_dark(self):
+        with self.page(self.switch_url, scheme='dark', size=(390, 844), touch=True):
+            self.ready('.o_cp_switch_buttons')
+            self.js("document.querySelector('.o_cp_switch_buttons .btn').click()")
+            self.wait("!!document.querySelector('.o_bottom_sheet .o_cp_switch_buttons .selected')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+            item = '.o_bottom_sheet .o_cp_switch_buttons .o-dropdown-item'
+            other = self.style(f'{item}:not(.selected)', 'background-color')
+            self.assertColour(other['background-color'], '#56575E')
+            active = self.style(f'{item}.selected', 'border-top-color')
+            self.assertColour(active['border-top-color'], '#1CBCB1')
+
+    def test_A92_bottom_sheet_statusbar_dark(self):
+        with self.page(self.fixtures['form_record_url'], scheme='dark',
+                       size=(390, 844), touch=True):
+            self.ready('.o_statusbar_status .dropdown-toggle')
+            self.js("[...document.querySelectorAll('.o_statusbar_status .dropdown-toggle')]"
+                    ".find((el) => el.offsetParent).click()")
+            entry = '.o_bottom_sheet .dropdown-item.active'
+            self.wait(f"!!document.querySelector('{entry}')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+            got = self.style(entry, 'background-color', 'color')
+            self.assertColour(got['background-color'], '#56575E', alpha=.5)
+            self.assertColour(got['color'], '#FFFFFF')
+
+    # -- A115 properties in dark ----------------------------------------------------------
+
+    def test_A115_dark_rules_compiled(self):
+        def compiled(bundle):
+            asset = self.env['ir.qweb']._get_asset_bundle(bundle)
+            return re.sub(r'\s+', '', asset.css().raw.decode()).lower().replace(';}', '}')
+
+        dark = compiled('web.assets_web_dark')
+        self.assertRegex(dark, r'\.o_field_property_definition_type_menuimg\{filter:invert\(1\)')
+        self.assertRegex(dark, r'\.o_field_property_selection_option\{background-color:#3e3f47')
+        self.assertNotIn(
+            '.o_field_property_selection_option{background-color', compiled('web.assets_web'))
+
+    def test_A115_property_fields_dark(self):
+        popover = '.o_field_property_definition'
+        with self.page(self.properties_url, scheme='dark', size=(1600, 900)):
+            self.ready('.o_cp_action_menus button')
+            # the cog menu turns the property editor on
+            self.js("document.querySelector('.o_cp_action_menus button').click()")
+            entries = "[...document.querySelectorAll('.o-dropdown-item')]"
+            self.wait(f"{entries}.some((el) => el.textContent.includes('Edit Properties'))")
+            self.js(f"{entries}.find((el) => el.textContent.includes('Edit Properties')).click()")
+            self.wait("!!document.querySelector('.o_field_property_add button')")
+            self.js("document.querySelector('.o_field_property_add button').click()")
+            kind = f'{popover} .o_field_property_definition_type img'
+            self.wait(f"!!document.querySelector('{kind}')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+            icon = self.style(kind, 'filter')
+            self.assertEqual(icon['filter'], 'invert(1)')
+            # switch the new property to the selection type and add a value
+            self.js(f"document.querySelector('{popover} .o_select_menu_toggler').click()")
+            self.wait("!!document.querySelector('.o_field_property_definition_type_menu')")
+            self.js(
+                "[...document.querySelectorAll('.o_field_property_definition_type_menu "
+                ".o_select_menu_item')].find((el) => "
+                "el.querySelector('img[src$=\"selection.png\"]')).click()")
+            self.wait(f"!!document.querySelector('{popover} .o_field_property_selection')")
+            add = f"{popover} .o_field_property_selection > div > button.btn-link.btn-sm"
+            self.js(f"document.querySelector('{add}').click()")
+            option = f'{popover} .o_field_property_selection_option'
+            self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+            self.wait(f"!!document.querySelector('{option}')")
+            got = self.style(option, 'background-color')
+            self.assertColour(got['background-color'], '#3E3F47')

@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import time
 
 from odoo.http.session import session_store
 from odoo.tests import HttpCase
@@ -92,12 +93,17 @@ class ThemeProbeCase(HttpCase):
 
         The user's ``color_scheme`` setting is written before the page loads, and the
         page is checked to carry the matching role values.
+
+        ``login=None`` opens a logged-out browser (login page, public pages): no user is
+        touched, ``scheme`` only becomes the remembered ``color_scheme`` cookie, and the page
+        is not expected to be a back-end page (nothing is waited for but the document).
         """
-        user = self.env['res.users'].search([('login', '=', login)], limit=1)
-        self.assertTrue(user, f'no user {login}')
-        self.env['res.users.settings']._find_or_create_for_user(user).color_scheme = scheme
-        if lang:
-            user.lang = lang
+        if login is not None:
+            user = self.env['res.users'].search([('login', '=', login)], limit=1)
+            self.assertTrue(user, f'no user {login}')
+            self.env['res.users.settings']._find_or_create_for_user(user).color_scheme = scheme
+            if lang:
+                user.lang = lang
         width, height = size
         self.browser_size = f'{width}x{height}'
         self.touch_enabled = touch
@@ -106,8 +112,9 @@ class ThemeProbeCase(HttpCase):
             atexit.enter_context(flushing_cursor(self.cr))
             atexit.callback(self._wait_remaining_requests)
             atexit.enter_context(browser.cleanup)
-            self.authenticate(login, login, browser=browser)
-            self._ensure_session_file()
+            if login is not None:
+                self.authenticate(login, login, browser=browser)
+                self._ensure_session_file()
             self.browser = browser
             request = browser._websocket_request
             request('Emulation.setDeviceMetricsOverride', params={
@@ -118,6 +125,14 @@ class ThemeProbeCase(HttpCase):
                 {'name': 'prefers-reduced-motion',
                  'value': 'reduce' if reduced_motion else 'no-preference'},
             ]})
+            if login is None:
+                request('Network.setCookie', params={
+                    'name': 'color_scheme', 'value': scheme, 'url': self.base_url() + '/',
+                })
+                browser.navigate_to(self.base_url() + url, wait_stop=False)
+                self.wait("document.readyState === 'complete'", timeout=120)
+                yield browser
+                return
             browser.navigate_to(self.base_url() + url, wait_stop=False)
             # no retry: a redirect to the login page is a real failure and shows as such
             self.wait("!!document.querySelector('.o_web_client') || "
@@ -143,11 +158,20 @@ class ThemeProbeCase(HttpCase):
         """
         store = session_store()
         path = store.get_session_path(self.session.sid)
-        for _attempt in range(5):
+        for attempt in range(5):
             if os.path.exists(path):
                 return
             _logger.warning('session file missing after authenticate: writing it again')
-            store.save(self.session)
+            if attempt < 2:
+                store.save(self.session)
+            else:
+                # the store's own write keeps failing: create the directory and write the
+                # file here (what ``save`` does, without swallowing the error)
+                os.makedirs(os.path.dirname(path), mode=0o755, exist_ok=True)
+                with open(path, 'w', encoding='utf-8') as handle:
+                    json.dump(dict(self.session), handle)
+                os.chmod(path, 0o644)
+            time.sleep(.2)
         self.assertTrue(os.path.exists(path), 'the session file cannot be written')
 
     # -- evaluation -----------------------------------------------------------------

@@ -445,3 +445,10 @@ $o-cws-tab-border: $o-border-color !default;
 $o-cws-tab-vertical-border: $o-border-color !default;
 $o-cws-tab-accent: $o-brand-primary !default;
 $o-cws-tab-active-color: $o-brand-primary !default;
+
+// Form stat buttons (R30): the icon colour (the primary text tone in light, the current text
+// colour in dark), and the hover border; settings tabs and bands (R31).
+$o-cws-stat-icon-color: map-get($o-cws-text-tones, "primary") !default;
+$o-cws-stat-hover-border: $o-gray-400 !default;
+$o-cws-settings-tab-active-bg: $o-cws-active-bg !default;
+$o-cws-settings-band-bg: $o-gray-200 !default;

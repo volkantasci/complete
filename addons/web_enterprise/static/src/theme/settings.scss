@@ -1,0 +1,37 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Settings form (001b R31): tabs, title bands and the search field.
+
+.o_base_settings_view {
+    // the control panel has no bottom margin
+    --settings__controlPanel-margin-bottom: 0;
+
+    .o_form_renderer {
+        --settings__tab-bg: #{$o-gray-100};
+        --settings__tab-bg--active: #{$o-cws-settings-tab-active-bg};
+        --settings__title-bg: #{$o-cws-settings-band-bg};
+
+        .o_setting_container .settings_tab {
+            .tab {
+                height: 40px;
+                padding: 0 32px 0 16px;
+                font-size: 13px;
+                border-radius: 0;
+                border-start-end-radius: 8px;
+                border-end-end-radius: 8px;
+            }
+        }
+
+        .o_setting_container .settings > .app_settings_block h2 {
+            padding-left: 32px;
+            font-size: 15px;
+            font-weight: $o-font-weight-medium;
+            color: $o-black;
+        }
+    }
+
+    .o_searchview {
+        border-radius: $o-border-radius;
+    }
+}
