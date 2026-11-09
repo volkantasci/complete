@@ -1406,6 +1406,26 @@ class TestThemeRoleUsage(ShellProbeCase):
                     self.style('#cws_probe .nav-tabs .nav-link.active', 'color')['color'],
                     '#000000' if scheme == 'light' else '#FFFFFF')
 
+    def test_R5_tabs_keep_their_colours(self):
+        # the global nav-link role must leave the notebook (R20) and settings (R31) tabs alone
+        for scheme, body, tone in (
+            ('light', '#212529', '#714B67'), ('dark', '#EBEBEB', '#C175AD'),
+        ):
+            with self.page(self.fixtures['form_record_url'], scheme=scheme):
+                tab = '.o_notebook .nav-link'
+                self.wait(f"document.querySelectorAll('{tab}').length > 1")
+                self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+                self.assertColour(self.style(f'{tab}:not(.active)', 'color')['color'], body)
+                self.assertColour(self.style(f'{tab}.active', 'color')['color'], tone)
+            with self.page(self.fixtures['settings_url'], scheme=scheme):
+                tab = '.o_base_settings_view .settings_tab .tab'
+                self.wait(f"!!document.querySelector('{tab}.selected')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+                if scheme == 'dark':
+                    self.assertColour(self.style(f'{tab}.selected', 'color')['color'], body)
+                else:
+                    self.assertColour(self.style(f'{tab}.selected', 'color')['color'], '#000000')
+
     def test_R5_dark_only_details(self):
         with self.page(self.app_url, scheme='dark'):
             self.wait("!!document.querySelector('.o_kanban_record')")
@@ -1509,15 +1529,10 @@ class TestThemeRtl(ShellProbeCase):
                         width: parseFloat(cs.width)};
             })()""")
             self.assertAlmostEqual(pill['right'], box['x'] + box['width'], delta=2)
-        # the back chevron points left: the light-scheme flip is not applied
-        with self.rtl_page(self.app_url):
-            self.wait_app()
-            self.js(f"document.querySelector({GRID_BUTTON!r}).click()")
-            self.wait("document.body.classList.contains('o_home_menu_background')"
-                      f" && !!document.querySelector('{GRID_BUTTON}.o_menu_toggle_back')")
-            self.js("new Promise((resolve) => setTimeout(resolve, 600))")
-            self.assertEqual(
-                self.style(GRID_ICON, 'transform')['transform'], 'none')
+        # the back chevron: right in a left-to-right language, left in a right-to-left one
+        # (the painted path, through its effective screen transform)
+        self.assertEqual(self.chevron_direction(), 'left')
+        self.assertEqual(self.chevron_direction(lang='en_US'), 'right')
         # settings: the accent bar of the selected tab is on its right edge
         with self.rtl_page(self.fixtures['settings_url']):
             tab = '.o_base_settings_view .settings_tab .tab.selected'
@@ -1539,9 +1554,40 @@ class TestThemeRtl(ShellProbeCase):
                     .querySelectorAll('td');
                 const cs = getComputedStyle(cells[cells.length - 1]);
                 return [cs.borderLeftWidth, cs.borderRightWidth,
-                        getComputedStyle(cells[0]).borderRightWidth];
+                        getComputedStyle(cells[0]).borderLeftWidth];
             })()""")
             self.assertEqual(got[0], '0px')
+            # the first column, now on the right, keeps the line between columns on its left
+            self.assertEqual(got[2], '1px', got)
+
+    def chevron_direction(self, lang='ar_001'):
+        """Which way the painted back chevron points on the home menu over an application."""
+        with self.page(self.app_url, lang=lang):
+            self.wait_app()
+            self.js(f"document.querySelector({GRID_BUTTON!r}).click()")
+            self.wait("document.body.classList.contains('o_home_menu_background')"
+                      f" && !!document.querySelector('{GRID_BUTTON}.o_menu_toggle_back')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 600))")
+            return self.js(f"""(() => {{
+                const path = document.querySelector({GRID_ICON + ' .o_cws_chevron'!r});
+                const matrix = path.getScreenCTM();
+                const length = path.getTotalLength();
+                const points = [];
+                for (let i = 0; i <= 20; i++) {{
+                    const p = path.getPointAtLength(length * i / 20);
+                    points.push({{x: matrix.a * p.x + matrix.c * p.y + matrix.e,
+                                  y: matrix.b * p.x + matrix.d * p.y + matrix.f}});
+                }}
+                // the apex is the point of the path nearest to its vertical middle
+                const top = Math.min(...points.map((p) => p.y));
+                const bottom = Math.max(...points.map((p) => p.y));
+                const middle = (top + bottom) / 2;
+                const apex = points.reduce((a, b) =>
+                    Math.abs(b.y - middle) < Math.abs(a.y - middle) ? b : a);
+                const ends = points.filter((p) => p.y === top || p.y === bottom);
+                const endX = ends.reduce((sum, p) => sum + p.x, 0) / ends.length;
+                return apex.x < endX ? 'left' : 'right';
+            }})()""")
 
     def ready_kanban(self):
         self.wait("!!document.querySelector('.o_kanban_record')")
