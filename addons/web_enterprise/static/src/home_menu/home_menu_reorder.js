@@ -159,9 +159,12 @@ export function useTileReorder({ ref, onDrop }) {
     // the click that follows a release must not open the application: let it pass once, only for this press
     // (a touch release is followed by its click a little later than a mouse release is, so the
     // flag also lives for CLICK_GRACE; the click itself, or the next press, ends it sooner)
+    let graceTimer = null;
     const swallowNextClick = () => {
         swallowClick = true;
-        browser.setTimeout(() => (swallowClick = false), CLICK_GRACE);
+        // one timer at a time: a second release must not be cut short by the first one's timer
+        browser.clearTimeout(graceTimer);
+        graceTimer = browser.setTimeout(() => (swallowClick = false), CLICK_GRACE);
     };
     useListener(window, "pointerup", () => {
         clearPending();

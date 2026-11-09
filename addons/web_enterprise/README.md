@@ -166,7 +166,6 @@ parameter (or empty the message) to hide it.
 - Studio-only look settings (a custom home menu background image).
 - Mobile app bridge (slice 001c), except the one-row-per-app tile layout inside
   the iOS app, which is part of the home menu.
-- A custom home menu background image (it needs Studio).
 
 ## Theme
 
@@ -210,7 +209,7 @@ Files are in `static/src/theme/` unless noted.
 | Light roles | `roles_light.scss`, inserted **before** `web/static/src/scss/primary_variables.scss` in `web.assets_backend` and `web.assets_backend_lazy`, so Community variables take our values |
 | Dark roles | `roles_dark.scss`, put in the bundle `web.dark_mode_variables` before the light file. Both dark bundles, `web.assets_web_dark` and `web.assets_backend_lazy_dark`, include that bundle |
 | Component rules | one file per area (`buttons`, `badges_tags`, `inputs`, `overlays`, `notebook_statusbar`, `switchers`, `control_panel`, `kanban`, `list`, `calendar`, `form`, `settings`, `search_panel`, `graph_pivot`) written with role variables only; raw colour values exist only in the two role files |
-| Dark-only rules | files named `*.dark.scss` (home menu, navbar, inputs, kanban, overlays, search panel, misc). They are removed from `web.assets_backend` and added to `web.assets_web_dark` |
+| Dark-only rules | files named `*.dark.scss` anywhere under `static/src/` (the glob `web_enterprise/static/src/**/*.dark.scss`; today: home menu, navbar, inputs, kanban, overlays, search panel, misc). They are removed from `web.assets_backend` and added to `web.assets_web_dark` with the same glob |
 | Graph and pivot | `graph_pivot.scss`, `views/graph_fill_patch.js` and `views/pivot_renderer_patch.js` go in the lazy bundle with the views |
 | Login page | `login_page.frontend.scss`, in `web.assets_frontend` (public pages have no roles and are always light) |
 | Role custom properties | `role_properties.scss` publishes the base roles as `--o-cws-*` (for example `--o-cws-primary`, `--o-cws-page-bg`, `--o-cws-view-bg`, `--o-cws-border`, `--o-cws-dark-chrome`) for scripts and for the few rules that cannot take a Sass value. The values come from whichever role files the bundle was built with, so they follow the scheme |
@@ -221,7 +220,7 @@ Another module or theme changes a colour by shipping its own role file:
 
 - dark scheme: add the file to `web.dark_mode_variables` with `('before',
   'web_enterprise/static/src/theme/roles_dark.scss', '<your file>')`, so your
-  `!default`-style assignments are read first;
+  plain assignments placed first win over the `!default` values of our file;
 - light scheme: add the file to `web.assets_backend` (and the lazy bundle)
   `('before', 'web_enterprise/static/src/theme/roles_light.scss', '<your file>')`.
 
@@ -236,7 +235,8 @@ from the light ones.
   (`dark` in the dark scheme, otherwise `light`) and the CSS property
   `color-scheme` set from the role file on `:root`. Scroll bars, native date and
   time inputs and native select pop-ups therefore follow the scheme (R46, D6).
-  Public pages such as the login page declare `light`.
+  Public pages such as the login page declare `light`; so do the public pages built
+  on the Community layout, website included (R46).
 - The `theme-color` meta tag carries the primary colour in the light scheme and
   the *dark chrome* role (`#242733`) in the dark scheme (R9). It replaces the
   interim rule of 001a, via `ir.http._cws_browser_chrome_colour(scheme)`.

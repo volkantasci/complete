@@ -32,7 +32,7 @@
             ('before', 'web/static/src/scss/primary_variables.scss',
              'web_enterprise/static/src/theme/roles_light.scss'),
             # dark-only rules belong to the dark stylesheet
-            ('remove', 'web_enterprise/static/src/*/*.dark.scss'),
+            ('remove', 'web_enterprise/static/src/**/*.dark.scss'),
             # the login page rules belong to the frontend bundle (it has no theme roles)
             ('remove', 'web_enterprise/static/src/**/*.frontend.scss'),
         ],
@@ -53,7 +53,7 @@
              'web_enterprise/static/src/theme/roles_dark.scss'),
         ],
         'web.assets_web_dark': [
-            'web_enterprise/static/src/*/*.dark.scss',
+            'web_enterprise/static/src/**/*.dark.scss',
             ('include', 'web.dark_mode_variables'),
         ],
         'web.assets_backend_lazy_dark': [
