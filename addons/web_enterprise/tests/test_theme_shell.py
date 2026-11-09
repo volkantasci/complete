@@ -454,6 +454,44 @@ class TestThemeShell(ShellProbeCase):
     def test_R7_mobile_sidebar_toggle_dark(self):
         self._mobile_toggle('dark')
 
+    def _mobile_back_chevron(self, scheme):
+        # S8 on a phone: the same chevron as the desktop one, painted about 8 by 14 px at
+        # x 24 to 31, y 16 to 29 (the path alone is 6 by 12), pointing right
+        roles = ROLES[scheme]
+        with self.app_page(scheme, size=MOBILE, touch=True):
+            toggle = '.o_main_navbar a.o_menu_toggle'
+            self.wait(f"!!document.querySelector('{toggle}') && "
+                      "!!document.querySelector('.o_kanban_view .o_kanban_record')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+            self.js(f"document.querySelector({toggle!r}).click()")
+            self.wait("!!document.querySelector('.o_sidebar_topbar a')")
+            self.js("document.querySelector('.o_sidebar_topbar a').click()")
+            self.wait("document.body.classList.contains('o_home_menu_background')"
+                      f" && !!document.querySelector('{toggle}.o_menu_toggle_back')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+            self.assertFalse(self.js(f"!!document.querySelector('{toggle} .oi')"))
+            path = f'{toggle} .o_cws_back_icon path'
+            box = self.rect(path)
+            self.assertAlmostEqual(box['width'], 6, delta=1)
+            self.assertAlmostEqual(box['height'], 12, delta=1)
+            self.assertAlmostEqual(box['x'] + box['width'] / 2, 27.5, delta=1.5)
+            self.assertAlmostEqual(box['y'] + box['height'] / 2, 22.5, delta=1.5)
+            self.assertColour(self.style(path, 'stroke')['stroke'], roles['glyph'])
+            # the tip is on the right: the middle of the stroke lies right of its ends
+            tip = self.js(f"""(() => {{
+                const p = document.querySelector({path!r});
+                const a = p.getPointAtLength(0), b = p.getPointAtLength(p.getTotalLength() / 2);
+                const matrix = p.getScreenCTM();
+                return [a.matrixTransform(matrix).x, b.matrixTransform(matrix).x];
+            }})()""")
+            self.assertGreater(tip[1], tip[0])
+
+    def test_R8_mobile_back_chevron_light(self):
+        self._mobile_back_chevron('light')
+
+    def test_R8_mobile_back_chevron_dark(self):
+        self._mobile_back_chevron('dark')
+
     def test_A15_reduced_motion_grid(self):
         with self.app_page(reduced_motion=True):
             self.wait_app()

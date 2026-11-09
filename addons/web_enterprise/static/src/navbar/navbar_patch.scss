@@ -183,8 +183,10 @@ nav.o_main_navbar {
         margin-left: 9px;
 
         &.o_menu_toggle_back {
-            .oi {
-                display: inline-block;
+            // the painted chevron is 8 by 14 and starts at x 24 (the menu glyph's box starts at 17)
+            .o_cws_back_icon {
+                display: block;
+                margin-inline-start: 3.5px;
                 transform: scaleX(-1);
 
                 .o_rtl & {

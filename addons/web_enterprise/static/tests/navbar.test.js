@@ -410,7 +410,9 @@ describe("mobile", () => {
         expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(0);
         expect("a.o_menu_toggle").toHaveClass(BACK_STATE);
         expect("a.o_menu_toggle").toHaveAttribute("title", "Previous view");
-        expect("a.o_menu_toggle i").toHaveAttribute("data-icon", "chevron_backward");
+        // the back state draws the chevron of the desktop button, not a font glyph
+        expect("a.o_menu_toggle svg.o_cws_back_icon").toHaveCount(1);
+        expect("a.o_menu_toggle i").toHaveCount(0);
         await contains("a.o_menu_toggle").click();
         await animationFrame();
         await animationFrame();

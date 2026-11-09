@@ -90,7 +90,11 @@
   <!-- the icon of the mobile toggle -->
   <t t-name="web_enterprise.NavBar.AppsMenu.Sidebar" t-inherit="web.NavBar.AppsMenu.Sidebar" t-inherit-mode="extension">
     <xpath expr="//i[@data-icon='menu']" position="replace">
-      <i class="oi" t-att-data-icon="this.hasBackChevron ? 'chevron_backward' : 'menu'" aria-hidden="true"/>
+      <!-- the back state draws the chevron of the desktop button, not a font glyph -->
+      <svg t-if="this.hasBackChevron" class="o_cws_back_icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+        <path d="M10 1 4 7l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <i t-else="" class="oi" data-icon="menu" aria-hidden="true"/>
     </xpath>
   </t>
 
