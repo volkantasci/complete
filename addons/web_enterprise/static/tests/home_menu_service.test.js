@@ -17,6 +17,7 @@ import {
 } from "@web/../tests/web_test_helpers";
 import { browser, location } from "@web/core/browser/browser";
 import { redirect } from "@web/core/utils/urls";
+import { adaptTourAppsMenuStep } from "@web_enterprise/home_menu/home_menu_service";
 
 const HOME_ROOT = ".o_home_menu";
 const BG_CLASS = "o_home_menu_background";
@@ -350,4 +351,41 @@ test("events: HOME-MENU:TOGGLED fires on show and hide", async () => {
     await toggle(false);
     expect.verifySteps(["toggled"]);
     expect(homeMenu.hasHomeMenu).toBe(false);
+});
+
+test("A103 apps-menu step does nothing while the home menu is shown", async () => {
+    // a stand-in for the Community helper (same shape), adapted like the real one
+    const stepUtils = {
+        showAppsMenuItem() {
+            return {
+                isActive: ["community", "desktop"],
+                trigger: ".o_navbar_apps_menu button:enabled",
+                tooltipPosition: "bottom",
+                run: "click",
+            };
+        },
+    };
+    adaptTourAppsMenuStep(stepUtils);
+    await mountWebClient();
+    const step = stepUtils.showAppsMenuItem();
+    // the other keys and the trigger are kept (the trigger gains an alternative for the home menu)
+    expect(step.trigger.startsWith(".o_navbar_apps_menu button:enabled")).toBe(true);
+    expect(step.isActive).toEqual(["community", "desktop"]);
+    expect(step.tooltipPosition).toBe("bottom");
+    let clicks = 0;
+    const helpers = { click: () => clicks++ };
+    // the home menu is shown (nothing behind it): no click
+    expect(document.body).toHaveClass(BG_CLASS);
+    step.run.call({ anchor: document.body }, helpers);
+    expect(clicks).toBe(0);
+    // inside an application: the step clicks its target
+    await openTile(0);
+    expect(document.body).not.toHaveClass(BG_CLASS);
+    step.run.call({ anchor: document.body }, helpers);
+    expect(clicks).toBe(1);
+    // the home menu over the application: no click again, the application is not restored
+    await toggle(true);
+    step.run.call({ anchor: document.body }, helpers);
+    expect(clicks).toBe(1);
+    expect(getService("home_menu").hasHomeMenu).toBe(true);
 });

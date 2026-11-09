@@ -10,6 +10,8 @@ export const HOLD_DELAY = 500;
  * is over it cancels the press; after the hold it starts the drag.
  */
 export const MOVE_TOLERANCE = 10;
+/** How long after a release the click it produces can still be swallowed (milliseconds). */
+const CLICK_GRACE = 400;
 
 /**
  * Where a dragged tile lands: right after the tile that precedes it in the new
@@ -52,8 +54,9 @@ export function precedingXmlid(xmlids, from, over) {
  * pointer and is flagged in the returned state. Releasing it over another tile
  * calls `onDrop` with the dragged tile's identifier and the identifier of the
  * tile that precedes it in the new order (null for first). A move of
- * MOVE_TOLERANCE or more before the hold is over cancels the press for good. A
- * shorter press, or a hold released without that move, is an ordinary click. The
+ * MOVE_TOLERANCE or more before the hold is over cancels the press for good: the
+ * click that follows its release is swallowed too, wherever the pointer is released.
+ * A shorter press, or a hold released without that move, is an ordinary click. The
  * click that ends a drag is swallowed.
  *
  * @param {Object} params
@@ -66,6 +69,8 @@ export function useTileReorder({ ref, onDrop }) {
     let pending = null; // { tile, x, y, lastX, lastY, timer, held, holdX, holdY } (x, y: press point; holdX, holdY: pointer at the end of the hold)
     let drag = null; // { tile, x, y, over }
     let swallowClick = false;
+    // the press moved MOVE_TOLERANCE or more before the hold was over: nothing it ends with may open an application (R44)
+    let spent = false;
 
     const cells = () => [...(ref()?.querySelectorAll(".o_draggable") || [])];
     const xmlidOf = (cell) => cell?.querySelector(".o_app")?.dataset.menuXmlid ?? null;
@@ -104,6 +109,7 @@ export function useTileReorder({ ref, onDrop }) {
         clearPending();
         endDrag();
         swallowClick = false;
+        spent = false;
         const tile = ev.target.closest?.(".o_app");
         if (!tile?.dataset.menuXmlid || ev.button) {
             return;
@@ -126,6 +132,7 @@ export function useTileReorder({ ref, onDrop }) {
         if (pending && !pending.held) {
             if (Math.hypot(ev.clientX - pending.x, ev.clientY - pending.y) >= MOVE_TOLERANCE) {
                 clearPending();
+                spent = true;
             } else {
                 pending.lastX = ev.clientX;
                 pending.lastY = ev.clientY;
@@ -149,16 +156,25 @@ export function useTileReorder({ ref, onDrop }) {
             }
         }
     });
+    // the click that follows a release must not open the application: let it pass once, only for this press
+    // (a touch release is followed by its click a little later than a mouse release is, so the
+    // flag also lives for CLICK_GRACE; the click itself, or the next press, ends it sooner)
+    const swallowNextClick = () => {
+        swallowClick = true;
+        browser.setTimeout(() => (swallowClick = false), CLICK_GRACE);
+    };
     useListener(window, "pointerup", () => {
         clearPending();
+        if (spent) {
+            spent = false;
+            swallowNextClick();
+        }
         if (!drag) {
             return;
         }
         const { tile, over } = drag;
         endDrag();
-        // the click that follows the release must not open the application
-        swallowClick = true;
-        browser.setTimeout(() => (swallowClick = false), 0);
+        swallowNextClick();
         if (over) {
             const all = cells();
             const from = all.findIndex((cell) => cell.contains(tile));
@@ -172,6 +188,7 @@ export function useTileReorder({ ref, onDrop }) {
         }
     });
     useListener(window, "pointercancel", () => {
+        spent = false;
         clearPending();
         endDrag();
     });
@@ -180,6 +197,7 @@ export function useTileReorder({ ref, onDrop }) {
         "click",
         (ev) => {
             if (swallowClick) {
+                swallowClick = false;
                 ev.preventDefault();
                 ev.stopPropagation();
             }

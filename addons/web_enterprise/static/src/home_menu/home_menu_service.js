@@ -7,6 +7,35 @@ import { patch } from "@web/core/utils/patch";
 import { ActionPlugin } from "@web/webclient/actions/action_plugin";
 
 const HOME_TAG = "menu";
+const BACKGROUND_CLASS = "o_home_menu_background";
+
+/**
+ * D2 (R45): the Community tour step that opens the apps menu must leave the home menu where
+ * it is. The tour utilities live in the back-end bundle of the optional `web_tour` module, which
+ * is not a dependency: the step is adapted only if its module is loaded, right when it starts
+ * (a tour may compute its steps before any service starts). Inside an application the step
+ * still clicks its target (the grid button, which shows the home menu); while the home menu is
+ * shown it does nothing, so it cannot bring the application back. The trigger gains an
+ * alternative that matches the page while the home menu is shown, for the case where the grid
+ * button is hidden.
+ */
+export function adaptTourAppsMenuStep(stepUtils) {
+    patch(stepUtils, {
+        showAppsMenuItem() {
+            const step = super.showAppsMenuItem(...arguments);
+            return {
+                ...step,
+                trigger: `${step.trigger}, body.${BACKGROUND_CLASS}`,
+                run(helpers) {
+                    if (document.body.classList.contains(BACKGROUND_CLASS)) {
+                        return;
+                    }
+                    return helpers.click();
+                },
+            };
+        },
+    });
+}
 
 /** @returns {boolean} the request designates the home menu client action */
 function isHomeRequest(request) {
@@ -76,3 +105,17 @@ export const cwsHomeMenuService = {
 
 const serviceRegistry = registry.category("services");
 serviceRegistry.add("home_menu", cwsHomeMenuService);
+
+// Hook for D2: adapt the Community step helper as soon as the tour utilities exist.
+const TOUR_UTILS = "@web_tour/tour_utils";
+const loadedUtils = odoo.loader.modules.get(TOUR_UTILS);
+if (loadedUtils?.stepUtils) {
+    adaptTourAppsMenuStep(loadedUtils.stepUtils);
+} else {
+    odoo.loader.bus.addEventListener("module-started", function adaptWhenStarted({ detail }) {
+        if (detail.moduleName === TOUR_UTILS) {
+            odoo.loader.bus.removeEventListener("module-started", adaptWhenStarted);
+            adaptTourAppsMenuStep(detail.module.stepUtils);
+        }
+    });
+}

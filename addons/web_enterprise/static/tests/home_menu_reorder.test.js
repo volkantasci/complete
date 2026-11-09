@@ -167,6 +167,62 @@ test("A33d the saved order survives a new mount and the click ending a drag is s
     expect(opened).toEqual(["Discuss"]);
 });
 
+test("A101 early move then release on the same tile opens nothing", async () => {
+    const { saved, opened } = await mountHome();
+    const { moveTo, drop } = await drag(".o_app:eq(4)");
+    await advanceTime(50);
+    await moveTo(".o_app:eq(4)", offsetFromCentre(".o_app:eq(4)", 30));
+    await advanceTime(50);
+    await moveTo(".o_app:eq(4)", offsetFromCentre(".o_app:eq(4)", 0));
+    await advanceTime(100);
+    await drop();
+    await animationFrame();
+    expect(opened).toEqual([]);
+    expect(".o_dragged_app").toHaveCount(0);
+    expect(captions()).toEqual(NAMES);
+    expect(saved).toHaveLength(0);
+});
+
+test("A102 touch slide 15 px then lift opens nothing; plain tap opens", async () => {
+    mockTouch(true);
+    const { opened } = await mountHome();
+    const { moveTo, drop } = await drag(".o_app:eq(4)");
+    await advanceTime(50);
+    await moveTo(".o_app:eq(4)", offsetFromCentre(".o_app:eq(4)", 15));
+    await advanceTime(50);
+    await moveTo(".o_app:eq(4)", offsetFromCentre(".o_app:eq(4)", 0));
+    await drop();
+    await animationFrame();
+    expect(opened).toEqual([]);
+    const tap = await drag(".o_app:eq(4)");
+    await tap.drop();
+    await animationFrame();
+    expect(opened).toEqual(["CRM"]);
+});
+
+test("A118 early move released over another tile opens nothing; 5 px move opens; next click opens", async () => {
+    const { opened } = await mountHome();
+    const first = await drag(".o_app:eq(4)");
+    await advanceTime(50);
+    await first.moveTo(".o_app:eq(4)", offsetFromCentre(".o_app:eq(4)", 30));
+    await first.moveTo(".o_app:eq(5)");
+    await first.drop();
+    await animationFrame();
+    expect(opened).toEqual([]);
+    // a normal click right after the cancelled press opens the clicked application
+    const second = await drag(".o_app:eq(6)");
+    await second.drop();
+    await animationFrame();
+    expect(opened).toEqual(["Dashboards"]);
+    // a press that moves only 5 px before the release still opens
+    const third = await drag(".o_app:eq(4)");
+    await advanceTime(50);
+    await third.moveTo(".o_app:eq(4)", offsetFromCentre(".o_app:eq(4)", 5));
+    await third.drop();
+    await animationFrame();
+    expect(opened).toEqual(["Dashboards", "CRM"]);
+});
+
 test("A34 short press does not drag", async () => {
     const { saved, opened } = await mountHome();
     const { drop } = await drag(".o_app:eq(3)");
