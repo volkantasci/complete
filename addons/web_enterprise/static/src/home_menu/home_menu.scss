@@ -45,16 +45,21 @@ body.o_home_menu_background .o_main_navbar .o_menu_systray .dropdown-toggle[aria
 .o_home_menu {
     --o-cws-active-rgb: #{red($o-component-active-bg)}, #{green($o-component-active-bg)}, #{blue($o-component-active-bg)};
 
+    // D9: the page under the top bar is the scrolling area, so its bar runs along the window edge
     width: 100%;
-    padding: 24px 16px 0;
-    margin: 0 auto;
     overflow-y: auto;
     color: $body-color;
 
-    @include media-breakpoint-up(md) {
-        max-width: 850px;
-        padding-left: 0;
-        padding-right: 0;
+    // the tiles sit in a centred column
+    .o_cws_column {
+        padding: 24px 16px 0;
+        margin: 0 auto;
+
+        @include media-breakpoint-up(md) {
+            max-width: 850px;
+            padding-left: 0;
+            padding-right: 0;
+        }
     }
 
     .o_cws_admin_message {
@@ -83,7 +88,6 @@ body.o_home_menu_background .o_main_navbar .o_menu_systray .dropdown-toggle[aria
     // Touch devices (R11): visible field, page opens 46 px down, no scroll bar.
     &.o_cws_touch {
         // the field starts the scrolled content, so the 46 px scroll hides exactly the field
-        padding-top: 0;
         scrollbar-width: none;
 
         &::-webkit-scrollbar {
@@ -91,6 +95,7 @@ body.o_home_menu_background .o_main_navbar .o_menu_systray .dropdown-toggle[aria
         }
 
         .o_cws_column {
+            padding-top: 0;
             min-height: calc(100vh + 46px);
         }
 

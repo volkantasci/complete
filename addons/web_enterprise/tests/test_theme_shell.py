@@ -979,32 +979,59 @@ class TestThemeHomeMenu(ShellProbeCase):
     def test_A110_tray_open_no_outline_dark(self):
         self._open_tray_entry('dark', '#FFFFFF')
 
-    def test_A111_scrollbar_and_glyph_tile(self):
-        with self.home_page():
+    def _scroll_area(self, scheme):
+        with self.home_page(scheme, size=(1600, 300)):
             self.wait_home()
             root = '.o_home_menu'
+            area = self.rect(root)
+            bar = self.rect('.o_main_navbar')
+            # D9: the scrolling element spans the window under the top bar
+            self.assertAlmostEqual(area['x'], 0, delta=.5)
+            self.assertAlmostEqual(area['x'] + area['width'], 1600, delta=.5)
+            self.assertAlmostEqual(area['y'], bar['y'] + bar['height'], delta=1)
+            self.assertEqual(self.style(root, 'overflow-y')['overflow-y'], 'auto')
             self.assertGreater(
                 self.js(f"document.querySelector('{root}').scrollHeight"),
                 self.js(f"document.querySelector('{root}').clientHeight"))
+            # the scroll bar sits at the window's right edge and the column stays centred
+            self.assertEqual(self.js(
+                f"innerWidth - document.querySelector('{root}').clientWidth"), 8)
+            column = self.rect('.o_cws_column')
+            self.assertEqual(column['width'], 850)
+            self.assertAlmostEqual(
+                column['x'], (1600 - 8 - 850) / 2, delta=1)
             self.assertEqual(self.style(root, 'scrollbar-width')['scrollbar-width'], 'auto')
             self.assertEqual(
                 self.style(root, 'width', pseudo='::-webkit-scrollbar')['width'], '8px')
             thumb = self.style(root, 'background-color', 'border-top-left-radius',
                                pseudo='::-webkit-scrollbar-thumb')
-            self.assertColour(thumb['background-color'], '#212529', alpha=0.5)
+            self.assertColour(
+                thumb['background-color'], self.style('body', 'color')['color'], alpha=0.5)
             self.assertGreaterEqual(float(thumb['border-top-left-radius'][:-2]), 4)
             track = self.style(root, 'background-color', pseudo='::-webkit-scrollbar-track')
             self.assertEqual(parse_colour(track['background-color'])[3], 0)
+        with self.home_page(scheme, size=MOBILE, touch=True):
+            self.wait_home()
+            self.assertEqual(
+                self.style('.o_home_menu', 'scrollbar-width')['scrollbar-width'], 'none')
+            self.assertEqual(self.js(
+                "innerWidth - document.querySelector('.o_home_menu').clientWidth"), 0)
+
+    def test_A111_scrollbar_full_width(self):
+        self._scroll_area(scheme='light')
+
+    def test_A111_scrollbar_full_width_dark(self):
+        self._scroll_area('dark')
+
+    def test_A111_glyph_tile(self):
+        with self.home_page():
+            self.wait_home()
             glyph = '.o_home_menu .o_app .o_cws_glyph_icon'
             square = self.style(glyph, 'width', 'height', 'border-radius', 'background-color')
             self.assertEqual((square['width'], square['height'], square['border-radius']),
                              ('70px', '70px', '8px'))
             self.assertColour(square['background-color'], '#336699')
             self.assertEqual(self.style(f'{glyph} i', 'font-size')['font-size'], '35px')
-        with self.home_page(size=MOBILE, touch=True):
-            self.wait_home()
-            self.assertEqual(
-                self.style('.o_home_menu', 'scrollbar-width')['scrollbar-width'], 'none')
 
     def _touch_search(self, scheme, height, border):
         with self.home_page(scheme, size=MOBILE, touch=True):
@@ -1049,7 +1076,7 @@ class TestThemeHomeMenu(ShellProbeCase):
     def test_A30_touch_search_width(self):
         with self.home_page(size=(800, 900), touch=True):
             self.wait_home()
-            self.assertEqual(self.rect('.o_home_menu')['width'], 800)
+            self.assertEqual(self.rect('.o_cws_column')['width'], 800)
         with self.home_page(size=(1100, 900), touch=True):
             self.wait_home()
-            self.assertEqual(self.rect('.o_home_menu')['width'], 850)
+            self.assertEqual(self.rect('.o_cws_column')['width'], 850)
