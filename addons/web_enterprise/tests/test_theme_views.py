@@ -815,15 +815,19 @@ class TestThemeListPivotGraph(ShellProbeCase):
                 self.style('.o_pivot_buttons', 'margin-top')['margin-top'], '0px')
             # a hovered row of the table takes the table hover colour
             with self.forced('.o_pivot tbody tr', 'hover'):
-                got = self.style('.o_pivot_cell_value', 'box-shadow')
+                got = self.style('.o_pivot_cell_value', 'box-shadow', 'background-color')
             self.assertColour(first_colour(got['box-shadow']), ACTION[scheme],
                               alpha=HOVER_ALPHA[scheme])
+            # R27: the fill is dropped, the hover is laid over the page
+            self.assertEqual(got['background-color'], 'rgba(0, 0, 0, 0)')
             # the pointer on a cell marks it
             self.pointer_to('.o_pivot_cell_value')
             self.wait("!!document.querySelector('.o_pivot_cell_value.o_cell_hover')")
-            got = self.style('.o_pivot_cell_value.o_cell_hover', 'background-image')
+            got = self.style('.o_pivot_cell_value.o_cell_hover', 'background-image',
+                             'background-color')
             self.assertColour(first_colour(got['background-image']), ACTION[scheme],
                               alpha=HOVER_ALPHA[scheme])
+            self.assertEqual(got['background-color'], 'rgba(0, 0, 0, 0)')
 
     def test_A70_pivot_light(self):
         self._pivot('light')
@@ -1606,6 +1610,28 @@ class TestThemeRoleUsage(ShellProbeCase):
                 'background-color'], '#2C2E35')
             self.assertColour(self.style('.o_mobile_search_header', 'background-color')[
                 'background-color'], '#1F1F23')
+
+    def test_A4_dark_dashboard_tiles(self):
+        # R2: the Sales dashboard tiles take the shaded steps of the colour scales in dark
+        if 'sale.order' not in self.env:
+            self.skipTest('sale is not installed')
+        tiles = {
+            # (rest, active); the capture has (41, 24, 72), (93, 46, 7), (8, 61, 69)
+            'purple': ('#291847', '#341F5B'),
+            'orange': ('#5E2F07', '#773B09'),
+            'cyan': ('#093C44', '#0B4C56'),
+            'red': ('#51141A', '#671920'),
+        }
+        with self.page(self.crumbs_url, scheme='dark'):
+            self.wait("!!document.querySelector('.o_data_row, .o_list_view')")
+            self.inject('<div class="o_dashboard_card"></div>')
+            names = [f'--DashboardCard__{name}-bg-color' for name in tiles]
+            names += [f'--DashboardCard__{name}-bg-color--active' for name in tiles]
+            got = self.style('#cws_probe .o_dashboard_card', *names)
+            for name, (rest, active) in tiles.items():
+                self.assertColour(got[f'--DashboardCard__{name}-bg-color'], rest, tol=2)
+                self.assertColour(
+                    got[f'--DashboardCard__{name}-bg-color--active'], active, tol=2)
 
     def test_R5_breadcrumbs(self):
         for scheme, body, muted in (

@@ -13,9 +13,14 @@
         background-color: $o-view-background-color !important;
     }
 
-    // a hovered cell takes the table hover colour
+    // the cells of a hovered row and the hovered cell drop their fill: the translucent hover
+    // colour is laid over the page (the row's wash, then the cell's own on top of it)
+    tbody tr:hover .o_pivot_cell_value.bg-100,
     .o_pivot_cell_value.o_cell_hover {
-        background-color: $o-view-background-color;
+        background-color: transparent !important;
+    }
+
+    .o_pivot_cell_value.o_cell_hover {
         background-image: linear-gradient($o-cws-row-hover-bg, $o-cws-row-hover-bg);
     }
 }

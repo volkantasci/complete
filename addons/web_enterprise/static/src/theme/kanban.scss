@@ -169,19 +169,21 @@
 }
 
 // The title row of an unfolded column has the base line height (1.5 times its text); the
-// Community template gives it the large one with an important utility class.
-.o_kanban_group:not(.o_column_folded) .o_kanban_header .o_kanban_header_title {
+// Community template gives it the large one with an important utility class. A folded column
+// on a phone has no folded class, so the unfolded ones are told apart by their bold title.
+.o_kanban_group:not(.o_column_folded) .o_kanban_header:has(.o_column_title.fw-bold) .o_kanban_header_title {
     line-height: $line-height-base !important;
 
-    // on a phone the row is 31.2 px high (measured on the original's phone capture: the
-    // title text sits 3 px and the progress bar 6 px lower than on a desktop)
+    // on a phone the row is 31.2 px high: the 25.2 px of the desktop plus 6 px (measured on
+    // the original's phone capture: the title text sits 3 px and the progress bar 6 px lower)
     @include media-breakpoint-down(md) {
         min-height: 31.2px;
     }
 }
 
-// Above the title row an unfolded header (a folded one on a phone keeps its 8 px) has 11.8 px (the Community utility class gives 8 px),
-// which with the 25.2 px row, the 4 px gap and the counter makes it 74.2 px high.
+// Above the title row an unfolded header has 11.8 px (the Community utility class gives
+// 8 px; a folded one on a phone keeps its 8 px), which with the 25.2 px row, the 4 px gap
+// and the counter makes it 74.2 px high.
 .o_kanban_group:not(.o_column_folded) .o_kanban_header:has(.o_column_title.fw-bold) {
     padding-top: 11.8px !important;
 }

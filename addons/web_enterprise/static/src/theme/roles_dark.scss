@@ -315,3 +315,35 @@ $table-border-color: map-get($o-grays, 300) !default;
 $kbd-color: map-get($o-grays, 200) !default;
 $kbd-bg: map-get($o-grays, 900) !default;
 $kbd-box-shadow: inset 0 -1px 2px rgba($o-gray-200, .35) !default;
+
+// Colour scales read by Community dark files: the Sales dashboard tiles use the 200 and 300
+// steps of purple, orange, cyan and red, and the Community leaves them at their light tints,
+// which stay light on the dark page. The light steps (100 to 300) get their shaded partners:
+// 100 is the darkest. Step 200 is the shade measured on the original's dark tiles (the base
+// colour at 37 %: (93, 46, 7) for orange, (41, 24, 72) for purple, (8, 61, 69) for cyan); step
+// 300, the active tile, is lighter (ruling R-O12: no capture shows an active tile).
+$o-cws-scale-bases: (
+    purple: #6f42c1,
+    orange: #fd7e14,
+    cyan: #17a2b8,
+    red: #dc3545,
+) !default;
+// step: share of black mixed into the base colour
+$o-cws-scale-shade: (
+    100: 80%,
+    200: 63%,
+    300: 53%,
+) !default;
+
+$purple-100: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 100)) !default;
+$purple-200: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 200)) !default;
+$purple-300: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 300)) !default;
+$orange-100: mix(#000000, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-shade, 100)) !default;
+$orange-200: mix(#000000, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-shade, 200)) !default;
+$orange-300: mix(#000000, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-shade, 300)) !default;
+$cyan-100: mix(#000000, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-shade, 100)) !default;
+$cyan-200: mix(#000000, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-shade, 200)) !default;
+$cyan-300: mix(#000000, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-shade, 300)) !default;
+$red-100: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 100)) !default;
+$red-200: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 200)) !default;
+$red-300: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 300)) !default;
