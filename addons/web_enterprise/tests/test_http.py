@@ -118,6 +118,9 @@ class TestAdminMessage(TransactionCase):
 @tagged('post_install', '-at_install')
 class TestSessionInfo(HttpCase):
     def _session_info(self, user):
+        # the session information reads the user's settings in a read-only transaction, which
+        # cannot create the row: make it first (keeps an error out of the test log)
+        self.env['res.users.settings']._find_or_create_for_user(user)
         self.authenticate(user.login, user.login)
         return self.make_jsonrpc_request('/web/session/get_session_info', {})
 

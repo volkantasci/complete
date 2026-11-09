@@ -478,13 +478,23 @@ class TestThemeShell(ShellProbeCase):
         if not self.mail_installed():
             self.skipTest('the tray counters belong to the mail module')
         roles = ROLES[scheme]
+        # one unread inbox message for the admin, created here so the counter does not depend on
+        # install data
+        admin = self.env.ref('base.user_admin')
+        message = self.env['mail.message'].create({
+            'model': 'res.partner', 'res_id': admin.partner_id.id, 'message_type': 'comment',
+            'body': 'Counter probe', 'author_id': self.env.ref('base.partner_root').id,
+        })
+        self.env['mail.notification'].create({
+            'mail_message_id': message.id, 'res_partner_id': admin.partner_id.id,
+            'notification_type': 'inbox', 'is_read': False, 'notification_status': 'sent',
+        })
         with self.app_page(scheme):
             self.wait_app()
             if home:
                 self.js(f"document.querySelector({GRID_BUTTON!r}).click()")
                 self.wait("document.body.classList.contains('o_home_menu_background')")
-            # the unread counter the mail messaging menu really draws (the admin has unread messages
-            # from the demo/welcome data)
+            # the unread counter the mail messaging menu really draws
             self.wait(f"!!document.querySelector('{COUNTER}')", timeout=60)
             got = self.style(
                 COUNTER, 'background-color', 'color', 'font-size', 'font-weight',

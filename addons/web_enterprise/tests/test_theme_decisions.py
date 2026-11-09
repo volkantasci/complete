@@ -92,7 +92,8 @@ class TestThemeTileRelease(ThemeProbeCase):
             self._mouse('mouseMoved', x2, y2)
             self._mouse('mouseReleased', x2, y2)
             self._assert_still_home(order)
-            # A118: the next click, at once, opens the clicked application
+            # A118: the next click, after the 0.8 s settle above, opens the clicked application
+            # (the click within the 400 ms grace is covered by the Hoot tests)
             self._mouse('mouseMoved', x2, y2)
             self._mouse('mousePressed', x2, y2)
             self._mouse('mouseReleased', x2, y2)
@@ -178,6 +179,7 @@ class TestThemeExpenseTour(_ExpenseBase, HttpCase):
         super().setUpClass()
 
     def test_A104_expense_tour_ten_times(self):
+        # The setup below is adapted from the Community hr_expense UI test (LGPL-3).
         employee_1 = self.expense_employee
         employee_2 = self.env['hr.employee'].sudo().create({'name': 'employee2'})
         expense = self.env['hr.expense'].create({
