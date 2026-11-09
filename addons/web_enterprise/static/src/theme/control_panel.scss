@@ -71,7 +71,9 @@
 
     .o_back_button a::after,
     .breadcrumb-item + .breadcrumb-item::before {
-        color: $text-muted;
+        // the role itself, not $text-muted: a Community module (hr_skills) assigns that
+        // variable globally in the back-end bundle
+        color: $o-main-color-muted;
     }
 }
 

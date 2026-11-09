@@ -12,8 +12,10 @@ class TestWebShellTours(HttpCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # With the hr module the time zone is a required field of the preferences form,
+        # so the user needs one for the form to save.
         cls.user1 = new_test_user(
-            cls.env, login='cws_u1', groups='base.group_user', name='Shell U1',
+            cls.env, login='cws_u1', groups='base.group_user', name='Shell U1', tz='UTC',
         )
         cls.admin1 = new_test_user(
             cls.env, login='cws_a1', groups='base.group_user,base.group_system',

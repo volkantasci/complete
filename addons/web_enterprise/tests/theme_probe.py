@@ -84,6 +84,12 @@ class ThemeProbeCase(HttpCase):
         super().setUpClass()
         cls.fixtures = build_theme_fixtures(cls.env)
 
+    def setUp(self):
+        super().setUp()
+        # no Community onboarding tour over the probes (with the accounting module installed its
+        # first step points at the grid button, and its pointer never stops moving)
+        self.env.ref('base.user_admin').tour_enabled = False
+
     # -- browser session ------------------------------------------------------------
 
     @contextlib.contextmanager
