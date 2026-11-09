@@ -152,7 +152,6 @@ body.o_home_menu_background .o_main_navbar .o_menu_systray .dropdown-toggle[aria
         &.o_focused {
             background: rgba(var(--o-cws-active-rgb), .75);
             outline: 1px solid $o-action;
-            border-radius: 6px;
         }
 
         .o_app_icon {

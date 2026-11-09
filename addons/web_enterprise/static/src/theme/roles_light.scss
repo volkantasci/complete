@@ -152,6 +152,8 @@ $o-cws-navbar-open-border: $o-action !default;
 // Top-bar entry under the pointer or the keyboard focus (grey 200 light, grey 300 dark),
 // and the grid glyph and back chevron (primary light, the black role dark).
 $o-cws-entry-hover-bg: $o-gray-200 !default;
+// R6 (D7): colour of the application name in the top bar.
+$o-cws-app-name-color: $o-main-text-color !default;
 $o-cws-glyph-color: $o-brand-primary !default;
 
 // Text on the danger fill (tray counters): white in both schemes.

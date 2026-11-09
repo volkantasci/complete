@@ -13,7 +13,7 @@ nav.o_main_navbar {
     --NavBar-entry-color: #{$o-main-text-color};
     --NavBar-entry-color--hover: #{$o-black};
     --NavBar-entry-color--active: #{$o-black};
-    --NavBar-brand-color: #{$o-main-text-color};
+    --NavBar-brand-color: #{$o-cws-app-name-color};
     --NavBar-entry-backgroundColor: transparent;
     --NavBar-entry-backgroundColor--hover: #{$o-cws-entry-hover-bg};
     --NavBar-entry-backgroundColor--focus: #{$o-cws-entry-hover-bg};
@@ -28,8 +28,9 @@ nav.o_main_navbar {
     border-bottom: 0;
 
     .o_menu_systray {
-        --NavBar-entry-padding-left: 8px;
-        --NavBar-entry-padding-right: 8px;
+        // R6 (D7): tray entries are narrower than section entries
+        --NavBar-entry-padding-left: 4px;
+        --NavBar-entry-padding-right: 4px;
         @each $-part, $-value in (bg: $o-danger, color: $o-cws-on-danger, text-shadow: none) {
             --o-navbar-badge-#{$-part}: #{$-value};
         }
@@ -43,14 +44,18 @@ nav.o_main_navbar {
             font-weight: 500;
         }
 
-        // the avatar entry fills the bar: automatic height, and a negative margin equal to its
-        // own vertical padding
+        // a disabled entry (single-company switcher) is outside the Community border rule
+        .dropdown-toggle:disabled {
+            border: 1px solid transparent;
+        }
+
+        // R6 (D7): the avatar entry is 36 px high and reaches 5 px above and below the bar's
+        // inner box, so it fills the bar
         .o_user_menu {
-            height: auto;
-            padding-top: 4px !important;
-            padding-bottom: 4px !important;
-            margin-top: -4px;
-            margin-bottom: -4px;
+            box-sizing: border-box;
+            height: 36px;
+            padding: 0 4px !important;
+            margin: -5px 12px -5px 1px;
         }
     }
 
@@ -135,6 +140,7 @@ nav.o_main_navbar {
         border: 0;
         border-radius: 6px;
         background: transparent;
+        color: $o-cws-app-name-color;
 
         &.o_menu_toggle_back {
             width: 38px;
@@ -330,6 +336,11 @@ body.o_home_menu_background .o_main_navbar {
     --NavBar-entry-color--hover: #{$body-color};
     --NavBar-entry-color--active: #{$body-color};
     --NavBar-brand-color: #{$body-color};
+
+    // R6 (D7): over the home menu the transparent border of a tray entry is 2 px wide
+    .o_menu_systray :is(.o_nav_entry, .dropdown-toggle) {
+        border: 2px solid transparent;
+    }
 
     .o_menu_systray :is(.o_nav_entry, .dropdown-toggle:not(:disabled)):hover {
         background: rgba($black, .1);

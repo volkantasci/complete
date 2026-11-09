@@ -162,14 +162,17 @@ GRID_ICON = '.o_main_navbar .o_cws_grid_icon'
 BRAND_NAME = '.o_main_navbar .o_menu_brand'
 BRAND_ICON = '.o_main_navbar .o_menu_brand_icon'
 USER_MENU = '.o_main_navbar .o_user_menu'
+TRAY_ENTRY = '.o_main_navbar .o_menu_systray :is(.o_nav_entry, .dropdown-toggle)'
 
 LIGHT = {
     'page': '#F8F9FA', 'text': '#212529', 'hover': '#E7EBED', 'black': '#000000',
     'open': '#E6F2F3', 'open_border': '#017E84', 'glyph': '#714B67', 'counter': '#EF4444',
+    'app_name': '#212529',
 }
 DARK = {
     'page': '#1F1F23', 'text': '#EBEBEB', 'hover': '#3E3F47', 'black': '#FFFFFF',
     'open': '#1F3738', 'open_border': '#159087', 'glyph': '#FFFFFF', 'counter': '#CB2F2F',
+    'app_name': '#FFFFFF',
 }
 ROLES = {'light': LIGHT, 'dark': DARK}
 
@@ -208,6 +211,21 @@ class ShellProbeCase(ThemeProbeCase):
                   "!!document.querySelector('.o_kanban_view .o_kanban_record')")
         # let the start-up transitions end
         self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+
+    def _tray_entries(self, padding, border):
+        """Every tray entry has the given horizontal padding and transparent border width."""
+        found = self.js(f"""(() => Array.from(document.querySelectorAll({TRAY_ENTRY!r}))
+            .filter((el) => el.getClientRects().length)
+            .map((el) => {{
+                const s = getComputedStyle(el);
+                return [s.paddingLeft, s.paddingRight, s.borderLeftWidth, s.borderRightWidth,
+                        s.borderTopWidth, s.borderLeftColor, el.className];
+            }}))()""")
+        self.assertTrue(found, 'no tray entry')
+        for left, right, bl, br, bt, colour, name in found:
+            self.assertEqual((left, right), (padding, padding), name)
+            self.assertEqual((bl, br, bt), (border, border, border), name)
+            self.assertColour(colour, '#000000', alpha=0)
 
     def mail_installed(self):
         return bool(self.env['ir.module.module'].search_count(
@@ -249,13 +267,32 @@ class TestThemeShell(ShellProbeCase):
                 self.assertEqual(entry['font-size'], '14px')
             name = self.style(BRAND_NAME, 'font-size', 'color')
             self.assertEqual(name['font-size'], '16.8px')
-            self.assertColour(name['color'], roles['text'])
+            self.assertColour(name['color'], roles['app_name'])  # A129
+            self._tray_entries(padding='4px', border='1px')
 
     def test_A10_top_bar_light(self):
         self._top_bar('light')
 
     def test_A10_top_bar_dark(self):
         self._top_bar('dark')
+
+    def _app_name(self, scheme):
+        with self.app_page(scheme):
+            self.wait_app()
+            self.assertColour(self.style(BRAND_NAME, 'color')['color'], ROLES[scheme]['app_name'])
+            self.assertColour(self.style(GRID_BUTTON, 'color')['color'], ROLES[scheme]['app_name'])
+
+    def test_A129_app_name_light(self):
+        self._app_name('light')
+
+    def test_A129_app_name_dark(self):
+        self._app_name('dark')
+
+    def test_A131_tray_borders_app(self):
+        for scheme in ('light', 'dark'):
+            with self.app_page(scheme):
+                self.wait_app()
+                self._tray_entries(padding='4px', border='1px')
 
     def _entry_states(self, scheme):
         roles = ROLES[scheme]
@@ -403,6 +440,13 @@ class TestThemeShell(ShellProbeCase):
             self.assertColour(self.style(f'{toggle} .oi', 'color')['color'], roles['glyph'])
             self.assertNotEqual(
                 self.style(toggle, 'color')['color'], self.style('body', 'color')['color'])
+            self.assertAlmostEqual(self.rect(f'{toggle} .oi')['width'], 14, delta=0.5)  # A130
+
+    def test_A130_mobile_sidebar_icon_light(self):
+        self._mobile_toggle('light')
+
+    def test_A130_mobile_sidebar_icon_dark(self):
+        self._mobile_toggle('dark')
 
     def test_R7_mobile_sidebar_toggle_light(self):
         self._mobile_toggle('light')
@@ -534,13 +578,16 @@ class TestThemeShell(ShellProbeCase):
             self.assertTrue(self.js(f"!!document.querySelector('{USER_MENU}')"))
             bar = self.rect(BAR)
             entry = self.rect(USER_MENU)
-            got = self.style(USER_MENU, 'height', 'margin-top', 'margin-bottom')
-            self.assertLess(float(got['margin-top'][:-2]), 0)
-            self.assertLess(float(got['margin-bottom'][:-2]), 0)
-            # the avatar entry is centred in the bar and spans the bar's inner height
+            got = self.style(USER_MENU, 'height', 'margin-top', 'margin-bottom', 'margin-left',
+                             'margin-right', 'padding-left', 'padding-right')
+            self.assertEqual(got['height'], '36px')
+            self.assertEqual((got['margin-top'], got['margin-bottom']), ('-5px', '-5px'))
+            self.assertEqual((got['padding-left'], got['padding-right']), ('4px', '4px'))
+            self.assertEqual((got['margin-left'], got['margin-right']), ('1px', '12px'))
+            # the avatar entry is centred in the bar; 36 px wide inside an application
             self.assertAlmostEqual(
                 entry['y'] + entry['height'] / 2, bar['y'] + bar['height'] / 2, delta=1)
-            self.assertGreaterEqual(entry['height'], 26)
+            self.assertEqual(entry['width'], 36)
             before = self.rect('.o_main_navbar .o_menu_systray')
             self.js("document.body.classList.add('o_is_superuser')")
             after = self.rect('.o_main_navbar .o_menu_systray')
@@ -786,7 +833,7 @@ class TestThemeHomeMenu(ShellProbeCase):
             self.assertColour(got['outline-color'], outline)
             self.assertEqual(got['outline-width'], '1px')
             self.assertEqual(got['outline-style'], 'solid')
-            self.assertEqual(got['border-radius'], '6px')
+            self.assertEqual(got['border-radius'], '12px')
 
     def test_A25_focus_wash_light(self):
         self._focus_wash('light', '#E6F2F3', '#017E84')
@@ -838,6 +885,18 @@ class TestThemeHomeMenu(ShellProbeCase):
             self.assertEqual(self.style(drag_tile, 'rotate')['rotate'], 'none')
             self.assertEqual(
                 self.style(f'{drag_tile} .o_app_icon', 'box-shadow')['box-shadow'], rest)
+
+    def _tray_borders_home(self, scheme):
+        with self.home_page(scheme):
+            self.wait_home()
+            self._tray_entries(padding='4px', border='2px')
+            self.assertEqual(self.rect(USER_MENU)['width'], 38)  # A112
+
+    def test_A131_tray_borders_home_light(self):
+        self._tray_borders_home('light')
+
+    def test_A131_tray_borders_home_dark(self):
+        self._tray_borders_home('dark')
 
     def _tray_wash(self, scheme, wash):
         with self.home_page(scheme):
