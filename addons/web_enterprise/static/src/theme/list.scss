@@ -52,6 +52,11 @@
     }
 }
 
+// The whole list area has the view background, so a short list shows it under its last row.
+.o_list_view .o_list_renderer {
+    background-color: $o-view-background-color;
+}
+
 // Framed next to a search panel.
 .o_search_panel_wrap ~ .o_list_renderer,
 .o_search_panel ~ .o_list_renderer,

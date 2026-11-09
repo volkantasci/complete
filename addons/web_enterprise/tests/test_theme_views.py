@@ -336,6 +336,31 @@ class TestThemeViews(ShellProbeCase):
     def test_A58_column_header_dark(self):
         self._column_header('dark')
 
+    def _header_height(self, scheme, **kwargs):
+        # R24: the title row is 1.5 times its 16.8 px text, so the header is 74.2 px and
+        # the progress bar starts where the original's does
+        with self.kanban_page(scheme, **kwargs):
+            self.ready()
+            self.wait("!!document.querySelector('.o_kanban_header .o_column_progress')")
+            row = self.rect('.o_kanban_header_title')
+            header = self.rect(HEADER)
+            self.assertAlmostEqual(row['height'], 25.2, delta=.5)
+            self.assertAlmostEqual(header['height'], 74.2, delta=1)
+            counter = self.rect('.o_kanban_header .o_kanban_counter')
+            self.assertAlmostEqual(counter['y'] - header['y'], 11.8 + 25.2 + 4, delta=1)
+
+    def test_A12_A62_header_height_light(self):
+        self._header_height('light')
+
+    def test_A12_A62_header_height_dark(self):
+        self._header_height('dark')
+
+    def test_A12_A62_header_height_mobile_light(self):
+        self._header_height('light', size=(390, 844), touch=True)
+
+    def test_A12_A62_header_height_mobile_dark(self):
+        self._header_height('dark', size=(390, 844), touch=True)
+
     def _progress(self, scheme):
         grey = GREY_400[scheme]
         with self.kanban_page(scheme):
@@ -544,13 +569,26 @@ def first_colour(value):
 class TestThemeListPivotGraph(ShellProbeCase):
     """Probe tests of list, pivot and graph (001b R26-R28)."""
 
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # a short list next to a search panel
+        search = cls.env['ir.ui.view'].create({
+            'name': f'{MARK}.framed.search', 'model': 'res.partner', 'type': 'search',
+            'arch': '<search><field name="name"/><searchpanel>'
+                    '<field name="type" string="Kind"/></searchpanel></search>',
+        })
+        framed = _action(cls.env, 'framed', [('list', LIST)])
+        framed.search_view_id = search
+        cls.framed_url = f'/odoo/action-{framed.id}'
+
     # -- list ---------------------------------------------------------------------
 
     def list_page(self, scheme, grouped=False, **kwargs):
         key = 'list_grouped_action' if grouped else 'list_action'
         return self.page(f"/odoo/action-{self.fixtures[key]}", scheme=scheme, **kwargs)
 
-    def list_ready(self, selector='.o_data_row'):
+    def list_ready(self, selector='.o_data_row, .o_group_header'):
         self.wait(f"!!document.querySelector('{selector}')")
         self.js("new Promise((resolve) => setTimeout(resolve, 600))")
 
@@ -565,6 +603,50 @@ class TestThemeListPivotGraph(ShellProbeCase):
             self.assertColour(got['color'], GREY_700[scheme])
             self.assertEqual(got['font-weight'], '400')
             self.assertEqual((got['padding-top'], got['padding-bottom']), ('8px', '8px'))
+
+    def below_rows_fill(self):
+        """The colour painted under the last row of the list: the first filled box that
+        covers a point 24 px below the table, found from the element at that point."""
+        return self.js("""(() => {
+            const table = document.querySelector('.o_list_table').getBoundingClientRect();
+            const area = document.querySelector('.o_list_renderer').getBoundingClientRect();
+            const x = area.left + area.width / 2;
+            const y = table.bottom + 24;
+            if (y >= window.innerHeight) { throw new Error('the fixture list is not short'); }
+            for (let el = document.elementFromPoint(x, y); el; el = el.parentElement) {
+                const colour = getComputedStyle(el).backgroundColor;
+                if (!/, 0\\)$/.test(colour) && colour !== 'transparent') { return colour; }
+            }
+            return 'none';
+        })()""")
+
+    def _list_area(self, scheme, grouped=False):
+        with self.list_page(scheme, grouped=grouped):
+            self.list_ready()
+            self.assertColour(self.below_rows_fill(), VIEW[scheme])
+
+    def test_A41_list_area_fill_light(self):
+        self._list_area('light')
+
+    def test_A41_list_area_fill_dark(self):
+        self._list_area('dark')
+
+    def test_A67_grouped_list_area_fill_light(self):
+        self._list_area('light', grouped=True)
+
+    def test_A67_grouped_list_area_fill_dark(self):
+        self._list_area('dark', grouped=True)
+
+    def test_A69_framed_list_area_fill(self):
+        for scheme in SCHEMES:
+            with self.page(self.framed_url, scheme=scheme):
+                self.list_ready()
+                self.wait("!!document.querySelector('.o_search_panel')")
+                self.assertTrue(self.js(
+                    "!!document.querySelector('.o_search_panel ~ .o_list_renderer, "
+                    ".o_search_panel_wrap ~ .o_list_renderer, "
+                    ".o_search_panel_resize ~ .o_list_renderer')"))
+                self.assertColour(self.below_rows_fill(), VIEW[scheme])
 
     def test_A63_list_not_striped_light(self):
         self._not_striped('light')
@@ -941,6 +1023,16 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
         switch = _action(
             env, 'switch', [('kanban', KANBAN.replace('{group}', 'type')), ('list', LIST)])
         cls.switch_url = f'/odoo/action-{switch.id}'
+        # a form with the chatter beside the sheet (needs the mail module)
+        cls.chatter_url = None
+        if env['ir.module.module'].search_count(
+                [('name', '=', 'mail'), ('state', '=', 'installed')]):
+            chatter = _action(
+                env, 'chatter',
+                [('form', '<form><header><button name="action_archive" type="object"'
+                  ' string="Archive"/><field name="type" widget="statusbar"/></header>'
+                  '<sheet><field name="name"/></sheet><chatter/></form>')])
+            cls.chatter_url = f'/odoo/action-{chatter.id}/{partners[0].id}'
 
     def ready(self, selector):
         self.wait(f"!!document.querySelector('{selector}')")
@@ -993,8 +1085,13 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
             self.assertEqual(
                 self.style('.o_calendar_sidepanel_content', 'margin-right')['margin-right'],
                 '8px')
-            self.assertEqual(
-                self.style('.o_calendar_filter', 'margin-top')['margin-top'], '16px')
+            # D7: the filter sections have 8 px above and below them
+            count = self.js("document.querySelectorAll('.o_calendar_filter').length")
+            self.assertGreaterEqual(count, 1)
+            for index in range(count):
+                got = self.style(
+                    '.o_calendar_filter', 'margin-top', 'margin-bottom', index=index)
+                self.assertEqual((got['margin-top'], got['margin-bottom']), ('8px', '8px'))
         with self.page(self.week_url, size=(390, 844), touch=True):
             self.ready('.o_other_calendar_panel')
             got = self.style('.o_other_calendar_panel', 'padding-left', 'padding-right')
@@ -1125,6 +1222,46 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
                 ('6px', '6px'))
             if scheme == 'dark':
                 self.assertColour(field['background-color'], PAGE['dark'])
+
+    def _settings_search_height(self, scheme):
+        # R31: the search field is 33 px high (not the 37 px of the control-panel search
+        # bar) and the whole control panel 57 px: 8 above, 16 below
+        with self.page(self.fixtures['settings_url'], scheme=scheme, size=(1600, 900)):
+            self.ready('.o_base_settings_view .o_searchview')
+            self.assertAlmostEqual(
+                self.rect('.o_base_settings_view .o_searchview')['height'], 33, delta=.5)
+            self.assertAlmostEqual(self.rect('.o_control_panel')['height'], 57, delta=.5)
+
+    def test_A83_settings_search_height_light(self):
+        self._settings_search_height('light')
+
+    def test_A83_settings_search_height_dark(self):
+        self._settings_search_height('dark')
+
+    def _chatter_level(self, scheme):
+        # R30: a chatter at the side starts level with the status-bar row: its first
+        # button is as high as the first header button
+        with self.page(self.chatter_url, scheme=scheme, size=(1920, 1000)):
+            self.ready('.o-mail-Chatter-topbar button')
+            self.ready('.o_form_statusbar button')
+            sheet = self.rect('.o_form_sheet')
+            chatter = self.rect('.o-mail-Form-chatter')
+            self.assertGreater(chatter['x'], sheet['x'] + sheet['width'] - 1,
+                               'the chatter is not beside the sheet')
+            header = self.rect('.o_form_statusbar button')
+            first = self.rect('.o-mail-Chatter-topbar button')
+            self.assertAlmostEqual(first['y'], header['y'], delta=1)
+            self.assertAlmostEqual(first['height'], header['height'], delta=1)
+
+    def test_A81_A52_chatter_level_light(self):
+        if not self.chatter_url:
+            self.skipTest('needs the mail module (the chatter)')
+        self._chatter_level('light')
+
+    def test_A81_A52_chatter_level_dark(self):
+        if not self.chatter_url:
+            self.skipTest('needs the mail module (the chatter)')
+        self._chatter_level('dark')
 
     def test_A82_settings_tabs_light(self):
         self._settings('light')
@@ -1494,6 +1631,23 @@ class TestThemeRoleUsage(ShellProbeCase):
                 self.assertColour(
                     self.style('#cws_probe .nav-tabs .nav-link.active', 'color')['color'],
                     '#000000' if scheme == 'light' else '#FFFFFF')
+
+    def test_A81_breadcrumb_row_has_no_fill(self):
+        # R5: the breadcrumb list is unfilled, so the page colour shows behind it
+        for scheme in SCHEMES:
+            with self.page(self.crumbs_url, scheme=scheme):
+                self.wait("!!document.querySelector('.o_data_row')")
+                self.js("document.querySelector('.o_data_row .o_data_cell').click()")
+                self.wait("!!document.querySelector('.o_form_view')"
+                          " && !!document.querySelector('.o_back_button a')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+                for selector in ('.o_control_panel .breadcrumb',
+                                 '.o_control_panel .o_breadcrumb'):
+                    got = self.style(selector, 'background-color')['background-color']
+                    self.assertColour(got, '#000000', alpha=0)
+                self.assertColour(
+                    self.style('.o_control_panel', 'background-color')['background-color'],
+                    PAGE[scheme])
 
     def test_R5_tabs_keep_their_colours(self):
         # the global nav-link role must leave the notebook (R20) and settings (R31) tabs alone

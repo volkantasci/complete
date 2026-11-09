@@ -20,6 +20,12 @@
     }
 }
 
+// A chatter at the side starts level with the status-bar row: the mail module's 8 px above its
+// top bar are dropped (a no-op without that module).
+.o-mail-Form-chatter.o-aside {
+    --Chatter-top-padding-top: 0px;
+}
+
 // Stat buttons: view background, secondary borders, 33 px high, 12 px label, medium value.
 .o-form-buttonbox {
     --o-stat-text-color: #{map-get($o-cws-text-tones, "primary")};

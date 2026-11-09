@@ -26,11 +26,17 @@
     }
 }
 
-// Badges on cards are smaller and bolder than in lists.
-.o_kanban_record .badge:not(.o_tag) {
-    --o-Badge-fontSize: .77em;
+// Badges and tags on cards are smaller and bolder than in lists (D7): the same bold weight
+// and padding in em, plain badges at 10.8 px and tags at 10 px of the 13 px card text.
+.o_kanban_record .badge {
+    --o-Badge-fontSize: .8308em;
     --o-Badge-fontWeight: 600;
-    --#{$prefix}badge-padding-x: .52em;
+    --#{$prefix}badge-padding-y: .25em;
+    --#{$prefix}badge-padding-x: .82em;
+
+    &.o_tag {
+        --o-Badge-fontSize: .7692em;
+    }
 }
 
 // Tags: a 1 px border in the index's tag border colour; the fill, text and gloss come

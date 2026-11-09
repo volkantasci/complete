@@ -65,6 +65,12 @@
 
 // Breadcrumbs (R5): the current item is in body text, the separators in muted text.
 .o_control_panel .o_breadcrumb {
+    // the list has no fill of its own: the page colour of the panel shows behind it
+    .breadcrumb {
+        --#{$prefix}breadcrumb-bg: transparent;
+        background-color: transparent;
+    }
+
     .o_last_breadcrumb_item {
         color: $o-main-text-color;
     }

@@ -253,20 +253,36 @@ class TestThemeBadgesTags(ThemeProbeCase):
                     self.assertColour(got['color'], text)
 
     def test_A39_card_badges(self):
-        with self.page(f"/odoo/action-{self.fixtures['kanban_action']}"):
-            selector = '.o_kanban_record .badge.text-bg-primary'
-            self.wait(f"!!document.querySelector('{selector}')")
-            got = self.style(selector, 'font-size', 'font-weight', 'line-height',
-                             'border-top-left-radius', 'padding-left')
-            # 0.77 em of the 13 px card text: 10 px
-            self.assertEqual(
-                self.style('.o_kanban_record', 'font-size')['font-size'], '13px')
-            self.assertAlmostEqual(float(got['font-size'][:-2]), 10, delta=.2)
-            self.assertEqual(got['font-weight'], '600')
-            self.assertGreaterEqual(float(got['border-top-left-radius'][:-2]), 8)
-            font = float(got['font-size'][:-2])
-            self.assertAlmostEqual(float(got['line-height'][:-2]) / font, 1.166, delta=.02)
-            self.assertAlmostEqual(float(got['padding-left'][:-2]) / font, .52, delta=.03)
+        # D7 / R17: plain badges in cards are about 10.8 px with no border and 0.25 em by
+        # 0.82 em of padding, tags 10 px with a 1 px border; both weight 600, line height 1.166
+        props = ('font-size', 'font-weight', 'line-height', 'border-top-width',
+                 'padding-top', 'padding-left', 'padding-right')
+        for scheme in ('light', 'dark'):
+            with self.page(f"/odoo/action-{self.fixtures['kanban_action']}", scheme=scheme):
+                self.wait("!!document.querySelector('.o_kanban_record .o_tag')")
+                self.assertEqual(
+                    self.style('.o_kanban_record', 'font-size')['font-size'], '13px')
+                for selector, size, border, high in (
+                    ('.o_kanban_record .badge.text-bg-primary', 10.8, 0, 18.0),
+                    ('.o_kanban_record .o_tag', 10, 1, 18.7),
+                ):
+                    got = self.style(selector, *props)
+                    font = float(got['font-size'][:-2])
+                    self.assertAlmostEqual(font, size, delta=.1, msg=selector)
+                    self.assertEqual(got['font-weight'], '600', selector)
+                    self.assertAlmostEqual(
+                        float(got['line-height'][:-2]) / font, 1.166, delta=.01, msg=selector)
+                    self.assertEqual(float(got['border-top-width'][:-2]), border, selector)
+                    self.assertAlmostEqual(
+                        float(got['padding-top'][:-2]) / font, .25, delta=.01, msg=selector)
+                    for side in ('padding-left', 'padding-right'):
+                        self.assertAlmostEqual(
+                            float(got[side][:-2]) / font, .82, delta=.01, msg=selector)
+                    self.assertAlmostEqual(
+                        self.rect(selector)['height'], high, delta=.3, msg=selector)
+                radius = self.style('.o_kanban_record .badge.text-bg-primary',
+                                    'border-top-left-radius')['border-top-left-radius']
+                self.assertGreaterEqual(float(radius[:-2]), 8)
 
     def test_A39_badge_empty_minimum_width(self):
         with self.page(f"/odoo/action-{self.fixtures['list_action']}"):

@@ -33,6 +33,13 @@
         }
     }
 
+    // the search field is 33 px high, not the 37 px of the control-panel search bar
+    .o_cp_searchview,
+    .o_cp_searchview .o_searchview {
+        min-height: 33px;
+        height: 33px;
+    }
+
     .o_searchview {
         border-radius: $o-border-radius;
     }
