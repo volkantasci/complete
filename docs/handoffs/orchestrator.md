@@ -19,6 +19,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 - **Your inputs.**
   - You start without project memory. Your whole context is this handoff and the documents it names.
   - Do not read any directory under `.superpowers/sdd/` except your own SDD workspace.
+  - Search with `git grep`, which skips untracked files, or exclude `.superpowers/` from any other recursive search.
 - **The spec package is read-only for you.** If it is unclear or incomplete, never fill the gap from outside knowledge of EE.
   - Where a reasonable default exists, choose it and record it as a ruling.
   - Otherwise list the gap as a question in spec language.
@@ -32,6 +33,8 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 - **Containers.**
   - Run each container command as one plain command: no `cd`, no pipes, nothing combined with it.
   - Run module tests with the command in [isolation.md](../isolation.md#containers). Only the project's images and compose containers are allowed.
+  - Never run a container as root.
+- **Long runs.** A subagent waits for its own long runs, such as screenshot batches and test suites, inside its turn, with a foreground command or a monitor. It never ends its turn while one is still running, because the harness may not wake it again. Put this rule into every dispatch that starts a long run.
 - **Names.** Use technical names only where `model.md` requires them. Give every other identifier a name of your own ([module-authoring.md](../module-authoring.md#naming)).
 - **Wording.** The spec's screenshots show the original's wording. Write every user-facing text in your own words, with the meaning the spec gives, except the texts the spec prescribes.
 - **Isolation files** (listed in [isolation.md](../isolation.md)) stay unchanged.

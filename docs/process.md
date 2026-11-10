@@ -34,6 +34,8 @@ A slice is one EE application, or a coherent group of modules, together with eve
 
 The step 6 thresholds were initial values. The pilot kept both; see the [pilot report](pilot-000-timer.md#threshold-calibration).
 
+In step 5, the verifier classes every new difference by the owner's stop rule. Deviations from the spec, regressions and differences from the original that a user notices in normal use go back to step 4. Differences that only a measurement shows, quirks of the original and rarely seen states go on a polish list for the owner's release checkpoint. The [slice runbook](slice-runbook.md#rules-slice-001b-added) gives the details.
+
 How the sessions of a slice are started and handed over in practice is in the [slice runbook](slice-runbook.md).
 
 ## Scope and design rules
