@@ -32,8 +32,8 @@ Spec package: slice 001c-mobile-bridge. The provenance record is
 the test host helper `CwmHostCase` of `web_mobile` (see its
 [README](../web_mobile/README.md#tests)), and need `hr`.
 
-The module belongs to two of the four test databases (full and Employees only, plus
-the point of sale one). Employees only:
+The module belongs to three of the four test databases (full, Employees only, and
+point of sale with Employees). Employees only:
 
 ```
 podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d <fresh_db> -i web_mobile,hr --with-demo --log-level=warn --test-tags /web_mobile,/hr_mobile --stop-after-init

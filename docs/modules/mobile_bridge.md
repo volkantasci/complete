@@ -91,7 +91,7 @@ Two cases cannot be pinned, and a short notice tells you why:
 ## Shared files
 
 Share a file to the app from another phone application. Where Complete has a
-place for it (expenses, bills, leads, tasks and to-dos), the "Create" dialog
+place for it (for example expenses, bills, leads, tasks, to-dos and time off requests), the "Create" dialog
 opens with the files attached.
 
 ![The dialog opened by a shared file](../assets/mobile_bridge/07-shared-file-dialog.png)
@@ -135,13 +135,14 @@ the app or not, as long as the browser offers camera access.
 
 ### Setting it up
 
-1. In the Point of Sale settings, choose the shop and turn on the employee
-   login (the option that lets employees log in to the cash register).
-2. In the same place, list the employees allowed to use this shop's cash
-   register, under the access level each should have (for example Cashier or
-   Manager).
-3. On each of those employees (**Employees**, tab **HR Settings**), fill in the
-   **Badge ID** with the code printed on the badge.
+1. In the Point of Sale settings, choose the shop and turn on **Log in with
+   Employees**. Save the page and come back to it.
+2. Under that setting, add the employees who may use this cash register to the
+   **Manager** or **Cashier** list (or **Restrictive**, or **Supervised**),
+   whichever access level each should have.
+3. On each of those employees, open the **Settings** tab, group
+   **Attendance/Point of Sale**, and fill in **Badge ID** with the code on the
+   badge (the **Generate** button next to it makes one).
 
 ![The login screen with the badge button](../assets/mobile_bridge/09-pos-badge-login.png)
 
