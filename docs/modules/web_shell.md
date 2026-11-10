@@ -5,6 +5,9 @@ in you land on the **home menu**, a grid of your applications. The top bar and
 the phone navigation are adapted to it, and you can choose a Theme in your
 preferences. It adds no menu and no setting page of its own.
 
+How it looks, in the light and dark Theme, is described in
+[Web Theme](web_theme.md).
+
 Technical reference:
 [`addons/web_enterprise/README.md`](../../addons/web_enterprise/README.md).
 

@@ -1,0 +1,58 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Badges (001b R17), tags (R18) and ribbons (R41).
+
+// Every badge is a pill and carries the badge gloss.
+.badge {
+    border-radius: var(--#{$prefix}border-radius-pill);
+    background-image: $o-gradient-sm;
+}
+
+// Contextual badges: a 15 % tint of the tone behind the tone's contextual text colour.
+@each $-tone in (primary, secondary, success, info, warning, danger, light, dark) {
+    $-text: map-get($o-cws-text-tones, $-tone);
+    // secondary, light and dark have no text tone of their own: the contextual colour
+    // itself, except the light tone where it is the white role (body text instead).
+    @if not $-text {
+        $-text: map-get($theme-colors, $-tone);
+        @if $-tone == light and $-text == $o-white {
+            $-text: $o-main-text-color;
+        }
+    }
+    .badge.text-bg-#{$-tone} {
+        background-color: rgba(map-get($theme-colors, $-tone), .15) !important;
+        color: $-text !important;
+    }
+}
+
+// Badges and tags on cards are smaller and bolder than in lists (D7): the same bold weight
+// and padding in em of the badge's own size. The sizes are absolute (rem): the card footer
+// runs at 14 px, so a size in em would resolve against a different parent there.
+.o_kanban_record .badge {
+    --o-Badge-fontSize: #{o-to-rem(10.8px)};
+    --o-Badge-fontWeight: 600;
+    --#{$prefix}badge-padding-y: .25em;
+    --#{$prefix}badge-padding-x: .82em;
+
+    &.o_tag {
+        --o-Badge-fontSize: #{o-to-rem(10px)};
+    }
+}
+
+// Tags: a 1 px border in the index's tag border colour; the fill, text and gloss come
+// from the badge rules and the record palette.
+.o_tag {
+    @for $-index from 1 through length($o-colors) {
+        &.o_tag_color_#{$-index - 1} {
+            border: 1px solid nth($o-colors-border, $-index);
+        }
+    }
+}
+
+// Ribbons: no shadow, no text shadow, the normal gloss tone (25 %) over the band (D9).
+.ribbon span {
+    box-shadow: none;
+    text-shadow: none;
+    background-image: $o-gradient;
+}

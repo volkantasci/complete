@@ -1,0 +1,10 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+.p-hover { color: $o-cws-primary-hover; }
+.p-pressed { color: $o-cws-primary-pressed; }
+.p-active { background-color: $o-cws-active-bg; }
+.p-focus { border-color: $o-cws-focus-border; }
+.p-colour3 { color: nth($o-colors, 4); }
+.p-link-hover { color: $o-cws-link-hover; }
+.p-lightsecondary { color: $o-form-lightsecondary; }

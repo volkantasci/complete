@@ -1,0 +1,490 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Light role values: the default theme of Complete (001b R1-R4).
+//
+// This file is inserted before the Community primary variables, so every
+// !default below wins over the Community !default of the same variable. The
+// dark values live in roles_dark.scss, which is placed before this file in the
+// dark bundles; a variable it already set is not set again here. Values that
+// follow from other roles are written as formulas (R3) and are therefore shared
+// by both schemes: they are only repeated in the dark file where the formula
+// differs.
+
+// ---------------------------------------------------------------------------
+// Scheme and options
+// ---------------------------------------------------------------------------
+
+$o-cws-scheme: light !default;
+$o-webclient-color-scheme: $o-cws-scheme !default;
+
+$o-cws-blur: 4px !default;
+$o-cws-blur-sm: 2px !default;
+$o-cws-blur-lg: 6px !default;
+$o-enable-backdrop-blur: $o-cws-blur > 0 !default;
+$o-backdrop-blur: blur($o-cws-blur) !default;
+$o-backdrop-blur-sm: blur($o-cws-blur-sm) !default;
+$o-backdrop-blur-lg: blur($o-cws-blur-lg) !default;
+
+$o-cws-use-gradients: true !default;
+$enable-gradients: $o-cws-use-gradients !default;
+
+// ---------------------------------------------------------------------------
+// Base colours
+// ---------------------------------------------------------------------------
+
+$o-white: #FFFFFF !default;
+$o-black: #000000 !default;
+
+$o-gray-100: #F8F9FA !default;
+$o-gray-200: #E7EBED !default;
+$o-gray-300: #DEE2E6 !default;
+$o-gray-400: #CED4DA !default;
+$o-gray-500: #ADB5BD !default;
+$o-gray-600: #6C757D !default;
+$o-gray-700: #495057 !default;
+$o-gray-800: #343A40 !default;
+$o-gray-900: #212529 !default;
+
+$o-grays: (
+    100: $o-gray-100,
+    200: $o-gray-200,
+    300: $o-gray-300,
+    400: $o-gray-400,
+    500: $o-gray-500,
+    600: $o-gray-600,
+    700: $o-gray-700,
+    800: $o-gray-800,
+    900: $o-gray-900,
+) !default;
+
+$o-brand-primary: #714B67 !default;
+$o-action: #017E84 !default;
+$o-success: #00A945 !default;
+$o-info: #17A2B8 !default;
+$o-warning: #F59E0B !default;
+$o-danger: #EF4444 !default;
+
+// Contextual secondary, light and dark (Bootstrap names).
+$secondary: map-get($o-grays, 700) !default;
+$light: $o-white !default;
+$dark: $o-gray-900 !default;
+
+$o-main-favorite-color: #F3CC00 !default;
+$o-main-code-color: #D2317B !default;
+
+// Browser toolbar colour of the dark scheme (R9); constant in both schemes.
+$o-cws-dark-chrome: #242733 !default;
+
+// ---------------------------------------------------------------------------
+// Surfaces, text and lines
+// ---------------------------------------------------------------------------
+
+$o-webclient-background-color: $o-gray-100 !default;
+$o-view-background-color: #FFFFFF !default;
+$o-cws-fills: (
+    field: $o-view-background-color,
+    switch-on: $o-view-background-color,
+    table: $o-view-background-color,
+) !default;
+$o-cws-overlay-bg: $o-white !default;
+// The mobile bottom sheet: grey 100 (its buttons stay white).
+$o-cws-sheet-bg: $o-gray-100 !default;
+// Searchable selection lists (R19, D9): grey 100 in light, the overlay background in dark.
+$o-cws-select-menu-bg: $o-gray-100 !default;
+// The list of matching records under a record field (R19, D9): the same background role, and a
+// shadow of its own that is lighter than the normal one, in both schemes.
+$o-cws-record-list-bg: $o-gray-100 !default;
+$o-cws-record-list-shadow: 0 4.8px 16px rgba(#000, .1) !default;
+$o-border-color: $o-gray-300 !default;
+$o-cws-overlay-border: $o-border-color !default;
+
+$o-main-text-color: $o-gray-900 !default;
+$o-main-headings-color: $o-black !default;
+// Tooltip (D7): a black label with grey 200 text in light.
+$tooltip-bg: $o-black !default;
+$tooltip-color: $o-gray-200 !default;
+$o-opacity-muted: .76 !default;
+$o-main-color-muted: rgba($o-gray-700, $o-opacity-muted) !default;
+$o-cws-text-secondary: rgba($o-main-text-color, .75) !default;
+$o-cws-text-tertiary: rgba($o-main-text-color, .5) !default;
+
+// Plain navigation links are body text; the active tab of a plain tab row takes the heading
+// colour (R5).
+$o-cws-nav-ink: (link: $o-main-text-color, active-tab: $o-main-headings-color) !default;
+$nav-link-color: map-get($o-cws-nav-ink, link) !default;
+$nav-tabs-link-active-color: map-get($o-cws-nav-ink, active-tab) !default;
+$border-color-translucent: rgba($o-black, .175) !default;
+
+$o-cws-field-underline: $o-gray-200 !default;
+$o-cws-input-border: $o-gray-400 !default;
+$o-form-lightsecondary: map-get($o-grays, 200) !default;
+
+$o-cws-links: (rest: $o-action, hover: mix($o-black, $o-action, 30%)) !default;
+$o-main-link-color: map-get($o-cws-links, rest) !default;
+$o-cws-link-hover: map-get($o-cws-links, hover) !default;
+$link-hover-color: $o-cws-link-hover !default;
+
+$mark-bg: #FFF3CD !default;
+$mark-color: $o-gray-900 !default;
+
+$o-cws-backdrop-bg: $o-black !default;
+$modal-backdrop-bg: $o-cws-backdrop-bg !default;
+
+// ---------------------------------------------------------------------------
+// States
+// ---------------------------------------------------------------------------
+
+$o-cws-active-bg: mix($o-action, $o-white, 10%) !default;
+$o-component-active-bg: $o-cws-active-bg !default;
+$o-component-active-border: $o-action !default;
+$o-component-active-color: $o-black !default;
+// The list selection counter: component active fill, action border and text.
+$o-cws-selection-bg: $o-cws-active-bg !default;
+
+$o-cws-focus-border: mix($o-action, $o-gray-400, 50%) !default;
+$input-focus-border-color: $o-cws-focus-border !default;
+
+$o-cws-primary-hover: darken($o-brand-primary, 10%) !default;
+$o-cws-primary-pressed: mix($o-brand-primary, $o-white, 10%) !default;
+
+$o-cws-row-hover-bg: rgba($o-action, .055) !default;
+$o-cws-cell-active-bg: rgba($o-action, .05) !default;
+$o-cws-row-selected-bg: #D1ECF1 !default;
+$o-cws-row-selected-line: #A7BDC1 !default;
+
+$o-cws-navbar-open-bg: $o-cws-active-bg !default;
+$o-cws-navbar-open-border: $o-action !default;
+
+// Top-bar entry under the pointer or the keyboard focus (grey 200 light, grey 300 dark),
+// and the grid glyph and back chevron (primary light, the black role dark).
+$o-cws-entry-hover-bg: $o-gray-200 !default;
+// R6 (D7): colour of the application name in the top bar.
+$o-cws-app-name-color: $o-main-text-color !default;
+$o-cws-glyph-color: $o-brand-primary !default;
+
+// Text on the danger fill (tray counters): white in both schemes.
+$o-cws-on-danger: #FFFFFF !default;
+
+// Stripes of the super-user marker around the tray (same in both schemes).
+$o-cws-superuser-stripe-a: #D9B904 !default;
+$o-cws-superuser-stripe-b: #373435 !default;
+
+// Pressed light and secondary buttons.
+$o-cws-pressed-bg: $o-cws-active-bg !default;
+// Active value of the search panel (R32) and kanban column highlights (R24, R38).
+$o-cws-panel-active-bg: $o-cws-active-bg !default;
+$o-cws-kanban-drop-bg: mix($o-white, $o-action, 90%) !default;
+$o-cws-kanban-selected-bg: #D1ECF1 !default;
+$o-cws-pressed-border: $o-action !default;
+
+// ---------------------------------------------------------------------------
+// Contextual text and subtle tones
+// ---------------------------------------------------------------------------
+
+$o-cws-text-tones: (
+    "primary": $o-brand-primary,
+    "success": #008818,
+    "info": #0180A5,
+    "warning": #9A6B01,
+    "danger": #D23F3A,
+) !default;
+$o-theme-text-colors: $o-cws-text-tones !default;
+
+// tone: (bg, border, emphasis)
+$o-cws-subtle: (
+    "primary": (bg: #E3DBE1, border: #C6B7C2, emphasis: #2D1E29),
+    "secondary": (bg: #DBDCDD, border: #B6B9BC, emphasis: #1D2023),
+    "success": (bg: #CCEEDA, border: #99DDB5, emphasis: #00441C),
+    "info": (bg: #D1ECF1, border: #A2DAE3, emphasis: #09414A),
+    "warning": (bg: #FDECCE, border: #FBD89D, emphasis: #623F04),
+    "danger": (bg: #FCDADA, border: #F9B4B4, emphasis: #601B1B),
+) !default;
+
+@function o-cws-subtle($tone, $part) {
+    @return map-get(map-get($o-cws-subtle, $tone), $part);
+}
+
+$primary-bg-subtle: o-cws-subtle("primary", bg) !default;
+$primary-border-subtle: o-cws-subtle("primary", border) !default;
+$primary-text-emphasis: o-cws-subtle("primary", emphasis) !default;
+$secondary-bg-subtle: o-cws-subtle("secondary", bg) !default;
+$secondary-border-subtle: o-cws-subtle("secondary", border) !default;
+$secondary-text-emphasis: o-cws-subtle("secondary", emphasis) !default;
+$success-bg-subtle: o-cws-subtle("success", bg) !default;
+$success-border-subtle: o-cws-subtle("success", border) !default;
+$success-text-emphasis: o-cws-subtle("success", emphasis) !default;
+$info-bg-subtle: o-cws-subtle("info", bg) !default;
+$info-border-subtle: o-cws-subtle("info", border) !default;
+$info-text-emphasis: o-cws-subtle("info", emphasis) !default;
+$warning-bg-subtle: o-cws-subtle("warning", bg) !default;
+$warning-border-subtle: o-cws-subtle("warning", border) !default;
+$warning-text-emphasis: o-cws-subtle("warning", emphasis) !default;
+$danger-bg-subtle: o-cws-subtle("danger", bg) !default;
+$danger-border-subtle: o-cws-subtle("danger", border) !default;
+$danger-text-emphasis: o-cws-subtle("danger", emphasis) !default;
+
+// ---------------------------------------------------------------------------
+// Record colour palette (index 0 to 11)
+// ---------------------------------------------------------------------------
+
+$o-colors:
+    #A2A2A2, #EE2D2D, #DC8534, #E8BB1D, #5794DD, #9F628F,
+    #DB8865, #41A9A2, #304BE0, #EE2F8A, #61C36E, #9872E6
+    !default;
+$o-colors-border:
+    #8F8F8F, #D76A58, #CC7724, #C09910, #179DC5, #B271C6,
+    #AF8563, #17A49D, #5D8EE4, #D06792, #4CA65A, #8F7EDE
+    !default;
+$o-colors-bg-subtle:
+    #D7D7D7, #FEDBD5, #FEDEC5, #F4DC9D, #C2ECFE, #EBCAF6,
+    #F2E1D4, #AEF4EE, #C3D9FE, #FEC5D9, #BAE5BD, #E4E1FE
+    !default;
+$o-colors-text-emphasis:
+    #3D3D3D, #6B1F15, #5C3003, #4C3B04, #044457, #542662,
+    #4D3827, #034744, #193A76, #671D3F, #044B18, #3E2F72
+    !default;
+
+// ---------------------------------------------------------------------------
+// Typography and shape
+// ---------------------------------------------------------------------------
+
+$h1-font-size: o-to-rem(33.6px) !default;
+$headings-font-weight: 500 !default;
+
+$o-cws-radii: (sm: 4px, md: 6px, lg: 8px, xl: 12px) !default;
+$o-border-radius: o-to-rem(map-get($o-cws-radii, md)) !default;
+$o-border-radius-sm: o-to-rem(map-get($o-cws-radii, sm)) !default;
+$o-border-radius-lg: o-to-rem(map-get($o-cws-radii, lg)) !default;
+$o-border-radius-xl: o-to-rem(map-get($o-cws-radii, xl)) !default;
+
+// ---------------------------------------------------------------------------
+// Elevation and gloss
+// ---------------------------------------------------------------------------
+
+$o-cws-shadow: 0 8px 16px rgba(#000, .15) !default;
+$o-cws-shadow-sm: 0 2px 4px rgba(#000, .075) !default;
+$o-cws-shadow-lg: 0 16px 48px rgba(#000, .175) !default;
+$box-shadow: $o-cws-shadow !default;
+$box-shadow-sm: $o-cws-shadow-sm !default;
+$box-shadow-lg: $o-cws-shadow-lg !default;
+
+// The white role is black in the dark scheme, so the gloss follows the scheme.
+$o-cws-gloss-btn: .15 !default;
+$o-gradient-btn: linear-gradient(145deg, rgba($o-white, $o-cws-gloss-btn), transparent) !default;
+$o-gradient-sm: linear-gradient(180deg, rgba($o-white, .15), transparent) !default;
+$o-gradient: linear-gradient(145deg, rgba($o-white, .25), transparent) !default;
+$o-gradient-lg: linear-gradient(145deg, rgba($o-white, .55), transparent) !default;
+
+// ---------------------------------------------------------------------------
+// Charts and home menu
+// ---------------------------------------------------------------------------
+
+$o-cws-graph-area-end: #FFFFFF !default;
+$o-cws-home-contrast: darken($o-gray-100, 5%) !default;
+
+// Contrast haze and dot grid of the home menu background (R10): opacity of the haze
+// and of the dots.
+$o-cws-home-contrast-alpha: .95 !default;
+$o-cws-home-dot-alpha: 1 !default;
+
+// Tile icon squares (R11): resting, hover and drag shadows.
+$o-cws-tile-navy: #2A3346 !default;
+$o-cws-tile-navy-hover: #091E42 !default;
+$o-cws-tile-shadow:
+    0 0 0 1px rgba($o-black, .075),
+    0 1px 1px -.5px rgba($o-cws-tile-navy, .03),
+    0 2px 2px -1px rgba($o-cws-tile-navy, .03),
+    0 3px 3px -1.5px rgba($o-cws-tile-navy, .04),
+    0 5px 5px -2.5px rgba($o-cws-tile-navy, .04),
+    0 10px 10px -5px rgba($o-cws-tile-navy, .04),
+    0 24px 24px -12px rgba($o-cws-tile-navy, .04) !default;
+$o-cws-tile-shadow-hover:
+    0 0 0 1px rgba($o-black, .15),
+    0 4px 8px -2px rgba($o-cws-tile-navy-hover, .25),
+    0 0 0 1px rgba($o-cws-tile-navy-hover, .08) !default;
+$o-cws-tile-text-shadow: none !default;
+
+// Touch search field (R14, D5): height with its border, border width and colour.
+$o-cws-touch-search-height: 37px !default;
+$o-cws-touch-search-border-width: 0 !default;
+$o-cws-touch-search-border: transparent !default;
+
+// ---------------------------------------------------------------------------
+// Buttons (R16), badges (R17)
+// ---------------------------------------------------------------------------
+
+// No shadow at rest, under the pointer or when pressed, and no transition.
+$o-cws-btn-flat: (shadow: none, pressed-shadow: none, transition: none) !default;
+$btn-box-shadow: map-get($o-cws-btn-flat, shadow) !default;
+$btn-active-box-shadow: map-get($o-cws-btn-flat, pressed-shadow) !default;
+$btn-transition: map-get($o-cws-btn-flat, transition) !default;
+
+$o-badge-min-width: 2.7 * 1ch !default;
+
+// Text on the primary fill: the white role in light, the black role (white) in dark.
+$o-cws-on-primary: $o-white !default;
+// Text of a pressed primary button.
+$o-cws-primary-pressed-text: $o-brand-primary !default;
+$o-cws-primary-pressed-border: $o-brand-primary !default;
+
+// Secondary button: light and dark differ in these four roles and the disabled fill.
+$o-cws-btn-secondary-border: $o-gray-400 !default;
+$o-cws-btn-secondary-hover-bg: $o-gray-200 !default;
+$o-cws-btn-secondary-hover-border: $o-gray-400 !default;
+$o-cws-btn-secondary-hover-color: $o-black !default;
+$o-cws-btn-secondary-disabled-bg: $o-view-background-color !default;
+
+// Entries a scheme adds to the Community button maps (the dark file sets them).
+$o-cws-btns-extra: () !default;
+$o-cws-btns-outline-extra: () !default;
+
+$o-btns-bs-override: map-merge((
+    "primary": (
+        background: $o-brand-primary,
+        border: $o-brand-primary,
+        color: $o-cws-on-primary,
+
+        hover-background: $o-cws-primary-hover,
+        hover-border: $o-cws-primary-hover,
+        hover-color: $o-cws-on-primary,
+
+        active-background: $o-cws-primary-pressed,
+        active-border: $o-cws-primary-pressed-border,
+        active-color: $o-cws-primary-pressed-text,
+
+        disabled-background: $o-brand-primary,
+        disabled-border: $o-brand-primary,
+        disabled-color: $o-cws-on-primary,
+    ),
+    "secondary": (
+        background: map-get($o-cws-fills, field),
+        border: $o-cws-btn-secondary-border,
+        color: $o-gray-900,
+
+        hover-background: $o-cws-btn-secondary-hover-bg,
+        hover-border: $o-cws-btn-secondary-hover-border,
+        hover-color: $o-cws-btn-secondary-hover-color,
+
+        active-background: $o-cws-pressed-bg,
+        active-border: $o-cws-pressed-border,
+        active-color: $o-black,
+
+        disabled-background: $o-cws-btn-secondary-disabled-bg,
+        disabled-border: $o-cws-btn-secondary-border,
+        disabled-color: $o-gray-900,
+    ),
+    "light": (
+        background: transparent,
+        border: transparent,
+        color: $o-gray-900,
+
+        hover-background: $o-cws-entry-hover-bg,
+        hover-border: $o-cws-entry-hover-bg,
+        hover-color: $o-black,
+
+        active-background: $o-cws-pressed-bg,
+        active-border: $o-cws-pressed-border,
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: transparent,
+        disabled-color: $o-gray-900,
+    ),
+), $o-cws-btns-extra) !default;
+
+$o-btns-bs-outline-override: map-merge((
+    "secondary": (
+        background: transparent,
+        border: $o-cws-btn-secondary-border,
+        color: $o-gray-900,
+
+        hover-background: $o-cws-btn-secondary-hover-bg,
+        hover-border: $o-cws-btn-secondary-hover-border,
+        hover-color: $o-cws-btn-secondary-hover-color,
+
+        active-background: $o-cws-pressed-bg,
+        active-border: $o-cws-pressed-border,
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: $o-cws-btn-secondary-border,
+        disabled-color: $o-gray-900,
+    ),
+), $o-cws-btns-outline-extra) !default;
+
+// ---------------------------------------------------------------------------
+// Dropdowns, popovers, dialogs, tooltips (R19, R35, R36)
+// ---------------------------------------------------------------------------
+
+$dropdown-bg: $o-cws-overlay-bg !default;
+$dropdown-border-color: $o-cws-overlay-border !default;
+$dropdown-border-width: 1px !default;
+$dropdown-border-radius: $o-border-radius-xl !default;
+$dropdown-inner-border-radius: calc(#{$o-border-radius-xl} - 1px) !default;
+$dropdown-padding-y: o-to-rem(4px) !default;
+$dropdown-padding-x: o-to-rem(4px) !default;
+$dropdown-box-shadow: $o-cws-shadow !default;
+$dropdown-divider-bg: $o-cws-overlay-border !default;
+$dropdown-divider-margin-y: o-to-rem(8px) !default;
+$dropdown-item-border-radius: $o-border-radius-lg !default;
+$dropdown-link-hover-color: $o-black !default;
+$dropdown-link-hover-bg: rgba($o-black, .08) !default;
+
+$popover-bg: $o-cws-overlay-bg !default;
+$popover-border-color: $o-cws-overlay-border !default;
+$popover-border-radius: $o-border-radius-xl !default;
+$popover-box-shadow: $o-cws-shadow !default;
+$popover-font-size: o-to-rem(13px) !default;
+
+$modal-content-border-color: $border-color-translucent !default;
+$modal-content-box-shadow-xs: $o-cws-shadow !default;
+$modal-content-box-shadow-sm-up: $o-cws-shadow !default;
+
+// Command palette (R40).
+$o-cws-palette-inset: 8px !default;
+
+// ---------------------------------------------------------------------------
+// Inputs, check boxes and radios (R39)
+// ---------------------------------------------------------------------------
+
+$o-cws-field-pad: (x: 0, y: 1px) !default;
+$o-input-padding-y: map-get($o-cws-field-pad, y) !default;
+$o-input-padding-x: map-get($o-cws-field-pad, x) !default;
+$o-input-border-required: $o-main-headings-color !default;
+$input-border-color: $o-cws-input-border !default;
+$input-focus-box-shadow: none !default;
+
+// Unchecked boxes and radios (D7): view background, grey 500 border in light.
+$o-form-check-input-border-color: map-get($o-grays, 500) !default;
+$form-check-input-bg: $o-view-background-color !default;
+$o-cws-check: (mark: $o-white) !default;
+$form-check-input-checked-color: map-get($o-cws-check, mark) !default;
+$form-check-input-checked-border-color: $o-action !default;
+$form-check-input-checked-bg-color: $o-action !default;
+$form-check-input-indeterminate-color: map-get($o-cws-check, mark) !default;
+$form-check-input-indeterminate-border-color: $o-action !default;
+$form-check-input-indeterminate-bg-color: $o-action !default;
+$form-check-input-focus-box-shadow: 0 0 0 4px rgba($o-action, .25) !default;
+$form-check-input-focus-border: $o-action !default;
+
+// Segmented switchers (R21), notebook tabs (R20)
+$o-cws-switch-pill-bg: $o-gray-200 !default;
+// Hover on an inactive switcher button (D7): no fill in light, the text turns black.
+$o-cws-switch-hover-bg: transparent !default;
+$o-cws-switch-hover-color: $o-black !default;
+// The active button's text: the black role (white in dark).
+$o-cws-switch-active-color: $o-black !default;
+$o-cws-tab-bg: $o-gray-100 !default;
+$o-cws-tab-hover-bg: $o-gray-200 !default;
+$o-cws-tab-border: $o-border-color !default;
+$o-cws-tab-vertical-border: $o-border-color !default;
+$o-cws-tab-accent: $o-brand-primary !default;
+$o-cws-tab-active-color: $o-brand-primary !default;
+
+// Form stat buttons (R30): the icon colour (the primary text tone in light, the current text
+// colour in dark), and the hover border; settings tabs and bands (R31).
+$o-cws-stat-icon-color: map-get($o-cws-text-tones, "primary") !default;
+$o-cws-stat-hover-border: $o-gray-400 !default;
+$o-cws-settings-tab-active-bg: $o-cws-active-bg !default;
+$o-cws-settings-band-bg: $o-gray-200 !default;

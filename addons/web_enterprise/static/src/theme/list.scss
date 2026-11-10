@@ -1,0 +1,71 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// List view (001b R26): not striped, row hover and selection roles, grouped
+// first-row shadow, footer totals and the frame next to a search panel.
+
+.o_list_renderer {
+    --ListRenderer-thead-padding-y: 8px;
+
+    .o_list_table {
+        --#{$prefix}table-hover-bg: #{$o-cws-row-hover-bg};
+        --#{$prefix}table-active-bg: #{$o-cws-cell-active-bg};
+        --#{$prefix}table-striped-bg: transparent;
+
+        thead th {
+            padding-bottom: var(--ListRenderer-thead-padding-y);
+            color: $o-gray-700;
+            font-weight: 400;
+        }
+
+        // Selected rows: their own background with a line under each row.
+        .o_data_row.o_data_row_selected > td {
+            --#{$prefix}table-bg: #{$o-cws-row-selected-bg};
+            background-color: $o-cws-row-selected-bg;
+            border-bottom-color: $o-cws-row-selected-line;
+            color: $o-black;
+        }
+
+        // R26: selected wins over hover, no hover tint is laid over a selected row.
+        .o_data_row.o_data_row_selected:hover > td {
+            --#{$prefix}table-bg-state: transparent;
+            box-shadow: none;
+        }
+
+        // First record row under a group header: a faint inner shadow along its top.
+        tr.o_group_header + tr.o_data_row > td {
+            background-image:
+                linear-gradient(to bottom, rgba(0, 0, 0, .025), transparent 4px),
+                linear-gradient(to bottom, rgba(0, 0, 0, .025), transparent 2px);
+        }
+
+        // Footer totals.
+        tfoot > tr > td {
+            background: none;
+            color: $o-black;
+            font-weight: 500;
+
+            &:empty {
+                padding: 0;
+            }
+        }
+    }
+}
+
+// The whole list area has the view background, so a short list shows it under its last row.
+.o_list_view .o_list_renderer {
+    background-color: $o-view-background-color;
+}
+
+// Framed next to a search panel.
+.o_search_panel_wrap ~ .o_list_renderer,
+.o_search_panel ~ .o_list_renderer,
+.o_search_panel_resize ~ .o_list_renderer {
+    border: $border-width solid $o-border-color;
+    border-bottom-width: 0;
+    border-start-start-radius: $o-border-radius-xl;
+    border-start-end-radius: $o-border-radius-xl;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    margin-right: 16px;
+}

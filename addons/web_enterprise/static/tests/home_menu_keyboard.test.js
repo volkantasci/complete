@@ -295,19 +295,24 @@ test("A31 visible search field on touch", async () => {
 });
 
 test("A31 touch field fits the top bar height", async () => {
+    // 001b R14 changes the field: 37 px high, 8 px above and 16 px below (was 30 px, no margin
+    // above). The page still opens 46 px down, with the field just out of sight, and the first
+    // row of tiles stays where it was.
     mockTouch(true);
     await resize({ width: 390 });
     await mountHome();
     const field = queryFirst(".o_home_menu_search_input");
+    const style = getComputedStyle(field);
     const { height } = field.getBoundingClientRect();
-    const margin = parseFloat(getComputedStyle(field).marginBottom);
-    expect(height + margin).toBe(46);
-    expect(parseFloat(getComputedStyle(field).paddingTop)).toBe(8);
-    expect(margin).toBe(16);
-    // the scrolled page starts right under the field: the field is just out of sight
-    expect(field.getBoundingClientRect().bottom + margin).toBe(
-        queryFirst(".o_home_menu").getBoundingClientRect().top
-    );
+    expect(height).toBe(37);
+    expect(parseFloat(style.paddingTop)).toBe(8);
+    expect(parseFloat(style.marginTop)).toBe(8);
+    expect(parseFloat(style.marginBottom)).toBe(16);
+    expect(parseFloat(style.marginTop) + height).not.toBeGreaterThan(46);
+    const homeTop = queryFirst(".o_home_menu").getBoundingClientRect().top;
+    // the page is scrolled by 46 px: the tile grid starts at the top of the visible area
+    expect(queryFirst(".o_apps").getBoundingClientRect().top - homeTop).toBe(0);
+    expect(queryFirst(".o_home_menu").scrollTop).toBe(46);
 });
 
 test("A31 touch order is field, message, grid", async () => {

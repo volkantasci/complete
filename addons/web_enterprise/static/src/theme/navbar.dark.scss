@@ -1,0 +1,8 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R6: in the dark scheme the top bar is the page background (the light scheme leaves it
+// transparent over the same page background).
+nav.o_main_navbar {
+    background: $o-webclient-background-color;
+}

@@ -1,0 +1,26 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The base roles as CSS custom properties, for scripts and for the few rules
+// that cannot take a Sass value (001b R-O2). Both schemes use this file; the
+// values come from whichever role files the bundle was built with.
+
+:root {
+    color-scheme: $o-cws-scheme;
+
+    --o-cws-scheme: #{$o-cws-scheme};
+    --o-cws-primary: #{$o-brand-primary};
+    --o-cws-action: #{$o-action};
+    --o-cws-success: #{$o-success};
+    --o-cws-info: #{$o-info};
+    --o-cws-warning: #{$o-warning};
+    --o-cws-danger: #{$o-danger};
+    --o-cws-page-bg: #{$o-webclient-background-color};
+    --o-cws-view-bg: #{$o-view-background-color};
+    --o-cws-overlay-bg: #{$o-cws-overlay-bg};
+    --o-cws-border: #{$o-border-color};
+    --o-cws-body-text: #{$o-main-text-color};
+    --o-cws-dark-chrome: #{$o-cws-dark-chrome};
+    --o-cws-graph-area-end: #{$o-cws-graph-area-end};
+    --o-cws-blur: #{$o-cws-blur};
+}

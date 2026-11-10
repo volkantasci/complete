@@ -1,0 +1,23 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Kanban details of the dark scheme (001b R23, R38).
+
+// The placeholder behind card images is grey 900.
+.o_kanban_record aside .o_card_image_fill,
+.o_kanban_record aside .o_image_placeholder {
+    background-color: $o-gray-900;
+}
+
+// Colour picker swatches: each dark base colour darkened by 5 and desaturated by 15; the
+// swatch text (the check mark) is the colour at 15 % over the view background.
+.o_colorlist {
+    @for $-index from 2 through length($o-colors) {
+        $-swatch: desaturate(darken(nth($o-colors, $-index), 5%), 15%);
+        // the Community rules read these two custom properties (and make them important)
+        .o_colorlist_item_color_#{$-index - 1} {
+            --background-color: #{$-swatch};
+            --color: #{mix($-swatch, $o-view-background-color, 15%)};
+        }
+    }
+}

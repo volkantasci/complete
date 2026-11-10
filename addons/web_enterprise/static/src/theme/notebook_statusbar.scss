@@ -1,0 +1,76 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Notebook tabs (001b R20) and the form status bar (R22).
+
+.o_notebook {
+    --Notebook__link-border-color: #{$o-cws-tab-border};
+    --Notebook__link-border-color--active: #{$o-cws-tab-border};
+    --Notebook__link-border-color--hover: #{$o-cws-tab-border};
+    --Notebook__link-border-top-color--active: #{$o-cws-tab-border};
+
+    .nav-item:is(:first-child, :last-child, :nth-child(n)) .nav-link {
+        position: relative;
+        padding: 8px 16px;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        background-color: $o-cws-tab-bg;
+
+        // hover: the fill only; the text keeps the surrounding colour (not the link hover one)
+        &:hover {
+            background-color: $o-cws-tab-hover-bg;
+            color: inherit;
+        }
+
+        &.active,
+        &.active:hover,
+        &.active:focus,
+        &.active:active {
+            background-color: transparent;
+            color: $o-cws-tab-active-color;
+        }
+
+        // the accent bar lies over the tab's own top border
+        &.active::before {
+            content: "";
+            position: absolute;
+            top: -1px;
+            inset-inline: -1px;
+            height: 3px;
+            border-radius: 6px 6px 0 0;
+            background-color: $o-cws-tab-accent;
+            pointer-events: none;
+        }
+    }
+
+    &.vertical {
+        --Notebook__link-border-color: #{$o-cws-tab-vertical-border};
+        --Notebook__link-border-color--active: #{$o-cws-tab-vertical-border};
+        --Notebook__link-border-color--hover: #{$o-cws-tab-vertical-border};
+        --Notebook__link-border-top-color--active: #{$o-cws-tab-vertical-border};
+
+        .nav-item .nav-link.active::before {
+            content: none;
+        }
+    }
+}
+
+// Status bar: the group sits on the view background; steps are 27px high.
+.o_field_statusbar > .o_statusbar_status {
+    @include media-breakpoint-up(md) {
+        padding: 2px;
+        border: 1px solid $o-border-color;
+        border-radius: 8px;
+        background: $o-view-background-color;
+    }
+
+    .o_arrow_button:not(.d-none) {
+        --#{$prefix}btn-hover-bg: #{map-get($o-grays, 300)};
+        --#{$prefix}btn-active-bg: #{$o-gray-400};
+        --#{$prefix}btn-disabled-bg: #{$o-cws-active-bg};
+        --#{$prefix}btn-disabled-color: #{$o-component-active-color};
+
+        height: 27px;
+        font-weight: 500;
+    }
+}

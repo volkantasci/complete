@@ -7,6 +7,65 @@ import { patch } from "@web/core/utils/patch";
 import { ActionPlugin } from "@web/webclient/actions/action_plugin";
 
 const HOME_TAG = "menu";
+const BACKGROUND_CLASS = "o_home_menu_background";
+
+/** Symbol key (the step schema rejects unknown names) set on the steps our adapted helper returns: the only steps the interactive runner
+ * handling below may touch (D10). */
+export const APPS_MENU_STEP_MARK = Symbol("cwsAppsMenuStep");
+
+/**
+ * D2 and D8 (R45): the Community tour step that opens the apps menu must leave the home menu
+ * where it is, and must not wait for anything when a tour meets it there. The tour utilities
+ * live in the back-end bundle of the optional `web_tour` module, which is not a dependency: the
+ * step is adapted only if its module is loaded, right when it starts (a tour may compute its
+ * steps before any service starts).
+ *
+ * The step gains the selector of "no home menu shown" in its `isActive` list: while the home
+ * menu is shown the step is not active, the tour engines pass over it, and an interactive tour
+ * never shows a pointer for it. Inside an application the step is active and its target is the
+ * grid button, as before (the button that closes the home menu is never the target).
+ *
+ * The returned step carries {@link APPS_MENU_STEP_MARK}, which tells
+ * {@link adaptInteractiveTour} that it is the one step whose runner behaviour changes (D10).
+ */
+export function adaptTourAppsMenuStep(stepUtils) {
+    patch(stepUtils, {
+        showAppsMenuItem() {
+            const step = super.showAppsMenuItem(...arguments);
+            return {
+                ...step,
+                isActive: [...(step.isActive || []), `body:not(.${BACKGROUND_CLASS})`],
+                trigger: `${step.trigger}:not(.o_menu_toggle_back)`,
+                [APPS_MENU_STEP_MARK]: true,
+            };
+        },
+    });
+}
+
+/**
+ * The interactive engine only tests a step's `isActive` list when it plays the step. The apps-menu
+ * step can turn inactive after it was played: the click on the application name, or on the grid
+ * button, is the one that shows the home menu. The engine then finds no target and waits for
+ * ever, so for that step, and only for it, the engine moves on. Every other step, from any
+ * module, goes through the Community method unchanged (D10).
+ *
+ * @param {typeof import("@web_tour/tour_interactive/tour_interactive").TourInteractive} TourInteractive
+ */
+export function adaptInteractiveTour(TourInteractive) {
+    patch(TourInteractive.prototype, {
+        _onMutation() {
+            const current = this.currentAction;
+            if (current?.step?.[APPS_MENU_STEP_MARK] && !current.step.active) {
+                if (this.currentActionIndex < this.actions.length) {
+                    this.currentActionIndex++;
+                    this.play();
+                    return;
+                }
+            }
+            return super._onMutation(...arguments);
+        },
+    });
+}
 
 /** @returns {boolean} the request designates the home menu client action */
 function isHomeRequest(request) {
@@ -76,3 +135,27 @@ export const cwsHomeMenuService = {
 
 const serviceRegistry = registry.category("services");
 serviceRegistry.add("home_menu", cwsHomeMenuService);
+
+// Hook for D2 and D8: adapt the Community tour classes as soon as their modules exist.
+const TOUR_ADAPTERS = {
+    "@web_tour/tour_utils": (module) => adaptTourAppsMenuStep(module.stepUtils),
+    "@web_tour/tour_interactive/tour_interactive": (module) =>
+        adaptInteractiveTour(module.TourInteractive),
+};
+const pending = new Set(Object.keys(TOUR_ADAPTERS));
+function adaptModule(name, module) {
+    if (module && pending.delete(name)) {
+        TOUR_ADAPTERS[name](module);
+    }
+}
+for (const name of [...pending]) {
+    adaptModule(name, odoo.loader.modules.get(name));
+}
+if (pending.size) {
+    odoo.loader.bus.addEventListener("module-started", function adaptWhenStarted({ detail }) {
+        adaptModule(detail.moduleName, detail.module);
+        if (!pending.size) {
+            odoo.loader.bus.removeEventListener("module-started", adaptWhenStarted);
+        }
+    });
+}

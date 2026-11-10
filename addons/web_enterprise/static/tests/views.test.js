@@ -84,6 +84,18 @@ function switcher() {
 }
 
 describe("view switcher", () => {
+    test("A48 view switcher exposes count, from and to", async () => {
+        await mountWebClient();
+        await getService("action").doAction(1);
+        expect(switcher().style.getPropertyValue("--cws-switch-count").trim()).toBe("3");
+        expect(switcher().style.getPropertyValue("--cws-switch-from").trim()).toBe("0");
+        expect(switcher().style.getPropertyValue("--cws-switch-to").trim()).toBe("0");
+        await contains(".o_switch_view.o_list").click();
+        expect(switcher().style.getPropertyValue("--cws-switch-count").trim()).toBe("3");
+        expect(switcher().style.getPropertyValue("--cws-switch-from").trim()).toBe("0");
+        expect(switcher().style.getPropertyValue("--cws-switch-to").trim()).toBe("1");
+    });
+
     test("A62 switcher slides between views", async () => {
         await mountWebClient();
         await getService("action").doAction(1);
@@ -220,7 +232,8 @@ describe("sticky kanban header", () => {
         await resize({ width: 390, height: 300 });
         await mountView({ resModel: "lead", type: "kanban" });
         await animationFrame();
-        const folded = queryAll(".o_kanban_header")[1];
+        // the folded column's title is not bold; an unfolded header has 11.8 px above its row
+        const folded = queryOne(".o_kanban_header:not(:has(.o_column_title.fw-bold))");
         expect(".o_column_folded").toHaveCount(0);
         expect(getComputedStyle(folded).paddingTop).toBe("8px");
         expect(getComputedStyle(folded).paddingBottom).toBe("8px");

@@ -1,0 +1,63 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Smaller dark adjustments (001b R30, R31, R33, R37, R38).
+
+// The search field of the company switcher has a grey 400 border.
+.o_switch_company_menu_dropdown .form-control[role="search"] {
+    border-color: $o-gray-400;
+}
+
+// R33: the settings search field takes the page background.
+.o_base_settings_view .o_cp_searchview .o_searchview,
+.o_base_settings_view .o_cp_searchview .o_searchview:focus-within {
+    background-color: $o-webclient-background-color;
+}
+
+// R30: the "more" button of the stat box uses the dropdown item hover fill.
+.o-form-buttonbox .oe_stat_button .o_button_more {
+    --#{$prefix}btn-hover-bg: #{$dropdown-link-hover-bg};
+}
+
+// R30: stat buttons in a bottom sheet have grey 400 borders.
+.o_bottom_sheet .o-form-buttonbox {
+    @each $-prop in (--o-stat-button-border-color, --button-box-border-color) {
+        #{$-prop}: map-get($o-grays, 400);
+    }
+}
+
+// R31: the settings tab text is the body colour (also hovered or selected).
+.o_base_settings_view .o_form_renderer .o_setting_container .settings_tab .tab {
+    &,
+    &:hover,
+    &.selected {
+        color: $body-color;
+    }
+}
+
+// R37: bottom sheet. Active status-bar entries: grey 400 at 50 % with contrasting text; the
+// buttons that switch views: grey 400 fill (the active one keeps the component active look).
+.o_bottom_sheet .o_bottom_sheet_sheet {
+    --BottomSheetStatusBar__entry-background--active: #{rgba(map-get($o-grays, 400), .5)};
+    --BottomSheetStatusBar__entry-color--active: #{$o-black};
+
+    .o_cp_switch_buttons {
+        .o-dropdown-item {
+            --#{$prefix}btn-bg: #{map-get($o-grays, 400)};
+            --#{$prefix}btn-active-border-color: #{$o-component-active-border};
+        }
+    }
+}
+
+// R38: the icons of property field types are inverted to stay visible; the options of a
+// property selection use the border colour as background.
+.o_field_property_definition_type,
+.o_field_property_definition_type_menu {
+    img {
+        filter: invert(1);
+    }
+}
+
+.o_field_property_selection_option {
+    background-color: $o-border-color;
+}

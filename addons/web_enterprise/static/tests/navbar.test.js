@@ -139,6 +139,26 @@ test("A8 grid button toggles over the application", async () => {
     }
 });
 
+test("A16 grid button shows explicitly, chevron hides explicitly", async () => {
+    await mountWebClient();
+    const homeMenu = getService("home_menu");
+    const calls = [];
+    patchWithCleanup(homeMenu, {
+        toggle(show) {
+            calls.push(show);
+            return super.toggle(...arguments);
+        },
+    });
+    await contains(GRID_BUTTON).click();
+    await animationFrame();
+    expect(calls).toEqual([true]);
+    expect(HOME_ROOT).toHaveCount(1);
+    await contains(GRID_BUTTON).click();
+    await animationFrame();
+    expect(calls).toEqual([true, false]);
+    expect(HOME_ROOT).toHaveCount(0);
+});
+
 test("A87 clicking the application name toggles the home menu", async () => {
     let actionLoads = 0;
     onRpc("/web/action/load", () => {
@@ -269,7 +289,7 @@ test("S4 grid button visible", async () => {
     await mountWebClient();
     const button = queryOne(".o_menu_toggle");
     const rect = button.getBoundingClientRect();
-    expect(rect.width).toBe(93);
+    expect(rect.width).toBe(94);
     expect(rect.height).toBe(26);
     const icon = queryOne(".o_menu_toggle .o_cws_grid_icon");
     const iconRect = icon.getBoundingClientRect();
@@ -277,10 +297,10 @@ test("S4 grid button visible", async () => {
     expect(iconRect.width).toBe(14);
     expect(iconRect.height).toBe(14);
     const brandIcon = queryOne(".o_menu_brand_icon").getBoundingClientRect();
-    expect(brandIcon.width).toBe(30);
-    expect(brandIcon.height).toBe(30);
-    // the application icon covers the left part of the button
-    expect(Math.abs(brandIcon.left - rect.left)).toBeLessThan(1);
+    expect(brandIcon.width).toBe(26);
+    expect(brandIcon.height).toBe(26);
+    // the application icon covers the left part of the button, 12 px in
+    expect(Math.abs(brandIcon.left - rect.left - 12)).toBeLessThan(1);
     // at rest the grid is hidden; the rule that reveals it is checked below
     expect(getComputedStyle(icon).opacity).toBe("0");
     const name = queryOne(".o_menu_brand");
@@ -288,7 +308,7 @@ test("S4 grid button visible", async () => {
     expect(nameRect.width).toBeGreaterThan(0);
     expect(Math.round(nameRect.left - rect.left)).toBe(46);
     expect(getComputedStyle(name).fontSize).toBe("16.8px");
-    expect(getComputedStyle(name).marginLeft).toBe("16px");
+    expect(getComputedStyle(name).marginLeft).toBe("15px");
     // the name belongs to the button, inside its box
     expect(queryOne(`${GRID_BUTTON} ${BRAND}`)).toBe(name);
     expect(nameRect.right).toBeLessThan(rect.right + 0.5);
@@ -363,7 +383,8 @@ test("R15 entries read as body text on the home menu", async () => {
     const inApp = entry();
     await toggle(true);
     const onHome = entry();
-    expect(onHome).not.toBe(inApp);
+    // 001b R5/R6: the bar is the page, so its entries read as body text inside an application too
+    expect(inApp).toBe(getComputedStyle(document.body).color);
     expect(onHome).toBe(getComputedStyle(document.body).color);
     expect(getComputedStyle(queryOne(".o_menu_toggle")).color).toBe(
         getComputedStyle(document.body).color
@@ -389,7 +410,9 @@ describe("mobile", () => {
         expect(queryAll(".o_app_menu_sidebar", body)).toHaveCount(0);
         expect("a.o_menu_toggle").toHaveClass(BACK_STATE);
         expect("a.o_menu_toggle").toHaveAttribute("title", "Previous view");
-        expect("a.o_menu_toggle i").toHaveAttribute("data-icon", "chevron_backward");
+        // the back state draws the chevron of the desktop button, not a font glyph
+        expect("a.o_menu_toggle svg.o_cws_back_icon").toHaveCount(1);
+        expect("a.o_menu_toggle i").toHaveCount(0);
         await contains("a.o_menu_toggle").click();
         await animationFrame();
         await animationFrame();

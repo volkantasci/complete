@@ -1,0 +1,371 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Dark role values of the default theme (001b R1-R4).
+//
+// Placed before roles_light.scss by the bundle web.dark_mode_variables, so
+// that these values are set first and the light !default values are skipped.
+// The white role is black here and the black role is white; the grey ramp is
+// reversed. Only the values that differ from the light file are listed: the
+// formulas of the light file (hover, focus, gloss, link hover ...) are
+// evaluated again with these base values.
+//
+// A third party file placed before this one in web.dark_mode_variables, or a
+// variable set here without !default, wins over these values.
+
+$o-cws-scheme: dark !default;
+
+$o-white: #000000 !default;
+$o-black: #FFFFFF !default;
+
+// The reversed ramp, keyed by step; the Community names read from it.
+$o-cws-dark-ramp: (
+    100: #1F1F23,
+    200: #2C2E35,
+    300: #3E3F47,
+    400: #56575E,
+    500: #6E6F77,
+    600: #88898F,
+    700: #B3B4B8,
+    800: #D1D1D3,
+    900: #EBEBEB,
+) !default;
+
+$o-gray-100: map-get($o-cws-dark-ramp, 100) !default;
+$o-gray-200: map-get($o-cws-dark-ramp, 200) !default;
+$o-gray-300: map-get($o-cws-dark-ramp, 300) !default;
+$o-gray-400: map-get($o-cws-dark-ramp, 400) !default;
+$o-gray-500: map-get($o-cws-dark-ramp, 500) !default;
+$o-gray-600: map-get($o-cws-dark-ramp, 600) !default;
+$o-gray-700: map-get($o-cws-dark-ramp, 700) !default;
+$o-gray-800: map-get($o-cws-dark-ramp, 800) !default;
+$o-gray-900: map-get($o-cws-dark-ramp, 900) !default;
+
+$o-grays: (
+    100: $o-gray-100,
+    200: $o-gray-200,
+    300: $o-gray-300,
+    400: $o-gray-400,
+    500: $o-gray-500,
+    600: $o-gray-600,
+    700: $o-gray-700,
+    800: $o-gray-800,
+    900: $o-gray-900,
+) !default;
+
+$o-brand-primary: #92427D !default;
+$o-action: #1CBCB1 !default;
+$o-success: #22B053 !default;
+$o-info: #71ADEA !default;
+$o-warning: #E39C50 !default;
+$o-danger: #CB2F2F !default;
+
+$secondary: map-get($o-grays, 700) !default;
+$light: $o-gray-300 !default;
+$dark: $o-gray-700 !default;
+
+$o-main-favorite-color: #FFD532 !default;
+$o-main-code-color: #C58BC8 !default;
+
+$o-cws-dark-chrome: #242733 !default;
+
+// Surfaces, text and lines
+$o-view-background-color: map-get($o-grays, 200) !default;
+// Alias of the field and table surface.
+$o-cws-fills: (
+    field: $o-view-background-color,
+    switch-on: $o-view-background-color,
+    table: $o-view-background-color,
+) !default;
+$o-cws-overlay-bg: $o-gray-300 !default;
+// The mobile bottom sheet: grey 300, like the other overlays.
+$o-cws-sheet-bg: $o-gray-300 !default;
+$o-cws-select-menu-bg: $o-cws-overlay-bg !default;
+$o-cws-record-list-bg: $o-cws-overlay-bg !default;
+$o-cws-overlay-border: $o-gray-400 !default;
+
+$tooltip-bg: map-get($o-grays, 300) !default;
+$tooltip-color: map-get($o-grays, 900) !default;
+
+$o-cws-field-underline: $o-gray-300 !default;
+$o-cws-input-border: $o-gray-300 !default;
+$o-form-lightsecondary: map-get($o-grays, 300) !default;
+$input-placeholder-color: mix(map-get($o-grays, 600), map-get($o-grays, 700), 80%) !default;
+
+$mark-bg: #FFDEBC !default;
+$mark-color: #40382F !default;
+
+// The modal backdrop is the white role, which is black here.
+$o-cws-backdrop-bg: $o-white !default;
+
+// States
+$o-cws-active-bg: mix($o-action, $o-gray-300, 10%) !default;
+// The list selection counter: grey 300 fill, action border and text.
+$o-cws-selection-bg: $o-gray-300 !default;
+$o-cws-primary-hover: lighten($o-brand-primary, 3%) !default;
+$o-cws-primary-pressed: lighten($o-brand-primary, 6%) !default;
+
+$o-cws-row-hover-bg: rgba($o-action, .1) !default;
+$o-cws-cell-active-bg: rgba($o-action, .1) !default;
+$o-cws-row-selected-bg: #223446 !default;
+$o-cws-row-selected-line: #4E5D6B !default;
+
+$o-cws-navbar-open-bg: mix($o-action, $o-gray-100, 15%) !default;
+$o-cws-navbar-open-border: darken($o-action, 10%) !default;
+$o-cws-entry-hover-bg: $o-gray-300 !default;
+// R6 (D7): colour of the application name in the top bar.
+$o-cws-app-name-color: $o-black !default;
+$o-cws-glyph-color: $o-black !default;
+$o-cws-pressed-bg: mix($o-action, $o-gray-100, 15%) !default;
+$o-cws-panel-active-bg: $o-gray-300 !default;
+$o-cws-kanban-drop-bg: #1F3738 !default;
+$o-cws-kanban-selected-bg: #20364B !default;
+$o-cws-pressed-border: lighten($o-action, 10%) !default;
+
+// Contextual text and subtle tones
+$o-cws-text-tones: (
+    "primary": #C175AD,
+    "success": #30C06E,
+    "info": #71ADEA,
+    "warning": #D89D54,
+    "danger": #FF5757,
+) !default;
+
+$o-cws-subtle: (
+    "primary": (bg: #662E58, border: #3A1A32, emphasis: #D3B3CB),
+    "secondary": (bg: #242425, border: #48484A, emphasis: #E1E1E3),
+    "success": (bg: #187B3A, border: #0E4621, emphasis: #A7DFBA),
+    "info": (bg: #4F79A4, border: #71ADEA, emphasis: #F1F7FD),
+    "warning": (bg: #9F6D38, border: #5B3E20, emphasis: #F4D7B9),
+    "danger": (bg: #8E2121, border: #511313, emphasis: #EAACAC),
+) !default;
+
+// Record colour palette: the dark base colours are a fixed list, not derived
+// from the light ones.
+$o-colors:
+    #E58585, #FF4949, #FF9C41, #E1B000, #5EA6FF, #F040EC,
+    #FF9467, #00CEBE, #405EFF, #FF4BA0, #00DC67, #A67AFF
+    !default;
+$o-colors-border:
+    #B1B1B1, #F8907E, #EE9B56, #D1AD41, #37C2EF, #D396E6,
+    #D1A888, #1CCBC2, #86B1FD, #F28DB4, #75C77F, #B0A2FD
+    !default;
+$o-colors-bg-subtle:
+    #2E2E2E, #58271F, #542D06, #392C02, #043E50, #3D2046,
+    #463324, #04413E, #172D53, #4A1B2F, #0D3715, #38305C
+    !default;
+$o-colors-text-emphasis:
+    #D7D7D7, #FEC9BF, #FECCA6, #EED592, #A0E3FE, #F1C5FE,
+    #EBD2BF, #8EEBE3, #C3D9FE, #FEC5D9, #B0E8B5, #D6D1FE
+    !default;
+
+// Elevation and gloss
+$o-cws-shadow: 0 8px 16px rgba(#000, .3) !default;
+$o-cws-shadow-sm: 0 2px 4px rgba(#000, .15) !default;
+$o-cws-shadow-lg: 0 16px 48px rgba(#000, .3) !default;
+$o-cws-gloss-btn: .08 !default;
+
+// Charts and home menu
+$o-cws-graph-area-end: #262A36 !default;
+$o-cws-home-contrast: darken($o-gray-100, 4%) !default;
+$o-cws-home-contrast-alpha: .93 !default;
+$o-cws-home-dot-alpha: .75 !default;
+
+// Tile icon squares: no drop shadow, an inset ring (the hover ring is grey 400).
+$o-cws-tile-shadow: inset 0 0 0 1px $o-gray-300 !default;
+$o-cws-tile-shadow-hover: inset 0 0 0 1px $o-gray-400 !default;
+$o-cws-tile-text-shadow:
+    0 1px 2px rgba($o-white, .75),
+    0 0 5px rgba($o-white, .05),
+    0 0 5px rgba($o-white, .05) !default;
+
+$o-cws-touch-search-height: 39px !default;
+$o-cws-touch-search-border-width: 1px !default;
+$o-cws-touch-search-border: #3C3E4A !default;
+
+// Buttons (R16)
+$o-cws-on-primary: $o-black !default;
+$o-cws-primary-pressed-text: $o-black !default;
+$o-cws-primary-pressed-border: $o-cws-primary-pressed !default;
+
+$o-cws-btn-secondary-border: $o-gray-300 !default;
+$o-cws-btn-secondary-hover-bg: $o-gray-300 !default;
+$o-cws-btn-secondary-hover-border: $o-gray-300 !default;
+$o-cws-btn-secondary-hover-color: $o-gray-900 !default;
+$o-cws-btn-secondary-disabled-bg: $o-gray-300 !default;
+
+// Danger, outline primary, outline danger and outline light are restyled in dark only;
+// the light scheme keeps the Community buttons. Text on a fill is the black role (white).
+$o-cws-danger-steps: (
+    rest: $o-danger,
+    hover: lighten($o-danger, 3%),
+    pressed: lighten($o-danger, 6%),
+) !default;
+$o-cws-light-outline: (
+    hover: map-get($o-grays, 300),
+    pressed-bg: mix($o-action, map-get($o-grays, 100), 15%),
+    pressed-border: lighten($o-action, 10%),
+) !default;
+
+$o-cws-btns-extra: (
+    "danger": (
+        background: $o-danger,
+        border: $o-danger,
+        color: $o-black,
+
+        hover-background: map-get($o-cws-danger-steps, hover),
+        hover-border: map-get($o-cws-danger-steps, hover),
+        hover-color: $o-black,
+
+        active-background: map-get($o-cws-danger-steps, pressed),
+        active-border: map-get($o-cws-danger-steps, pressed),
+        active-color: $o-black,
+
+        disabled-background: map-get($o-cws-danger-steps, rest),
+        disabled-border: map-get($o-cws-danger-steps, rest),
+        disabled-color: $o-black,
+    ),
+) !default;
+
+$o-cws-btns-outline-extra: (
+    "primary": (
+        background: transparent,
+        border: map-get($o-cws-text-tones, "primary"),
+        color: map-get($o-cws-text-tones, "primary"),
+
+        hover-background: $o-cws-primary-hover,
+        hover-border: $o-cws-primary-hover,
+        hover-color: $o-black,
+
+        active-background: $o-cws-primary-pressed,
+        active-border: $o-cws-primary-pressed,
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: map-get($o-cws-text-tones, "primary"),
+        disabled-color: map-get($o-cws-text-tones, "primary"),
+    ),
+    "danger": (
+        background: transparent,
+        border: map-get($o-cws-text-tones, "danger"),
+        color: map-get($o-cws-text-tones, "danger"),
+
+        hover-background: map-get($o-cws-danger-steps, hover),
+        hover-border: map-get($o-cws-danger-steps, hover),
+        hover-color: $o-black,
+
+        active-background: map-get($o-cws-danger-steps, pressed),
+        active-border: map-get($o-cws-danger-steps, pressed),
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: map-get($o-cws-text-tones, "danger"),
+        disabled-color: map-get($o-cws-text-tones, "danger"),
+    ),
+    "light": (
+        background: transparent,
+        border: $o-gray-300,
+        color: $o-black,
+
+        hover-background: map-get($o-cws-light-outline, hover),
+        hover-border: map-get($o-cws-light-outline, hover),
+        hover-color: $o-black,
+
+        active-background: map-get($o-cws-light-outline, pressed-bg),
+        active-border: map-get($o-cws-light-outline, pressed-border),
+        active-color: $o-black,
+
+        disabled-background: transparent,
+        disabled-border: $o-gray-300,
+        disabled-color: $o-black,
+    ),
+) !default;
+
+// Unchecked boxes and radios (D7): grey 400 border in dark.
+$o-form-check-input-border-color: $o-gray-400 !default;
+
+// Range sliders and switches (R39)
+$o-cws-switch: (track: transparentize($o-black, .5), focus: $o-black) !default;
+$form-switch-color: map-get($o-cws-switch, track) !default;
+$form-switch-focus-color: map-get($o-cws-switch, focus) !default;
+$form-switch-checked-color: map-get($o-cws-fills, switch-on) !default;
+
+// Segmented switchers (R21), notebook tabs (R20)
+$o-cws-switch-pill-bg: $o-gray-400 !default;
+$o-cws-switch-hover-bg: $o-gray-300 !default;
+// the text of an inactive button keeps the surrounding text colour under the pointer (D9)
+$o-cws-switch-hover-color: $o-gray-900 !default;
+$o-cws-switch-active-color: $o-black !default;
+$o-cws-tab-bg: $o-gray-300 !default;
+$o-cws-tab-hover-bg: $o-gray-400 !default;
+$o-cws-tab-border: $o-gray-200 !default;
+$o-cws-tab-vertical-border: $o-gray-400 !default;
+$o-cws-tab-accent: map-get($o-cws-text-tones, "primary") !default;
+$o-cws-tab-active-color: map-get($o-cws-text-tones, "primary") !default;
+
+// Form stat buttons (R30), settings tabs and bands (R31).
+$o-cws-stat-icon-color: currentColor !default;
+$o-cws-stat-hover-border: $o-gray-400 !default;
+$o-cws-settings-tab-active-bg: mix($o-action, $o-gray-100, 10%) !default;
+$o-cws-settings-band-bg: $o-gray-300 !default;
+
+// Dark-only role usage (R5): dropdown section headers, generic progress bars, generic
+// tables and keyboard-key hints.
+$dropdown-header-color: map-get($o-grays, 700) !default;
+$progress-bg: map-get($o-grays, 400) !default;
+$progress-bar-bg: map-get($o-cws-text-tones, "primary") !default;
+$table-bg: map-get($o-cws-fills, table) !default;
+$table-border-color: map-get($o-grays, 300) !default;
+$kbd-color: map-get($o-grays, 200) !default;
+$kbd-bg: map-get($o-grays, 900) !default;
+$kbd-box-shadow: inset 0 -1px 2px rgba($o-gray-200, .35) !default;
+
+// Colour scales read by Community dark files: the Sales dashboard tiles use the 200 and 300
+// steps of purple, orange, cyan and red, and the Community leaves them at their light tints,
+// which stay light on the dark page. The light steps (100 to 300) get their shaded partners:
+// 100 is the darkest. Step 200 is the shade measured on the original's dark tiles (the base
+// colour at 37 %: (93, 46, 7) for orange, (41, 24, 72) for purple, (8, 61, 69) for cyan); step
+// 300, the active tile, is lighter (ruling R-O12: no capture shows an active tile).
+$o-cws-scale-bases: (
+    purple: #6f42c1,
+    orange: #fd7e14,
+    cyan: #17a2b8,
+    red: #dc3545,
+) !default;
+// step: share of black mixed into the base colour
+$o-cws-scale-shade: (
+    100: 80%,
+    200: 63%,
+    300: 53%,
+) !default;
+// The tile text reads steps 700 and 800 (800 on an active tile): light partners of the dark
+// steps, so that the text is light on the dark fills. Step 700 is the colour of the numbers on
+// the original's dark tiles: the base colour with 40 % white, (254, 178, 114) for orange,
+// (169, 142, 218) for purple, (116, 199, 212) for cyan. Step 800 (ruling R-O12) has 60 %.
+// step: share of white mixed into the base colour
+$o-cws-scale-tint: (
+    700: 40%,
+    800: 60%,
+) !default;
+
+$purple-100: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 100)) !default;
+$purple-200: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 200)) !default;
+$purple-300: mix(#000000, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-shade, 300)) !default;
+$orange-100: mix(#000000, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-shade, 100)) !default;
+$orange-200: mix(#000000, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-shade, 200)) !default;
+$orange-300: mix(#000000, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-shade, 300)) !default;
+$cyan-100: mix(#000000, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-shade, 100)) !default;
+$cyan-200: mix(#000000, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-shade, 200)) !default;
+$cyan-300: mix(#000000, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-shade, 300)) !default;
+$red-100: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 100)) !default;
+$red-200: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 200)) !default;
+$red-300: mix(#000000, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-shade, 300)) !default;
+
+$purple-700: mix(#FFFFFF, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-tint, 700)) !default;
+$purple-800: mix(#FFFFFF, map-get($o-cws-scale-bases, purple), map-get($o-cws-scale-tint, 800)) !default;
+$orange-700: mix(#FFFFFF, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-tint, 700)) !default;
+$orange-800: mix(#FFFFFF, map-get($o-cws-scale-bases, orange), map-get($o-cws-scale-tint, 800)) !default;
+$cyan-700: mix(#FFFFFF, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-tint, 700)) !default;
+$cyan-800: mix(#FFFFFF, map-get($o-cws-scale-bases, cyan), map-get($o-cws-scale-tint, 800)) !default;
+$red-700: mix(#FFFFFF, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-tint, 700)) !default;
+$red-800: mix(#FFFFFF, map-get($o-cws-scale-bases, red), map-get($o-cws-scale-tint, 800)) !default;

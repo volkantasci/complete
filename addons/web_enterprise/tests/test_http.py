@@ -118,6 +118,9 @@ class TestAdminMessage(TransactionCase):
 @tagged('post_install', '-at_install')
 class TestSessionInfo(HttpCase):
     def _session_info(self, user):
+        # the session information reads the user's settings in a read-only transaction, which
+        # cannot create the row: make it first (keeps an error out of the test log)
+        self.env['res.users.settings']._find_or_create_for_user(user)
         self.authenticate(user.login, user.login)
         return self.make_jsonrpc_request('/web/session/get_session_info', {})
 
@@ -236,11 +239,12 @@ class TestWebClientCookie(HttpCase):
         self.assertIn('Max-Age=0', cookies[0])
 
     def test_A61_browser_chrome_colour(self):
+        # 001b R9 supersedes 001a D9: primary colour and dark chrome colour
         self.authenticate('cws_wc_light', 'cws_wc_light')
         html = self.url_open('/odoo').text
-        self.assertIn('name="theme-color" content="#71639e"', html)
+        self.assertIn('name="theme-color" content="#714B67"', html)
         self.assertNotIn('web.assets_web_dark', html)
         self.authenticate('cws_wc_dark', 'cws_wc_dark')
         html = self.url_open('/odoo').text
-        self.assertIn('name="theme-color" content="#25262b"', html)
+        self.assertIn('name="theme-color" content="#242733"', html)
         self.assertIn('web.assets_web_dark', html)

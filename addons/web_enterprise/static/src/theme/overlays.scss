@@ -1,0 +1,126 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Dropdown menus, popovers, dialogs, tooltips and the command palette (001b R19, R35,
+// R36, R40). Frames, colours and the shadow come from the Bootstrap variables set in
+// the role files; this file adds what variables cannot say.
+
+// Bootstrap draws these shadows only when `$enable-shadows` is on, which would also add
+// shadows to every input; the frames take the normal shadow here instead.
+.dropdown-menu,
+.popover,
+.modal-content {
+    box-shadow: $o-cws-shadow;
+}
+
+// Items: a wash of the black role under the pointer or the keyboard focus (the Community
+// menus mark the focused item with `.focus`, which overrides the Bootstrap hover rule).
+.dropdown-menu .dropdown-item,
+.o-dropdown--menu .dropdown-item {
+    border-radius: $dropdown-item-border-radius;
+    // no gloss on items in light (the dark file adds the dark button gloss)
+    --#{$prefix}gradient: none;
+}
+
+.o-dropdown--menu .dropdown-item:not(.disabled, :disabled):is(:hover, :focus-visible, .focus),
+.o-dropdown--menu .ui-menu-item > a.ui-state-active:not(.o_m2o_start_typing, .o_m2o_no_result) {
+    background-color: $dropdown-link-hover-bg;
+    color: $dropdown-link-hover-color;
+}
+
+// Select-type menus (searchable selection lists): the menu padding only, no extra margin.
+.o-autocomplete--dropdown-menu {
+    .ui-menu-item,
+    .ui-menu-item > a,
+    .dropdown-item {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+}
+
+// The list of matching records under a record field (salesperson, tags): its own background
+// role and a lighter shadow. The control-panel search suggestions are not under a field widget
+// and stay plain dropdown menus.
+.o_field_widget .o-autocomplete--dropdown-menu {
+    background-color: $o-cws-record-list-bg;
+    box-shadow: $o-cws-record-list-shadow;
+}
+
+// Searchable selection lists (the Language field of the preferences dialog is one): their own
+// background role, the same 4 px padding as other menus, and the items sit flush against
+// each other (Community adds a margin above the first and below the last choice). The phone's
+// bottom sheet keeps the Community list as it is.
+.o_select_menu_menu:not(.o_bottom_sheet *) {
+    background-color: $o-cws-select-menu-bg;
+    // the component adds `p-0` (important); the menu padding of other menus applies here
+    padding: $dropdown-padding-y $dropdown-padding-x !important;
+
+    .o_select_menu_searchbox,
+    .o_select_menu_group {
+        background-color: $o-cws-select-menu-bg;
+    }
+
+    .o_select_menu-choices {
+        --SelectMenu-padding: 0;
+        --SelectMenuItem-margin-y: 0;
+    }
+
+    .o-dropdown-item,
+    .dropdown-item {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+}
+
+// Tooltips take the tooltip role instead of the popover roles.
+.popover:has(> .o-tooltip) {
+    --#{$prefix}popover-bg: #{$tooltip-bg};
+    --#{$prefix}popover-border-color: #{$o-cws-overlay-border};
+    --#{$prefix}popover-body-color: #{$tooltip-color};
+    --popover-arrow-color: #{$tooltip-bg};
+
+    // the label: a pill inside the frame, 4px by 8px of padding
+    .o-tooltip {
+        padding: 4px 8px;
+        border-radius: var(--#{$prefix}border-radius-pill);
+        background-color: $tooltip-bg;
+        color: $tooltip-color;
+    }
+}
+
+// Command palette (R40): 8 px frame, rows inset by 8 px with an 8 px radius.
+.o_command_palette {
+    --CommandPalette-inset: #{$o-cws-palette-inset};
+    --CommandPalette__item-border-radius: #{$o-border-radius-lg};
+
+    &.modal-content {
+        border-radius: o-to-rem(map-get($o-cws-radii, lg));
+        box-shadow: $o-cws-shadow;
+    }
+}
+
+// R37 (S31): the mobile bottom sheet and the backing Community draws behind it while it snaps.
+.o_bottom_sheet {
+    .o_bottom_sheet_sheet {
+        background-color: $o-cws-sheet-bg;
+        // Community feeds a shadow variable that nothing reads: the sheet draws the normal one
+        box-shadow: $o-cws-shadow;
+    }
+
+    // the body is a Community dropdown menu: here it is the sheet itself, not a panel on it
+    .o_bottom_sheet_body {
+        background-color: $o-cws-sheet-bg;
+        border-color: $o-cws-sheet-bg;
+        box-shadow: none;
+    }
+
+    // the chosen option: Community draws its border in a list-group colour; here it is the action role
+    .o_bottom_sheet_sheet .o_bottom_sheet_body:not(.o_custom_bottom_sheet)
+        .dropdown-item:not(.dropdown-item_active_noarrow):is(.active, .selected) {
+        border-color: $o-action;
+    }
+
+    &.o_bottom_sheet_snapping .o_bottom_sheet_rail::before {
+        background: $o-cws-sheet-bg;
+    }
+}

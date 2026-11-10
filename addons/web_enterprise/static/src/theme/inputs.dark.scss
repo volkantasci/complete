@@ -1,0 +1,21 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Range sliders, dark scheme only (001b R39): the track is grey 300 and a pressed thumb
+// is the primary lightened by 10 (the gloss over it is in inputs.scss). The colours are
+// custom properties so that a container (a popover, R35) can change the track.
+
+.form-range {
+    --o-cws-range-track: #{$o-gray-300};
+    --o-cws-range-thumb-active: #{lighten($o-brand-primary, 10%)};
+
+    // `:is(:enabled, :disabled)` lifts the specificity above the Bootstrap rules whatever the
+    // order, without leaving disabled sliders out (R39 has no disabled exception)
+    &:is(:enabled, :disabled)::-webkit-slider-runnable-track {
+        background-color: var(--o-cws-range-track);
+    }
+
+    &:is(:enabled, :disabled)::-moz-range-track {
+        background-color: var(--o-cws-range-track);
+    }
+}

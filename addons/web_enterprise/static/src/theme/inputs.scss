@@ -1,0 +1,28 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Inputs, check boxes, radios, range sliders and switches (001b R39).
+
+// Check boxes, radios and switches carry the control gloss once checked.
+.form-check-input:is(:checked, :indeterminate) {
+    --#{$prefix}gradient: #{$o-gradient-sm};
+}
+
+// Range sliders (R39, D9): a pressed thumb carries the control gloss over its fill. The
+// light fill is the component active background tinted 70 % toward white; the dark file
+// replaces the property with its own fill (and the track).
+.form-range {
+    --o-cws-range-thumb-active: #{tint-color($o-component-active-bg, 70%)};
+
+    // one rule per engine: a browser drops a whole list that holds a pseudo-element it
+    // does not know
+    &:is(:enabled, :disabled):active::-webkit-slider-thumb {
+        background-color: var(--o-cws-range-thumb-active);
+        background-image: $o-gradient-sm;
+    }
+
+    &:is(:enabled, :disabled):active::-moz-range-thumb {
+        background-color: var(--o-cws-range-thumb-active);
+        background-image: $o-gradient-sm;
+    }
+}

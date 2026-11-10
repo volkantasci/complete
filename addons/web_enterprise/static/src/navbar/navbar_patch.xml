@@ -33,13 +33,15 @@
             t-att-aria-describedby="this.currentApp and !this.hasBackChevron ? 'o_cws_brand_name' : undefined"
             t-on-click="this.onGridButtonClick"
           >
-            <i t-if="this.hasBackChevron" class="oi" data-icon="chevron_backward" aria-hidden="true"/>
-            <svg t-else="" class="o_cws_grid_icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <t t-foreach="[0, 1, 2]" t-as="row" t-key="row">
-                <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
-                  <rect width="3" height="3" t-att-x="0.5 + col * 5" t-att-y="0.5 + row * 5" fill="currentColor"/>
+            <svg class="o_cws_grid_icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <g class="o_cws_dots">
+                <t t-foreach="[0, 1, 2]" t-as="row" t-key="row">
+                  <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
+                    <rect width="3" height="3" t-att-x="0.5 + col * 5" t-att-y="0.5 + row * 5" fill="currentColor"/>
+                  </t>
                 </t>
-              </t>
+              </g>
+              <path class="o_cws_chevron" d="M10 1 4 7l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span t-if="this.currentApp" id="o_cws_brand_name" class="o_menu_brand o_cws_brand_name" t-att-class="{ 'o_hidden': this.isAppChromeHidden }" t-out="this.currentApp.name"/>
           </button>
@@ -88,7 +90,11 @@
   <!-- the icon of the mobile toggle -->
   <t t-name="web_enterprise.NavBar.AppsMenu.Sidebar" t-inherit="web.NavBar.AppsMenu.Sidebar" t-inherit-mode="extension">
     <xpath expr="//i[@data-icon='menu']" position="replace">
-      <i class="oi" t-att-data-icon="this.hasBackChevron ? 'chevron_backward' : 'menu'" aria-hidden="true"/>
+      <!-- the back state draws the chevron of the desktop button, not a font glyph -->
+      <svg t-if="this.hasBackChevron" class="o_cws_back_icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+        <path d="M10 1 4 7l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <i t-else="" class="oi" data-icon="menu" aria-hidden="true"/>
     </xpath>
   </t>
 

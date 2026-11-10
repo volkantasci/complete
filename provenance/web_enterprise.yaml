@@ -1,31 +1,88 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: web_enterprise
-slice: 001a-web-shell
-spec_sha256: 8f078bb61c318f9735c56dcf7ae5c02c2e5b004399639929e8bb870cd8d3a26d
+slice: 001b-web-theme
+spec_sha256: 47472b96cc93cb19ee6aa136021520e54a05ce2a1fe06f3ce795826c0ca172c7
 ee_build: "20261106"
 implementer_sessions:
-  - 20a89f88-639b-47e2-a8d8-709659e7d130
-verifier_session: d0482d55-f3a1-4e4b-be03-1c5061a29557
+  - 92cebd4f-139f-4329-9087-a512afc8ba6d
+verifier_session: 8fd5329c-94f1-411b-80f0-dfb8dd47e0cc
 overlap:
-  ratio: 0.0013
-  longest_run: 1
+  ratio: 0.0016
+  longest_run: 3
   reviewed_matches:
+    - file: addons/web_enterprise/__manifest__.py
+      line: 35
+      reason: asset directive following the Community naming convention
+    - file: addons/web_enterprise/__manifest__.py
+      line: 56
+      reason: asset directive following the Community naming convention
+    - file: addons/web_enterprise/__manifest__.py
+      line: 57
+      reason: bundle interface the spec requires
+    - file: addons/web_enterprise/__manifest__.py
+      line: 60
+      reason: bundle interface the spec requires
     - file: addons/web_enterprise/models/res_users.py
       line: 9
       reason: required interface
     - file: addons/web_enterprise/models/res_users_settings.py
       line: 10
       reason: required interface
+    - file: addons/web_enterprise/static/src/navbar/navbar_patch.scss
+      line: 344
+      reason: generic declaration with a spec value
+    - file: addons/web_enterprise/static/src/theme/form.scss
+      line: 25
+      reason: Community selector name
+    - file: addons/web_enterprise/static/src/theme/roles_dark.scss
+      line: 285
+      reason: Community theme variable set to a spec value
+    - file: addons/web_enterprise/static/src/theme/roles_light.scss
+      line: 460
+      reason: Community theme variable set to a spec value
+    - file: addons/web_enterprise/static/src/theme/search_panel.scss
+      line: 19
+      reason: Community selector name
     - file: addons/web_enterprise/static/tests/navbar.test.js
-      line: 188
+      line: 208
       reason: common test idiom
-audit_log_sha256: 67ec1d7b971e9eca3df2dbbf5327f5df5d7442e98e92d01009b53cd07f7d2ce4
-escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since"
+audit_log_sha256: 9b31f6bf8d034d9546149eab99219cb67c61a3d5fdec3257fc681ab2fefab8f6
+escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. In this slice, a repository-wide search by an implementer printed lines from planning notes of earlier slices, which sat untracked in the working tree; the implementer used them only to locate its own string. Searches now go through git grep, and the coordinator's notes move out of the repository."
 dates:
-  spec_approved: "2026-11-07"
-  implemented: "2026-11-08"
-  verified: "2026-11-08"
+  spec_approved: "2026-11-08"
+  implemented: "2026-11-10"
+  verified: "2026-11-10"
 approvals:
-  - "owner: spec approved at CP-spec (2026-11-07)"
-  - "owner: release approved at CP-release (2026-11-08)"
+  - "owner: spec approved at CP-spec (2026-11-08)"
+  - "owner: verification findings decided as D7-D10 (2026-11-09)"
+  - "owner: release approved at CP-release (2026-11-10)"
+earlier_slices:
+  - slice: 001a-web-shell
+    spec_sha256: 8f078bb61c318f9735c56dcf7ae5c02c2e5b004399639929e8bb870cd8d3a26d
+    ee_build: "20261106"
+    implementer_sessions:
+      - 20a89f88-639b-47e2-a8d8-709659e7d130
+    verifier_session: d0482d55-f3a1-4e4b-be03-1c5061a29557
+    overlap:
+      ratio: 0.0013
+      longest_run: 1
+      reviewed_matches:
+        - file: addons/web_enterprise/models/res_users.py
+          line: 9
+          reason: required interface
+        - file: addons/web_enterprise/models/res_users_settings.py
+          line: 10
+          reason: required interface
+        - file: addons/web_enterprise/static/tests/navbar.test.js
+          line: 188
+          reason: common test idiom
+    audit_log_sha256: 67ec1d7b971e9eca3df2dbbf5327f5df5d7442e98e92d01009b53cd07f7d2ce4
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since"
+    dates:
+      spec_approved: "2026-11-07"
+      implemented: "2026-11-08"
+      verified: "2026-11-08"
+    approvals:
+      - "owner: spec approved at CP-spec (2026-11-07)"
+      - "owner: release approved at CP-release (2026-11-08)"
