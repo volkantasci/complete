@@ -14,6 +14,8 @@ Every session is headless and starts from a handoff file, with auto memory off. 
 | Verifier | `complete-specs/` | EE, Complete (read only), the spec package | `review.md` and `verification/` in the package | opus |
 | Maintenance | `<ws>/complete-ops` | what the task needs, never EE | isolation files and tools | opus for isolation files, sonnet otherwise |
 
+Besides these, the coordinator is the owner's interactive session in `complete/`. It writes handoffs, checkpoints, docs and tools, and keeps its ledgers and drafts in `<ws>/complete-coord/`, outside both repositories, where sessions started in `complete/` cannot read them. It starts with `--add-dir <ws>/complete-coord`, a flag no other session gets. The directory is never saved in a settings file: the project and user settings apply to every session started in `complete/`, and `/add-dir` writes the directory into the local settings unless it is added for the session only.
+
 ## Starting a session
 
 ```sh
@@ -62,7 +64,7 @@ Anything the verifier sends back goes to the owner first. The owner's decisions 
 
 ## Rules slice 001b added
 
-- **Searches.** Implementers search with `git grep`, or exclude `.superpowers/` from any other recursive search. In 001b, a repository-wide search printed lines from untracked planning notes of earlier slices. The coordinator's workspaces move out of the repository before slice 001c.
+- **Searches.** Implementers search with `git grep`, or exclude `.superpowers/` from any other recursive search. In 001b, a repository-wide search printed lines from untracked planning notes of earlier slices. Since then the coordinator's workspaces live outside the repository (see [Sessions](#sessions)), and a probe session started in `complete/` could neither list nor read them.
 - **Containers.** Never run a container as root.
 - **Long runs wait inside the turn.** A subagent waits for its own background runs inside its turn. In 001b, the harness stopped two screenshot runs when the subagent that started them ended its turn to wait, and it never woke that subagent again.
 - **Probes leave shared demo data alone.** The verifier runs tours in automatic mode only on a scratch database, stops interactive tours after the steps it checks, and restores and reports anything a probe changes. The verifier template carries this rule.
