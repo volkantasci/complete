@@ -22,7 +22,11 @@ async function makePng(width = 40, height = 20) {
 }
 
 function pngSize(base64) {
-    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const text = atob(base64);
+    const bytes = new Uint8Array(text.length);
+    for (let index = 0; index < text.length; index++) {
+        bytes[index] = text.charCodeAt(index);
+    }
     const view = new DataView(bytes.buffer);
     return [view.getUint32(16), view.getUint32(20)];
 }

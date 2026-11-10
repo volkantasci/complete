@@ -4,6 +4,18 @@ import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 import { shareTargetService } from "@web/webclient/share_target/share_target_service";
 
+const CWM_SHARE_PREFIX = "/share_target.localhost/";
+
+/** Address under which the app serves one shared file. */
+function cwmSharedFileAddress(reference) {
+    return CWM_SHARE_PREFIX + "?uri=" + encodeURIComponent(reference);
+}
+
+/** Turn the fetched content into a file object. */
+function cwmBlobToFile(blob, name, type) {
+    return new File([blob], name, { type });
+}
+
 /**
  * Make the Community share step ask the app for the shared files instead of the service
  * worker. Returns a function that puts the Community behaviour back.
@@ -34,9 +46,7 @@ export function cwmInstallSharedFiles(mobile, notification) {
         for (const { uri, name, type } of described) {
             let blob = null;
             try {
-                const response = await fetch(
-                    `/share_target.localhost/?uri=${encodeURIComponent(uri)}`
-                );
+                const response = await fetch(cwmSharedFileAddress(uri));
                 blob = response.ok ? await response.blob() : null;
             } catch (failure) {
                 console.warn("[cwm] a shared file could not be read", failure);
@@ -45,7 +55,7 @@ export function cwmInstallSharedFiles(mobile, notification) {
                 warn(_t('The shared file "%s" could not be loaded from the app.', name));
                 return [];
             }
-            files.push(new File([blob], name, { type }));
+            files.push(cwmBlobToFile(blob, name, type));
         }
         return files;
     };

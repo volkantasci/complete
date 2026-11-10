@@ -96,10 +96,9 @@ class CwmDeviceCase(CwmHostCase):
 
     def start_report_download(self):
         """Print the invoice report when a PDF engine exists; else use the same helper."""
-        invoice = self.env['account.move'].search([
-            ('move_type', '=', 'out_invoice'),
-            ('company_id', '=', self.env.ref('base.user_admin').company_id.id),
-        ], limit=1)
+        company = self.env.ref('base.user_admin').company_id
+        company_moves = self.env['account.move'].search([('company_id', '=', company.id)])
+        invoice = company_moves.filtered(lambda move: move.move_type == 'out_invoice')[:1]
         self.assertTrue(invoice, 'no demo customer invoice')
         return self.js(f"""(async () => {{
             const env = {ENV};
@@ -153,9 +152,7 @@ class TestDownloads(CwmDeviceCase):
             self.start_report_download()
             self.wait("(window.__cwmHostLog || []).some((e) => e.action === 'downloadFile')")
             self.settle()
-            requests = self.requests('downloadFile')
-            self.assertEqual(len(requests), 1)
-            request = requests[0]
+            request = self.cwm_expect_one(self.requests('downloadFile'))
             self.assertTrue(request['url'].startswith('/'))
             self.assertNotIn('://', request['url'])
             self.assertIn('data', request['data'])

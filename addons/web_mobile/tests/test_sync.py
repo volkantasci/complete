@@ -226,9 +226,7 @@ class TestAccount(CwmSyncCase):
         with self.host_session(host={}, ua=self.UA_DESKTOP):
             self.wait_requests('updateAccount', 1)
             self.settle()
-            requests = self.account_requests()
-            self.assertEqual(len(requests), 1)
-            args = requests[0]
+            args = self.cwm_expect_one(self.account_requests())
             self.assertEqual(sorted(args), ACCOUNT_KEYS)
             self.assertEqual(args['name'], 'Mitchell Admin')
             self.assertEqual(args['username'], 'admin')

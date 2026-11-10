@@ -6,7 +6,7 @@
 // (the code the next detection reads; "" is an empty code).
 
 import { patch } from "@web/core/utils/patch";
-import { BarcodeVideoScanner } from "@web/core/barcode/barcode_video_scanner";
+import { BarcodeVideoScanner as CwmVideoScanner } from "@web/core/barcode/barcode_video_scanner";
 
 const camera = (window.cwmCamera = { mode: "ok", feed: null, requests: [], vibrations: [] });
 
@@ -53,7 +53,7 @@ if (navigator.mediaDevices) {
     };
 }
 
-patch(BarcodeVideoScanner.prototype, {
+patch(CwmVideoScanner.prototype, {
     async detectCode() {
         if (camera.feed !== null) {
             const code = camera.feed;

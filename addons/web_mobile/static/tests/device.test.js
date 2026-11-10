@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from "@odoo/hoot";
 import { tick } from "@odoo/hoot-mock";
 import { patchTranslations } from "@web/../tests/web_test_helpers";
 import { download,downloadFile } from "@web/core/network/download";
-import { BackButtonManager } from "@web/core/utils/hooks";
+import { BackButtonManager as CwmBackManager } from "@web/core/utils/hooks";
 import { installCwmHost } from "@web_mobile/../tests/helpers/fake_host";
 import { cwmDetectHost, cwmMakeBridge } from "@web_mobile/bridge/bridge_service";
 import { cwmInstallBackOverride } from "@web_mobile/device/back_override";
@@ -12,6 +12,11 @@ import { cwmInstallDownloadHandoff, cwmReducedAddress } from "@web_mobile/device
 import { cwmInstallNavigationNotice } from "@web_mobile/device/navigation_notice";
 
 describe.current.tags("headless");
+
+/** Simulates the app's back button: it reaches the page as a "backbutton" event (I4). */
+function pressDeviceBack() {
+    document.dispatchEvent(new Event("backbutton"));
+}
 
 const WARNING = "This file is generated in the page and can't be saved from inside the mobile app.";
 const undo = [];
@@ -141,7 +146,7 @@ function startBack(names = ["overrideBackButton"]) {
     const started = startBridge(names);
     undo.push(cwmInstallBackOverride(started.bridge));
     const flips = () => started.calls.map((c) => c.args.enabled);
-    return { ...started, flips, manager: new BackButtonManager() };
+    return { ...started, flips, manager: new CwmBackManager() };
 }
 
 const settle = async () => {
@@ -159,13 +164,13 @@ test("A33 popover: true then back closes then false", async () => {
         manager.removeListener(scope);
     });
     expect(flips()).toEqual([true]);
-    document.dispatchEvent(new Event("backbutton"));
+    pressDeviceBack();
     await settle();
     expect(closed).toEqual(["popover"]);
     expect(flips()).toEqual([true, false]);
     expect(history.length).toBe(length);
     // the listener is gone
-    document.dispatchEvent(new Event("backbutton"));
+    pressDeviceBack();
     expect(closed.length).toBe(1);
 });
 
@@ -182,11 +187,11 @@ test("A34 two layers: top first, on once, off once", async () => {
         closed.push("popover");
         manager.removeListener(popover);
     });
-    document.dispatchEvent(new Event("backbutton"));
+    pressDeviceBack();
     await settle();
     expect(closed).toEqual(["popover"]);
     expect(flips()).toEqual([true]);
-    document.dispatchEvent(new Event("backbutton"));
+    pressDeviceBack();
     await settle();
     expect(closed).toEqual(["popover", "dialog"]);
     expect(flips()).toEqual([true, false]);
@@ -208,7 +213,7 @@ test("layer swap in one tick sends nothing extra", async () => {
 
 test("A35 no capability: Community manager untouched", () => {
     const { calls } = startBack(["downloadFile"]);
-    expect(BackButtonManager.prototype._activate.toString().includes("_cwm")).toBe(false);
+    expect(CwmBackManager.prototype._activate.toString().includes("_cwm")).toBe(false);
     expect(calls.length).toBe(0);
 });
 

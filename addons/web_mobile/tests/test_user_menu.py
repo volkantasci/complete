@@ -87,14 +87,13 @@ class TestUserMenu(CwmUserMenuCase):
     def test_A10_no_host_keeps_log_out(self):
         if not self._is_installed('crm'):
             self.skipTest('crm is not installed')
-        for mobile in (False, True):
-            with self.subTest(mobile=mobile):
-                with self.host_session('/odoo/crm', host=None, mobile=mobile,
-                                       ua=self.UA_ANDROID if mobile else self.UA_DESKTOP):
-                    texts = self._entries(mobile)
-                    self.assertEqual(texts[-1], LOG_OUT)
-                    self.assertNotIn(SHORTCUT, texts)
-                    self.assertNotIn(SWITCH, texts)
+        for mobile in self.cwm_both_forms():
+            with self.host_session('/odoo/crm', host=None, mobile=mobile,
+                                   ua=self.UA_ANDROID if mobile else self.UA_DESKTOP):
+                texts = self._entries(mobile)
+                self.assertEqual(texts[-1], LOG_OUT)
+                self.assertNotIn(SHORTCUT, texts)
+                self.assertNotIn(SWITCH, texts)
 
     def test_A11_shortcut_in_crm(self):
         if not self._is_installed('crm'):
@@ -109,9 +108,7 @@ class TestUserMenu(CwmUserMenuCase):
             self._entries(True)
             self._choose(SHORTCUT)
             self.wait("window.__cwmHostLog.some((e) => e.action === 'cwm_shortcut')")
-            requests = self.host_requests('cwm_shortcut')
-            self.assertEqual(len(requests), 1)
-            args = requests[0]['args']
+            args = self.cwm_expect_one(self.host_requests('cwm_shortcut'))['args']
             self.assertEqual(set(args), {'title', 'shortcut_url', 'web_icon'})
             self.assertEqual(args['title'], title)
             self.assertEqual(args['shortcut_url'], url)
@@ -123,17 +120,16 @@ class TestUserMenu(CwmUserMenuCase):
             self.assertEqual(self.js('document.title'), title)
 
     def test_A12_shortcut_on_home_menu(self):
-        for mobile in (False, True):
-            with self.subTest(mobile=mobile):
-                with self.host_session('/odoo', host=MAIN_PLUGINS_HOST, mobile=mobile):
-                    self.wait("odoo.__WOWL_DEBUG__.root.env.services.home_menu.hasHomeMenu")
-                    self._entries(mobile)
-                    self._choose(SHORTCUT)
-                    self.wait(f"document.querySelectorAll({json.dumps(NOTE)}).length > 0")
-                    self.assertEqual(self._notes(), [HOME_NOTICE])
-                    bar = json.dumps(NOTE + ' .o_notification_bar.bg-warning')
-                    self.assertEqual(self.js(f"document.querySelectorAll({bar}).length"), 1)
-                    self.assertEqual(self.host_requests('cwm_shortcut'), [])
+        for mobile in self.cwm_both_forms():
+            with self.host_session('/odoo', host=MAIN_PLUGINS_HOST, mobile=mobile):
+                self.wait("odoo.__WOWL_DEBUG__.root.env.services.home_menu.hasHomeMenu")
+                self._entries(mobile)
+                self._choose(SHORTCUT)
+                self.wait(f"document.querySelectorAll({json.dumps(NOTE)}).length > 0")
+                self.assertEqual(self._notes(), [HOME_NOTICE])
+                bar = json.dumps(NOTE + ' .o_notification_bar.bg-warning')
+                self.assertEqual(self.js(f"document.querySelectorAll({bar}).length"), 1)
+                self.assertEqual(self.host_requests('cwm_shortcut'), [])
 
     def test_A13_glyph_app(self):
         action = self.env['ir.actions.act_window'].create({
@@ -164,20 +160,18 @@ class TestUserMenu(CwmUserMenuCase):
     def test_A14_switch_account(self):
         if not self._is_installed('crm'):
             self.skipTest('crm is not installed')
-        for mobile in (False, True):
-            with self.subTest(mobile=mobile):
-                with self.host_session('/odoo/crm', host=MAIN_PLUGINS_HOST, mobile=mobile):
-                    self.wait("!!document.querySelector('.o_action')")
-                    url = self.js('window.location.href')
-                    self._entries(mobile)
-                    self._choose(SWITCH)
-                    self.wait("window.__cwmHostLog.some((e) => e.action === 'cwm_switch')")
-                    requests = self.host_requests('cwm_switch')
-                    self.assertEqual(len(requests), 1)
-                    self.assertEqual(requests[0]['args'], {})
-                    self.assertEqual(self.js('window.location.href'), url)
-                    info = self.js("""fetch('/web/session/get_session_info', {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({jsonrpc: '2.0', method: 'call', params: {}}),
-                    }).then((r) => r.json()).then((j) => j.result && j.result.uid)""")
-                    self.assertEqual(info, self.env.ref('base.user_admin').id)
+        for mobile in self.cwm_both_forms():
+            with self.host_session('/odoo/crm', host=MAIN_PLUGINS_HOST, mobile=mobile):
+                self.wait("!!document.querySelector('.o_action')")
+                url = self.js('window.location.href')
+                self._entries(mobile)
+                self._choose(SWITCH)
+                self.wait("window.__cwmHostLog.some((e) => e.action === 'cwm_switch')")
+                only = self.cwm_expect_one(self.host_requests('cwm_switch'))
+                self.assertEqual(only['args'], {})
+                self.assertEqual(self.js('window.location.href'), url)
+                info = self.js("""fetch('/web/session/get_session_info', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({jsonrpc: '2.0', method: 'call', params: {}}),
+                }).then((r) => r.json()).then((j) => j.result && j.result.uid)""")
+                self.assertEqual(info, self.env.ref('base.user_admin').id)

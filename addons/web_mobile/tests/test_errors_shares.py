@@ -50,9 +50,7 @@ class TestErrorReport(CwmHostCase):
             self.throw_later()
             self.wait("!!document.querySelector('.o_error_dialog')")
             self.wait("(window.__cwmHostLog || []).some((e) => e.action === 'crashManager')")
-            requests = self.host_requests('crashManager')
-            self.assertEqual(len(requests), 1)
-            args = requests[0]['args']
+            args = self.cwm_expect_one(self.host_requests('crashManager'))['args']
             self.assertIn('name', args)
             self.assertIn('traceback', args)
             self.assertIn('originalError', args)

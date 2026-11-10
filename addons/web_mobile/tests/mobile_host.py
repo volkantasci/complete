@@ -40,6 +40,18 @@ class CwmHostCase(HttpCase):
         'Chrome/126.0.0.0 Safari/537.36'
     )
 
+    def cwm_expect_one(self, calls):
+        """Fail unless exactly one call was recorded; return it."""
+        if len(calls) != 1:
+            self.fail(f'expected a single call, saw {len(calls)}: {calls}')
+        return calls[0]
+
+    def cwm_both_forms(self):
+        """Yield ``False`` (desktop) then ``True`` (phone), each under its own labelled run."""
+        for phone in (False, True):
+            with self.subTest(form='phone' if phone else 'desktop'):
+                yield phone
+
     def setUp(self):
         super().setUp()
         # no onboarding tour over the pages

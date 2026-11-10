@@ -6,6 +6,16 @@ import { registry } from "@web/core/registry";
 import "@web/webclient/user_menu/user_menu_items";
 import { cwmDetectedHost } from "@web_mobile/bridge/bridge_service";
 
+/** The two menu labels the spec prescribes. */
+const cwmLabels = {
+    get shortcut() {
+        return _t("Add to Home Screen");
+    },
+    get switchAccount() {
+        return _t("Switch/Add Account");
+    },
+};
+
 const CWM_DATA_URL = /^data:[^,;]*;base64,(.+)$/s;
 
 /**
@@ -28,7 +38,7 @@ export function cwmShortcutEntry(env) {
     return {
         type: "item",
         id: "web_mobile.shortcut",
-        description: _t("Add to Home Screen"),
+        description: cwmLabels.shortcut,
         sequence: 100,
         callback() {
             const { menu, home_menu: home, mobile } = env.services;
@@ -65,7 +75,7 @@ export function cwmSwitchEntry(env) {
     return {
         type: "item",
         id: "web_mobile.switch",
-        description: _t("Switch/Add Account"),
+        description: cwmLabels.switchAccount,
         sequence: 100,
         callback() {
             env.services.mobile

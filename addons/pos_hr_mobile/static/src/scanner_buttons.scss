@@ -4,9 +4,11 @@
 // Primary buttons inside the mobile barcode container: the action colour of the bundle
 // (teal in Complete's theme, where it is the action role) with white text. Nothing on the
 // login screen sits inside this container.
+$cwm-action-fill: $o-enterprise-action-color;
+
 .o_barcode_mobile_container .btn-primary {
-    background-color: $o-enterprise-action-color;
-    border-color: $o-enterprise-action-color;
+    background: $cwm-action-fill;
+    border-color: $cwm-action-fill;
     color: #fff;
 }
 

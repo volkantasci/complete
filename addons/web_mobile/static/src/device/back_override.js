@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { registry } from "@web/core/registry";
 import { patch } from "@web/core/utils/patch";
-import { BackButtonManager } from "@web/core/utils/hooks";
+import { BackButtonManager as CwmBackManager } from "@web/core/utils/hooks";
 
 /**
  * Make the Community back-aware layers use the app's back button instead of browser history.
@@ -18,7 +18,7 @@ export function cwmInstallBackOverride(mobile) {
         mobile
             .overrideBackButton({ enabled })
             .catch((error) => console.warn("[cwm] the app refused the back button request", error));
-    return patch(BackButtonManager.prototype, {
+    return patch(CwmBackManager.prototype, {
         _activate() {
             this._cwmOffPending = false;
             if (this._cwmOn) {
