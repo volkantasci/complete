@@ -70,8 +70,14 @@
         margin-block: 8px !important;
     }
 
+    // The drop zone replaces the panel content: flush with the top and the sides of the column,
+    // 16 px below (Community puts a utility margin on every side). Its fill and border come
+    // from the action role of the active scheme (Community uses a light literal for both).
     .o_calendar_unschedule_zone {
-        margin-bottom: 16px !important;
+        margin: 0 0 16px !important;
+        border: 1px solid rgba($o-action, .4);
         border-radius: 12px;
+        background-color: mix($o-action, $o-view-background-color, 10%);
+        color: $body-color;
     }
 }

@@ -1115,33 +1115,66 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
             got = self.style('.o_other_calendar_panel', 'padding-left', 'padding-right')
             self.assertEqual((got['padding-left'], got['padding-right']), ('8px', '16px'))
 
+    def _drag_event_until_zone(self):
+        """Press a scheduled event and drag it until the drop zone shows; returns the release."""
+        self.ready('.fc-event')
+        self.pointer_to('.fc-event')  # scrolls it into view
+        box = self.rect('.fc-event')
+        request = self.browser._websocket_request
+        x, y = box['x'] + 10, box['y'] + min(box['height'] / 2, 10)
+        request('Input.dispatchMouseEvent', params={'type': 'mouseMoved', 'x': x, 'y': y})
+        request('Input.dispatchMouseEvent', params={
+            'type': 'mousePressed', 'x': x, 'y': y, 'button': 'left', 'clickCount': 1})
+        for step in range(1, 11):
+            self.js("new Promise((resolve) => setTimeout(resolve, 60))")
+            request('Input.dispatchMouseEvent', params={
+                'type': 'mouseMoved', 'x': x - 20 * step, 'y': y + 15 * step,
+                'button': 'left', 'buttons': 1})
+        self.wait("!!document.querySelector('.o_calendar_unschedule_zone')", timeout=10)
+
+        def release():
+            request('Input.dispatchMouseEvent', params={
+                'type': 'mouseReleased', 'x': x - 200, 'y': y + 150,
+                'button': 'left', 'clickCount': 1})
+        return release
+
     def test_A117_unscheduled_zone(self):
-        with self.page(self.schedule_url, size=(1600, 900)):
-            self.ready('.fc-event')
-            # the zone shows while a scheduled event is dragged
-            self.pointer_to('.fc-event')  # scrolls it into view
-            box = self.rect('.fc-event')
-            request = self.browser._websocket_request
-            x, y = box['x'] + 10, box['y'] + min(box['height'] / 2, 10)
-            request('Input.dispatchMouseEvent', params={
-                'type': 'mouseMoved', 'x': x, 'y': y})
-            request('Input.dispatchMouseEvent', params={
-                'type': 'mousePressed', 'x': x, 'y': y, 'button': 'left', 'clickCount': 1})
-            for step in range(1, 11):
-                self.js("new Promise((resolve) => setTimeout(resolve, 60))")
-                request('Input.dispatchMouseEvent', params={
-                    'type': 'mouseMoved', 'x': x - 20 * step, 'y': y + 15 * step,
-                    'button': 'left', 'buttons': 1})
-            try:
-                self.wait("!!document.querySelector('.o_calendar_unschedule_zone')", timeout=10)
-                got = self.style(
-                    '.o_calendar_unschedule_zone', 'border-top-left-radius',
-                    'border-bottom-right-radius', 'margin-bottom')
-                self.assertEqual(tuple(got.values()), ('12px', '12px', '16px'))
-            finally:
-                request('Input.dispatchMouseEvent', params={
-                    'type': 'mouseReleased', 'x': x - 200, 'y': y + 150,
-                    'button': 'left', 'clickCount': 1})
+        for scheme, fill, line in (
+            ('light', '#E6F2F3', '#017E84'), ('dark', '#2A3C41', '#1CBCB1'),
+        ):
+            with self.page(self.schedule_url, scheme=scheme, size=(1600, 900)):
+                release = self._drag_event_until_zone()
+                try:
+                    zone = '.o_calendar_unschedule_zone'
+                    got = self.style(
+                        zone, 'border-top-left-radius', 'border-bottom-right-radius',
+                        'margin-top', 'margin-left', 'margin-right', 'margin-bottom',
+                        'border-top-width', 'border-top-style', 'border-left-color',
+                        'border-bottom-color', 'background-color', 'color')
+                    self.assertEqual(
+                        (got['border-top-left-radius'], got['border-bottom-right-radius']),
+                        ('12px', '12px'))
+                    self.assertEqual(
+                        [got[k] for k in ('margin-top', 'margin-left', 'margin-right',
+                                          'margin-bottom')],
+                        ['0px', '0px', '0px', '16px'])
+                    self.assertEqual((got['border-top-width'], got['border-top-style']),
+                                     ('1px', 'solid'))
+                    self.assertColour(got['border-left-color'], line, alpha=.4)
+                    self.assertColour(got['border-bottom-color'], line, alpha=.4)
+                    self.assertColour(got['background-color'], fill)
+                    self.assertEqual(self.style(f'{zone} b', 'color')['color'],
+                                     self.style('.o_web_client', 'color')['color'])
+                    # level with the frame, as wide as the panel column
+                    column = self.rect('.o_calendar_sidepanel_container')
+                    frame = self.rect('.o_calendar_renderer')
+                    box = self.rect(zone)
+                    self.assertAlmostEqual(box['y'], frame['y'], delta=1)
+                    self.assertAlmostEqual(box['x'], column['x'], delta=1)
+                    self.assertAlmostEqual(box['width'], 261, delta=1)
+                    self.assertAlmostEqual(box['width'] + 16, column['width'], delta=1)
+                finally:
+                    release()
 
     # -- A80 sheet and stat button ----------------------------------------------------
 
