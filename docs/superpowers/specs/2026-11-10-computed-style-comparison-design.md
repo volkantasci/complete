@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-11-10 |
-| **Status** | Draft. Approach approved 2026-11-10: extend the capture harness; a separate tooling session builds it |
+| **Status** | Approved 2026-11-10, both the approach and this document: extend the capture harness; a separate tooling session builds it |
 | **Owner** | Volkan TASCI |
 | **Scope** | A measurement step and comparison commands for the capture harness, and how the analyst and the verifier use them from slice 001c on |
 
