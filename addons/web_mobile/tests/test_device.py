@@ -133,6 +133,11 @@ class CwmDeviceCase(CwmHostCase):
             return true;
         }})()""")
 
+    def frames(self):
+        """Resolve after the page rendered twice and ran its pending tasks (no timer)."""
+        self.js("""new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(
+            () => setTimeout(() => done(true), 0))))""")
+
     def press_back(self):
         self.js("document.dispatchEvent(new Event('backbutton')); true")
 
@@ -312,11 +317,13 @@ class TestBackButton(CwmDeviceCase):
             self.wait_flips([True])
             self.add_probe('popover', anchor='.modal-body')
             self.wait("!!document.querySelector('.o_cwm_probe')")
+            self.frames()  # the popover registered its back handling
             self.press_back()
             self.wait("!document.querySelector('.o_cwm_probe')")
-            self.settle()
+            self.frames()
             self.assertTrue(self.js("!!document.querySelector('.modal')"))
             self.assertEqual(self.flips(), [True])
+            self.frames()
             self.press_back()
             self.wait("!document.querySelector('.modal')")
             self.wait_flips([True, False])

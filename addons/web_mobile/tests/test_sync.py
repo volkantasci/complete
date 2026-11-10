@@ -120,23 +120,28 @@ class TestAppList(CwmSyncCase):
             self.assertNotIn('debug', first['link'])
             self.assertTrue(first['name'])
             self.assertEqual(base64.b64decode(first['pngIcon'])[:8], PNG_SIGNATURE)
-            self.assertEqual(first['xmlid'], 'mail.menu_root_discuss')
-            self.assertEqual(first['name'], 'Discuss')
+            if self._is_installed('mail'):
+                self.assertEqual(first['xmlid'], 'mail.menu_root_discuss')
+                self.assertEqual(first['name'], 'Discuss')
+            # the tile to open and to drag is the last one, whatever apps are installed
+            if len(tiles) < 2:
+                self.skipTest('fewer than two applications installed')
+            last = tiles[-1]
             # A16: open an app and come back, twice: nothing more is sent
             for _ in range(2):
-                self.open_tile('crm.crm_menu_root')
+                self.open_tile(last)
                 self.back_home()
 
             self.settle()
             self.assertEqual(len(self.app_lists()), 1)
-            # A17: drag the CRM tile to the first place
-            self.drag_tile_first('crm.crm_menu_root')
+            # A17: drag the last tile to the first place
+            self.drag_tile_first(last)
             self.wait_requests('updateAvailableApps', 2)
-            self.open_tile('crm.crm_menu_root')
+            self.open_tile(last)
             self.back_home()
             lists = self.app_lists()
             self.assertEqual(len(lists), 2)
-            self.assertEqual(lists[1][0]['xmlid'], 'crm.crm_menu_root')
+            self.assertEqual(lists[1][0]['xmlid'], last)
             self.assertEqual(
                 [entry['xmlid'] for entry in lists[1]], self.tile_xmlids())
             self.assertEqual(
@@ -207,7 +212,9 @@ class TestAppList(CwmSyncCase):
             self.assertEqual(by_name['Cwm Glyph']['xmlid'], 'cwm_test.cwm_glyph')
             self.assertEqual(by_name['Cwm Glyph']['link'], f'/odoo/action-{glyph_action.id}')
             self.assertEqual(by_name['Cwm Svg']['link'], '/odoo/cwm-svg')
-            self.assertTrue(by_name['Discuss']['pngIcon'])
+            self.assertTrue(any(
+                entry['pngIcon'] for name, entry in by_name.items()
+                if not name.startswith('Cwm ')))
 
 
 class TestAccount(CwmSyncCase):

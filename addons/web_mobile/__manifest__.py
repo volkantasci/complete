@@ -21,9 +21,6 @@
             'web_mobile/static/tests/**/*.test.js',
             'web_mobile/static/tests/helpers/**/*',
         ],
-        'web.assets_tests': [
-            'web_mobile/static/tests/tours/**/*',
-        ],
     },
     'installable': True,
     'application': False,
