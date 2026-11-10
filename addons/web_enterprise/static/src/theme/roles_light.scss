@@ -92,6 +92,10 @@ $o-cws-overlay-bg: $o-white !default;
 $o-cws-sheet-bg: $o-gray-100 !default;
 // Searchable selection lists (R19, D9): grey 100 in light, the overlay background in dark.
 $o-cws-select-menu-bg: $o-gray-100 !default;
+// The list of matching records under a record field (R19, D9): the same background role, and a
+// shadow of its own that is lighter than the normal one, in both schemes.
+$o-cws-record-list-bg: $o-gray-100 !default;
+$o-cws-record-list-shadow: 0 4.8px 16px rgba(#000, .1) !default;
 $o-border-color: $o-gray-300 !default;
 $o-cws-overlay-border: $o-border-color !default;
 

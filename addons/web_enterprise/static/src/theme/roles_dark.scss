@@ -81,6 +81,7 @@ $o-cws-overlay-bg: $o-gray-300 !default;
 // The mobile bottom sheet: grey 300, like the other overlays.
 $o-cws-sheet-bg: $o-gray-300 !default;
 $o-cws-select-menu-bg: $o-cws-overlay-bg !default;
+$o-cws-record-list-bg: $o-cws-overlay-bg !default;
 $o-cws-overlay-border: $o-gray-400 !default;
 
 $tooltip-bg: map-get($o-grays, 300) !default;

@@ -367,7 +367,8 @@ class TestThemeRibbon(ThemeProbeCase):
                     r'linear-gradient\(145deg, rgba\(' + tone + r', 0\.25\)')
 
 
-SHADOW = re.compile(r'rgba\(0, 0, 0, ([0-9.]+)\) (-?\d+)px (-?\d+)px (\d+)px (-?\d+)px')
+SHADOW = re.compile(
+    r'rgba\(0, 0, 0, ([0-9.]+)\) (-?[\d.]+)px (-?[\d.]+)px ([\d.]+)px (-?[\d.]+)px')
 USER_MENU = '.o_user_menu'
 MENU = '.o-dropdown--menu'
 ITEM = '.o-dropdown--menu .dropdown-item'
@@ -437,10 +438,8 @@ class OverlayMixin:
         match = SHADOW.fullmatch(value)
         self.assertTrue(match, f'unexpected shadow {value!r}')
         self.assertAlmostEqual(float(match.group(1)), alpha, places=2)
-        self.assertEqual(
-            (int(match.group(2)), int(match.group(3)), int(match.group(4))),
-            (offset[0], offset[1], blur),
-        )
+        for found, wanted in zip(match.group(2, 3, 4), (*offset, blur), strict=True):
+            self.assertAlmostEqual(float(found), wanted, places=1)
 
     def open_user_menu(self):
         self.wait(f"!!document.querySelector('{USER_MENU}')")
@@ -529,7 +528,8 @@ class TestThemeDropdowns(OverlayMixin, ThemeProbeCase):
                 for selector in (f'{menu} .ui-menu-item', f'{menu} .dropdown-item'):
                     margins = self.style(selector, 'margin-top', 'margin-bottom')
                     self.assertEqual(set(margins.values()), {'0px'}, f'{selector} {margins}')
-                self.assertFrame(menu, 12, scheme)
+                got = self.style(menu, 'border-top-left-radius', 'border-top-width')
+                self.assertEqual(tuple(got.values()), ('12px', '1px'))
                 # the active row of the autocomplete takes the dark hover gloss (R19)
                 row = f'{menu} .ui-menu-item > a:not(.o_m2o_start_typing, .o_m2o_no_result)'
                 self.js(f"document.querySelector({row!r}).classList.add('ui-state-active')")
@@ -709,6 +709,132 @@ class TestThemeDialogPalette(OverlayMixin, ThemeProbeCase):
                 with self.forced(item, 'hover'):
                     self.assertColour(
                         self.style(item, 'background-color')['background-color'], wash, alpha=.08)
+
+    # -- A137 / A138 lists that open under a field -------------------------------------
+
+    def _open_record_list(self, field):
+        selector = f'.o_field_widget[name="{field}"] input'
+        self.wait(f"!!document.querySelector('{selector}')")
+        self.js(f"document.querySelector('{selector}').click()")
+        self.wait("document.querySelectorAll("
+                  "'.o-autocomplete--dropdown-menu .dropdown-item').length > 1")
+        self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+
+    def test_A137_record_field_list(self):
+        menu = '.o-autocomplete--dropdown-menu'
+        item = f'{menu} .ui-menu-item > a.dropdown-item:not(.o_m2o_start_typing, .o_m2o_no_result)'
+        for scheme, background, border, wash in (
+            ('light', '#F8F9FA', '#DEE2E6', '#000000'),
+            ('dark', '#3E3F47', '#56575E', '#FFFFFF'),
+        ):
+            for field in ('user_id', 'category_id'):
+                with self.page(self.fixtures['record_form_url'], scheme=scheme):
+                    self._open_record_list(field)
+                    got = self.style(
+                        menu, 'background-color', 'border-top-color', 'border-top-width',
+                        'border-top-left-radius', 'border-bottom-right-radius', 'box-shadow',
+                        'padding-top', 'padding-left', 'padding-right', 'padding-bottom')
+                    self.assertColour(got['background-color'], background)
+                    self.assertColour(got['border-top-color'], border)
+                    self.assertEqual(got['border-top-width'], '1px')
+                    self.assertEqual(got['border-top-left-radius'], '12px')
+                    self.assertEqual(got['border-bottom-right-radius'], '12px')
+                    self.assertShadow(got['box-shadow'], .1, offset=(0, 4.8))
+                    self.assertEqual(
+                        [got[k] for k in ('padding-top', 'padding-left', 'padding-right',
+                                          'padding-bottom')], ['4px'] * 4)
+                    cells = self.style(
+                        item, 'border-top-left-radius', 'padding-top', 'padding-left',
+                        'padding-right', 'padding-bottom')
+                    self.assertEqual(cells['border-top-left-radius'], '8px')
+                    self.assertEqual(
+                        [cells[k] for k in ('padding-top', 'padding-bottom')], ['3px'] * 2)
+                    self.assertEqual(
+                        [cells[k] for k in ('padding-left', 'padding-right')], ['20px'] * 2)
+                    self.assertAlmostEqual(self.rect(item)['height'], 27, delta=.6)
+                    with self.forced(item, 'hover'):
+                        self.assertColour(
+                            self.style(item, 'background-color')['background-color'], wash,
+                            alpha=.08)
+                        self.assertColour(
+                            self.style(item, 'color')['color'],
+                            '#000000' if scheme == 'light' else '#FFFFFF', tol=2)
+
+    def test_A137_search_suggestions_stay_plain(self):
+        menu = '.o_searchview_autocomplete'
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme):
+                self.wait("!!document.querySelector('.o_searchview_input')")
+                self.js("""(() => {
+                    const input = document.querySelector('.o_searchview_input');
+                    input.focus();
+                    input.value = 'cws';
+                    input.dispatchEvent(new Event('input', {bubbles: true}));
+                })()""")
+                self.wait(f"!!document.querySelector('{menu} .o-dropdown-item')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+                self.assertFrame(menu, 12, scheme)
+
+    def test_A138_phone_selection_list(self):
+        sheet = '.o_bottom_sheet .o_bottom_sheet_sheet'
+        option = '.o_bottom_sheet .o_select_menu_item'
+        for scheme, background, selected, line in (
+            ('light', '#F8F9FA', '#E6F2F3', '#017E84'),
+            ('dark', '#3E3F47', '#56575E', '#1CBCB1'),
+        ):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme, size=(390, 844),
+                           touch=True):
+                self._open_preferences()
+                toggler = '.o_dialog .o_field_widget[name="lang"] .o_select_menu_toggler'
+                self.wait(f"!!document.querySelector('{toggler}')")
+                self.js(f"document.querySelector('{toggler}').click()")
+                self.wait(f"!!document.querySelector('{option}')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+                got = self.style(
+                    sheet, 'background-color', 'border-top-left-radius',
+                    'border-top-right-radius', 'border-bottom-left-radius', 'box-shadow')
+                self.assertColour(got['background-color'], background)
+                self.assertEqual(
+                    [got[k] for k in ('border-top-left-radius', 'border-top-right-radius',
+                                      'border-bottom-left-radius')], ['12px', '12px', '0px'])
+                self.assertShadow(got['box-shadow'], .15 if scheme == 'light' else .30)
+                backdrop = self.js(
+                    "(() => { const cs = getComputedStyle(document.querySelector("
+                    "'.o_bottom_sheet .o_bottom_sheet_backdrop'));"
+                    " return [cs.backgroundColor, parseFloat(cs.opacity)]; })()")
+                self.assertEqual(parse_colour(backdrop[0])[:3], (0, 0, 0))
+                self.assertAlmostEqual(
+                    parse_colour(backdrop[0])[3] * backdrop[1], .25, delta=.02)
+                row = self.style(
+                    option, 'margin-left', 'margin-right', 'padding-top', 'padding-bottom',
+                    'padding-left', 'border-top-left-radius')
+                self.assertEqual((row['margin-left'], row['margin-right']), ('16px', '16px'))
+                self.assertEqual((row['padding-top'], row['padding-bottom']), ('16px', '16px'))
+                self.assertEqual(row['padding-left'], '16px')
+                self.assertEqual(row['border-top-left-radius'], '8px')
+                active = f'{option}.selected, {option}.active'
+                self.wait(f"!!document.querySelector('{active}')")
+                mark = self.style(active, 'background-color', 'border-top-width',
+                                  'border-top-style', 'border-top-color')
+                self.assertColour(mark['background-color'], selected, alpha=.5)
+                self.assertEqual((mark['border-top-width'], mark['border-top-style']),
+                                 ('1px', 'solid'))
+                self.assertColour(mark['border-top-color'], line)
+        # a record field opens a full-screen search dialog on the view background
+        for scheme, view in (('light', '#FFFFFF'), ('dark', '#2C2E35')):
+            with self.page(self.fixtures['record_form_url'], scheme=scheme, size=(390, 844),
+                           touch=True):
+                field = '.o_field_widget[name="user_id"] input'
+                self.wait(f"!!document.querySelector('{field}')")
+                self.js(f"document.querySelector('{field}').click()")
+                dialog = '.o_dialog .modal-content'
+                self.wait(f"!!document.querySelector('{dialog}')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 500))")
+                self.assertColour(self.style(dialog, 'background-color')['background-color'],
+                                  view)
+                box = self.rect(dialog)
+                self.assertAlmostEqual(box['width'], 390, delta=1)
+                self.assertAlmostEqual(box['height'], 844, delta=1)
 
     def test_A90_dialog_backdrop(self):
         for scheme, view_bg, line in (

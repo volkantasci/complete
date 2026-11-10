@@ -111,6 +111,18 @@ DATE_FORM = """
 </form>
 """
 
+RECORD_FORM = """
+<form string="Fixture">
+    <sheet>
+        <group>
+            <field name="name"/>
+            <field name="user_id"/>
+            <field name="category_id" widget="many2many_tags"/>
+        </group>
+    </sheet>
+</form>
+"""
+
 CALENDAR = """
 <calendar string="Fixture" date_start="create_date" mode="month" color="color">
     <field name="name"/>
@@ -199,6 +211,8 @@ def build_theme_fixtures(env):
         domain=[('id', '=', rate.id)],
     )
     fixtures['date_form_url'] = f'/odoo/action-{date_action.id}/{rate.id}'
+    record_action = _action(env, 'record_form', [('list', LIST), ('form', RECORD_FORM)])
+    fixtures['record_form_url'] = f'/odoo/action-{record_action.id}/{partners[0].id}'
     fixtures['apps_kanban_url'] = '/odoo/action-base.open_module_tree?view_type=kanban'
     fixtures['apps_list_url'] = '/odoo/action-base.open_module_tree?view_type=list'
     fixtures['settings_url'] = '/odoo/action-base_setup.action_general_configuration'

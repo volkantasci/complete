@@ -38,6 +38,14 @@
     }
 }
 
+// The list of matching records under a record field (salesperson, tags): its own background
+// role and a lighter shadow. The control-panel search suggestions are not under a field widget
+// and stay plain dropdown menus.
+.o_field_widget .o-autocomplete--dropdown-menu {
+    background-color: $o-cws-record-list-bg;
+    box-shadow: $o-cws-record-list-shadow;
+}
+
 // Searchable selection lists (the Language field of the preferences dialog is one): their own
 // background role, the same 4 px padding as other menus, and the items sit flush against
 // each other (Community adds a margin above the first and below the last choice). The phone's
@@ -95,6 +103,8 @@
 .o_bottom_sheet {
     .o_bottom_sheet_sheet {
         background-color: $o-cws-sheet-bg;
+        // Community feeds a shadow variable that nothing reads: the sheet draws the normal one
+        box-shadow: $o-cws-shadow;
     }
 
     // the body is a Community dropdown menu: here it is the sheet itself, not a panel on it
@@ -102,6 +112,12 @@
         background-color: $o-cws-sheet-bg;
         border-color: $o-cws-sheet-bg;
         box-shadow: none;
+    }
+
+    // the chosen option: Community draws its border in a list-group colour; here it is the action role
+    .o_bottom_sheet_sheet .o_bottom_sheet_body:not(.o_custom_bottom_sheet)
+        .dropdown-item:not(.dropdown-item_active_noarrow):is(.active, .selected) {
+        border-color: $o-action;
     }
 
     &.o_bottom_sheet_snapping .o_bottom_sheet_rail::before {
