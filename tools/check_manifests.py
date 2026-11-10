@@ -19,6 +19,9 @@ COMPATIBILITY_NAMES = frozenset({
     "timer",  # slice 000
     "test_timer",  # slice 000
     "web_enterprise",  # slice 001a
+    "web_mobile",  # slice 001c
+    "hr_mobile",  # slice 001c
+    "pos_hr_mobile",  # slice 001c
 })
 LICENSES = {"AGPL-3", "LGPL-3"}
 
