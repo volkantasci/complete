@@ -116,6 +116,9 @@ class TestIosList(ThemeProbeCase):
                            {'font-size': 20, 'font-weight': 500, 'line-height': 30})
             self.assertNum(self.rect(NAME), {'x': 124.5, 'width': 217.5, 'height': 30},
                            delta=1)
+            # M5: the name's top is 31.25 under the row's top (96.25 - 65)
+            self.assertAlmostEqual(
+                self.rect(NAME)['y'] - self.rect(ROW)['y'], 31.25, delta=1)
 
     def test_A42_ios_list_light(self):
         self._ios_list('light')
