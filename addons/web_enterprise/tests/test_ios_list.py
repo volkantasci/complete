@@ -64,6 +64,11 @@ class TestIosList(ThemeProbeCase):
                 'margin-right': 0, 'padding-top': 0, 'padding-right': 8,
                 'padding-bottom': 0, 'padding-left': 8})
             self.assertNum(self.rect(LIST), {'x': 16, 'width': 358}, delta=1)
+            # the page as loaded on touch (scrolled by the field): the list's top is at 65
+            # (light) / 67 (dark, the field is 2 px taller), and so is the first row's
+            top = {'light': 65, 'dark': 67}[scheme]
+            self.assertNum(self.rect(LIST), {'y': top}, delta=1)
+            self.assertNum(self.rect(ROW), {'y': top}, delta=1)
             # M2
             row = self.style(
                 ROW, 'flex-direction', 'justify-content', 'align-items', 'box-shadow',

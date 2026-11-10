@@ -230,6 +230,12 @@ body.o_home_menu_background {
             padding: 0 8px;
         }
 
+        // the list keeps its own 4 px above and no top padding (M1); the 4 px that bring its
+        // top to y 65 (light) with the page scrolled by the field are added under the field
+        .o_cws_touch_search {
+            margin-bottom: 20px;
+        }
+
         // the 16 px between rows sit on the wrapper, the row keeps its margins at 0
         .o_draggable {
             margin-bottom: 16px;
