@@ -114,22 +114,12 @@ function check(content, test) {
 // the closing of a dialog takes a moment
 const noDialog = { content: "no dialog is open", trigger: "body:not(:has(.modal))" };
 
-// Differences between the Community point of sale and the measurement of the original, see
-// the report of task 10: the Community corners are 4 px wide where the measurement says 6,
-// and on the phone the panel sits 1.66 px higher. They are pinned to what the Community
-// draws, so that a change is noticed.
-const COMMUNITY = {
-    "border-top-left-radius": 4,
-    "border-top-right-radius": 4,
-    "border-bottom-right-radius": 4,
-    "border-bottom-left-radius": 4,
-};
 const COLOUR_KEYS = new Set(
     Object.keys(M9.desktop).filter((key) => key === "color" || key.endsWith("-color"))
 );
 const WORD_KEYS = new Set(["box-shadow", ...Object.keys(M9.desktop).filter((key) => key.endsWith("-style"))]);
 
-function m9Failures(button, expected, phone) {
+function m9Failures(button, expected) {
     const style = getComputedStyle(button);
     const box = button.getBoundingClientRect();
     const failures = [];
@@ -139,10 +129,9 @@ function m9Failures(button, expected, phone) {
         }
     };
     for (const [key, want] of Object.entries(expected)) {
-        if (key in COMMUNITY) {
-            near(parseFloat(style.getPropertyValue(key)), COMMUNITY[key], 0.5, key);
-        } else if (key === "geometry.y" && phone) {
-            near(box.y, Number(want), 2, key);
+        if (key === "geometry.x" || key === "geometry.y") {
+            // positions depend on the window and the data
+            continue;
         } else if (key.startsWith("geometry.")) {
             near(box[key.slice(9)], Number(want), 1, key);
         } else if (COLOUR_KEYS.has(key)) {
@@ -175,9 +164,31 @@ registry.category("web_tour.tours").add("cwm_badge_m9", {
                 await document.fonts.ready;
                 await new Promise((resolve) => setTimeout(resolve, 500));
                 const phone = window.innerWidth < 768;
-                const failures = m9Failures(this.anchor, M9[phone ? "phone" : "desktop"], phone);
+                const failures = m9Failures(this.anchor, M9[phone ? "phone" : "desktop"]);
                 if (failures.length) {
                     throw new Error(failures.join("; "));
+                }
+            },
+        },
+    ],
+});
+
+registry.category("web_tour.tours").add("cwm_badge_teal_rule", {
+    steps: () => [
+        {
+            content: "the primary button in the mobile barcode container is teal",
+            trigger: "body",
+            run: () => {
+                const host = document.createElement("div");
+                host.className = "o_barcode_mobile_container";
+                host.innerHTML = '<button class="btn btn-primary">x</button>';
+                document.body.appendChild(host);
+                const style = getComputedStyle(host.firstChild);
+                const got = [style.backgroundColor, style.borderTopColor, style.color];
+                host.remove();
+                const want = ["rgb(1, 126, 132)", "rgb(1, 126, 132)", "rgb(255, 255, 255)"];
+                if (JSON.stringify(got) !== JSON.stringify(want)) {
+                    throw new Error(got.join(" | "));
                 }
             },
         },

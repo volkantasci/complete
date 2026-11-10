@@ -45,6 +45,9 @@ class CwmBadgeScan(TestPosHrHttpCommon):
                 with self.subTest(size=size, scheme=scheme):
                     self._tour('cwm_badge_m9', size=size, scheme=scheme)
 
+    def test_R23_teal_rule(self):
+        self._tour('cwm_badge_teal_rule')
+
     def test_A52_scanner_opens(self):
         for size in (DESKTOP, PHONE):
             with self.subTest(size=size):

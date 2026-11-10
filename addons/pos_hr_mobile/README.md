@@ -9,8 +9,9 @@ rules apply. An empty code closes the scanner and shows a warning asking to scan
 
 Browser part only, inside the point of sale bundle. No bridge code of `web_mobile` is loaded
 there. The module also loads the Community barcode scanner styles into the point of sale and
-one colour rule for primary buttons inside the mobile barcode container; neither changes the
-login screen.
+one colour rule for primary buttons inside the mobile barcode container; neither exists on the
+login screen. The two buttons of the PIN panel (cashier list and badge scanner) get the measured
+corner radius (6 px); nothing else on the login screen changes.
 
 ## Provenance
 
