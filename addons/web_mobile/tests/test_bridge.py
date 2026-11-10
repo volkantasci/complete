@@ -18,12 +18,30 @@ class TestBridge(CwmHostCase):
 
     def test_A2_no_host_no_request(self):
         with self.host_session(host=None, ua=self.UA_DESKTOP):
+            service = 'odoo.__WOWL_DEBUG__.root.env.services'
+            # walk through the home menu, an app, a record and the user menu
+            self.wait("!!document.querySelector('.o_home_menu, .o_action')")
+            if self.env['ir.module.module'].search_count(
+                    [('name', '=', 'crm'), ('state', '=', 'installed')]):
+                menu = self.env.ref('crm.crm_menu_root')
+                self.js(f"{service}.menu.selectMenu({menu.id})")
+                first = (
+                    "document.querySelector('.o_action .o_data_row, .o_action .o_kanban_record')")
+                self.wait(f"!!{first}")
+                self.js(f"{first}.click()")
+                self.wait("!!document.querySelector('.o_form_view')")
+            self.js("document.querySelector('.o_user_menu').click()")
+            self.wait("document.querySelectorAll('.o-dropdown--menu .dropdown-item').length > 0")
+            entries = self.js(
+                "[...document.querySelectorAll('.o-dropdown--menu .dropdown-item')]"
+                ".map((e) => e.textContent.trim())")
+            self.assertIn('Log out', entries)
+            self.assertNotIn('Add to Home Screen', entries)
+            self.assertNotIn('Switch/Add Account', entries)
             self.assertEqual(self.js('typeof odoo.native_notify'), 'function')
             self.assertEqual(self.js('typeof window.__cwmHostLog'), 'undefined')
-            self.assertFalse(self.js('odoo.__WOWL_DEBUG__.root.env.services.mobile.active'))
-            self.assertEqual(
-                self.js('typeof odoo.__WOWL_DEBUG__.root.env.services.mobile.switchAccount'),
-                'undefined')
+            self.assertFalse(self.js(f'{service}.mobile.active'))
+            self.assertEqual(self.js(f'typeof {service}.mobile.switchAccount'), 'undefined')
 
     def test_A3_request_format(self):
         with self.host_session(host={'plugins': [{'name': 'switchAccount', 'action': 'sw'}]}):

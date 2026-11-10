@@ -275,10 +275,10 @@ export function cwmMakeBridge(host) {
 // Detect now, before the services start.
 cwmDetectedHost();
 
-export const cwmMobileService = {
+export const cwmBridgeService = {
     start() {
         return cwmMakeBridge(cwmDetectedHost());
     },
 };
 
-registry.category("services").add("mobile", cwmMobileService);
+registry.category("services").add("mobile", cwmBridgeService);

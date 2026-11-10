@@ -100,6 +100,16 @@ test("A29 in-memory content: warning, no request", () => {
     expect(notices[0]).toEqual([WARNING, { type: "warning" }]);
 });
 
+test("A29 data and blob addresses: warning, no request", () => {
+    patchTranslations();
+    const { calls, notices } = startDownloads();
+    expect(downloadFile("data:text/plain;base64,aGk=")).toBe(false);
+    expect(downloadFile("blob:http://x.test/1234")).toBe(false);
+    expect(calls.length).toBe(0);
+    expect(notices.length).toBe(2);
+    expect(notices[0]).toEqual([WARNING, { type: "warning" }]);
+});
+
 test("A30 no capability: Community download", () => {
     const before = [download._download, downloadFile._download];
     const { calls } = startDownloads(["hashChange"]);

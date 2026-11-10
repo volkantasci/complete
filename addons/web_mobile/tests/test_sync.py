@@ -234,6 +234,18 @@ class TestAccount(CwmSyncCase):
             self.assertEqual(args['db'], self.env.cr.dbname)
             self.assertEqual(self.png_size(args['avatar']), (128, 128))
 
+    def test_A19_account_without_uploaded_picture(self):
+        # Community then serves a generated vector avatar
+        partner = self.admin.partner_id
+        original = partner.image_1920 and partner.image_1920.to_base64()
+        self.addCleanup(partner.write, {'image_1920': original})
+        partner.image_1920 = False
+        with self.host_session(host={}, ua=self.UA_DESKTOP):
+            self.wait_requests('updateAccount', 1)
+            self.settle()
+            args = self.cwm_expect_one(self.account_requests())
+            self.assertEqual(self.png_size(args['avatar']), (128, 128))
+
     def test_A20_saved_values(self):
         original = self.admin.name
         self.addCleanup(self.admin.write, {'name': original})

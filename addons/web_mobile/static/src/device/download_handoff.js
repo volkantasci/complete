@@ -40,7 +40,8 @@ export function cwmInstallDownloadHandoff(mobile, notification) {
         return Promise.resolve();
     };
     cwmFileHelper._download = (data, filename, mimetype) => {
-        if (typeof data === "string" && !filename && !mimetype) {
+        const builtInPage = typeof data === "string" && /^(data|blob):/i.test(data);
+        if (typeof data === "string" && !filename && !mimetype && !builtInPage) {
             send({ form: { method: "GET" }, url: cwmReducedAddress(data) });
             return true;
         }

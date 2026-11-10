@@ -30,7 +30,7 @@ const DEFAULT_ICON = "/web/static/img/default_icon_app.png";
 const TOUCH_SCROLL_OFFSET = 46;
 
 /** Name of the bus event that announces the rebuilt tile list (I9). */
-const CWM_TILES_EVENT = "HOME-MENU:APPS-UPDATED";
+const CWS_TILE_LIST_EVENT = "HOME-MENU:APPS-UPDATED";
 
 /**
  * Address a tile links to: the action path (or the action id) under /odoo,
@@ -141,7 +141,7 @@ export class CwsHomeMenu extends Component {
                 label: app.name,
             }));
             const detail = { apps };
-            this.env.bus.trigger(CWM_TILES_EVENT, detail);
+            this.env.bus.trigger(CWS_TILE_LIST_EVENT, detail);
         });
         // keep the focused tile vertically centred
         useEffect(() => {

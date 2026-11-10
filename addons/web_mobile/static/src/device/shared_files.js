@@ -41,7 +41,17 @@ export function cwmInstallSharedFiles(mobile, notification) {
             warn(_t("The files shared with the app could not be loaded."));
             return [];
         }
-        const described = Array.isArray(answer?.data) ? answer.data : [];
+        const described = answer?.data;
+        const wellFormed =
+            Array.isArray(described) &&
+            described.every(
+                (entry) => entry && typeof entry === "object" && typeof entry.uri === "string"
+            );
+        if (!wellFormed) {
+            console.warn("[cwm] the app answered with unusable shared files", answer);
+            warn(_t("The files shared with the app could not be loaded."));
+            return [];
+        }
         const files = [];
         for (const { uri, name, type } of described) {
             let blob = null;

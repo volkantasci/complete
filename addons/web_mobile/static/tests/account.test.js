@@ -66,6 +66,25 @@ test("A19 account at load payload", async () => {
     expect(fetched[0]).toMatch(/^\/web\/image\/res\.users\/7\/image_medium\?unique=\d+/);
 });
 
+test("A19 vector picture is decoded into a 128 x 128 PNG", async () => {
+    const fake = installCwmHost({
+        plugins: [{ name: "updateAccount", action: "cwm_account" }],
+        win: {},
+    });
+    const mobile = cwmMakeBridge(cwmDetectHost(fake.win));
+    const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">' +
+        '<rect width="64" height="64" fill="#336699"/></svg>';
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    mockFetch(() => new Response(blob, { headers: { "Content-Type": "image/svg+xml" } }));
+    patchWithCleanup(user, { userId: 7, name: "n", login: "l" });
+    patchWithCleanup(session, { db: "cwm_db" });
+    await cwmSendAccount(mobile, { name: "n", login: "l" }, { wait: true });
+    const sent = fake.calls.filter((call) => call.action === "cwm_account");
+    expect(sent.length).toBe(1);
+    expect(pngSize(sent[0].args.avatar)).toEqual([128, 128]);
+});
+
 test("A25 picture error: no request, one console entry", async () => {
     const { mobile, sent, warnings } = await setup({ picture: "error" });
     expect(await cwmReadAccountPicture(7)).toBe(null);

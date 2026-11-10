@@ -161,6 +161,20 @@ test("A39 failure answer: generic warning", async () => {
     expect(notices).toEqual([[NOTICE_ALL, { type: "warning" }]]);
 });
 
+test("A39 malformed entries: generic warning, no throw", async () => {
+    for (const files of [[null], ["text"], [{ name: "no-uri.png" }], [{ uri: 5 }]]) {
+        captureWarnings();
+        const { notices, fetched } = startShares({ files });
+        const result = await shareTargetService._getShareTargetFiles();
+        expect(result).toEqual([]);
+        expect(notices).toEqual([[NOTICE_ALL, { type: "warning" }]]);
+        expect(fetched.length).toBe(0);
+        while (undo.length) {
+            undo.pop()();
+        }
+    }
+});
+
 test("no share items: no request", async () => {
     const { calls, notices } = startShares({ files: [], items: false });
     const files = await shareTargetService._getShareTargetFiles();

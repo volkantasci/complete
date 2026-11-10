@@ -3,6 +3,7 @@
 
 from . import (
     test_bridge,
+    test_bundles,
     test_device,
     test_errors_shares,
     test_install,

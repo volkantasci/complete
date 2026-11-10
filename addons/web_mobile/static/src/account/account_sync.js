@@ -20,12 +20,19 @@ export async function cwmReadAccountPicture(uid) {
         if (!response.ok) {
             throw new Error(`answer ${response.status}`);
         }
-        const bitmap = await createImageBitmap(await response.blob());
+        const address = URL.createObjectURL(await response.blob());
         const canvas = document.createElement("canvas");
         canvas.width = CWM_SIDE;
         canvas.height = CWM_SIDE;
-        canvas.getContext("2d").drawImage(bitmap, 0, 0, CWM_SIDE, CWM_SIDE);
-        bitmap.close?.();
+        try {
+            // An image element decodes the vector avatars as well as the raster pictures.
+            const picture = new Image();
+            picture.src = address;
+            await picture.decode();
+            canvas.getContext("2d").drawImage(picture, 0, 0, CWM_SIDE, CWM_SIDE);
+        } finally {
+            URL.revokeObjectURL(address);
+        }
         const url = canvas.toDataURL("image/png");
         const base64 = url.slice(url.indexOf(",") + 1);
         if (!base64 || !url.startsWith("data:image/png")) {
