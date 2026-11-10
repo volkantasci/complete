@@ -109,8 +109,14 @@ you chose.
 - **Ribbons, sliders and lists.** Ribbon bands carry a stronger shine than
   before, a slider thumb that is pressed shows the same shine as the other
   controls (black in the dark look), and selection lists such as the language
-  field of the preferences are light grey in the light look. On a phone the
-  bottom sheet keeps its own, unpadded list.
+  field of the preferences are light grey in the light look. The list of
+  matching records under a field such as the salesperson is light grey too,
+  with a lighter shadow, while the search suggestions stay white. On a phone
+  the language options open in a bottom sheet with a shadow, and the chosen
+  option has an action-coloured border.
+- **Calendar drop zone.** When a task is dragged in a calendar that allows
+  unscheduling, the drop zone fills the side panel column from its top edge,
+  and its colours follow the active look, including the dark one.
 - **Scrolling the home menu.** The home menu scrolls over the whole window
   width, so its thin scroll bar sits at the window edge, while the tiles stay
   in a centred column.

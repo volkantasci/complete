@@ -220,7 +220,13 @@ Owner decisions, in one line each:
   selection lists have a grey 100 background in light; in dark the hover text
   of an inactive switcher button stays grey 900 and the active text is the
   black role; the home menu scrolls at full width, so its thin scroll bar runs
-  along the window edge while the tiles stay in the 850 px column.
+  along the window edge while the tiles stay in the 850 px column. The list
+  of matching records under a record field (salesperson, tags) is grey 100 in
+  light with its own lighter shadow; the control-panel search suggestions stay
+  white. On a phone the language options open in a bottom sheet with a shadow
+  and an action-coloured border on the chosen option. The calendar's
+  unscheduled drop zone sits flush with the top and sides of the panel column
+  and takes its fill and border from the action colour of the active scheme.
 - **D10.** D8 is the only change Complete makes to how tours run. The
   interactive runner patch acts only on the marked apps-menu step: for every
   other step, including one that becomes inactive, it calls the Community
