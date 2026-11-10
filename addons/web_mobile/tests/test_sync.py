@@ -255,20 +255,22 @@ class TestAccount(CwmSyncCase):
             self.save_preferences()
             self.settle(2)
             self.assertTrue(self.js("!!document.querySelector('.modal .o_form_view')"))
-            # the Community message of the failed save (a contact needs a name)
-            self.assertTrue(self.js("!!document.querySelector('.o_error_dialog')"))
+            if not self._is_installed('hr'):
+                # the Community message of the failed save (a contact needs a name); with
+                # Employees the name is required in the form and the save is not attempted
+                self.assertTrue(self.js("!!document.querySelector('.o_error_dialog')"))
             self.assertEqual(len(self.account_requests()), 1)
         self.assertEqual(self.admin.name, 'Mitchell Admin')
 
     def test_A23_ios_no_wait(self):
-        self.addCleanup(self.admin.write, {'phone': self.admin.phone})
+        self.addCleanup(self.admin.write, {'name': self.admin.name})
         never = {'answers': {'updateAccount': 'never'}}
         # iOS: the save completes and the dialog closes (the page reloads) with no answer
         with self.host_session(host=never, ua=self.UA_IOS):
             self.wait_requests('updateAccount', 1)
             self.open_preferences()
             self.arm_unload_snapshot()
-            self.set_field('phone', '+32 400 00 00 01')
+            self.set_field('name', 'Mitchell Admin 1')
             self.save_preferences()
             log = [e for e in self.unload_snapshot() if e['action'] == 'updateAccount']
             self.assertEqual(len(log), 2)
@@ -277,7 +279,7 @@ class TestAccount(CwmSyncCase):
             self.wait_requests('updateAccount', 1)
             self.open_preferences()
             self.arm_unload_snapshot()
-            self.set_field('phone', '+32 400 00 00 02')
+            self.set_field('name', 'Mitchell Admin 2')
             self.save_preferences()
             self.wait_requests('updateAccount', 2)
             self.settle(2)
@@ -298,7 +300,7 @@ class TestAccount(CwmSyncCase):
             self.assertFalse(self.js("!!document.querySelector('.o_error_dialog')"))
 
     def test_A61_failed_update(self):
-        self.addCleanup(self.admin.write, {'phone': self.admin.phone})
+        self.addCleanup(self.admin.write, {'name': self.admin.name})
         with self.host_session(host={'answers': {'updateAccount': 'fail'}}, ua=self.UA_ANDROID):
             self.wait_requests('updateAccount', 1)
             self.settle(2)
@@ -307,7 +309,7 @@ class TestAccount(CwmSyncCase):
                 self.js("!!document.querySelector('.o_error_dialog, .o_notification')"))
             self.open_preferences()
             self.arm_unload_snapshot()
-            self.set_field('phone', '+32 400 00 00 03')
+            self.set_field('name', 'Mitchell Admin 3')
             self.save_preferences()
             log = [e for e in self.unload_snapshot() if e['action'] == 'updateAccount']
             self.assertEqual(len(log), 2)
@@ -316,24 +318,24 @@ class TestAccount(CwmSyncCase):
             self.settle()
             self.assertFalse(self.js("!!document.querySelector('.o_error_dialog, .modal')"))
         self.admin.invalidate_recordset()
-        self.assertEqual(self.admin.phone, '+32 400 00 00 03')
+        self.assertEqual(self.admin.name, 'Mitchell Admin 3')
 
     def test_A62_prefs_without_employees(self):
         if self._is_installed('hr'):
             raise unittest.SkipTest('the Employees application is installed')
-        self.addCleanup(self.admin.write, {'phone': self.admin.phone})
+        self.addCleanup(self.admin.write, {'name': self.admin.name})
         with self.host_session(host={}, ua=self.UA_ANDROID):
             self.wait_requests('updateAccount', 1)
             self.open_preferences()
             self.arm_unload_snapshot()
-            self.set_field('phone', '+32 400 00 00 04')
+            self.set_field('name', 'Mitchell Admin 4')
             self.save_preferences()
             log = [e for e in self.unload_snapshot() if e['action'] == 'updateAccount']
             self.assertEqual(len(log), 2)
             self.assertEqual(sorted(log[1]['args']), ACCOUNT_KEYS)
 
     def test_A66_picture_error_on_save(self):
-        self.addCleanup(self.admin.write, {'phone': self.admin.phone})
+        self.addCleanup(self.admin.write, {'name': self.admin.name})
         with self.host_session(host={}, ua=self.UA_ANDROID):
             self.wait_requests('updateAvailableApps', 1)
             self.settle()
@@ -341,11 +343,11 @@ class TestAccount(CwmSyncCase):
             self.fail_picture = True
             before = len(self.console_entries('[cwm]'))
             self.arm_unload_snapshot()
-            self.set_field('phone', '+32 400 00 00 05')
+            self.set_field('name', 'Mitchell Admin 5')
             self.save_preferences()
             log = [e for e in self.unload_snapshot() if e['action'] == 'updateAccount']
             # only the request of the page load (made before the picture failed)
             self.assertEqual(len(log), 1)
             self.assertGreater(len(self.console_entries('[cwm]')), before)
         self.admin.invalidate_recordset()
-        self.assertEqual(self.admin.phone, '+32 400 00 00 05')
+        self.assertEqual(self.admin.name, 'Mitchell Admin 5')
