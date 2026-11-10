@@ -11,6 +11,7 @@
  *              call gets the n-th entry, the last one repeats); default "ok"
  *   files      list of {uri, name, type} returned by the shared files capability
  *   fileStatus map uri -> HTTP status served for /share_target.localhost/?uri=<uri>
+ *   fileBase64 base64 text served as the body of every shared file (default: text)
  *   delayMs    delay before an automatic answer (default 5)
  * Every call is recorded in window.__cwmHostLog = [{action, args, id, at}] and can be
  * answered by hand with window.__cwmHostAnswer(id, result).
@@ -38,6 +39,9 @@
     const delayMs = setup.delayMs ?? 5;
     const files = setup.files || [];
     const fileStatus = setup.fileStatus || {};
+    const fileBytes = setup.fileBase64
+        ? Uint8Array.from(atob(setup.fileBase64), (c) => c.charCodeAt(0))
+        : null;
     const log = (window.__cwmHostLog = []);
     const counts = {};
     // action -> capability name (the later list entry wins, as for the web client)
@@ -99,7 +103,7 @@
             window.__cwmHostFetches.push(uri);
             const status = Object.hasOwn(fileStatus, uri) ? fileStatus[uri] : 200;
             return Promise.resolve(
-                new Response(status === 200 ? `cwm-file:${uri}` : "", { status })
+                new Response(status === 200 ? fileBytes || `cwm-file:${uri}` : "", { status })
             );
         }
         return realFetch(input, init);
