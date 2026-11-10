@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from "@odoo/hoot";
 import { tick } from "@odoo/hoot-mock";
 import { patchTranslations } from "@web/../tests/web_test_helpers";
 import { download,downloadFile } from "@web/core/network/download";
-import { BackButtonManager as CwmBackManager } from "@web/core/utils/hooks";
+import * as cwmHooks from "@web/core/utils/hooks";
 import { installCwmHost } from "@web_mobile/../tests/helpers/fake_host";
 import { cwmDetectHost, cwmMakeBridge } from "@web_mobile/bridge/bridge_service";
 import { cwmInstallBackOverride } from "@web_mobile/device/back_override";
@@ -146,7 +146,7 @@ function startBack(names = ["overrideBackButton"]) {
     const started = startBridge(names);
     undo.push(cwmInstallBackOverride(started.bridge));
     const flips = () => started.calls.map((c) => c.args.enabled);
-    return { ...started, flips, manager: new CwmBackManager() };
+    return { ...started, flips, manager: new cwmHooks.BackButtonManager() };
 }
 
 const settle = async () => {
@@ -213,7 +213,7 @@ test("layer swap in one tick sends nothing extra", async () => {
 
 test("A35 no capability: Community manager untouched", () => {
     const { calls } = startBack(["downloadFile"]);
-    expect(CwmBackManager.prototype._activate.toString().includes("_cwm")).toBe(false);
+    expect(cwmHooks.BackButtonManager.prototype._activate.toString().includes("_cwm")).toBe(false);
     expect(calls.length).toBe(0);
 });
 

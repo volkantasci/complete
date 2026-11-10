@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { parseSearchQuery as cwmReadQuery } from "@web/core/browser/router";
+import * as cwmRouter from "@web/core/browser/router";
 import { registry } from "@web/core/registry";
 
 /**
@@ -22,7 +22,7 @@ export function cwmInstallNavigationNotice(mobile, win = window) {
         }
         lastSearch = search;
         mobile
-            .hashChange(cwmReadQuery(search))
+            .hashChange(cwmRouter.parseSearchQuery(search))
             .catch((error) => console.warn("[cwm] the app refused the navigation notice", error));
     };
     win.addEventListener("popstate", onMove);

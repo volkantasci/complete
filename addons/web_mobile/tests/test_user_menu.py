@@ -87,13 +87,14 @@ class TestUserMenu(CwmUserMenuCase):
     def test_A10_no_host_keeps_log_out(self):
         if not self._is_installed('crm'):
             self.skipTest('crm is not installed')
-        for mobile in self.cwm_both_forms():
+        def check_form(mobile):
             with self.host_session('/odoo/crm', host=None, mobile=mobile,
                                    ua=self.UA_ANDROID if mobile else self.UA_DESKTOP):
                 texts = self._entries(mobile)
                 self.assertEqual(texts[-1], LOG_OUT)
                 self.assertNotIn(SHORTCUT, texts)
                 self.assertNotIn(SWITCH, texts)
+        self.cwm_each_form(check_form)
 
     def test_A11_shortcut_in_crm(self):
         if not self._is_installed('crm'):
@@ -120,7 +121,7 @@ class TestUserMenu(CwmUserMenuCase):
             self.assertEqual(self.js('document.title'), title)
 
     def test_A12_shortcut_on_home_menu(self):
-        for mobile in self.cwm_both_forms():
+        def check_form(mobile):
             with self.host_session('/odoo', host=MAIN_PLUGINS_HOST, mobile=mobile):
                 self.wait("odoo.__WOWL_DEBUG__.root.env.services.home_menu.hasHomeMenu")
                 self._entries(mobile)
@@ -130,6 +131,7 @@ class TestUserMenu(CwmUserMenuCase):
                 bar = json.dumps(NOTE + ' .o_notification_bar.bg-warning')
                 self.assertEqual(self.js(f"document.querySelectorAll({bar}).length"), 1)
                 self.assertEqual(self.host_requests('cwm_shortcut'), [])
+        self.cwm_each_form(check_form)
 
     def test_A13_glyph_app(self):
         action = self.env['ir.actions.act_window'].create({
@@ -160,7 +162,7 @@ class TestUserMenu(CwmUserMenuCase):
     def test_A14_switch_account(self):
         if not self._is_installed('crm'):
             self.skipTest('crm is not installed')
-        for mobile in self.cwm_both_forms():
+        def check_form(mobile):
             with self.host_session('/odoo/crm', host=MAIN_PLUGINS_HOST, mobile=mobile):
                 self.wait("!!document.querySelector('.o_action')")
                 url = self.js('window.location.href')
@@ -175,3 +177,4 @@ class TestUserMenu(CwmUserMenuCase):
                     body: JSON.stringify({jsonrpc: '2.0', method: 'call', params: {}}),
                 }).then((r) => r.json()).then((j) => j.result && j.result.uid)""")
                 self.assertEqual(info, self.env.ref('base.user_admin').id)
+        self.cwm_each_form(check_form)

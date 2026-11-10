@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { isIosApp as cwmInsideIosApp } from "@web/core/browser/feature_detection";
+import * as cwmFeatures from "@web/core/browser/feature_detection";
 import { registry } from "@web/core/registry";
 import { user } from "@web/core/user";
 import { formView } from "@web/views/form/form_view";
@@ -22,7 +22,7 @@ export async function cwmAfterPrefsSaved(record) {
         await cwmSendAccount(
             mobile,
             { name: data.name, login: data.login ?? user.login },
-            { wait: !cwmInsideIosApp() }
+            { wait: !cwmFeatures.isIosApp() }
         );
     } catch (error) {
         console.warn("[cwm] sending the saved account details failed", error);

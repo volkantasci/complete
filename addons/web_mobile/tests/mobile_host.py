@@ -46,11 +46,11 @@ class CwmHostCase(HttpCase):
             self.fail(f'expected a single call, saw {len(calls)}: {calls}')
         return calls[0]
 
-    def cwm_both_forms(self):
-        """Yield ``False`` (desktop) then ``True`` (phone), each under its own labelled run."""
+    def cwm_each_form(self, body):
+        """Call ``body(phone)`` for the desktop form, then the phone form; each in its own run."""
         for phone in (False, True):
             with self.subTest(form='phone' if phone else 'desktop'):
-                yield phone
+                body(phone)
 
     def setUp(self):
         super().setUp()
