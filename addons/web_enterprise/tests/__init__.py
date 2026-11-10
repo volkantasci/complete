@@ -4,6 +4,7 @@
 from . import (
     test_http,
     test_install,
+    test_ios_list,
     test_js,
     test_screens,
     test_theme_bundles,

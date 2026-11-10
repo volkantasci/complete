@@ -94,7 +94,7 @@ class ThemeProbeCase(HttpCase):
 
     @contextlib.contextmanager
     def page(self, url, scheme='light', size=(1600, 900), touch=False,
-             reduced_motion=False, login='admin', lang=None):
+             reduced_motion=False, login='admin', lang=None, ua=None):
         """Open ``url`` in a fresh Chrome as ``login`` with the colour scheme stored.
 
         The user's ``color_scheme`` setting is written before the page loads, and the
@@ -127,6 +127,8 @@ class ThemeProbeCase(HttpCase):
                 'width': width, 'height': height, 'deviceScaleFactor': 1, 'mobile': touch,
             })
             request('Emulation.setTouchEmulationEnabled', params={'enabled': touch})
+            if ua:
+                request('Emulation.setUserAgentOverride', params={'userAgent': ua})
             request('Emulation.setEmulatedMedia', params={'features': [
                 {'name': 'prefers-reduced-motion',
                  'value': 'reduce' if reduced_motion else 'no-preference'},
