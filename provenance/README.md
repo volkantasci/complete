@@ -19,3 +19,8 @@ Every module under `addons/` has one record, `provenance/<module>.yaml`, written
 | `dates.implemented` | Date implementation finished. |
 | `dates.verified` | Date verification passed. |
 | `approvals` | People who approved the spec and the release. |
+| `earlier_slices` | Optional. Records of earlier slices of a module that later slices extended, newest first; see below. |
+
+## Modules built over several slices
+
+A module that later slices extend keeps one record. Its top-level keys describe the latest verified slice, and `overlap` describes the whole module, as that slice's verification measured it. When a later slice is recorded, the earlier slice's record moves into the list `earlier_slices`, newest first. It moves unchanged, without its `module` key. `python -m tools.check_provenance` checks the top-level keys only.
