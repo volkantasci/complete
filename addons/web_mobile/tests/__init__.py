@@ -7,6 +7,7 @@ from . import (
     test_errors_shares,
     test_install,
     test_js,
+    test_reader,
     test_server,
     test_sync,
     test_user_menu,

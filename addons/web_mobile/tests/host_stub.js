@@ -7,7 +7,7 @@
  * `window.__cwmHostSetup = {...};` with these optional keys:
  *   plugins    list of {name, action}; default: every capability of the contract (eleven
  *              names), each with action == name
- *   answers    map action -> "ok" | "fail" | "never" | list of {success, data} (the n-th
+ *   answers    map action -> "ok" | "fail" | "never" | list of {success, data} or "never" (the n-th
  *              call gets the n-th entry, the last one repeats); default "ok"
  *   files      list of {uri, name, type} returned by the shared files capability
  *   fileStatus map uri -> HTTP status served for /share_target.localhost/?uri=<uri>
@@ -70,7 +70,8 @@
         const index = counts[action] || 0;
         counts[action] = index + 1;
         if (Array.isArray(spec)) {
-            return spec[Math.min(index, spec.length - 1)];
+            const entry = spec[Math.min(index, spec.length - 1)];
+            return entry === "never" ? undefined : entry;
         }
         if (spec === "never") {
             return undefined;

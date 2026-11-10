@@ -1,6 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { registry } from "@web/core/registry";
+import { session } from "@web/session";
 
 /**
  * Bridge between the web client and the native mobile app.
@@ -99,6 +100,142 @@ export function cwmDetectedHost() {
     return cwmHostCache;
 }
 
+// How long a reader poll may stay unanswered before it is abandoned.
+const CWM_POLL_LIMIT = 1000;
+const CWM_DEFAULT_INTERVAL = 100;
+
+function cwmWarn(what, reason) {
+    console.warn(`[cwm] ${what}`, reason);
+}
+
+/**
+ * The event channel of the bridge. It counts its listeners (of any event type) and, while
+ * there is at least one, keeps the app's reader on and polls it, one request at a time.
+ */
+class CwmReaderChannel extends EventTarget {
+    constructor(bridge, interval) {
+        super();
+        this._bridge = bridge;
+        this._interval = interval;
+        // registered listeners as EventTarget sees them: { type, callback, capture, helper }
+        this._entries = [];
+        this._generation = 0;
+        this._running = false;
+    }
+
+    addEventListener(type, callback, options) {
+        if (callback === null || callback === undefined) {
+            return;
+        }
+        const capture = typeof options === "boolean" ? options : !!options?.capture;
+        const known = this._entries.some(
+            (e) => e.type === String(type) && e.callback === callback && e.capture === capture
+        );
+        super.addEventListener(type, callback, options);
+        if (known) {
+            return;
+        }
+        if (options?.signal?.aborted) {
+            return;
+        }
+        const entry = { type: String(type), callback, capture, helper: null };
+        this._entries.push(entry);
+        if (options?.once) {
+            // added after the listener itself, so it runs right after it
+            entry.helper = () => this._forget(entry);
+            super.addEventListener(type, entry.helper, { once: true, capture });
+        }
+        if (options?.signal) {
+            options.signal.addEventListener("abort", () => this._forget(entry), { once: true });
+        }
+        this._changed();
+    }
+
+    removeEventListener(type, callback, options) {
+        super.removeEventListener(type, callback, options);
+        const capture = typeof options === "boolean" ? options : !!options?.capture;
+        const entry = this._entries.find(
+            (e) => e.type === String(type) && e.callback === callback && e.capture === capture
+        );
+        if (entry) {
+            this._forget(entry);
+        }
+    }
+
+    _forget(entry) {
+        const index = this._entries.indexOf(entry);
+        if (index < 0) {
+            return;
+        }
+        this._entries.splice(index, 1);
+        if (entry.helper) {
+            super.removeEventListener(entry.type, entry.helper, { capture: entry.capture });
+        }
+        this._changed();
+    }
+
+    _changed() {
+        const wanted =
+            this._entries.length > 0 &&
+            this._bridge.has("enableReader") &&
+            this._bridge.has("getReaderData");
+        if (wanted && !this._running) {
+            this._start();
+        } else if (!wanted && this._running) {
+            this._stop();
+        }
+    }
+
+    _start() {
+        this._running = true;
+        const generation = ++this._generation;
+        this._bridge.enableReader().catch((reason) => cwmWarn("reader could not be turned on", reason));
+        this._poll(generation);
+    }
+
+    _stop() {
+        this._running = false;
+        this._generation++;
+    }
+
+    async _poll(generation) {
+        while (this._generation === generation) {
+            let outcome;
+            let timer;
+            const timeout = new Promise((resolve) => {
+                timer = setTimeout(() => resolve({ timedOut: true }), CWM_POLL_LIMIT);
+            });
+            try {
+                const answer = this._bridge.getReaderData().then(
+                    (value) => ({ value }),
+                    (error) => ({ error })
+                );
+                outcome = await Promise.race([answer, timeout]);
+            } catch (error) {
+                outcome = { error };
+            }
+            clearTimeout(timer);
+            if (this._generation !== generation) {
+                return;
+            }
+            if (outcome.error !== undefined) {
+                cwmWarn("reader data could not be read", outcome.error);
+            } else if (outcome.timedOut) {
+                cwmWarn("reader data request was not answered in time", CWM_POLL_LIMIT);
+            } else {
+                const data = outcome.value?.data;
+                if (typeof data === "string" && data !== "") {
+                    this.dispatchEvent(new CustomEvent("mobile_reader_scanned", { detail: { data } }));
+                }
+            }
+            if (this._generation !== generation) {
+                return;
+            }
+            await new Promise((resolve) => setTimeout(resolve, this._interval));
+        }
+    }
+}
+
 /**
  * Build the value of the `mobile` service from a detection result.
  *
@@ -109,8 +246,12 @@ export function cwmMakeBridge(host) {
         active: host.active,
         has: (name) => host.active && host.actions.has(name),
         polyfills: host.polyfills,
-        bus: new EventTarget(),
+        bus: null,
     };
+    bridge.bus = new CwmReaderChannel(
+        bridge,
+        session.time_between_reads_in_ms || CWM_DEFAULT_INTERVAL
+    );
     for (const [name, action] of host.actions) {
         if (CWM_RESERVED.has(name) || Object.hasOwn(bridge, name)) {
             continue;
