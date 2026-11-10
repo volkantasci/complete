@@ -1,0 +1,17 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <!-- Extension of the simplified preferences form. With the Employees
+         application installed, its own primary form (a child of this one)
+         sets its form type after this one, so that type wins. -->
+    <record model="ir.ui.view" id="view_users_form_simple_modif">
+        <field name="name">res.users.preferences.form.cwm.account</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form_simple_modif"/>
+        <field name="arch" type="xml">
+            <form position="attributes">
+                <attribute name="js_class">cwm_account_prefs_form</attribute>
+            </form>
+        </field>
+    </record>
+</odoo>
