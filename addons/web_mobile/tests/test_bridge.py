@@ -41,8 +41,9 @@ class TestBridge(CwmHostCase):
         with self.host_session(host={'answers': {'switchAccount': 'never'}}):
             ok = self.call_capability('switchAccount', key='ok')
             bad = self.call_capability('switchAccount', key='bad')
-            self.wait('window.__cwmHostLog.length >= 2')
-            first, second = [e['id'] for e in self.host_log()[:2]]
+            # the page's own load-time requests (account, application list) come first
+            self.wait("window.__cwmHostLog.filter((e) => e.action === 'switchAccount').length >= 2")
+            first, second = [e['id'] for e in self.host_requests('switchAccount')[:2]]
             self.assertEqual(self.call_outcome(ok)['state'], 'pending')
             self.answer_request(first, {'success': True, 'data': 'yes'})
             self.answer_request(second, {'success': False, 'data': 'no'})

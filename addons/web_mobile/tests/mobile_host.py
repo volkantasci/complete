@@ -49,7 +49,10 @@ class CwmHostCase(HttpCase):
     # -- session ---------------------------------------------------------------------
 
     @contextlib.contextmanager
-    def host_session(self, url='/odoo', *, host=None, ua=UA_ANDROID, mobile=False, dark=False):
+    def host_session(
+        self, url='/odoo', *, host=None, ua=UA_ANDROID, mobile=False, dark=False,
+        fail_picture=False,
+    ):
         """Open a signed-in (admin) browser on ``url`` and yield it.
 
         :param host: ``None`` for no test host (a normal browser). A dict installs the stub,
@@ -59,10 +62,15 @@ class CwmHostCase(HttpCase):
         :param ua: browser identification; use ``UA_DESKTOP`` for a normal browser.
         :param mobile: ``True`` for 390x844 with touch, else 1600x900 without.
         :param dark: emulate the dark colour scheme.
+        :param fail_picture: answer the requests for the user's medium-sized picture with a
+            server error (the interception is on from the first request of the page).
+            ``self.fail_picture`` can be changed during the session.
         """
         browser = ChromeBrowser(self, headless=True)
         self._cwm_console = []
         self._record_console(browser)
+        self.fail_picture = fail_picture
+        self._intercept_picture(browser)
         with self.allow_requests(browser=browser), contextlib.ExitStack() as atexit:
             atexit.enter_context(flushing_cursor(self.cr))
             atexit.callback(self._wait_remaining_requests)
@@ -100,6 +108,42 @@ class CwmHostCase(HttpCase):
             return original(type=type, args=args, **kw)
 
         browser._handlers['Runtime.consoleAPICalled'] = record
+
+    def _intercept_picture(self, browser):
+        """Answer the picture requests with a 500 while ``self.fail_picture`` is true.
+
+        The Community browser wrapper already intercepts every request (``Fetch.enable``);
+        this wraps its handler.
+        """
+        original = browser._handlers['Fetch.requestPaused']
+
+        def paused(**params):
+            if self.fail_picture and '/image_medium' in params['request']['url']:
+                browser._websocket_send('Fetch.fulfillRequest', params={
+                    'requestId': params['requestId'], 'responseCode': 500,
+                    'responseHeaders': [{'name': 'Content-Type', 'value': 'text/plain'}],
+                })
+                return None
+            return original(**params)
+
+        browser._handlers['Fetch.requestPaused'] = paused
+
+    def arm_unload_snapshot(self):
+        """Keep the test host's log when the page goes away (a reload loses the page's own).
+
+        Read it with ``unload_snapshot`` once the page came back.
+        """
+        self.js("""(() => {
+            sessionStorage.removeItem('cwmSnapshot');
+            window.addEventListener('pagehide', () => sessionStorage.setItem(
+                'cwmSnapshot', JSON.stringify(window.__cwmHostLog || [])));
+            return true;
+        })()""")
+
+    def unload_snapshot(self, timeout=30):
+        """The host log of the page that went away, once it did; ``[]`` entries kept as seen."""
+        self.wait("!!sessionStorage.getItem('cwmSnapshot')", timeout=timeout)
+        return json.loads(self.js("sessionStorage.getItem('cwmSnapshot')"))
 
     def _ensure_session_file(self):
         """Write the session file again when ``authenticate`` could not (rare)."""

@@ -12,6 +12,10 @@
             <form position="attributes">
                 <attribute name="js_class">cwm_account_prefs_form</attribute>
             </form>
+            <!-- the saved login is sent to the app, so the record must carry it -->
+            <field name="role" position="after">
+                <field name="login" invisible="1" readonly="1"/>
+            </field>
         </field>
     </record>
 </odoo>
