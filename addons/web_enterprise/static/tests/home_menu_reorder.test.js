@@ -54,7 +54,7 @@ async function mountHome({ homemenuConfig = false } = {}) {
     patchWithCleanup(EventBus.prototype, {
         trigger(name, detail) {
             if (name === "HOME-MENU:APPS-UPDATED") {
-                busEvents.push(detail.map((app) => app.name));
+                busEvents.push(detail.apps.map((app) => app.name));
             }
             return super.trigger(...arguments);
         },

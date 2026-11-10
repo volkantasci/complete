@@ -132,7 +132,12 @@ export class CwsHomeMenu extends Component {
         useListener(this.rootRef, "drop", (ev) => this.onFileDrag(ev));
         // announce the tile list whenever it is (re)built
         useEffect(() => {
-            this.env.bus.trigger("HOME-MENU:APPS-UPDATED", this.orderedApps);
+            const apps = this.orderedApps.map((app) => ({
+                ...app,
+                href: tileHref(app),
+                label: app.name,
+            }));
+            this.env.bus.trigger("HOME-MENU:APPS-UPDATED", { apps });
         });
         // keep the focused tile vertically centred
         useEffect(() => {
