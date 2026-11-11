@@ -98,7 +98,7 @@ class IrUiView(models.Model):
                 _(
                     "Unknown attributes on the gantt element: %s. Accepted attributes: %s.",
                     ', '.join(sorted(unknown)),
-                    ', '.join(sorted(_TL_ROOT_OPTIONS)),
+                    ', '.join(sorted(n for n in _TL_ROOT_OPTIONS if n != '__validate__')),
                 ),
                 node,
             )

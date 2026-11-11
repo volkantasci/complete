@@ -52,6 +52,11 @@ class TestValidation(TransactionCase):
 
     def test_a10_unknown_attributes(self):
         self._refuse(f'<gantt {GOOD} colour="x"/>', r'(?s)colour.*date_start')
+        with mute_logger('odoo.addons.base.models.ir_ui_view'), \
+                self.assertRaises(ValidationError) as caught:
+            self._save(f'<gantt {GOOD} colour="x"/>')
+        message = str(caught.exception)
+        self.assertNotIn('__validate__', message[message.index('Unknown attributes'):])
         everything = (
             'string="T" default_range="week" default_scale="week_2" scales="day,week" '
             'precision="{}" color="parent_id" progress="id" pill_label="1" thumbnails="{}" '

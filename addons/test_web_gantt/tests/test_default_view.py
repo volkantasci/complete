@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 from lxml import etree
+from odoo.addons.web_gantt.models.timeline_base import _TL_STOP_CANDIDATES
 from odoo.exceptions import UserError
 from odoo.tests.common import TransactionCase
 
@@ -44,8 +45,38 @@ class TestDefaultView(TransactionCase):
 
     def test_a3_declared_names_win(self):
         pill = self.env['test.web.gantt.pill']
+        # both fields exist: the declared start must beat the existing date_start
+        self.patch(type(pill), '_start_name', 'date_stop')
+        self.patch(type(pill), '_stop_name', 'date_start')
+        arch = pill._get_default_gantt_view()
+        self.assertEqual(arch.get('date_start'), 'date_stop')
+        self.assertEqual(arch.get('date_stop'), 'date_start')
+
+    def test_a3_missing_declared_names_fall_back(self):
+        pill = self.env['test.web.gantt.pill']
         self.patch(type(pill), '_start_name', 'x_missing')
         self.assertEqual(pill._get_default_gantt_view().get('date_start'), 'date_start')
+
+    def test_a3_stop_candidate_order(self):
+        model = self.env['ir.model'].create({
+            'name': 'Order Host', 'model': 'x_tl_order', 'state': 'manual',
+        })
+        for name in ('x_start_date', 'x_end_date', 'x_date_end'):
+            self.env['ir.model.fields'].create({
+                'name': name, 'model_id': model.id, 'field_description': name,
+                'ttype': 'datetime', 'state': 'manual',
+            })
+        # x_date_end comes before x_end_date in the candidate list
+        arch = self.env['x_tl_order']._get_default_gantt_view()
+        self.assertEqual(arch.get('date_stop'), 'x_date_end')
+
+    def test_a3_plain_stop_candidates_in_order(self):
+        # date_end beats end_date when both exist (candidate order 3 and 4)
+        self.assertLess(
+            _TL_STOP_CANDIDATES.index('date_end'), _TL_STOP_CANDIDATES.index('end_date'))
+        pill = self.env['test.web.gantt.pill']
+        self.patch(type(pill), '_fields', {'end_date': 1, 'date_end': 1})
+        self.assertEqual(pill._tl_pick_field('x_none', _TL_STOP_CANDIDATES), 'date_end')
 
     def test_a4_no_date_fields(self):
         with self.assertRaisesRegex(UserError, 'start and stop'):
