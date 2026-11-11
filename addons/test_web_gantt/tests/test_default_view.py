@@ -23,6 +23,9 @@ class TestDefaultView(TransactionCase):
 
     def test_a3_generated_view(self):
         pill = self.env['test.web.gantt.pill']
+        # the scratch host ships Gantt views for this model: set them aside
+        self.env['ir.ui.view'].search(
+            [('model', '=', pill._name), ('type', '=', 'gantt')]).write({'active': False})
         arch = etree.fromstring(pill.get_views([(False, 'gantt')])['views']['gantt']['arch'])
         self.assertEqual(arch.tag, 'gantt')
         self.assertEqual(arch.get('string'), 'Test Web Gantt Pill')

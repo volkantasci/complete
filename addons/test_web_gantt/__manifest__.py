@@ -12,6 +12,11 @@
     'auto_install': False,
     'data': [
         'security/ir.access.csv',
+        'data/host_fields.xml',
+        'data/host_views.xml',
+    ],
+    'demo': [
+        'demo/host_records.xml',
     ],
     'installable': True,
     'application': False,
