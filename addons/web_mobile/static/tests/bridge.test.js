@@ -9,6 +9,7 @@ import {
     cwmMakeBridge,
 } from "@web_mobile/bridge/bridge_service";
 import core, { methods } from "@web_mobile/js/services/core";
+import * as coreModule from "@web_mobile/js/services/core";
 
 describe.current.tags("headless");
 
@@ -224,5 +225,12 @@ test("test_001e_a9 the module without an app", () => {
     expect(methods).toEqual({});
     expect(core.methods).toBe(methods);
     expect(core.polyfills).toEqual({});
+    // the module offers exactly `methods` by name, and the default with the two members
+    // (the loader keeps the default under a symbol, so it is not among the string names)
+    expect(Object.keys(coreModule)).toEqual(["methods"]);
+    expect(Object.getOwnPropertySymbols(coreModule).map((s) => s.description)).toEqual(["default"]);
+    expect(coreModule[Symbol.for("default")]).toBe(core);
+    expect("polyfills" in coreModule).toBe(false);
+    expect(Object.keys(core)).toEqual(["methods", "polyfills"]);
     expect(Object.keys(cwmCallables(cwmDetectedHost()))).toEqual(Object.keys(methods));
 });

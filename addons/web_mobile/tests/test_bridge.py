@@ -100,6 +100,13 @@ class TestBridge(CwmHostCase):
         service = 'odoo.__WOWL_DEBUG__.root.env.services.mobile'
         with self.host_session(host={'plugins': plugins}):
             self.assertEqual(self.js(f'Object.keys({core}.methods)'), ['madeUpThing'])
+            # the module's own names: exactly `methods`, plus the default
+            self.assertEqual(self.js(f'Object.keys({core})'), ['methods'])
+            self.assertEqual(
+                self.js(f'Object.getOwnPropertySymbols({core}).map((s) => s.description)'),
+                ['default'])
+            self.assertEqual(
+                self.js(f'Object.keys({core}[Symbol.for("default")])'), ['methods', 'polyfills'])
             self.assertTrue(self.js(f'{core}[Symbol.for("default")].methods === {core}.methods'))
             self.assertTrue(self.js(f'{core}.methods.madeUpThing === {service}.madeUpThing'))
             self.js(f'{core}.methods.madeUpThing({{k: 1}}); true')

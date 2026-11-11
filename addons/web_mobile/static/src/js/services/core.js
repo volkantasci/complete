@@ -10,7 +10,5 @@ import { cwmCallables, cwmDetectedHost } from "@web_mobile/bridge/bridge_service
 const host = cwmDetectedHost();
 export const methods = cwmCallables(host);
 
-/** The helper object of the app (`{}` when there is none). */
-export const polyfills = host.polyfills;
-
-export default { methods, polyfills };
+/** Named export: `methods` only. The default export also carries the app's helper object. */
+export default { methods, polyfills: host.polyfills };

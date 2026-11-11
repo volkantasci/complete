@@ -59,7 +59,7 @@ the original do.
 | Part | Value |
 |---|---|
 | Browser module | `@web_mobile/js/services/core` |
-| Named export | `methods`: the capability calls of the bridge, by capability name |
+| Named exports | only `methods`: the capability calls of the bridge, by capability name |
 | Default export | `{ methods, polyfills }` |
 
 `methods` is the original capability object: one function per capability the
@@ -67,8 +67,9 @@ app lists, and those functions are the very same function objects as the
 capability members of the `mobile` service (the object itself is a separate
 one). A call such as `methods.addHomeShortcut({ title, shortcut_url, web_icon })`
 reaches the app directly. It is empty when the page runs outside an app.
-`polyfills` is the app's optional helper object, the one the app provides; it is
-an empty object when the app gives none.
+`polyfills` exists only as a member of the default export (there is no named
+`polyfills` export): the app's optional helper object, an empty object when the
+app gives none.
 
 ## Rulings that affect behaviour
 

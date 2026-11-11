@@ -113,9 +113,9 @@ you chose.
   matching records under a field such as the salesperson is light grey too,
   with a lighter shadow, while the search suggestions stay white. On a phone
   the language options open in a bottom sheet with a shadow, and the chosen
-  option has an action-coloured border. The rows sit 20 px from the sheet
-  edge. In the search suggestions and in selection lists, the item the keyboard
-  is on keeps the normal text colour.
+  option has an action-coloured border. The list carries a 4 px padding of its
+  own, and the rows sit 20 px from the sheet edge. In the search suggestions and
+  in selection lists, the item the keyboard is on keeps the normal text colour.
 - **Calendar drop zone.** When a task is dragged in a calendar that allows
   unscheduling, the drop zone fills the side panel column from its top edge,
   and its colours follow the active look, including the dark one.
@@ -123,14 +123,15 @@ you chose.
   width, so its thin scroll bar sits at the window edge, while the tiles stay
   in a centred column.
 
-![The language sheet on a phone](../assets/web_theme/34-language-sheet.mobile.png)
-
-![The language sheet on a phone, dark](../assets/web_theme/34-language-sheet-dark.mobile.png)
 - **Native controls.** Scroll bars, the browser's own date and time fields and
   the list of a native drop-down follow the look you chose, so in the dark look
   they are dark too.
 - **Phone address bar.** On a phone the browser's toolbar takes the brand
   colour in the light look and a dark blue-grey in the dark look.
+
+![The language sheet on a phone](../assets/web_theme/34-language-sheet.mobile.png)
+
+![The language sheet on a phone, dark](../assets/web_theme/34-language-sheet-dark.mobile.png)
 
 For the technical side, including how another module can change the colours,
 see the README linked at the top.
