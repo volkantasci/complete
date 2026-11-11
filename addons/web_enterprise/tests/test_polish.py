@@ -107,7 +107,7 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
     # -- A2 ------------------------------------------------------------------------
 
     def test_001e_a2_phone_sheet_inset(self):
-        menu = '.o_bottom_sheet .o_select_menu_menu'
+        menu = '.o_bottom_sheet .o_select_menu_menu .o_select_menu-choices'
         option = '.o_bottom_sheet .o_select_menu_item'
         for scheme in ('light', 'dark'):
             with self.page(self.fixtures['apps_kanban_url'], scheme=scheme, size=PHONE,
@@ -125,6 +125,64 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
                     (row['margin-left'], row['margin-right'], row['padding-left'],
                      row['padding-right']), ('16px', '16px', '16px', '40px'))
                 self.assertBox(self.rect(option), {'x': 20, 'width': 350, 'height': 57.109})
+
+    def test_001e_a2_sheet_list_padding(self):
+        # the list inside the sheet (the choices element) carries the padding, not the body
+        body = '.o_bottom_sheet .o_select_menu_menu'
+        choices = f'{body} .o_select_menu-choices'
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme, size=PHONE,
+                           touch=True):
+                self._open_preferences()
+                self.wait(f"!!document.querySelector('{choices} .o_select_menu_item')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+                pad = self.style(choices, 'padding-top', 'padding-right', 'padding-bottom',
+                                 'padding-left')
+                self.assertEqual(set(pad.values()), {'4px'}, pad)
+                self.assertBox(self.rect(choices), {'x': 0, 'width': 390})
+                # nothing around the list
+                around = self.style(body, 'padding-top', 'padding-right', 'padding-bottom',
+                                    'padding-left')
+                self.assertEqual(set(around.values()), {'0px'}, around)
+
+    def test_001e_a2_long_list_scrolls_to_edge(self):
+        body = '.o_bottom_sheet .o_select_menu_menu'
+        choices = f'{body} .o_select_menu-choices'
+        option = f'{choices} .o_select_menu_item'
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme, size=PHONE,
+                           touch=True):
+                self._open_preferences()
+                self.wait(f"!!document.querySelector('{option}')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+                # make the list longer than the sheet by repeating its rows, then scroll down
+                state = self.js(f"""(() => {{
+                    const list = document.querySelector('{choices}');
+                    const rows = [...list.querySelectorAll('.o_select_menu_item')];
+                    for (let i = 0; i < 25; i++) {{
+                        rows.forEach((row) => list.appendChild(row.cloneNode(true)));
+                    }}
+                    list.scrollTop = 400;
+                    return {{
+                        scrollable: list.scrollHeight > list.clientHeight,
+                        top: list.scrollTop,
+                    }};
+                }})()""")
+                self.assertTrue(state['scrollable'], state)
+                self.assertGreater(state['top'], 0)
+                self.js("new Promise((resolve) => setTimeout(resolve, 200))")
+                box = self.rect(choices)
+                # the list starts at the top edge of the sheet's body
+                self.assertAlmostEqual(box['y'], self.rect(body)['y'], delta=1)
+                # and a row runs up to that edge: it starts at or above it, and goes on below
+                reach = self.js(f"""(() => {{
+                    const top = document.querySelector('{choices}').getBoundingClientRect().top;
+                    return [...document.querySelectorAll('{option}')]
+                        .map((row) => row.getBoundingClientRect())
+                        .filter((r) => r.bottom > top + 1)
+                        .map((r) => r.top - top)[0];
+                }})()""")
+                self.assertLessEqual(reach, 1, reach)
 
     def test_001e_a2_desktop_list_unchanged(self):
         menu = '.o_select_menu_menu'

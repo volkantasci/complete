@@ -82,10 +82,15 @@
     }
 }
 
-// In the phone's bottom sheet the list is inset by the menu padding as well (001e R2); the
-// option rows keep the Community margins and padding.
+// In the phone's bottom sheet the choices list itself (the element that scrolls) carries the
+// menu padding (001e R2), so rows scroll up to the sheet's top edge; the sheet's body around
+// it keeps no padding. The option rows keep the Community margins and padding.
 .o_bottom_sheet .o_select_menu_menu {
-    padding: $dropdown-padding-y $dropdown-padding-x !important;
+    padding: 0 !important;
+
+    .o_select_menu-choices {
+        padding: $dropdown-padding-y $dropdown-padding-x;
+    }
 }
 
 // Tooltips take the tooltip role instead of the popover roles.

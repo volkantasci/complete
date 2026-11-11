@@ -199,8 +199,9 @@ Small corrections to the look, all in the theme layer. Tests: `tests/test_polish
   selection list (the Language field), the item the keyboard is on keeps the
   body text colour. A hovered item keeps the black-role text. The list of
   matching records under a record field is unchanged.
-- **Phone sheet.** The selection list in the bottom sheet keeps its 4 px padding.
-  Rows start 20 px from the sheet edge, so on a 390 px phone they are 350 px
+- **Phone sheet.** The selection list in the bottom sheet carries the 4 px padding itself (not
+  the sheet's body around it), so a long list scrolls with its padding and the
+  rows run up to the sheet's top edge. Rows start 20 px from the sheet edge, so on a 390 px phone they are 350 px
   wide. The desktop list is unchanged.
 - **iOS rows.** The text, border and outline colours of the row itself are the
   action role; these colours do not show (the row has no border, the name has
