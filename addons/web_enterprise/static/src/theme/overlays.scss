@@ -28,6 +28,16 @@
     color: $dropdown-link-hover-color;
 }
 
+// Where the keyboard has put its mark (the control-panel search suggestions, the searchable
+// selection lists) the text keeps its normal colour, the wash alone shows the focus; the
+// pointer still turns the text to the black role (001e R1).
+.o_searchview_autocomplete,
+.o_select_menu_menu {
+    .dropdown-item:not(.disabled, :disabled):is(:focus-visible, .focus):not(:hover) {
+        color: $body-color;
+    }
+}
+
 // Select-type menus (searchable selection lists): the menu padding only, no extra margin.
 .o-autocomplete--dropdown-menu {
     .ui-menu-item,
@@ -70,6 +80,12 @@
         margin-top: 0;
         margin-bottom: 0;
     }
+}
+
+// In the phone's bottom sheet the list is inset by the menu padding as well (001e R2); the
+// option rows keep the Community margins and padding.
+.o_bottom_sheet .o_select_menu_menu {
+    padding: $dropdown-padding-y $dropdown-padding-x !important;
 }
 
 // Tooltips take the tooltip role instead of the popover roles.

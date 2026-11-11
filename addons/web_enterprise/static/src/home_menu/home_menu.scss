@@ -95,9 +95,10 @@ body.o_home_menu_background {
         }
 
         // the field plus its bottom margin total the 46 px the page opens scrolled by
-        // first row of tiles starts 65 px from the top of the screen (S1 mobile)
+        // the first tile's icon starts 65 px from the top of the screen (S1 mobile): the tile box
+        // starts 61 px down, its 4 px padding make up the rest
         .o_apps {
-            padding-top: 10px;
+            padding-top: 14px;
             // the page opens scrolled by 46 px; the field and its margins take 8 + 37 + 16 in
             // the light field. The dark field is 2 px taller (its border) and nothing makes up
             // for it: the tiles sit 2 px lower and the border's last line shows under the bar.
@@ -123,8 +124,8 @@ body.o_home_menu_background {
     .o_apps {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        // row pitch 122 px below 768 px (cell height 114), 130 px from 768 px (cell height 115)
-        row-gap: 8px;
+        // row pitch 121.5 px below 768 px (cell height 105.5), 130 px from 768 px (cell height 115)
+        row-gap: 16px;
 
         @include media-breakpoint-up(md) {
             grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -140,7 +141,7 @@ body.o_home_menu_background {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 8px;
+        padding: 4px;
         border-radius: 12px;
         color: inherit;
         text-decoration: none;
@@ -148,6 +149,11 @@ body.o_home_menu_background {
         -webkit-touch-callout: none;
         // a dragged tile tilts and levels again over half a second (R11)
         transition: rotate .5s;
+
+        // from 768 px the cell has the 8 px padding of the desktop grid
+        @include media-breakpoint-up(md) {
+            padding: 8px;
+        }
 
         &.o_focused {
             background: rgba(var(--o-cws-active-rgb), .75);
@@ -198,13 +204,6 @@ body.o_home_menu_background {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-
-            // on a phone the name may use the tile's side padding, so that "Point of Sale"
-            // is not cut
-            @include media-breakpoint-down(md) {
-                width: calc(100% + 8px);
-                margin-inline: -4px;
-            }
 
             @include media-breakpoint-up(md) {
                 font-size: 14px;
@@ -258,6 +257,10 @@ body.o_home_menu_background {
             border-radius: 12px;
             box-shadow: none;
             background: rgba(255, 255, 255, .1);
+            // the row is drawn in the action colour; the border is off but keeps its colour
+            color: $o-action;
+            border-color: $o-action;
+            outline-color: $o-action;
 
             .o_app_icon {
                 width: 52.5px;
