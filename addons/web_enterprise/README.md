@@ -186,9 +186,31 @@ below are the measured ones (the class is `o_cws_ios_list`, in `home_menu.scss`)
 
 Wider windows keep the grid (column tile, 8 px padding, transparent background, 14
 px name, weight 500, centred). On a phone outside the iOS app the grid stays with
-13 px names at weight 500; there the name box is 8 px wider than the tile content
-(`margin-inline: -4px`) so that names such as "Point of Sale" are not cut. Tests:
-`tests/test_ios_list.py`.
+13 px names at weight 500. There the tile box has 4 px padding and is 89.5 px wide
+and 105.5 px high; rows are 121.5 px apart, and the name takes the whole content
+width so that names such as "Point of Sale" are not cut. Tests:
+`tests/test_ios_list.py`, `tests/test_polish.py`.
+
+## Slice 001e polish
+
+Small corrections to the look, all in the theme layer. Tests: `tests/test_polish.py`.
+
+- **Focused list item.** In the search suggestions of the control panel and in a
+  selection list (the Language field), the item the keyboard is on keeps the
+  body text colour. A hovered item keeps the black-role text. The list of
+  matching records under a record field is unchanged.
+- **Phone sheet.** The selection list in the bottom sheet keeps its 4 px padding.
+  Rows start 20 px from the sheet edge, so on a 390 px phone they are 350 px
+  wide. The desktop list is unchanged.
+- **iOS rows.** The text, border and outline colours of the row itself are the
+  action role, which makes them invisible; the name and the row background
+  are as listed above.
+- **Phone tile box.** See the paragraph above the tests (4 px padding, name the
+  content width).
+
+![The Language sheet on a phone](../../docs/assets/web_theme/34-language-sheet.mobile.png)
+
+![The Language sheet on a phone, dark](../../docs/assets/web_theme/34-language-sheet-dark.mobile.png)
 
 The event `HOME-MENU:APPS-UPDATED` carries `{ apps }`: the applications in the order
 the home menu shows them (user order applied). Each entry is the application

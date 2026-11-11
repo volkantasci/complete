@@ -53,6 +53,9 @@ On a small screen the top bar shows a three-line button. Inside an application
 it opens the side panel with the application's menus and an **All Apps**
 button, which shows the home menu.
 
+On the phone home menu each tile has a small padding of 4 px around it. The
+application name uses the whole width of the tile, so a long name is not cut.
+
 ![The side panel inside an application, with All Apps](../assets/web_shell/07-mobile-app-menu.mobile.png)
 
 ![The home menu over an application on a phone](../assets/web_shell/05-home-over-app.mobile.png)

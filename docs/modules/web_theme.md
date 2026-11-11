@@ -113,7 +113,13 @@ you chose.
   matching records under a field such as the salesperson is light grey too,
   with a lighter shadow, while the search suggestions stay white. On a phone
   the language options open in a bottom sheet with a shadow, and the chosen
-  option has an action-coloured border.
+  option has an action-coloured border. The rows sit 20 px from the sheet
+  edge. In the search suggestions and in selection lists, the item the keyboard
+  is on keeps the normal text colour.
+
+![The language sheet on a phone](../assets/web_theme/34-language-sheet.mobile.png)
+
+![The language sheet on a phone, dark](../assets/web_theme/34-language-sheet-dark.mobile.png)
 - **Calendar drop zone.** When a task is dragged in a calendar that allows
   unscheduling, the drop zone fills the side panel column from its top edge,
   and its colours follow the active look, including the dark one.

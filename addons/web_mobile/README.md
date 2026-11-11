@@ -50,16 +50,41 @@ does not use stay callable by name for other modules. The platform markers in th
 browser identification are used only by the account update (the iOS app does not
 answer it, so the page does not wait) and by the iOS list.
 
+## Compatibility interface for modules written for the original
+
+Other modules may import the bridge's capability calls the way modules written for
+the original do.
+
+| Part | Value |
+|---|---|
+| Browser module | `@web_mobile/js/services/core` |
+| Named export | `methods`: the capability calls of the bridge, by capability name |
+| Default export | `{ methods, polyfills }` |
+
+`methods` is the object the bridge holds for the app (the original capability
+object), so a call such as `methods.addHomeShortcut({ title, shortcut_url,
+web_icon })` reaches the app directly. It is empty when the page runs outside an
+app. `polyfills` holds the helpers the page provides for capabilities the app
+lacks.
+
 ## Rulings that affect behaviour
 
 - Failed answers to background updates (account details, error report, unreadable
   picture) write one `console.warn` prefixed `[cwm]` and show nothing.
 - Where the original shows the generic error dialog, a warning notice is shown
-  instead: the home menu shortcut, an application without a picture icon, a file
+  instead: the home menu shortcut, an application with a glyph icon, a file
   built inside the page, shared files that cannot be loaded. The texts are in
   [docs/modules/mobile_bridge.md](../../docs/modules/mobile_bridge.md).
 - Reader polls wait for the previous answer for at most 1000 ms; no "reader off"
-  request is sent.
+  request is sent. The first poll goes out one interval after "reader on" is
+  sent, whether or not that call is ever answered. If the last listener leaves
+  before that first poll, the poll is cancelled.
+- The reordered application list is sent the next time the home menu is
+  displayed, not when a tile is dropped. A drop that leaves the order as it was
+  sends nothing. The first display still sends the list.
+- Add to Home Screen in an application with no icon at all sends the shortcut
+  with the icon `/web/static/img/default_icon_app.png` and shows no notice. An
+  application with a glyph icon still gets the notice.
 - The Community version answer is unchanged; no edition marker is added.
 
 ## Provenance
