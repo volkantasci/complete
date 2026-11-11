@@ -131,7 +131,7 @@ class TestSharedFiles(CwmShareCase):
             self.assertEqual(self.notices(), [NOTICE_ONE % 'bad.pdf'])
             self.assertFalse(self.dialog_open())
 
-    def test_A39_no_files(self):
+    def test_001e_a13_empty_share_list_shows_nothing(self):
         if not self.any_share_module():
             self.skipTest('no share item module installed')
         with self.host_session(host={'files': []}):
@@ -139,6 +139,10 @@ class TestSharedFiles(CwmShareCase):
             self.settle()
             self.assertEqual(self.notices(), [])
             self.assertFalse(self.dialog_open())
+
+    def test_001e_a13_failed_share_answer_warns(self):
+        if not self.any_share_module():
+            self.skipTest('no share item module installed')
         with self.host_session(host={'answers': {'getShareTargetFiles': 'fail'}}):
             self.wait("!!document.querySelector('.o_notification')")
             self.settle()
