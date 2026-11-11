@@ -96,9 +96,15 @@ body.o_home_menu_background {
 
         // the field plus its bottom margin total the 46 px the page opens scrolled by
         // the first tile's icon starts 65 px from the top of the screen (S1 mobile): the tile box
-        // starts 61 px down, its 4 px padding make up the rest
+        // starts 61 px down; the tile padding makes up the rest: 4 px below 768 px, 8 px from
+        // there, so the grid takes 14 px of padding on a phone and 10 px on a wider touch screen
         .o_apps {
-            padding-top: 14px;
+            padding-top: 10px;
+
+            @include media-breakpoint-down(md) {
+                padding-top: 14px;
+            }
+
             // the page opens scrolled by 46 px; the field and its margins take 8 + 37 + 16 in
             // the light field. The dark field is 2 px taller (its border) and nothing makes up
             // for it: the tiles sit 2 px lower and the border's last line shows under the bar.

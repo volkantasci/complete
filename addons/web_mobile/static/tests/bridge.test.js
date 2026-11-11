@@ -189,6 +189,11 @@ test("reserved member names are not overwritten by capabilities", () => {
     expect(typeof bridge.has).toBe("function");
 });
 
+test("methods holds one function per listed capability, reserved names included", () => {
+    const fake = installCwmHost({ plugins: [plugin("bus"), plugin("other")], win: {} });
+    expect(Object.keys(cwmCallables(cwmDetectHost(fake.win)))).toEqual(["bus", "other"]);
+});
+
 test("test_001e_a9_original_capability_object", async () => {
     // the callables of a detection result are built once and shared with the service
     const fake = installCwmHost({

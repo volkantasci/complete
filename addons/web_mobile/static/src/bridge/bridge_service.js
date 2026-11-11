@@ -242,7 +242,7 @@ class CwmReaderChannel extends EventTarget {
 const cwmCallableCache = new WeakMap();
 
 /**
- * The functions of the capabilities the app lists, keyed by name (empty without an app).
+ * The functions of the capabilities the app lists, one per name (empty without an app).
  * Built once per detection result: every caller gets the very same function objects.
  *
  * @param {ReturnType<typeof cwmDetectHost>} host
@@ -254,9 +254,6 @@ export function cwmCallables(host) {
     }
     callables = {};
     for (const [name, action] of host.actions) {
-        if (CWM_RESERVED.has(name) || Object.hasOwn(callables, name)) {
-            continue;
-        }
         callables[name] = (args) =>
             new Promise((resolve, reject) => {
                 const id = `cwm-${++cwmLastId}`;
@@ -290,7 +287,12 @@ export function cwmMakeBridge(host) {
         bridge,
         session.time_between_reads_in_ms || CWM_DEFAULT_INTERVAL
     );
-    Object.assign(bridge, cwmCallables(host));
+    // the members of the bridge itself win over a capability of the same name
+    for (const [name, call] of Object.entries(cwmCallables(host))) {
+        if (!CWM_RESERVED.has(name)) {
+            bridge[name] = call;
+        }
+    }
     return bridge;
 }
 

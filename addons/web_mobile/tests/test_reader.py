@@ -41,8 +41,8 @@ class TestReader(CwmHostCase):
         times = [e['at'] for e in self.reads()]
         return [b - a for a, b in zip(times, times[1:count], strict=False)]
 
-    def assertNear(self, value, expected):
-        self.assertLessEqual(abs(value - expected), TOLERANCE, f'{value} not near {expected}')
+    def assertNear(self, value, expected, tolerance=TOLERANCE):
+        self.assertLessEqual(abs(value - expected), tolerance, f'{value} not near {expected}')
 
     def test_A40_reader_loop(self):
         answers = {'getReaderData': [EMPTY, {'success': True, 'data': 'ABC'}, EMPTY]}
@@ -72,7 +72,7 @@ class TestReader(CwmHostCase):
             self.join('x')
             self.wait_reads(1)
             on = self.cwm_expect_one(self.host_requests('enableReader'))
-            self.assertNear(self.reads()[0]['at'] - on['at'], 100)
+            self.assertNear(self.reads()[0]['at'] - on['at'], 100, 30)
 
     def test_001e_a6_first_poll_with_session_interval(self):
         IrHttp = type(self.env['ir.http'])
@@ -86,7 +86,7 @@ class TestReader(CwmHostCase):
             self.join('x')
             self.wait_reads(1)
             on = self.cwm_expect_one(self.host_requests('enableReader'))
-            self.assertNear(self.reads()[0]['at'] - on['at'], 300)
+            self.assertNear(self.reads()[0]['at'] - on['at'], 300, 30)
 
     def test_A41_session_interval(self):
         IrHttp = type(self.env['ir.http'])

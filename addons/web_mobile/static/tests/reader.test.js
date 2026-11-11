@@ -131,17 +131,17 @@ test("A64 errors logged, polling continues, re-join re-enables", async () => {
     const original = console.warn;
     console.warn = (...args) => warnings.push(args.join(" "));
     try {
-        r.bridge.bus.addEventListener("x", r.listener);
-        await run(300);
-        expect(r.count("reader_get")).toBe(3);
-        expect(warnings.length).toBe(2);
-        expect(warnings.every((w) => w.startsWith("[cwm]"))).toBe(true);
-        r.bridge.bus.removeEventListener("x", r.listener);
-        r.bridge.bus.addEventListener("x", r.listener);
-        expect(r.count("reader_on")).toBe(2);
-        const before = r.count("reader_get");
-        await run(150);
-        expect(r.count("reader_get")).toBe(before + 1);
+            r.bridge.bus.addEventListener("x", r.listener);
+            await run(300);
+            expect(r.count("reader_get")).toBe(3);
+            expect(warnings.length).toBe(2);
+            expect(warnings.every((w) => w.startsWith("[cwm]"))).toBe(true);
+            r.bridge.bus.removeEventListener("x", r.listener);
+            r.bridge.bus.addEventListener("x", r.listener);
+            expect(r.count("reader_on")).toBe(2);
+            const before = r.count("reader_get");
+            await run(150);
+            expect(r.count("reader_get")).toBe(before + 1);
     } finally {
         console.warn = original;
     }
@@ -202,6 +202,7 @@ test("no reader capabilities: no polling", async () => {
 
 test("test_001e_a6_first_poll_one_interval_after_reader_on", async () => {
     // the host never answers reader-on: the first read still goes out one interval later
+    try {
     for (const interval of [undefined, 300]) {
         if (interval) {
             session.time_between_reads_in_ms = interval;
@@ -233,6 +234,9 @@ test("test_001e_a6_first_poll_one_interval_after_reader_on", async () => {
         await run(60);
         expect(count("reader_get")).toBe(2);
         bridge.bus.removeEventListener("x", listener);
+        delete session.time_between_reads_in_ms;
+    }
+    } finally {
         delete session.time_between_reads_in_ms;
     }
 });

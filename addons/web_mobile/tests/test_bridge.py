@@ -108,4 +108,5 @@ class TestBridge(CwmHostCase):
             self.assertEqual(entry['args'], {'k': 1})
         with self.host_session(host=None, ua=self.UA_DESKTOP):
             self.assertEqual(self.js(f'Object.keys({core}.methods)'), [])
+            self.assertEqual(self.js(f'Object.keys({core}[Symbol.for("default")].polyfills)'), [])
             self.assertTrue(self.js(f'{core}[Symbol.for("default")].methods === {core}.methods'))

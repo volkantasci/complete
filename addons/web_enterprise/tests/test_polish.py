@@ -76,6 +76,10 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
                 other = self.style(SUGGESTION, 'color', 'background-color', index=1)
                 self.assertColour(other['color'], BODY[scheme])
                 self.assertTransparent(other['background-color'])
+                # pointing at the focused item gives the black role too
+                with self.forced(SUGGESTION, 'hover', index=0):
+                    self.assertColour(self.style(SUGGESTION, 'color', index=0)['color'],
+                                      BLACK_ROLE[scheme])
                 # pointing at an item still gives the black role
                 with self.forced(SUGGESTION, 'hover', index=1):
                     self.assertColour(self.style(SUGGESTION, 'color', index=1)['color'],
@@ -94,6 +98,8 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
                 got = self.style(focus, 'color', 'background-color')
                 self.assertColour(got['color'], BODY[scheme])
                 self.assertWash(got['background-color'], scheme, .08)
+                with self.forced(focus, 'hover'):
+                    self.assertColour(self.style(focus, 'color')['color'], BLACK_ROLE[scheme])
                 with self.forced(item, 'hover', index=1):
                     self.assertColour(self.style(item, 'color', index=1)['color'],
                                       BLACK_ROLE[scheme])
@@ -148,6 +154,16 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
                 # the name keeps the colour of the earlier package
                 self.assertColour(self.style(TILE_NAME, 'color')['color'],
                                   '#212529' if scheme == 'light' else '#FFFFFF', tol=1)
+
+    def test_001e_a7_tablet_tile_row_stays(self):
+        # from 768 px the tile padding is 8 px again: the grid gives 2 px less so the first
+        # icon stays where 001b put it
+        for scheme, top in (('light', 65), ('dark', 67)):
+            with self.page('/odoo', scheme=scheme, size=(800, 900), touch=True):
+                self.wait(f"document.querySelectorAll('{TILE}').length >= 5")
+                self.js("new Promise((resolve) => setTimeout(resolve, 700))")
+                self.assertEqual(self.style(TILE, 'padding-top')['padding-top'], '8px')
+                self.assertAlmostEqual(self.rect(TILE_ICON)['y'], top, delta=1)
 
     # -- A7 ------------------------------------------------------------------------
 
