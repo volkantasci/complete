@@ -75,6 +75,12 @@
         margin: $dropdown-padding-y $dropdown-padding-x 0;
     }
 
+    // under a shown search box the rows start directly below it, as before the padding moved
+    // (the box is empty, and hidden, when the search sits in the toggler)
+    .o_select_menu_searchbox:not(:empty) + .o_select_menu-choices {
+        padding-top: 0;
+    }
+
     .o_select_menu-choices {
         --SelectMenu-padding: #{$dropdown-padding-y $dropdown-padding-x};
         --SelectMenuItem-margin-y: 0;

@@ -207,7 +207,9 @@ Small corrections to the look, all in the theme layer. Tests: `tests/test_polish
   holds the rows (`.o_select_menu-choices`), not on the frame around it (frame
   padding 0, background, border, radius and shadow unchanged). Rows keep their
   places; a long list scrolls with its rows running up to the frame's top edge.
-  The search box, when shown, keeps its place through a 4 px margin.
+  The search box, when shown, keeps its place through a 4 px margin, and the
+  rows start directly under it (the list's top padding is 0 below a shown
+  search box; a list without one has 4 px on all sides).
 - **iOS rows.** The text, border and outline colours of the row itself are the
   action role; these colours do not show (the row has no border, the name has
   its own colour, and the outline shows only on keyboard focus). The name and

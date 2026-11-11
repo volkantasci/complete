@@ -223,6 +223,35 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
                     self.rect(item)['y'],
                     self.rect(menu)['y'] + float(border[:-2]) + 4, delta=.5)
 
+    def test_001e_p2_desktop_search_box_list_offset(self):
+        menu = '.o_select_menu_menu'
+        box = f'{menu} .o_select_menu_searchbox'
+        item = f'{menu} .o_select_menu_item'
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme):
+                self._open_preferences()
+                self.wait(f"!!document.querySelector('{item}')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+                # the Language list keeps its search in the toggler: the box is empty and hidden
+                self.assertEqual(self.rect(box)['height'], 0)
+                # a list that shows its search box (the component's markup for it)
+                self.js(f"""(() => {{
+                    const input = document.createElement('input');
+                    input.className = 'o_input o_select_menu_input dropdown-item';
+                    document.querySelector('{box}').appendChild(input);
+                }})()""")
+                search = self.rect(box)
+                self.assertGreater(search['height'], 0, 'the search box is shown')
+                frame = self.rect(menu)
+                border = self.style(menu, 'border-top-width')['border-top-width']
+                edge = float(border[:-2])
+                # the box keeps its 4 px inset from the frame
+                self.assertAlmostEqual(search['y'], frame['y'] + edge + 4, delta=1)
+                self.assertAlmostEqual(search['x'], frame['x'] + edge + 4, delta=1)
+                # the rows start directly under it, as before the padding moved
+                self.assertAlmostEqual(
+                    self.rect(item)['y'], search['y'] + search['height'], delta=1)
+
     def test_001e_p2_desktop_long_list_scrolls_to_edge(self):
         menu = '.o_select_menu_menu'
         choices = f'{menu} .o_select_menu-choices'
