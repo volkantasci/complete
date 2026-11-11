@@ -1,0 +1,446 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import { MockServer, makeTestApp, patchWithCleanup } from "@web/../tests/web_test_helpers";
+import { browser } from "@web/core/browser/browser";
+import { localization } from "@web/core/l10n/localization";
+
+import {
+    HOST_ARCHS,
+    makeTimelineModel,
+    setupTimelineFixtures,
+    timelineArch,
+    timelineMock,
+} from "./timeline_test_helpers";
+
+describe.current.tags("headless");
+
+setupTimelineFixtures();
+
+beforeEach(() => {
+    mockTimeZone(3);
+    mockDate("2026-11-12 00:30:00");
+    patchWithCleanup(localization, { weekStart: 7 });
+});
+
+const span = (range) => [range.start.toISODate(), range.stop.toISODate()];
+const names = (rows) => rows.map((row) => row.name);
+const recordNames = (model, row) =>
+    row.recordIds.map((id) => model.data.recordsById.get(id).displayName);
+const calls = () => timelineMock.calls;
+const lastCall = () => timelineMock.calls.at(-1);
+const hasLeaf = (domain, leaf) => domain.some((item) => JSON.stringify(item) === JSON.stringify(leaf));
+const storedRange = (viewId) => browser.localStorage.getItem(`rangeOf-viewId-${viewId}`);
+
+const GROUPED_ARCH = (attrs = "") =>
+    timelineArch(
+        `default_range="week" color="x_color" progress="x_progress" total_row="1" ${attrs}`,
+        `<field name="x_flagged"/><field name="x_done"/>`
+    );
+
+test("A19: inverted, undated and out-of-period records are not drawn", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["parent_id"] });
+    const drawn = names(model.data.records.map((record) => ({ name: record.displayName })));
+    expect(drawn.includes("Wrong order")).toBe(false);
+    expect(drawn.includes("Unscheduled")).toBe(false);
+    expect(drawn.includes("Plan")).toBe(true);
+    expect(drawn).toHaveLength(12);
+    // the server still returns the inverted record, so its group exists but shows no pill
+    const beta = model.data.rows.find((row) => row.name === "Beta");
+    expect(recordNames(model, beta)).toEqual(["Test", "Deploy"]);
+
+    const { model: dated } = await makeTimelineModel({
+        arch: HOST_ARCHS.H10,
+        resModel: "pill2",
+        viewId: 10,
+    });
+    await dated.load({});
+    expect(dated.data.records.map((record) => record.displayName)).toEqual([
+        "Day one",
+        "Three days",
+        "Next month",
+    ]);
+    const loaded = dated.step(-1);
+    await advanceTime(500);
+    await loaded;
+    expect(dated.data.records.map((record) => record.displayName)).toEqual([
+        "Day one",
+        "Three days",
+    ]);
+});
+
+test("A21: default custom range of three months", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H5 });
+    await model.load({});
+    expect(model.data.range.kind).toBe("custom");
+    expect(span(model.data.range)).toEqual(["2026-11-01", "2027-01-31"]);
+    expect(model.data.scaleId).toBe("month");
+});
+
+test("A22: context range and context dates", async () => {
+    const open = async (context, viewId) => {
+        const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H5, viewId });
+        await model.load({ context });
+        return model.data.range;
+    };
+    let range = await open({ default_range: "month" }, 1);
+    expect([range.kind, ...span(range)]).toEqual(["month", "2026-10-01", "2026-12-31"]);
+    range = await open({ default_start_date: "2026-11-15" }, 2);
+    expect([range.kind, ...span(range)]).toEqual(["custom", "2026-11-15", "2027-01-31"]);
+    range = await open({ default_stop_date: "2026-12-10" }, 3);
+    expect([range.kind, ...span(range)]).toEqual(["custom", "2026-10-01", "2026-12-10"]);
+    range = await open({ default_start_date: "2026-11-05", default_stop_date: "2026-11-25" }, 4);
+    expect([range.kind, ...span(range)]).toEqual(["custom", "2026-11-05", "2026-11-25"]);
+    expect(range.focus.toISODate()).toBe("2026-11-12");
+});
+
+test("A23: initial focus date", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ context: { initialDate: "2026-12-15" } });
+    expect(span(model.data.range)).toEqual(["2026-12-06", "2026-12-26"]);
+    expect(model.data.range.focus.toISODate()).toBe("2026-12-15");
+});
+
+test("A24: offered ranges", async () => {
+    let { config } = await makeTimelineModel({ arch: HOST_ARCHS.H10, resModel: "pill2" });
+    expect(config.offeredKinds).toEqual(["day", "week", "month"]);
+    ({ config } = await makeTimelineModel({
+        arch: timelineArch(`scales="week,month" default_range="year"`),
+    }));
+    expect(config.offeredKinds).toEqual(["week", "month", "year"]);
+    ({ config } = await makeTimelineModel({ arch: timelineArch(`scales="week,decade"`) }));
+    expect(config.offeredKinds).toEqual(["week"]);
+});
+
+test("A28: quick clicks load once", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    expect(calls()).toHaveLength(1);
+    model.step(1);
+    model.step(1);
+    const done = model.step(1);
+    expect(calls()).toHaveLength(1);
+    expect(model.data.pendingRange.start.toISODate()).toBe("2026-11-22");
+    await advanceTime(500);
+    await done;
+    expect(calls()).toHaveLength(2);
+    expect(span(model.data.range)).toEqual(["2026-11-22", "2026-12-12"]);
+    expect(model.data.pendingRange).toBe(null);
+    expect(lastCall().start_date).toBe("2026-11-21 21:00:00");
+});
+
+test("A28: a delayed older response does not overwrite a newer one", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    timelineMock.beforeReply = (kwargs, index) => (index === 1 ? gate : undefined);
+    model.step(1);
+    await advanceTime(500);
+    await animationFrame();
+    expect(calls()).toHaveLength(2); // the first response is still pending
+    const done = model.step(1);
+    await advanceTime(500);
+    await animationFrame();
+    expect(calls()).toHaveLength(3);
+    await done;
+    expect(span(model.data.range)).toEqual(["2026-11-15", "2026-12-05"]);
+    release();
+    await animationFrame();
+    expect(span(model.data.range)).toEqual(["2026-11-15", "2026-12-05"]);
+});
+
+test("A35: remembered range", async () => {
+    const { model } = await makeTimelineModel({ viewId: 1 });
+    await model.load({});
+    expect(model.data.range.kind).toBe("week");
+    expect(storedRange(1)).toBe("week");
+    expect(storedRange(2)).toBe(null);
+
+    await model.setKind("month");
+    expect(storedRange(1)).toBe("month");
+    let other = (await makeTimelineModel({ viewId: 1 })).model;
+    await other.load({ context: { default_range: "day" } });
+    expect(other.data.range.kind).toBe("month");
+
+    await other.applyCustom(model.data.range.start, model.data.range.stop.plus({ days: 10 }));
+    expect(storedRange(1)).toBe("custom");
+    other = (await makeTimelineModel({ viewId: 1 })).model;
+    await other.load({});
+    expect(other.data.range.kind).toBe("week");
+    expect(storedRange(2)).toBe(null);
+});
+
+test("A53: grouping and the empty-value row", async () => {
+    const { model } = await makeTimelineModel({ arch: GROUPED_ARCH() });
+    await model.load({ groupBy: ["parent_id"] });
+    expect(names(model.data.rows)).toEqual(["Undefined Parent", "Alpha", "Beta", "Gamma"]);
+    expect(recordNames(model, model.data.rows[0])).toEqual(["Plan"]);
+    expect(model.data.rows.map((row) => row.isEmptyValueRow)).toEqual([true, false, false, false]);
+});
+
+test("A54: the empty-value row exists without such a record", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["parent_id"], domain: [["parent_id", "=", 1]] });
+    expect(names(model.data.rows)).toEqual(["Undefined Parent", "Alpha"]);
+    expect(model.data.rows[0].recordIds).toEqual([]);
+});
+
+test("A55: no empty-value row for a required field", async () => {
+    const fieldsOverride = { x_contact: { required: true } };
+    const { model } = await makeTimelineModel({ fieldsOverride });
+    await model.load({ groupBy: ["x_contact"], domain: [["x_contact", "!=", false]] });
+    expect(names(model.data.rows)).toEqual(["Host Contact 1", "Host Contact 2", "Host Contact 3"]);
+    await model.load({ groupBy: ["x_contact"], domain: [["name", "=", "no such record"]] });
+    expect(model.data.rows).toHaveLength(1);
+    expect(model.data.rows[0].name).toBe("");
+    expect(model.data.rows[0].recordIds).toEqual([]);
+});
+
+test("A56: date group-bys are ignored", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["date_start:month"] });
+    expect(model.data.groupBy).toEqual([]);
+    expect(names(model.data.rows)).toEqual([""]);
+    expect(lastCall().groupby).toEqual([]);
+    await model.load({ groupBy: ["date_start:month", "parent_id"] });
+    expect(model.data.groupBy).toEqual(["parent_id"]);
+    expect(names(model.data.rows)).toEqual(["Undefined Parent", "Alpha", "Beta", "Gamma"]);
+});
+
+test("A57: many-to-many grouping", async () => {
+    const { model } = await makeTimelineModel({ arch: GROUPED_ARCH() });
+    await model.load({ groupBy: ["x_tags"] });
+    const rows = model.data.rows;
+    expect(names(rows)).toEqual(["Undefined Tags", "Host Tag 1", "Host Tag 2"]);
+    expect(recordNames(model, rows[1])).toEqual(["Design", "Build"]);
+    expect(recordNames(model, rows[2])).toEqual(["Build"]);
+    expect(recordNames(model, rows[0]).includes("Build")).toBe(false);
+    const all = rows.flatMap((row) => row.recordIds);
+    expect(new Set(all).size).toBe(model.data.records.length);
+});
+
+test("A58: row names", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["x_flagged"] });
+    expect(names(model.data.rows)).toEqual(["False", "True"]);
+    expect(recordNames(model, model.data.rows[1])).toEqual(["Test"]);
+    await model.load({ groupBy: ["x_state"] });
+    expect(names(model.data.rows)).toEqual(["Undefined State", "Draft", "In progress"]);
+});
+
+test("A67 and A113: group paging keeps the empty-value row on every page", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H6 });
+    await model.load({ groupBy: ["parent_id"] });
+    expect(model.data.length).toBe(4);
+    expect(model.data.offset).toBe(0);
+    expect([lastCall().limit, lastCall().offset]).toEqual([2, 0]);
+    expect(names(model.data.rows)).toEqual(["Undefined Parent", "Alpha", "Beta"]);
+    await model.setOffset(2);
+    expect(model.data.offset).toBe(2);
+    expect(names(model.data.rows)).toEqual(["Undefined Parent", "Gamma"]);
+    expect(names(model.data.rows[0].children)).toEqual(["Plan"]);
+    // sparse mode: groups with rows of their own, an empty group shows one unnamed row
+    await model.setOffset(0);
+    expect(names(model.data.rows[0].children)).toEqual([""]);
+    expect(model.data.rows.every((row) => row.isGroup)).toBe(true);
+    // no grouping, no paging
+    await model.load({ groupBy: [] });
+    expect(lastCall().limit).toBe(undefined);
+    expect(model.data.rows.every((row) => !row.isGroup)).toBe(true);
+});
+
+test("A73: progress is asked only when the field is grouped", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H12 });
+    await model.load({ groupBy: ["parent_id"] });
+    expect(lastCall().progress_bar_fields).toBe(undefined);
+    timelineMock.progress = { x_contact: { 1: { value: 130, max_value: 120 } } };
+    await model.load({ groupBy: ["x_contact"] });
+    expect(lastCall().progress_bar_fields).toEqual(["x_contact"]);
+    expect(model.data.progress).toEqual({ x_contact: { 1: { value: 130, max_value: 120 } } });
+});
+
+test("A83: sample state flag set on an empty first load and cleared on the next", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H8 });
+    const search = { domain: [["name", "=", "no such record"]], groupBy: ["parent_id"] };
+    await model.load(search);
+    expect(model.data.isSample).toBe(true);
+    expect(model.data.records).toEqual([]);
+    expect(model.data.rows.length).toBeGreaterThan(1);
+    expect(names(model.data.rows)[0]).toBe("Undefined Parent");
+    expect(model.data.progress).toEqual({});
+    await model.load(search);
+    expect(model.data.isSample).toBe(false);
+    expect(names(model.data.rows)).toEqual(["Undefined Parent"]);
+
+    const { model: plain } = await makeTimelineModel({ arch: HOST_ARCHS.H5 });
+    await plain.load({ domain: [["name", "=", "no such record"]] });
+    expect(plain.data.isSample).toBe(false);
+});
+
+test("A85: server call period", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    const kwargs = lastCall();
+    expect(hasLeaf(kwargs.domain, ["date_start", "<", "2026-11-21 21:00:00"])).toBe(true);
+    expect(hasLeaf(kwargs.domain, ["date_stop", ">", "2026-10-31 21:00:00"])).toBe(true);
+    expect(kwargs.scale).toBe("week");
+    expect(kwargs.start_date).toBe("2026-10-31 21:00:00");
+    expect(kwargs.stop_date).toBe("2026-11-21 21:00:00");
+    expect(kwargs.groupby).toEqual([]);
+    for (const name of [
+        "display_name",
+        "date_start",
+        "date_stop",
+        "x_color",
+        "x_progress",
+        "x_flagged",
+        "x_done",
+    ]) {
+        expect(name in kwargs.read_specification).toBe(true);
+    }
+    expect(kwargs.unavailability_fields).toBe(undefined);
+});
+
+test("A86: date-only period condition", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H10, resModel: "pill2" });
+    await model.load({});
+    expect(hasLeaf(lastCall().domain, ["date_start", "<", "2027-01-01"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_stop", ">=", "2026-10-01"])).toBe(true);
+    expect(lastCall().start_date).toBe("2026-09-30 21:00:00");
+});
+
+test("A87: unavailability is asked only for a relational last grouping", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H12 });
+    await model.load({ groupBy: ["parent_id", "x_flagged"] });
+    expect(lastCall().unavailability_fields).toBe(undefined);
+    await model.load({ groupBy: ["x_flagged", "x_contact"] });
+    expect(lastCall().unavailability_fields).toEqual(["x_contact"]);
+    await model.load({ groupBy: [] });
+    expect(lastCall().unavailability_fields).toBe(undefined);
+    const { model: plain } = await makeTimelineModel({ arch: HOST_ARCHS.H1 });
+    await plain.load({ groupBy: ["x_contact"] });
+    expect(lastCall().unavailability_fields).toBe(undefined);
+});
+
+test("A87: unavailable periods are turned into dates", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H12 });
+    timelineMock.unavailability = {
+        x_contact: { 1: [{ start: "2026-11-12 06:00:00", stop: "2026-11-12 09:00:00" }] },
+    };
+    await model.load({ groupBy: ["x_contact"] });
+    const [period] = model.data.unavailability.x_contact[1];
+    expect(period.start.toFormat("yyyy-MM-dd HH:mm")).toBe("2026-11-12 09:00");
+    expect(period.stop.toFormat("HH:mm")).toBe("12:00");
+});
+
+test("A100: paging with two grouping levels", async () => {
+    const { model } = await makeTimelineModel({ arch: GROUPED_ARCH(`groups_limit="2"`) });
+    await model.load({ groupBy: ["parent_id", "x_contact"] });
+    expect(model.data.length).toBe(8);
+    const tree = () =>
+        model.data.rows.map((row) => [row.name, names(row.children)]);
+    expect(tree()).toEqual([
+        ["Undefined Parent", ["Undefined Contact"]],
+        ["Alpha", ["Host Contact 1", "Host Contact 2"]],
+    ]);
+    await model.setOffset(2);
+    expect(tree()).toEqual([
+        ["Undefined Parent", ["Undefined Contact"]],
+        ["Beta", ["Host Contact 2", "Host Contact 3"]],
+    ]);
+    await model.setOffset(6);
+    expect(tree()).toEqual([
+        ["Undefined Parent", ["Undefined Contact"]],
+        ["Gamma", ["Undefined Contact"]],
+    ]);
+    // the empty-value parent holds "Plan" on the last page, where it also has a combination
+    expect(recordNames(model, model.data.rows[0].children[0])).toEqual(["Plan"]);
+});
+
+test("A102: expanded empty group row", async () => {
+    timelineMock.expandGroups = [1, 2, 3];
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["parent_id"], domain: [["parent_id", "=", 1]] });
+    expect(names(model.data.rows)).toEqual(["Undefined Parent", "Alpha", "Beta", "Gamma"]);
+    expect(model.data.rows[2].recordIds).toEqual([]);
+});
+
+test("A103: archived records", async () => {
+    await makeTestApp();
+    MockServer.current.env["pill"].find((record) => record.name === "Overlap C").active =
+        false;
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    const has = () => model.data.records.some((record) => record.displayName === "Overlap C");
+    expect(has()).toBe(false);
+    await model.load({ domain: [["active", "=", false]] });
+    expect(has()).toBe(true);
+});
+
+test("A111: grouping by a property", async () => {
+    await makeTestApp();
+    const records = MockServer.current.env["pill"];
+    records.find((record) => record.name === "Design").pill_properties = { color_prop: "red" };
+    records.find((record) => record.name === "Build").pill_properties = { color_prop: "blue" };
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["pill_properties.color_prop"] });
+    expect(names(model.data.rows)).toEqual(["Undefined Prop", "Blue", "Red"]);
+    expect(recordNames(model, model.data.rows[1])).toEqual(["Build"]);
+    expect(recordNames(model, model.data.rows[2])).toEqual(["Design"]);
+});
+
+test("A112: zero colour is Undefined Color", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["x_color"] });
+    expect(names(model.data.rows)[0]).toBe("Undefined Color");
+    expect(recordNames(model, model.data.rows[0])).toEqual(["Plan"]);
+    expect(names(model.data.rows).filter((name) => name === "0")).toEqual([]);
+});
+
+test("A115: old two-week default opens on the default custom range", async () => {
+    const { model, config } = await makeTimelineModel({
+        arch: timelineArch(`default_scale="week_2"`),
+    });
+    expect(config.defaultKind).toBe(null);
+    await model.load({});
+    expect(model.data.range.kind).toBe("custom");
+    expect(span(model.data.range)).toEqual(["2026-11-01", "2027-01-31"]);
+});
+
+test("navigation: today, kinds, custom dates and display mode", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["parent_id", "x_contact"] });
+    expect(await model.goToday()).toBe("scrolled");
+    expect(calls()).toHaveLength(1);
+    await model.setKind("month", model.data.range.focus);
+    expect(model.data.range.kind).toBe("month");
+    expect(model.data.scaleId).toBe("month");
+    expect(await model.goToday()).toBe("scrolled");
+    await model.applyCustom(model.data.range.start, model.data.range.start.plus({ days: 3 }));
+    expect(model.data.range.kind).toBe("custom");
+    expect(model.data.scaleId).toBe("day");
+    expect(await model.goToday()).toBe("reloaded");
+    expect(model.data.range.start.toISODate()).toBe("2026-11-11");
+    model.setAllCollapsed(true);
+    expect(model.data.visibleRows).toHaveLength(model.data.rows.length);
+    model.setAllCollapsed(false);
+    expect(model.data.visibleRows.length).toBeGreaterThan(model.data.rows.length);
+    model.toggleDisplayMode();
+    expect(model.data.displayMode).toBe("sparse");
+    expect(model.data.rows.every((row) => row.isGroup)).toBe(true);
+    expect(model.data.rows.some((row) => row.collapsed)).toBe(false);
+    model.toggleRow(model.data.rows[1].id);
+    expect(model.data.rows[1].collapsed).toBe(true);
+    expect(model.data.visibleRows.includes(model.data.rows[1].children[0])).toBe(false);
+});
+
+test("thumbnails link the related image", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["x_contact"] });
+    const row = model.data.rows.find((r) => r.resId === 1);
+    expect(row.thumbnailUrl.endsWith("/web/image/partner/1/avatar_128")).toBe(true);
+    expect(model.data.rows[0].thumbnailUrl).toBe(null);
+});
