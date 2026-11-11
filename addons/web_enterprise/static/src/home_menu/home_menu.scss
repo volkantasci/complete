@@ -199,6 +199,13 @@ body.o_home_menu_background {
             overflow: hidden;
             text-overflow: ellipsis;
 
+            // on a phone the name may use the tile's side padding, so that "Point of Sale"
+            // is not cut
+            @include media-breakpoint-down(md) {
+                width: calc(100% + 8px);
+                margin-inline: -4px;
+            }
+
             @include media-breakpoint-up(md) {
                 font-size: 14px;
             }
@@ -222,26 +229,56 @@ body.o_home_menu_background {
     // Inside the iOS app on a narrow screen: one row per application.
     &.o_cws_ios_list {
         .o_apps {
-            display: block;
+            display: flex;
+            flex-direction: column;
+            gap: normal;
+            font-size: 20px;
+            margin: 4px 0 0;
+            padding: 0 8px;
+        }
+
+        // the list keeps its own 4 px above and no top padding (M1); the 4 px that bring its
+        // top to y 65 (light) with the page scrolled by the field are added under the field
+        .o_cws_touch_search {
+            margin-bottom: 20px;
+        }
+
+        // the 16 px between rows sit on the wrapper, the row keeps its margins at 0
+        .o_draggable {
+            margin-bottom: 16px;
         }
 
         .o_app {
             flex-direction: row;
-            gap: 24px;
+            justify-content: normal;
+            align-items: center;
+            margin: 0;
             padding: 16px 24px;
-            border-radius: 0;
+            border: 0 none;
+            border-radius: 12px;
+            box-shadow: none;
             background: rgba(255, 255, 255, .1);
 
             .o_app_icon {
                 width: 52.5px;
                 height: 52.5px;
+                margin: 0 24px 0 0;
                 flex: 0 0 auto;
             }
 
             .o_caption {
-                margin-top: 0;
-                text-align: left;
+                flex: 1 1 0;
+                width: auto;
+                min-width: 0;
+                margin-inline: 0;
+                // the grid's 8 px stay: they put the name 4 px under the row's middle (M5)
+                margin-top: 8px;
+                text-align: start;
                 font-size: 20px;
+                font-style: normal;
+                line-height: 30px;
+                letter-spacing: normal;
+                text-transform: none;
             }
         }
     }

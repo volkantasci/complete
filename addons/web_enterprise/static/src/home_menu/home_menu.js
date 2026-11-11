@@ -29,6 +29,9 @@ const DEFAULT_ICON = "/web/static/img/default_icon_app.png";
 // Height of the top bar: a touch device opens the page scrolled down by this much (R11).
 const TOUCH_SCROLL_OFFSET = 46;
 
+/** Name of the bus event that announces the rebuilt tile list (I9). */
+const CWS_TILE_LIST_EVENT = "HOME-MENU:APPS-UPDATED";
+
 /**
  * Address a tile links to: the action path (or the action id) under /odoo,
  * with the debug mode appended when it is active.
@@ -132,7 +135,13 @@ export class CwsHomeMenu extends Component {
         useListener(this.rootRef, "drop", (ev) => this.onFileDrag(ev));
         // announce the tile list whenever it is (re)built
         useEffect(() => {
-            this.env.bus.trigger("HOME-MENU:APPS-UPDATED", this.orderedApps);
+            const apps = this.orderedApps.map((app) => ({
+                ...app,
+                href: tileHref(app),
+                label: app.name,
+            }));
+            const detail = { apps };
+            this.env.bus.trigger(CWS_TILE_LIST_EVENT, detail);
         });
         // keep the focused tile vertically centred
         useEffect(() => {

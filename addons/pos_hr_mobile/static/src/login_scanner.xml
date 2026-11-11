@@ -1,0 +1,9 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="pos_hr_mobile.CwmScannerButtonClick" t-inherit="point_of_sale.LoginScreen" t-inherit-mode="extension">
+        <xpath expr="//button[contains(concat(' ', normalize-space(@class), ' '), ' mobile-scanner ')]" position="attributes">
+            <attribute name="t-on-click">() => this.cwmScanBadge()</attribute>
+        </xpath>
+    </t>
+</templates>

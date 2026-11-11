@@ -6,7 +6,8 @@ the phone navigation are adapted to it, and you can choose a Theme in your
 preferences. It adds no menu and no setting page of its own.
 
 How it looks, in the light and dark Theme, is described in
-[Web Theme](web_theme.md).
+[Web Theme](web_theme.md). What changes when the web client runs inside the
+Complete mobile apps is described in [Mobile Bridge](mobile_bridge.md).
 
 Technical reference:
 [`addons/web_enterprise/README.md`](../../addons/web_enterprise/README.md).

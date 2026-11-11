@@ -30,7 +30,7 @@ described in the "Theme" section below. User guide of the theme:
 | Home menu action | client action `menu` | The home menu as a screen of the action stack. Browser tab title "Home". Asking for it while it is shown changes nothing. |
 | Home menu service | service `home_menu` | `hasHomeMenu` (the home menu is shown), `hasBackgroundAction` (an application is open behind it), `toggle(show?)` (without argument: the opposite of the current state; requests run one at a time and each waits one browser tick). |
 | Colour scheme service | service `color_scheme` | `activeScheme`: `"light"` or `"dark"`, the scheme this page load works with. Also does the browser check and the reload described below. |
-| Bus events | `HOME-MENU:TOGGLED`, `HOME-MENU:APPS-UPDATED` | On the environment bus. `HOME-MENU:TOGGLED` carries `true` or `false` when the home menu is shown or hidden. `HOME-MENU:APPS-UPDATED` carries the ordered application list after the home menu is built or reordered. |
+| Bus events | `HOME-MENU:TOGGLED`, `HOME-MENU:APPS-UPDATED` | On the environment bus. `HOME-MENU:TOGGLED` carries `true` or `false` when the home menu is shown or hidden. `HOME-MENU:APPS-UPDATED` carries `{ apps }`, the ordered application list after the home menu is built or reordered; each entry is the application record plus `href` (its address without the debug parameter) and `label` (its name). |
 | Body class | `o_home_menu_background` | On `<body>` while the home menu is shown. |
 | Burger menu | systray entry `burger_menu` | Replaces the Community entry (same name, sequence 0). While the home menu is shown it behaves as if no application were open. |
 | Page hooks | classes `o_home_menu`, `o_home_menu_search_input`, `o_apps`, `o_app`, `o_menuitem`, `o_app_icon`, `o_caption`, `o_draggable`, `o_focused`, `o_dragged_app`, `o_disabled_offline`, `o_menu_toggle`, `o_menu_toggle_back`, `o_menu_brand`, `o_menu_brand_icon`, `o_menu_sections`, `o_hidden`; attribute `data-menu-xmlid` on a tile; ids `result_app_<index>` | The compatibility names listed in `model.md` ("Page hooks"), kept on the equivalent elements so that tours, tests and other modules find them. |
@@ -164,8 +164,37 @@ parameter (or empty the message) to hide it.
 - Map features (slice 005): map token setting, geolocation helper, partner
   coordinates.
 - Studio-only look settings (a custom home menu background image).
-- Mobile app bridge (slice 001c), except the one-row-per-app tile layout inside
-  the iOS app, which is part of the home menu.
+- Mobile app bridge (slice 001c): see
+  [`addons/web_mobile/README.md`](../web_mobile/README.md). Only the
+  one-row-per-app tile layout inside the iOS app is part of this module (next
+  section).
+
+## iOS application list
+
+Inside the iOS app (the browser identification carries the marker `OdooMobile (iOS)`),
+below 768 px wide, the home menu is one row per application instead of the grid.
+The marker alone decides; capabilities of the app are not consulted. The values
+below are the measured ones (the class is `o_cws_ios_list`, in `home_menu.scss`).
+
+| Part | Value |
+|---|---|
+| List | one column, no gap, 4 px above, 8 px side padding, base font 20 px, rows 16 px apart |
+| Row | icon and name side by side, centred vertically, padding 16 px / 24 px, no border, radius 12 px, background white at 10 % opacity in both schemes, no shadow, 84.5 px high |
+| Icon | 52.5 px square, 24 px to its right, radius 8 px |
+| Name | 20 px, weight 500, line height 30 px, left-aligned, body text colour of the scheme; it keeps the 8 px caption margin of the grid, so it sits 4 px below the row middle |
+| First row | 65 px from the top of the page in light, 67 px in dark |
+
+Wider windows keep the grid (column tile, 8 px padding, transparent background, 14
+px name, weight 500, centred). On a phone outside the iOS app the grid stays with
+13 px names at weight 500; there the name box is 8 px wider than the tile content
+(`margin-inline: -4px`) so that names such as "Point of Sale" are not cut. Tests:
+`tests/test_ios_list.py`.
+
+The event `HOME-MENU:APPS-UPDATED` carries `{ apps }`: the applications in the order
+the home menu shows them (user order applied). Each entry is the application
+record (`xmlid`, `name`, `webIconData`, ...) plus `href` (its address without the
+debug parameter) and `label` (its name). `web_mobile` uses it to tell the native
+app which applications exist.
 
 ## Theme
 

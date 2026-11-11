@@ -1,0 +1,19 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Primary buttons inside the mobile barcode container: the action colour of the bundle
+// (teal in Complete's theme, where it is the action role) with white text. Nothing on the
+// login screen sits inside this container.
+$cwm-action-fill: $o-enterprise-action-color;
+
+.o_barcode_mobile_container .btn-primary {
+    background: $cwm-action-fill;
+    border-color: $cwm-action-fill;
+    color: #fff;
+}
+
+// The two buttons of the PIN panel (cashier list, badge scanner) get the corner radius of the
+// measured values; no other point of sale button is touched.
+.login-overlay .screen-login > div:has(> input[data-enable-barcode]) > :is(.select-cashier, .mobile-scanner) {
+    border-radius: 6px;
+}
