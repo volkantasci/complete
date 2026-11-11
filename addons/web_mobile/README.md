@@ -20,8 +20,9 @@ sale login) install themselves when their applications are present.
   `mobile_reader_scanned`. The reader loop runs while the channel has a listener.
 - **User menu**: **Add to Home Screen** and **Switch/Add Account** (the latter
   replaces `log_out`), each shown only when the app lists its capability.
-- **Data kept in step**: the application list (from the `HOME-MENU:APPS-UPDATED`
-  event of `web_enterprise`, which carries `{apps}`) and the account details (at
+- **Data kept in step**: the application list (taken from the `HOME-MENU:APPS-UPDATED`
+  event of `web_enterprise`, which carries `{apps}`, and sent when the home menu is
+  shown, `HOME-MENU:TOGGLED` with true) and the account details (at
   page load and after a successful save of My Preferences).
 - **Device integrations**: downloads, history moves, the device back button, error
   reports, shared files.
@@ -61,11 +62,13 @@ the original do.
 | Named export | `methods`: the capability calls of the bridge, by capability name |
 | Default export | `{ methods, polyfills }` |
 
-`methods` is the object the bridge holds for the app (the original capability
-object), so a call such as `methods.addHomeShortcut({ title, shortcut_url,
-web_icon })` reaches the app directly. It is empty when the page runs outside an
-app. `polyfills` holds the helpers the page provides for capabilities the app
-lacks.
+`methods` is the original capability object: one function per capability the
+app lists, and those functions are the very same function objects as the
+capability members of the `mobile` service (the object itself is a separate
+one). A call such as `methods.addHomeShortcut({ title, shortcut_url, web_icon })`
+reaches the app directly. It is empty when the page runs outside an app.
+`polyfills` is the app's optional helper object, the one the app provides; it is
+an empty object when the app gives none.
 
 ## Rulings that affect behaviour
 

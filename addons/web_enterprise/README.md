@@ -203,8 +203,9 @@ Small corrections to the look, all in the theme layer. Tests: `tests/test_polish
   Rows start 20 px from the sheet edge, so on a 390 px phone they are 350 px
   wide. The desktop list is unchanged.
 - **iOS rows.** The text, border and outline colours of the row itself are the
-  action role, which makes them invisible; the name and the row background
-  are as listed above.
+  action role; these colours do not show (the row has no border, the name has
+  its own colour, and the outline shows only on keyboard focus). The name and
+  the row background are as listed above.
 - **Phone tile box.** See the paragraph above the tests (4 px padding, name the
   content width).
 

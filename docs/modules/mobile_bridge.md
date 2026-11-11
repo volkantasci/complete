@@ -65,7 +65,8 @@ tells you why:
   the applications in the order of your tiles (name, address and picture icon).
   It receives the list again only when it has changed. After you reorder the
   tiles, the new order goes out the next time the home menu is shown, not at
-  the moment you drop a tile. Dropping a tile back where it was sends nothing. The app can use it for its own shortcuts.
+  the moment you drop a tile. Dropping a tile back where it was sends nothing.
+  The app can use it for its own shortcuts.
 - **Your account details.** When the page loads, and after you save **My
   Preferences**, the app receives your picture, name, login, user id and
   database. After a save it gets the values you just saved. With the Employees

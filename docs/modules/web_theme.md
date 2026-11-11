@@ -116,16 +116,16 @@ you chose.
   option has an action-coloured border. The rows sit 20 px from the sheet
   edge. In the search suggestions and in selection lists, the item the keyboard
   is on keeps the normal text colour.
-
-![The language sheet on a phone](../assets/web_theme/34-language-sheet.mobile.png)
-
-![The language sheet on a phone, dark](../assets/web_theme/34-language-sheet-dark.mobile.png)
 - **Calendar drop zone.** When a task is dragged in a calendar that allows
   unscheduling, the drop zone fills the side panel column from its top edge,
   and its colours follow the active look, including the dark one.
 - **Scrolling the home menu.** The home menu scrolls over the whole window
   width, so its thin scroll bar sits at the window edge, while the tiles stay
   in a centred column.
+
+![The language sheet on a phone](../assets/web_theme/34-language-sheet.mobile.png)
+
+![The language sheet on a phone, dark](../assets/web_theme/34-language-sheet-dark.mobile.png)
 - **Native controls.** Scroll bars, the browser's own date and time fields and
   the list of a native drop-down follow the look you chose, so in the dark look
   they are dark too.
