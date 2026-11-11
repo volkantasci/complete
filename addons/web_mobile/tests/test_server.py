@@ -80,8 +80,24 @@ class CwmServerRoutes(HttpCase):
         self.assertTrue(self.opener.cookies.get('session_id'))
         body = self._rpc('/web/session/authenticate', self._login_params('nope'))
         self._assert_error(body, 'odoo.exceptions.AccessDenied')
+        # A name the database filter rejects (tests run with -d <db>) is an access error;
+        # a name that passes the filter but does not exist is test_001e_a11_unknown_database.
         body = self._rpc('/web/session/authenticate', self._login_params(db='cwm_no_such_db'))
         self._assert_error(body, 'odoo.exceptions.AccessError')
+
+    def test_001e_a11_unknown_database(self):
+        def real_registry_new(db_name, *args, **kwargs):
+            # the test framework forbids Registry.new; reach the real connection attempt
+            odoo.sql_db.db_connect(db_name).cursor()
+
+        accept_all = patch(
+            'odoo.addons.web.controllers.session.db_filter', lambda dbs, host=None: list(dbs))
+        with accept_all, \
+                patch.object(odoo.modules.registry.Registry, 'new', real_registry_new):
+            body = self._rpc('/web/session/authenticate', self._login_params(db='cwm_no_such_db'))
+            self._assert_error(body, 'psycopg2.OperationalError')
+            body = self._rpc('/web/session/authenticate', self._login_params('nope'))
+            self._assert_error(body, 'odoo.exceptions.AccessDenied')
 
     def test_A50_session_resume_and_picture(self):
         auth = self._rpc('/web/session/authenticate', self._login_params())

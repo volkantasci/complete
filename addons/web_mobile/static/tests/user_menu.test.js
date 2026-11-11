@@ -113,11 +113,11 @@ test("A12 no current app: warning, no request", () => {
     }
 });
 
-test("A13 glyph icon and no icon: warning, no request", () => {
+test("A13 glyph icon and an unusable icon: warning, no request", () => {
     const apps = [
         { webIconData: false, webIcon: "fa fa-rocket,#fff,#333" },
         { webIconData: false, webIcon: false },
-        { webIconData: "/web/static/img/default_icon_app.png", webIcon: "" },
+        { webIconData: "/web/static/img/default_icon_app.png", webIcon: "fa fa-rocket,#fff,#333" },
     ];
     for (const app of apps) {
         const { find, calls, notes } = setup({ plugins: both, app });
@@ -125,11 +125,29 @@ test("A13 glyph icon and no icon: warning, no request", () => {
         expect(calls).toHaveLength(0);
         expect(notes).toEqual([
             {
-                message: "This app has no image icon, so it can't be pinned to your home screen.",
+                message: "This app's icon can't be used for a home-screen shortcut.",
                 options: { type: "warning" },
             },
         ]);
     }
+});
+
+test("test_001e_a10_shortcut_without_icon", async () => {
+    // neither an image nor a glyph: the menu data gives the placeholder address
+    const { find, calls, notes } = setup({
+        plugins: both,
+        app: { webIconData: "/web/static/img/default_icon_app.png", webIcon: false },
+    });
+    find("web_mobile.shortcut").callback();
+    await Promise.resolve();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].action).toBe("act_short");
+    expect(calls[0].args).toEqual({
+        title: document.title,
+        shortcut_url: window.location.href,
+        web_icon: "/web/static/img/default_icon_app.png",
+    });
+    expect(notes).toHaveLength(0);
 });
 
 test("A14 switch sends no args, page unchanged", () => {

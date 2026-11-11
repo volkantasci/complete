@@ -57,6 +57,10 @@ button, which shows the home menu.
 
 ![The home menu over an application on a phone](../assets/web_shell/05-home-over-app.mobile.png)
 
+On the phone home menu each tile has a small padding of 4 px around it. The
+application name uses the width inside that padding; a name that is too long
+ends with an ellipsis.
+
 ![The application top bar on a phone](../assets/web_shell/04-app-navbar.mobile.png)
 
 The user menu opens from your avatar at the top right. On the home menu it

@@ -28,6 +28,16 @@
     color: $dropdown-link-hover-color;
 }
 
+// Where the keyboard has put its mark (the control-panel search suggestions, the searchable
+// selection lists) the text keeps its normal colour, the wash alone shows the focus; the
+// pointer still turns the text to the black role (001e R1).
+.o_searchview_autocomplete,
+.o_select_menu_menu {
+    .dropdown-item:not(.disabled, :disabled):is(:focus-visible, .focus):not(:hover) {
+        color: $body-color;
+    }
+}
+
 // Select-type menus (searchable selection lists): the menu padding only, no extra margin.
 .o-autocomplete--dropdown-menu {
     .ui-menu-item,
@@ -47,21 +57,32 @@
 }
 
 // Searchable selection lists (the Language field of the preferences dialog is one): their own
-// background role, the same 4 px padding as other menus, and the items sit flush against
-// each other (Community adds a margin above the first and below the last choice). The phone's
-// bottom sheet keeps the Community list as it is.
+// background role, the same 4 px padding as other menus (carried by the choices list that
+// holds the rows, so scrolled rows run up to the frame's top edge; 001e P2), and the items sit
+// flush against each other (Community adds a margin above the first and below the last
+// choice). The phone's bottom sheet keeps the Community list as it is.
 .o_select_menu_menu:not(.o_bottom_sheet *) {
     background-color: $o-cws-select-menu-bg;
-    // the component adds `p-0` (important); the menu padding of other menus applies here
-    padding: $dropdown-padding-y $dropdown-padding-x !important;
+    padding: 0 !important;
 
     .o_select_menu_searchbox,
     .o_select_menu_group {
         background-color: $o-cws-select-menu-bg;
     }
 
+    // the search box keeps its place inside the frame (the frame itself has no padding)
+    .o_select_menu_searchbox {
+        margin: $dropdown-padding-y $dropdown-padding-x 0;
+    }
+
+    // under a shown search box the rows start directly below it, as before the padding moved
+    // (the box is empty, and hidden, when the search sits in the toggler)
+    .o_select_menu_searchbox:not(:empty) + .o_select_menu-choices {
+        padding-top: 0;
+    }
+
     .o_select_menu-choices {
-        --SelectMenu-padding: 0;
+        --SelectMenu-padding: #{$dropdown-padding-y $dropdown-padding-x};
         --SelectMenuItem-margin-y: 0;
     }
 
@@ -69,6 +90,17 @@
     .dropdown-item {
         margin-top: 0;
         margin-bottom: 0;
+    }
+}
+
+// In the phone's bottom sheet the choices list itself (the element that scrolls) carries the
+// menu padding (001e R2), so rows scroll up to the sheet's top edge; the sheet's body around
+// it keeps no padding. The option rows keep the Community margins and padding.
+.o_bottom_sheet .o_select_menu_menu {
+    padding: 0 !important;
+
+    .o_select_menu-choices {
+        padding: $dropdown-padding-y $dropdown-padding-x;
     }
 }
 

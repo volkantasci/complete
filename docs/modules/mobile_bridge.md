@@ -44,25 +44,29 @@ Open an application and choose **Add to Home Screen**. The app offers to put a
 shortcut to that screen, with the application's icon, on your phone. Nothing
 is shown on the page.
 
-Two cases cannot be pinned, and a short notice tells you why:
+An application with no icon at all is pinned with the default application
+picture, and nothing is shown. Two cases cannot be pinned, and a short notice
+tells you why:
 
 - On the home menu there is no application to pin: "Open an app first: the main
   menu can't be pinned to your home screen."
-- An application whose icon is not a picture (a font glyph, or none): "This app
-  has no image icon, so it can't be pinned to your home screen."
+- An application whose icon is a font glyph: "This app's icon can't be used for
+  a home-screen shortcut."
 
 ![The notice shown on the home menu](../assets/mobile_bridge/03-shortcut-on-home-menu.png)
 
 ![The same notice on a phone](../assets/mobile_bridge/03-shortcut-on-home-menu.mobile.png)
 
-![The notice for an application without a picture icon](../assets/mobile_bridge/16-shortcut-notice.mobile.png)
+![The notice for an application with a glyph icon](../assets/mobile_bridge/16-shortcut-notice.mobile.png)
 
 ## Things the app keeps in step
 
 - **The application list.** Each time the home menu is shown, the app receives
   the applications in the order of your tiles (name, address and picture icon).
-  It receives the list again only when it has changed, for example after you
-  reorder the tiles. The app can use it for its own shortcuts.
+  It receives the list again only when it has changed. After you reorder the
+  tiles, the new order goes out the next time the home menu is shown, not at
+  the moment you drop a tile. Dropping a tile back where it was sends nothing.
+  The app can use it for its own shortcuts.
 - **Your account details.** When the page loads, and after you save **My
   Preferences**, the app receives your picture, name, login, user id and
   database. After a save it gets the values you just saved. With the Employees
@@ -125,7 +129,10 @@ the application names kept whole where they fit.
 Other modules can listen to the hardware readers of the app (contactless or
 radio-tag readers) through an event channel of the bridge. This part has no
 screen of its own: while something listens, the page asks the app for reads in
-the background and passes them on.
+the background and passes them on. The first request for reads goes out one
+short interval after the app is told to start reading, even if the app never
+answers that start call. If the last listener goes away before that first
+request, it is not sent.
 
 ## Badge scan with the camera (Point of Sale)
 

@@ -16,6 +16,9 @@ const cwmLabels = {
     },
 };
 
+// What the menu data gives an application that has neither an image nor a glyph.
+const CWM_PLACEHOLDER_ICON = "/web/static/img/default_icon_app.png";
+
 const CWM_DATA_URL = /^data:[^,;]*;base64,(.+)$/s;
 
 /**
@@ -50,13 +53,18 @@ export function cwmShortcutEntry(env) {
                 );
                 return;
             }
-            const icon = cwmIconBase64(app.webIconData);
+            let icon = cwmIconBase64(app.webIconData);
             if (!icon) {
-                cwmWarn(
-                    env,
-                    _t("This app has no image icon, so it can't be pinned to your home screen.")
-                );
-                return;
+                if (app.webIconData === CWM_PLACEHOLDER_ICON && !app.webIcon) {
+                    // no icon at all: the app gets the placeholder's address
+                    icon = CWM_PLACEHOLDER_ICON;
+                } else {
+                    cwmWarn(
+                        env,
+                        _t("This app's icon can't be used for a home-screen shortcut.")
+                    );
+                    return;
+                }
             }
             // the answer is not awaited; the page stays as it is
             mobile

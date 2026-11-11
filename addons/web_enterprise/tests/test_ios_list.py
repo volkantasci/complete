@@ -126,7 +126,7 @@ class TestIosList(ThemeProbeCase):
     def test_A43_ios_list_dark(self):
         self._ios_list('dark')
 
-    def _tile(self, scheme, ua, size, touch, name_px):
+    def _tile(self, scheme, ua, size, touch, name_px, padding):
         with self.home(scheme, ua, size, touch):
             self.wait_home()
             self.assertEqual(self.style(LIST, 'display')['display'], 'grid')
@@ -135,8 +135,8 @@ class TestIosList(ThemeProbeCase):
             self.assertRgb(row['background-color'], (0, 0, 0), 0)
             self.assertNum(self.num(ROW, 'padding-top', 'padding-right', 'padding-bottom',
                                     'padding-left'),
-                           {'padding-top': 8, 'padding-right': 8, 'padding-bottom': 8,
-                            'padding-left': 8})
+                           {'padding-top': padding, 'padding-right': padding,
+                            'padding-bottom': padding, 'padding-left': padding})
             name = self.style(NAME, 'font-size', 'font-weight', 'text-align')
             self.assertEqual(
                 (name['font-size'], name['font-weight'], name['text-align']),
@@ -144,7 +144,7 @@ class TestIosList(ThemeProbeCase):
             return self.rect(ROW)
 
     def _marker_desktop(self, scheme):
-        box = self._tile(scheme, UA_IOS, DESKTOP, False, 14)
+        box = self._tile(scheme, UA_IOS, DESKTOP, False, 14, 8)
         # M6 sizes (the position depends on the window)
         self.assertAlmostEqual(box['width'], 141.656, delta=1)
         self.assertAlmostEqual(box['height'], 115, delta=1)
@@ -157,11 +157,11 @@ class TestIosList(ThemeProbeCase):
 
     def test_A45_android_phone_grid(self):
         for scheme in ('light', 'dark'):
-            self._tile(scheme, UA_ANDROID, PHONE, True, 13)
+            self._tile(scheme, UA_ANDROID, PHONE, True, 13, 4)
 
     def test_A45_normal_phone_grid(self):
         for scheme in ('light', 'dark'):
-            self._tile(scheme, None, PHONE, True, 13)
+            self._tile(scheme, None, PHONE, True, 13, 4)
 
     def test_A46_marker_without_host(self):
         # the pages of this class never install a host object: the marker alone decides

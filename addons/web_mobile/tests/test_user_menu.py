@@ -11,7 +11,8 @@ SHORTCUT = 'Add to Home Screen'
 SWITCH = 'Switch/Add Account'
 LOG_OUT = 'Log out'
 HOME_NOTICE = "Open an app first: the main menu can't be pinned to your home screen."
-NO_ICON_NOTICE = "This app has no image icon, so it can't be pinned to your home screen."
+GLYPH_NOTICE = "This app's icon can't be used for a home-screen shortcut."
+PLACEHOLDER = '/web/static/img/default_icon_app.png'
 NOTE = '.o_notification_manager .o_notification'
 
 MAIN_PLUGINS = [
@@ -133,31 +134,55 @@ class TestUserMenu(CwmUserMenuCase):
                 self.assertEqual(self.host_requests('cwm_shortcut'), [])
         self.cwm_each_form(check_form)
 
-    def test_A13_glyph_app(self):
+    def _scratch_menu(self, name, **values):
         action = self.env['ir.actions.act_window'].create({
             'name': 'Cwm scratch', 'res_model': 'res.partner', 'view_mode': 'list,form',
         })
-        glyph = self.env['ir.ui.menu'].create({
-            'name': 'Cwm glyph', 'action': f'ir.actions.act_window,{action.id}',
-            'web_icon': 'fa fa-rocket,#fff,#333',
+        return self.env['ir.ui.menu'].create({
+            'name': name, 'action': f'ir.actions.act_window,{action.id}', **values,
         })
-        bare = self.env['ir.ui.menu'].create({
-            'name': 'Cwm bare', 'action': f'ir.actions.act_window,{action.id}',
-        })
-        for menu in (glyph, bare):
-            for mobile in (False, True):
-                with self.subTest(menu=menu.name, mobile=mobile):
-                    with self.host_session('/odoo', host=MAIN_PLUGINS_HOST, mobile=mobile):
-                        self._select_app(menu.id)
-                        url = self.js('window.location.href')
-                        self._entries(mobile)
-                        self._choose(SHORTCUT)
-                        self.wait(f"document.querySelectorAll({json.dumps(NOTE)}).length > 0")
-                        self.assertEqual(self._notes(), [NO_ICON_NOTICE])
-                        self.assertEqual(
-                            self.js("document.querySelectorAll('.o_error_dialog').length"), 0)
-                        self.assertEqual(self.host_requests('cwm_shortcut'), [])
-                        self.assertEqual(self.js('window.location.href'), url)
+
+    def test_A13_glyph_app(self):
+        glyph = self._scratch_menu('Cwm glyph', web_icon='fa fa-rocket,#fff,#333')
+        for mobile in (False, True):
+            with self.subTest(mobile=mobile):
+                with self.host_session('/odoo', host=MAIN_PLUGINS_HOST, mobile=mobile):
+                    self._select_app(glyph.id)
+                    url = self.js('window.location.href')
+                    self._entries(mobile)
+                    self._choose(SHORTCUT)
+                    self.wait(f"document.querySelectorAll({json.dumps(NOTE)}).length > 0")
+                    self.assertEqual(self._notes(), [GLYPH_NOTICE])
+                    self.assertEqual(
+                        self.js("document.querySelectorAll('.o_error_dialog').length"), 0)
+                    self.assertEqual(self.host_requests('cwm_shortcut'), [])
+                    self.assertEqual(self.js('window.location.href'), url)
+
+    def test_001e_a10_shortcut_without_icon(self):
+        bare = self._scratch_menu('Cwm bare')
+        glyph = self._scratch_menu('Cwm glyph', web_icon='fa fa-rocket,#fff,#333')
+        for mobile in (False, True):
+            with self.subTest(menu='bare', mobile=mobile):
+                with self.host_session('/odoo', host=MAIN_PLUGINS_HOST, mobile=mobile):
+                    self._select_app(bare.id)
+                    title = self.js('document.title')
+                    url = self.js('window.location.href')
+                    self._entries(mobile)
+                    self._choose(SHORTCUT)
+                    self.wait("window.__cwmHostLog.some((e) => e.action === 'cwm_shortcut')")
+                    args = self.cwm_expect_one(self.host_requests('cwm_shortcut'))['args']
+                    self.assertEqual(args, {
+                        'title': title, 'shortcut_url': url, 'web_icon': PLACEHOLDER,
+                    })
+                    self.assertEqual(self._notes(), [])
+            with self.subTest(menu='glyph', mobile=mobile):
+                with self.host_session('/odoo', host=MAIN_PLUGINS_HOST, mobile=mobile):
+                    self._select_app(glyph.id)
+                    self._entries(mobile)
+                    self._choose(SHORTCUT)
+                    self.wait(f"document.querySelectorAll({json.dumps(NOTE)}).length > 0")
+                    self.assertEqual(self._notes(), [GLYPH_NOTICE])
+                    self.assertEqual(self.host_requests('cwm_shortcut'), [])
 
     def test_A14_switch_account(self):
         if not self._is_installed('crm'):

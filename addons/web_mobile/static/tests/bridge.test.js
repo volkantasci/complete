@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, test } from "@odoo/hoot";
 import { installCwmHost } from "@web_mobile/../tests/helpers/fake_host";
-import { cwmDetectHost, cwmDetectedHost, cwmMakeBridge } from "@web_mobile/bridge/bridge_service";
+import {
+    cwmCallables,
+    cwmDetectHost,
+    cwmDetectedHost,
+    cwmMakeBridge,
+} from "@web_mobile/bridge/bridge_service";
+import core, * as coreModule from "@web_mobile/js/services/core";
+
+const { methods } = coreModule;
 
 describe.current.tags("headless");
 
@@ -181,4 +189,49 @@ test("reserved member names are not overwritten by capabilities", () => {
     const { bridge } = startBridge({ plugins: [plugin("bus"), plugin("has")], win: {} });
     expect(bridge.bus instanceof EventTarget).toBe(true);
     expect(typeof bridge.has).toBe("function");
+});
+
+test("methods holds one function per listed capability, reserved names included", () => {
+    const fake = installCwmHost({ plugins: [plugin("bus"), plugin("other")], win: {} });
+    expect(Object.keys(cwmCallables(cwmDetectHost(fake.win)))).toEqual(["bus", "other"]);
+});
+
+test("test_001e_a9_original_capability_object", async () => {
+    // the callables of a detection result are built once and shared with the service
+    const fake = installCwmHost({
+        plugins: [plugin("addHomeShortcut", "act_short"), plugin("switchAccount", "act_switch")],
+        win: {},
+        polyfill: { helper: 1 },
+    });
+    const host = cwmDetectHost(fake.win);
+    const callables = cwmCallables(host);
+    expect(cwmCallables(host)).toBe(callables);
+    expect(Object.keys(callables)).toEqual(["addHomeShortcut", "switchAccount"]);
+    const bridge = cwmMakeBridge(host);
+    expect(bridge.addHomeShortcut).toBe(callables.addHomeShortcut);
+    expect(bridge.switchAccount).toBe(callables.switchAccount);
+    // a call through the shared function is one request
+    const answer = await callables.addHomeShortcut({ title: "T", shortcut_url: "U", web_icon: "I" });
+    expect(answer.success).toBe(true);
+    expect(fake.calls.length).toBe(1);
+    expect(fake.calls[0].action).toBe("act_short");
+    expect(fake.calls[0].args).toEqual({ title: "T", shortcut_url: "U", web_icon: "I" });
+    // a capability the app does not list has no function
+    expect(callables.enableReader).toBe(undefined);
+    expect("enableReader" in callables).toBe(false);
+});
+
+test("test_001e_a9 the module without an app", () => {
+    // a normal browser: nothing listed, nothing offered
+    expect(methods).toEqual({});
+    expect(core.methods).toBe(methods);
+    expect(core.polyfills).toEqual({});
+    // the module offers exactly `methods` by name, and the default with the two members
+    // (the loader keeps the default under a symbol, so it is not among the string names)
+    expect(Object.keys(coreModule)).toEqual(["methods"]);
+    expect(Object.getOwnPropertySymbols(coreModule).map((s) => s.description)).toEqual(["default"]);
+    expect(coreModule[Symbol.for("default")]).toBe(core);
+    expect("polyfills" in coreModule).toBe(false);
+    expect(Object.keys(core)).toEqual(["methods", "polyfills"]);
+    expect(Object.keys(cwmCallables(cwmDetectedHost()))).toEqual(Object.keys(methods));
 });

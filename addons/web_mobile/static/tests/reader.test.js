@@ -75,11 +75,13 @@ test("A40 one reader-on, polls one interval after answer, one event for ABC, sec
     const second = () => {};
     r.bridge.bus.addEventListener("mobile_reader_scanned", r.listener);
     expect(r.count("reader_on")).toBe(1);
-    expect(r.count("reader_get")).toBe(1);
+    expect(r.count("reader_get")).toBe(0);
     await flush();
     await run(99);
-    expect(r.count("reader_get")).toBe(1);
+    expect(r.count("reader_get")).toBe(0);
     await run(1);
+    expect(r.count("reader_get")).toBe(1);
+    await run(100);
     expect(r.count("reader_get")).toBe(2);
     expect(r.events).toEqual(["ABC"]);
     // a listener of another type counts too and does not turn the reader on again
@@ -114,13 +116,13 @@ test("A40 the same listener added twice counts once", async () => {
 test("A41 300 ms interval", async () => {
     const r = startReader({ interval: 300 });
     r.bridge.bus.addEventListener("x", r.listener);
-    expect(r.count("reader_get")).toBe(1);
+    expect(r.count("reader_get")).toBe(0);
     await run(290);
-    expect(r.count("reader_get")).toBe(1);
+    expect(r.count("reader_get")).toBe(0);
     await run(10);
-    expect(r.count("reader_get")).toBe(2);
+    expect(r.count("reader_get")).toBe(1);
     await run(300);
-    expect(r.count("reader_get")).toBe(3);
+    expect(r.count("reader_get")).toBe(2);
 });
 
 test("A64 errors logged, polling continues, re-join re-enables", async () => {
@@ -130,7 +132,7 @@ test("A64 errors logged, polling continues, re-join re-enables", async () => {
     console.warn = (...args) => warnings.push(args.join(" "));
     try {
         r.bridge.bus.addEventListener("x", r.listener);
-        await run(200);
+        await run(300);
         expect(r.count("reader_get")).toBe(3);
         expect(warnings.length).toBe(2);
         expect(warnings.every((w) => w.startsWith("[cwm]"))).toBe(true);
@@ -138,7 +140,7 @@ test("A64 errors logged, polling continues, re-join re-enables", async () => {
         r.bridge.bus.addEventListener("x", r.listener);
         expect(r.count("reader_on")).toBe(2);
         const before = r.count("reader_get");
-        await run(100);
+        await run(150);
         expect(r.count("reader_get")).toBe(before + 1);
     } finally {
         console.warn = original;
@@ -171,9 +173,10 @@ test("A67 no second poll before 1000 ms, then one interval later, late answer br
     console.warn = () => {};
     try {
         r.bridge.bus.addEventListener("mobile_reader_scanned", r.listener);
+        await run(110);
         expect(r.count("reader_get")).toBe(1);
         // the mock clock follows the real one a little: keep a margin around the limits
-        await run(990);
+        await run(980);
         expect(r.count("reader_get")).toBe(1);
         await run(20);
         expect(r.count("reader_get")).toBe(1);
@@ -195,4 +198,54 @@ test("no reader capabilities: no polling", async () => {
     bridge.bus.addEventListener("x", () => {});
     await run(300);
     expect(fake.calls.length).toBe(0);
+});
+
+test("test_001e_a6_first_poll_one_interval_after_reader_on", async () => {
+    // the host never answers reader-on: the first read still goes out one interval later
+    try {
+        for (const interval of [undefined, 300]) {
+            if (interval) {
+                session.time_between_reads_in_ms = interval;
+            }
+            const fake = installCwmHost({
+                plugins,
+                win: {},
+                answer: (call, notify) => {
+                    if (call.action === "reader_get") {
+                        notify(call.id, { success: true, data: "" });
+                    }
+                },
+            });
+            const bridge = cwmMakeBridge(cwmDetectHost(fake.win));
+            const listener = () => {};
+            bridge.bus.addEventListener("x", listener);
+            const count = (action) => fake.calls.filter((c) => c.action === action).length;
+            // reader-on is sent at once, no read yet
+            expect(count("reader_on")).toBe(1);
+            expect(count("reader_get")).toBe(0);
+            const wait = interval || 100;
+            await run(wait - 30);
+            expect(count("reader_get")).toBe(0);
+            await run(60);
+            expect(count("reader_get")).toBe(1);
+            // the next one follows the answer by one interval
+            await run(wait - 60);
+            expect(count("reader_get")).toBe(1);
+            await run(60);
+            expect(count("reader_get")).toBe(2);
+            bridge.bus.removeEventListener("x", listener);
+        }
+    } finally {
+        delete session.time_between_reads_in_ms;
+    }
+});
+
+test("test_001e_a6 leaving before the first poll cancels it", async () => {
+    const r = startReader();
+    r.bridge.bus.addEventListener("x", r.listener);
+    await run(50);
+    r.bridge.bus.removeEventListener("x", r.listener);
+    await run(500);
+    expect(r.count("reader_get")).toBe(0);
+    expect(r.count("reader_on")).toBe(1);
 });

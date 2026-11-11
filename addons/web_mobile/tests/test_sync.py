@@ -136,9 +136,12 @@ class TestAppList(CwmSyncCase):
             self.assertEqual(len(self.app_lists()), 1)
             # A17: drag the last tile to the first place
             self.drag_tile_first(last)
-            self.wait_requests('updateAvailableApps', 2)
+            # the drop sends nothing; the next display of the home menu does
+            self.settle()
+            self.assertEqual(len(self.app_lists()), 1)
             self.open_tile(last)
             self.back_home()
+            self.wait_requests('updateAvailableApps', 2)
             lists = self.app_lists()
             self.assertEqual(len(lists), 2)
             self.assertEqual(lists[1][0]['xmlid'], last)
@@ -147,6 +150,29 @@ class TestAppList(CwmSyncCase):
             self.assertEqual(
                 sorted(entry['xmlid'] for entry in lists[1]),
                 sorted(entry['xmlid'] for entry in lists[0]))
+
+    def test_001e_a5_list_sent_at_next_display(self):
+        with self.host_session(host={}, ua=self.UA_DESKTOP):
+            self.home_ready()
+            self.wait_requests('updateAvailableApps', 1)
+            tiles = self.tile_xmlids()
+            if len(tiles) < 2:
+                self.skipTest('fewer than two applications installed')
+            last = tiles[-1]
+            self.drag_tile_first(last)
+            self.settle()
+            self.assertEqual(len(self.app_lists()), 1)
+            self.open_tile(last)
+            self.assertEqual(len(self.app_lists()), 1)
+            self.back_home()
+            self.wait_requests('updateAvailableApps', 2)
+            lists = self.app_lists()
+            self.assertEqual(lists[1][0]['xmlid'], last)
+            # coming back again with the same order sends nothing more
+            self.open_tile(last)
+            self.back_home()
+            self.settle()
+            self.assertEqual(len(self.app_lists()), 2)
 
     def drag_tile_first(self, xmlid):
         """A real press-and-hold drag with the pointer, as 001a's reordering expects."""
@@ -338,19 +364,21 @@ class TestAccount(CwmSyncCase):
         self.admin.invalidate_recordset()
         self.assertEqual(self.admin.name, 'Mitchell Admin 3')
 
-    def test_A62_prefs_without_employees(self):
+    def test_001e_a12_prefs_phone_without_employees(self):
         if self._is_installed('hr'):
             raise unittest.SkipTest('the Employees application is installed')
-        self.addCleanup(self.admin.write, {'name': self.admin.name})
+        self.addCleanup(self.admin.write, {'phone': self.admin.phone})
         with self.host_session(host={}, ua=self.UA_ANDROID):
             self.wait_requests('updateAccount', 1)
             self.open_preferences()
             self.arm_unload_snapshot()
-            self.set_field('name', 'Mitchell Admin 4')
+            self.set_field('phone', '+32 2 555 01 99')
             self.save_preferences()
             log = [e for e in self.unload_snapshot() if e['action'] == 'updateAccount']
             self.assertEqual(len(log), 2)
             self.assertEqual(sorted(log[1]['args']), ACCOUNT_KEYS)
+            self.wait("!document.querySelector('.modal .o_form_view')")
+            self.assertFalse(self.js("!!document.querySelector('.modal')"))
 
     def test_A66_picture_error_on_save(self):
         self.addCleanup(self.admin.write, {'name': self.admin.name})

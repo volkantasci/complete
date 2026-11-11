@@ -6,6 +6,7 @@ from . import (
     test_install,
     test_ios_list,
     test_js,
+    test_polish,
     test_screens,
     test_theme_bundles,
     test_theme_components,
