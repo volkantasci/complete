@@ -55,7 +55,12 @@ class CwmHostCase(HttpCase):
     def setUp(self):
         super().setUp()
         # no onboarding tour over the pages
-        self.env.ref('base.user_admin').tour_enabled = False
+        admin = self.env.ref('base.user_admin')
+        admin.tour_enabled = False
+        # Without demo data the administrator has no time zone; with Employees installed the
+        # preferences form requires one and refuses to save ("Missing required fields").
+        if not admin.tz:
+            admin.tz = 'Europe/Brussels'
         self._cwm_console = []
 
     # -- session ---------------------------------------------------------------------

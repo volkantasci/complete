@@ -99,7 +99,7 @@ class CwmDeviceCase(CwmHostCase):
         company = self.env.ref('base.user_admin').company_id
         company_moves = self.env['account.move'].search([('company_id', '=', company.id)])
         invoice = company_moves.filtered(lambda move: move.move_type == 'out_invoice')[:1]
-        self.assertTrue(invoice, 'no demo customer invoice')
+        self.assertTrue(invoice, 'no customer invoice')
         return self.js(f"""(async () => {{
             const env = {ENV};
             const {{ rpc }} = {MODULE}("@web/core/network/rpc");
@@ -144,6 +144,21 @@ class CwmDeviceCase(CwmHostCase):
 @tagged('post_install', '-at_install')
 class TestDownloads(CwmDeviceCase):
     needs = ('account',)
+
+    def setUp(self):
+        super().setUp()
+        # Without demo data there is no customer invoice: make a draft one (the browser
+        # session holds a read-only cursor, so the data is made before it starts).
+        company = self.env.ref('base.user_admin').company_id
+        if not self.env['account.move'].search_count([
+            ('company_id', '=', company.id), ('move_type', '=', 'out_invoice'),
+        ]):
+            self.env['account.move'].create({
+                'move_type': 'out_invoice',
+                'company_id': company.id,
+                'partner_id': self.env['res.partner'].create({'name': 'Cwm Invoice Customer'}).id,
+                'invoice_line_ids': [(0, 0, {'name': 'Cwm line', 'quantity': 1, 'price_unit': 10})],
+            })
 
     def test_A26_report_download(self):
         with self.host_session(host={}):

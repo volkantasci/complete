@@ -228,7 +228,7 @@ class TestAccount(CwmSyncCase):
             self.settle()
             args = self.cwm_expect_one(self.account_requests())
             self.assertEqual(sorted(args), ACCOUNT_KEYS)
-            self.assertEqual(args['name'], 'Mitchell Admin')
+            self.assertEqual(args['name'], self.admin.name)
             self.assertEqual(args['username'], 'admin')
             self.assertEqual(args['uid'], self.admin.id)
             self.assertEqual(args['db'], self.env.cr.dbname)
@@ -258,13 +258,14 @@ class TestAccount(CwmSyncCase):
             log = [e for e in self.unload_snapshot() if e['action'] == 'updateAccount']
             # the first request after the save carries the saved name, before the reload
             self.assertEqual(len(log), 2)
-            self.assertEqual(log[0]['args']['name'], 'Mitchell Admin')
+            self.assertEqual(log[0]['args']['name'], original)
             self.assertEqual(log[1]['args']['name'], 'Mitchell Admin B')
             self.assertEqual(log[1]['args']['username'], 'admin')
         self.admin.invalidate_recordset()
         self.assertEqual(self.admin.name, 'Mitchell Admin B')
 
     def test_A21_failed_save(self):
+        original = self.admin.name
         with self.host_session(host={}, ua=self.UA_ANDROID):
             self.wait_requests('updateAccount', 1)
             self.open_preferences()
@@ -277,7 +278,7 @@ class TestAccount(CwmSyncCase):
                 # Employees the name is required in the form and the save is not attempted
                 self.assertTrue(self.js("!!document.querySelector('.o_error_dialog')"))
             self.assertEqual(len(self.account_requests()), 1)
-        self.assertEqual(self.admin.name, 'Mitchell Admin')
+        self.assertEqual(self.admin.name, original)
 
     def test_A23_ios_no_wait(self):
         self.addCleanup(self.admin.write, {'name': self.admin.name})

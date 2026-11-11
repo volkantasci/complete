@@ -27,7 +27,13 @@ class CwmBadgeScreens(TestPosHrHttpCommon):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.ernest = cls.env.ref('hr.employee_jgo').sudo()
+        # the demo cashier when it exists, else an employee of the same name
+        cls.ernest = cls.env.ref('hr.employee_jgo', raise_if_not_found=False)
+        if not cls.ernest:
+            cls.ernest = cls.env['hr.employee'].sudo().create({
+                'name': 'Ernest Reed', 'company_id': cls.main_pos_config.company_id.id,
+            })
+        cls.ernest = cls.ernest.sudo()
         cls.ernest.write({
             'barcode': '041517863199',
             'pin': False,

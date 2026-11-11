@@ -83,8 +83,9 @@ Spec package: slice 001c-mobile-bridge. See
 `tests/host_stub.js` before the page's own scripts, so the page sees a host object
 like the apps provide. The stub records every request and answers as configured.
 
-**Four databases.** Run the module's tests (and the shell's) on each of these.
-Python tests that need an application skip when it is not installed.
+**Five configurations.** Run the module's tests (and the shell's) on each of these.
+Python tests that need an application skip when it is not installed. The tests set up
+what they need themselves, so they pass with and without demo data.
 
 | Database | Modules | Tags |
 |---|---|---|
@@ -92,6 +93,7 @@ Python tests that need an application skip when it is not installed.
 | base (no Employees, no point of sale) | `web_mobile,contacts,crm` | `/web_enterprise,/web_mobile` |
 | Employees only | `web_mobile,hr` | `/web_mobile,/hr_mobile` |
 | point of sale with Employees | `web_mobile,pos_hr` | `/web_mobile,/hr_mobile,/pos_hr_mobile` |
+| CI (fresh database, no demo data) | `hr_mobile,pos_hr_mobile,test_timer,timer,web_enterprise,web_mobile` | `/hr_mobile,/pos_hr_mobile,/test_timer,/timer,/web_enterprise,/web_mobile` |
 
 Each is one command with a fresh database name, for example the full one:
 
@@ -109,6 +111,12 @@ podman compose --env-file docker/versions.env --env-file docker/.env -f docker/c
 
 ```
 podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d <fresh_db> -i web_mobile,pos_hr --with-demo --log-level=warn --test-tags /web_mobile,/hr_mobile,/pos_hr_mobile --stop-after-init
+```
+
+The CI configuration is the same command without `--with-demo`:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm odoo odoo -d <fresh_db> -i hr_mobile,pos_hr_mobile,test_timer,timer,web_enterprise,web_mobile --log-level=warn --test-tags /hr_mobile,/pos_hr_mobile,/test_timer,/timer,/web_enterprise,/web_mobile --stop-after-init
 ```
 
 Logged `ERROR` lines for errors "after termination" and one empty-name constraint
