@@ -42,7 +42,7 @@ const GROUPED_ARCH = (attrs = "") =>
 test("A19: inverted, undated and out-of-period records are not drawn", async () => {
     const { model } = await makeTimelineModel();
     await model.load({ groupBy: ["parent_id"] });
-    const drawn = names(model.data.records.map((record) => ({ name: record.displayName })));
+    const drawn = model.data.records.map((record) => record.displayName);
     expect(drawn.includes("Wrong order")).toBe(false);
     expect(drawn.includes("Unscheduled")).toBe(false);
     expect(drawn.includes("Plan")).toBe(true);
@@ -302,6 +302,50 @@ test("A85: server call period", async () => {
         expect(name in kwargs.read_specification).toBe(true);
     }
     expect(kwargs.unavailability_fields).toBe(undefined);
+    await model.load({ groupBy: ["x_tags", "parent_id"] });
+    expect(lastCall().read_specification.x_tags).toEqual({});
+    expect(lastCall().read_specification.parent_id).toEqual({ fields: { display_name: {} } });
+});
+
+test("A56: a date property group-by is dropped", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["pill_properties.when_prop"] });
+    expect(model.data.groupBy).toEqual([]);
+    expect(lastCall().groupby).toEqual([]);
+});
+
+test("R4: mixed date and datetime fields follow the sentence of the spec", async () => {
+    const dateStop = { date_stop: { type: "date" } };
+    let { model } = await makeTimelineModel({ fieldsOverride: dateStop });
+    await model.load({});
+    expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-22"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_stop", ">", "2026-10-31 21:00:00"])).toBe(true);
+    ({ model } = await makeTimelineModel({ fieldsOverride: { date_start: { type: "date" } } }));
+    await model.load({});
+    expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-21 21:00:00"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_stop", ">=", "2026-11-01"])).toBe(true);
+});
+
+test("a changed context resets the page offset", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H6 });
+    await model.load({ groupBy: ["parent_id"] });
+    await model.setOffset(2);
+    await model.load({ groupBy: ["parent_id"] });
+    expect(model.data.offset).toBe(2);
+    await model.load({ groupBy: ["parent_id"], context: { other: 1 } });
+    expect(model.data.offset).toBe(0);
+});
+
+test("R10.5: a click made while a step load is in flight is not lost", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    model.step(1);
+    await advanceTime(500); // the load of the first step is now in flight
+    const done = model.step(1); // a second click arms the timer again
+    await animationFrame(); // the first response arrives before the timer fires
+    await advanceTime(500);
+    await done;
+    expect(span(model.data.range)).toEqual(["2026-11-15", "2026-12-05"]);
 });
 
 test("A86: date-only period condition", async () => {

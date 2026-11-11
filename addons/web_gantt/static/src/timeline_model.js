@@ -117,6 +117,7 @@ export class TimelineModel extends Model {
         const groupBy = await this._cleanGroupBy(searchParams.groupBy || [], context);
         const sameSearch =
             JSON.stringify(domain) === JSON.stringify(this.domain) &&
+            JSON.stringify(context) === JSON.stringify(this.context) &&
             JSON.stringify(groupBy) === JSON.stringify(this.groupBy);
         if (JSON.stringify(groupBy) !== JSON.stringify(this.groupBy)) {
             this._collapsed = new Set();
@@ -287,12 +288,12 @@ export class TimelineModel extends Model {
     // ------------------------------------------------------------------------
 
     async _cleanGroupBy(groupBy, context) {
-        const kept = groupBy.filter((name) => {
-            const type = this.fields[groupByFieldName(name)]?.type;
+        // property definitions first: a date property is only known by its definition
+        await addPropertyFieldDefs(this.orm, this.resModel, context, this.fields, groupBy);
+        return groupBy.filter((name) => {
+            const type = (this.fields[name] || this.fields[groupByFieldName(name)])?.type;
             return type !== "date" && type !== "datetime";
         });
-        await addPropertyFieldDefs(this.orm, this.resModel, context, this.fields, kept);
-        return kept;
     }
 
     _isRelational(fieldName) {
@@ -301,9 +302,11 @@ export class TimelineModel extends Model {
 
     _periodDomain(period) {
         const { startField, stopField, startIsDate, stopIsDate } = this.placement;
+        // R4, literally: a date-only stop field makes the first comparison a date one, a
+        // date-only start field makes the second one "on or after" the first day
         return [
-            [startField, "<", (startIsDate ? serializeDate : serializeDateTime)(period.stop)],
-            stopIsDate
+            [startField, "<", (stopIsDate ? serializeDate : serializeDateTime)(period.stop)],
+            startIsDate
                 ? [stopField, ">=", serializeDate(period.start)]
                 : [stopField, ">", serializeDateTime(period.start)],
         ];
@@ -369,7 +372,10 @@ export class TimelineModel extends Model {
 
     _commit(request, result) {
         const { range, scaleId, period } = request;
-        this._targetRange = null;
+        if (!this._timer) {
+            // a click made while this load was in flight keeps its target
+            this._targetRange = null;
+        }
         this.range = range;
         this.scaleId = scaleId;
         this.period = period;
@@ -650,6 +656,7 @@ export class TimelineModel extends Model {
 
     /** A required field or a yes/no field has no "no value" row of its own. */
     _canBeEmpty(fieldName) {
+        // False of a yes/no field is a value shown as "False" (A58), not an absent one
         const field = this.fields[fieldName];
         return !field.required && field.type !== "boolean";
     }

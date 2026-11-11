@@ -210,6 +210,7 @@ function groupValues(server, Model, record, groupby) {
     }
 }
 
+// The mock orders many2one groups by id (the server uses the comodel order), no value last.
 function compareValues(Model, groupby, a, b) {
     if (a === b) {
         return 0;
@@ -318,7 +319,11 @@ async function getGanttData({ model, kwargs }) {
 export function setupTimelineFixtures() {
     defineModels([Partner, Tag, Pill, Pill2]);
     onRpc("get_gantt_data", getGanttData);
-    onRpc("get_property_definition", () => PROPERTY_DEFINITION);
+    onRpc("get_property_definition", ({ args }) =>
+        args[0].endsWith("when_prop")
+            ? { name: "when_prop", type: "date", string: "When" }
+            : PROPERTY_DEFINITION
+    );
     beforeEach(() => {
         allowTranslations();
         resetMock();

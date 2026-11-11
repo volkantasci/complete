@@ -13,7 +13,10 @@
     'data': [],
     'assets': {
         'web.assets_backend': ['web_gantt/static/src/**/*'],
-        'web.assets_unit_tests': ['web_gantt/static/tests/**/*'],
+        'web.assets_unit_tests': [
+            'web_gantt/static/tests/**/*.test.js',
+            'web_gantt/static/tests/timeline_test_helpers.js',
+        ],
     },
     'installable': True,
     'application': False,
