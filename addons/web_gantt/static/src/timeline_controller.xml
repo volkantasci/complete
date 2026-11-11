@@ -1,0 +1,82 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineButtons">
+        <div class="d-flex o_tl_buttons">
+            <button t-if="this.canCreate" type="button" class="btn btn-primary o_tl_button_add" data-hotkey="c" t-on-click="this.onNew">New</button>
+        </div>
+    </t>
+
+    <t t-name="web_gantt.TimelineController">
+        <div class="o_timeline_view d-flex flex-column" t-att-class="this.props.className">
+            <Layout className="(this.data.isSample ? 'o_view_sample_data ' : '') + 'd-flex flex-column'" display="this.props.display">
+                <t t-set-slot="control-panel-additional-actions">
+                    <CogMenu/>
+                </t>
+                <t t-set-slot="control-panel-buttons">
+                    <t t-call="web_gantt.TimelineButtons"/>
+                </t>
+                <t t-set-slot="control-panel-actions">
+                    <SearchBar toggler="this.searchBarToggler"/>
+                </t>
+                <t t-set-slot="control-panel-navigation-additional">
+                    <t t-component="this.searchBarToggler.component" t-props="this.searchBarToggler.props"/>
+                </t>
+                <t t-call="web_gantt.TimelineControls"/>
+                <t t-component="this.props.Renderer" model="this.model" archInfo="this.props.archInfo"/>
+            </Layout>
+        </div>
+    </t>
+
+    <t t-name="web_gantt.TimelineControls">
+        <div class="o_tl_controls d-flex flex-wrap align-items-center" t-att-class="{ 'o_tl_controls_phone': this.ui.isSmall }">
+            <div class="btn-group o_tl_step_buttons">
+                <button type="button" class="btn btn-secondary o_tl_previous" data-hotkey="p" title="Previous" aria-label="Previous" t-on-click="() => this.step(-1)"><i class="oi oi-chevron-left"/></button>
+                <button type="button" class="btn btn-secondary o_tl_next" data-hotkey="n" title="Next" aria-label="Next" t-on-click="() => this.step(1)"><i class="oi oi-chevron-right"/></button>
+            </div>
+            <Dropdown state="this.rangeMenu" menuClass="'o_tl_range_menu'">
+                <button type="button" class="btn btn-secondary o_tl_range_button" data-hotkey="v">
+                    <t t-if="this.rangeLabel" t-out="this.rangeLabel"/>
+                    <t t-else="">
+                        <span class="o_tl_range_start" t-out="this.formatDay(this.shownRange.start)"/>
+                        <i class="fa fa-long-arrow-right mx-1"/>
+                        <span class="o_tl_range_stop" t-out="this.formatDay(this.shownRange.stop)"/>
+                    </t>
+                </button>
+                <t t-set-slot="content">
+                    <DropdownItem t-foreach="this.offeredKinds" t-as="item" t-key="item.kind"
+                        class="`o_tl_range_item o_tl_range_${item.kind} ${item.isCurrent ? 'selected' : ''}`"
+                        onSelected="() => this.setKind(item.kind)">
+                        <span t-out="item.label"/>
+                        <i t-if="item.isCurrent" class="fa fa-check ms-auto"/>
+                    </DropdownItem>
+                    <div class="dropdown-divider" role="separator"/>
+                    <div class="o_tl_custom_line d-flex align-items-center gap-2 px-3 py-1">
+                        <span class="o_tl_custom_start">
+                            <DateTimeInput type="'date'" value="this.custom.start"
+                                onChange="(value) => this.onCustomDate('start', value)"
+                                onApply="(value) => this.onCustomDate('start', value)"/>
+                        </span>
+                        <i class="fa fa-long-arrow-right"/>
+                        <span class="o_tl_custom_stop">
+                            <DateTimeInput type="'date'" value="this.custom.stop"
+                                onChange="(value) => this.onCustomDate('stop', value)"
+                                onApply="(value) => this.onCustomDate('stop', value)"/>
+                        </span>
+                        <button type="button" class="btn btn-primary btn-sm o_tl_apply" t-on-click="this.applyCustom">Apply</button>
+                    </div>
+                </t>
+            </Dropdown>
+            <button type="button" class="btn btn-secondary o_tl_today" data-hotkey="t" title="Jump to today" t-on-click="this.goToday">Today</button>
+            <!-- The phone gear menu (display mode, expand and collapse all) plugs in here. -->
+            <div t-if="!this.ui.isSmall" class="btn-group o_tl_toolbar">
+                <button type="button" class="btn btn-secondary o_tl_display_mode" t-att-title="this.displayModeTitle" t-on-click="this.toggleDisplayMode">
+                    <i class="fa" t-att-class="this.displayModeIcon"/>
+                </button>
+                <button type="button" class="btn btn-secondary o_tl_collapse_all" t-att-class="{ invisible: !this.hasGroupRows }" t-att-title="this.collapseAllTitle" t-on-click="this.toggleCollapseAll">
+                    <i class="fa" t-att-class="this.collapseAllIcon"/>
+                </button>
+            </div>
+        </div>
+    </t>
+</templates>

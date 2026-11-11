@@ -1,0 +1,18 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+.o_timeline_view {
+    min-height: 0;
+
+    .o_tl_controls {
+        padding: 0 16px 16px;
+        column-gap: 4px;
+
+        &.o_tl_controls_phone {
+            padding: 4px 0 16px;
+        }
+    }
+}
+
+.o_tl_range_menu .o_tl_custom_line .o_datetime_input {
+    width: 8em;
+}

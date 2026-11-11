@@ -1,0 +1,21 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineRenderer">
+        <div class="o_tl_renderer o_tl_grid_scroller overflow-auto" t-att-data-scale="this.data.scaleId">
+            <div class="o_tl_headers">
+                <div class="o_tl_column_groups d-flex">
+                    <t t-foreach="this.data.columnGroups" t-as="group" t-key="group_index">
+                        <div class="o_tl_column_group text-truncate" t-att-title="group.tooltip" t-att-style="`flex: ${group.span} 1 0`" t-out="group.label"/>
+                    </t>
+                </div>
+                <div class="o_tl_columns d-flex">
+                    <t t-foreach="this.data.columns" t-as="column" t-key="column_index">
+                        <div class="o_tl_column text-center" t-att-class="{ 'o_tl_column_today': column.isToday }" t-att-title="this.columnTitle(column)" t-out="this.columnLabel(column)"/>
+                    </t>
+                </div>
+            </div>
+            <div class="o_tl_body"/>
+        </div>
+    </t>
+</templates>

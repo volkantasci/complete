@@ -1,0 +1,17 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+.o_tl_renderer {
+    flex: 1 1 auto;
+    min-height: 0;
+
+    .o_tl_column_group,
+    .o_tl_column {
+        flex: 1 1 0;
+        min-width: 0;
+        border-bottom: 1px solid $o-border-color;
+    }
+
+    .o_tl_column_group {
+        padding-left: 8px;
+    }
+}
