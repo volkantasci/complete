@@ -93,3 +93,19 @@ class TestBridge(CwmHostCase):
             entry = self.host_log()[0]
             self.assertEqual(entry['action'], 'made_up_action')
             self.assertEqual(entry['args'], {'k': [1, 'x']})
+
+    def test_001e_a9_original_capability_object(self):
+        core = 'odoo.loader.modules.get("@web_mobile/js/services/core")'
+        plugins = [{'name': 'madeUpThing', 'action': 'made_up_action'}]
+        service = 'odoo.__WOWL_DEBUG__.root.env.services.mobile'
+        with self.host_session(host={'plugins': plugins}):
+            self.assertEqual(self.js(f'Object.keys({core}.methods)'), ['madeUpThing'])
+            self.assertTrue(self.js(f'{core}[Symbol.for("default")].methods === {core}.methods'))
+            self.assertTrue(self.js(f'{core}.methods.madeUpThing === {service}.madeUpThing'))
+            self.js(f'{core}.methods.madeUpThing({{k: 1}}); true')
+            self.wait('window.__cwmHostLog.length >= 1')
+            entry = self.cwm_expect_one(self.host_requests('made_up_action'))
+            self.assertEqual(entry['args'], {'k': 1})
+        with self.host_session(host=None, ua=self.UA_DESKTOP):
+            self.assertEqual(self.js(f'Object.keys({core}.methods)'), [])
+            self.assertTrue(self.js(f'{core}[Symbol.for("default")].methods === {core}.methods'))

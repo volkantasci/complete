@@ -66,6 +66,28 @@ class TestReader(CwmHostCase):
             self.assertEqual(len(self.host_requests('enableReader')), 1)
             self.assertEqual(self.js('window.__cwmScans'), ['ABC'])
 
+    def test_001e_a6_first_poll_one_interval_after_reader_on(self):
+        # the host never answers reader-on; the first read still goes out 100 ms later
+        with self.host_session(host={'answers': {'enableReader': 'never'}}):
+            self.join('x')
+            self.wait_reads(1)
+            on = self.cwm_expect_one(self.host_requests('enableReader'))
+            self.assertNear(self.reads()[0]['at'] - on['at'], 100)
+
+    def test_001e_a6_first_poll_with_session_interval(self):
+        IrHttp = type(self.env['ir.http'])
+        original = IrHttp.session_info
+
+        def session_info(this):
+            return dict(original(this), time_between_reads_in_ms=300)
+
+        self.patch(IrHttp, 'session_info', session_info)
+        with self.host_session(host={'answers': {'enableReader': 'never'}}):
+            self.join('x')
+            self.wait_reads(1)
+            on = self.cwm_expect_one(self.host_requests('enableReader'))
+            self.assertNear(self.reads()[0]['at'] - on['at'], 300)
+
     def test_A41_session_interval(self):
         IrHttp = type(self.env['ir.http'])
         original = IrHttp.session_info

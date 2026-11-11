@@ -190,6 +190,7 @@ class CwmReaderChannel extends EventTarget {
         this._running = true;
         const generation = ++this._generation;
         this._bridge.enableReader().catch((reason) => cwmWarn("reader could not be turned on", reason));
+        // the first read goes out one interval later, whether or not reader-on has answered
         this._poll(generation);
     }
 
@@ -199,7 +200,11 @@ class CwmReaderChannel extends EventTarget {
     }
 
     async _poll(generation) {
-        while (this._generation === generation) {
+        while (true) {
+            await new Promise((resolve) => setTimeout(resolve, this._interval));
+            if (this._generation !== generation) {
+                return;
+            }
             let outcome;
             let timer;
             const timeout = new Promise((resolve) => {
@@ -228,12 +233,45 @@ class CwmReaderChannel extends EventTarget {
                     this.dispatchEvent(new CustomEvent("mobile_reader_scanned", { detail: { data } }));
                 }
             }
-            if (this._generation !== generation) {
-                return;
-            }
-            await new Promise((resolve) => setTimeout(resolve, this._interval));
         }
     }
+}
+
+// One callables object per detection result, shared by the service and the module of
+// `@web_mobile/js/services/core`.
+const cwmCallableCache = new WeakMap();
+
+/**
+ * The functions of the capabilities the app lists, keyed by name (empty without an app).
+ * Built once per detection result: every caller gets the very same function objects.
+ *
+ * @param {ReturnType<typeof cwmDetectHost>} host
+ */
+export function cwmCallables(host) {
+    let callables = cwmCallableCache.get(host);
+    if (callables) {
+        return callables;
+    }
+    callables = {};
+    for (const [name, action] of host.actions) {
+        if (CWM_RESERVED.has(name) || Object.hasOwn(callables, name)) {
+            continue;
+        }
+        callables[name] = (args) =>
+            new Promise((resolve, reject) => {
+                const id = `cwm-${++cwmLastId}`;
+                // registered first: the app may answer from inside `execute`
+                cwmPending.set(id, { resolve, reject });
+                try {
+                    host.execute(action, JSON.stringify(args ?? {}), id);
+                } catch (error) {
+                    cwmPending.delete(id);
+                    reject(error);
+                }
+            });
+    }
+    cwmCallableCache.set(host, callables);
+    return callables;
 }
 
 /**
@@ -252,23 +290,7 @@ export function cwmMakeBridge(host) {
         bridge,
         session.time_between_reads_in_ms || CWM_DEFAULT_INTERVAL
     );
-    for (const [name, action] of host.actions) {
-        if (CWM_RESERVED.has(name) || Object.hasOwn(bridge, name)) {
-            continue;
-        }
-        bridge[name] = (args) =>
-            new Promise((resolve, reject) => {
-                const id = `cwm-${++cwmLastId}`;
-                // registered first: the app may answer from inside `execute`
-                cwmPending.set(id, { resolve, reject });
-                try {
-                    host.execute(action, JSON.stringify(args ?? {}), id);
-                } catch (error) {
-                    cwmPending.delete(id);
-                    reject(error);
-                }
-            });
-    }
+    Object.assign(bridge, cwmCallables(host));
     return bridge;
 }
 

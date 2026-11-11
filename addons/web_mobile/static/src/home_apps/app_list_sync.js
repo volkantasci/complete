@@ -18,23 +18,41 @@ export function cwmBuildAppList(apps) {
 }
 
 /**
- * Send the list to the app, but only when it differs from the last one sent in this page's life.
+ * Keeps the latest list the home menu announced and sends it when the home menu is next
+ * displayed, but only when it differs from the last list sent in this page's life.
+ * `update` takes the detail of the list event, `display` plays the "home menu shown" event.
  */
 export function cwmAppListSender(mobile) {
     let last = null;
-    return function cwmSendAppList({ apps }) {
-        if (!mobile.has("updateAvailableApps")) {
+    let latest = null;
+    let shown = false;
+    function flush() {
+        if (latest === null || !mobile.has("updateAvailableApps")) {
             return;
         }
-        const list = cwmBuildAppList(apps);
-        const text = JSON.stringify(list);
+        const text = JSON.stringify(latest);
         if (text === last) {
             return;
         }
         last = text;
         mobile
-            .updateAvailableApps(list)
+            .updateAvailableApps(latest)
             .catch((error) => console.warn("[cwm] the app refused the application list", error));
+    }
+    return {
+        update({ apps }) {
+            latest = cwmBuildAppList(apps);
+            // the very first list is not held back when the display signal came first
+            if (shown && last === null) {
+                flush();
+            }
+        },
+        display(isShown) {
+            shown = !!isShown;
+            if (shown) {
+                flush();
+            }
+        },
     };
 }
 
@@ -43,7 +61,8 @@ export const cwmAppListSyncService = {
     start(env, { mobile }) {
         if (mobile.has("updateAvailableApps")) {
             const send = cwmAppListSender(mobile);
-            env.bus.addEventListener("HOME-MENU:APPS-UPDATED", (ev) => send(ev.detail));
+            env.bus.addEventListener("HOME-MENU:APPS-UPDATED", (ev) => send.update(ev.detail));
+            env.bus.addEventListener("HOME-MENU:TOGGLED", (ev) => send.display(ev.detail));
         }
     },
 };
