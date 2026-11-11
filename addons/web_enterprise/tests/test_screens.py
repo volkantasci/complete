@@ -815,5 +815,20 @@ class ThemeScreens(ThemeProbeCase):
             self.mouse('mouseMoved', 800, 880)
         self.each('32-list-tags', PIPELINE, prepare)
 
+    def test_s34_language_sheet(self):
+        """The Language field's sheet on a phone, with a second language installed."""
+        self.env['res.lang']._activate_lang('fr_FR')
+        toggler = '.o_dialog .o_field_widget[name="lang"] .o_select_menu_toggler'
+
+        def prepare(mobile):
+            self.ready('.o_kanban_view .o_kanban_record')
+            self.js("document.querySelector('.o_user_menu').click()")
+            self.ready('[data-menu="preferences"]')
+            self.js("document.querySelector('[data-menu=\"preferences\"]').click()")
+            self.ready(toggler)
+            self.tap(toggler)
+            self.ready('.o_select_menu_menu .o_select_menu_item')
+        self.each('34-language-sheet', PIPELINE, prepare, desktop=False, mobile=True)
+
     def test_s33_login(self):
         self.each('33-login', '/web/login', lambda m: time.sleep(1), mobile=True, dark=False)
