@@ -1,7 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 from lxml import etree
-from odoo import _, api, fields, models
+from odoo import _, fields, models
 
 _TL_RANGES = ('day', 'week', 'month', 'quarter', 'year')
 _TL_SCALES = ('day', 'week', 'week_2', 'month', 'month_3', 'year')
@@ -33,15 +33,6 @@ class IrUiView(models.Model):
 
     def _get_view_info(self):
         return {'gantt': {'icon': 'view_timeline'}} | super()._get_view_info()
-
-    @api.model
-    def _get_view_fields(self, view_type, models):
-        models = super()._get_view_fields(view_type, models)
-        if view_type == 'gantt':
-            # pills can be labelled, coloured and decorated by any field
-            wanted = set(models.get(self._name, ())) | set(self.env[self._name]._fields)
-            models[self._name] = wanted
-        return models
 
     def _validate_tag_gantt(self, node, name_manager, node_info):
         if not node_info['validate']:
