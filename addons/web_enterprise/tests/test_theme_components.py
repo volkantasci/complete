@@ -663,14 +663,19 @@ class TestThemeDialogPalette(OverlayMixin, ThemeProbeCase):
         for scheme in ('light', 'dark'):
             with self.page(self.fixtures['apps_kanban_url'], scheme=scheme):
                 self._open_language_list()
-                got = self.style(menu, 'padding-top', 'padding-bottom', 'padding-left',
-                                 'padding-right')
+                # the 4 px sits on the list that holds the rows (001e P2), not on the frame
+                got = self.style(f'{menu} .o_select_menu-choices', 'padding-top',
+                                 'padding-bottom', 'padding-left', 'padding-right')
                 self.assertEqual(set(got.values()), {'4px'}, got)
+                frame = self.style(menu, 'padding-top', 'padding-bottom', 'padding-left',
+                                   'padding-right')
+                self.assertEqual(set(frame.values()), {'0px'}, frame)
                 margins = self.style(item, 'margin-top', 'margin-bottom')
                 self.assertEqual(set(margins.values()), {'0px'}, margins)
-                choices = self.style(f'{menu} .o_select_menu-choices', 'padding-top',
-                                     'padding-bottom')
-                self.assertEqual(set(choices.values()), {'0px'}, choices)
+                border = self.style(menu, 'border-top-width')['border-top-width']
+                self.assertAlmostEqual(
+                    self.rect(item)['y'],
+                    self.rect(menu)['y'] + float(border[:-2]) + 4, delta=.5)
 
     def test_A135_selection_list_look(self):
         menu = '.o_select_menu_menu'

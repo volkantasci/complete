@@ -8,8 +8,9 @@ import {
     cwmDetectedHost,
     cwmMakeBridge,
 } from "@web_mobile/bridge/bridge_service";
-import core, { methods } from "@web_mobile/js/services/core";
-import * as coreModule from "@web_mobile/js/services/core";
+import core, * as coreModule from "@web_mobile/js/services/core";
+
+const { methods } = coreModule;
 
 describe.current.tags("headless");
 

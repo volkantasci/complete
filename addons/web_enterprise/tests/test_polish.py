@@ -186,13 +186,80 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
 
     def test_001e_a2_desktop_list_unchanged(self):
         menu = '.o_select_menu_menu'
+        item = f'{menu} .o_select_menu_item'
         with self.page(self.fixtures['apps_kanban_url']):
             self._open_preferences()
-            self.wait(f"!!document.querySelector('{menu} .o_select_menu_item')")
-            pad = self.style(menu, 'padding-top', 'padding-left')
-            self.assertEqual(set(pad.values()), {'4px'}, pad)
-            self.assertEqual(
-                self.style(f'{menu} .o_select_menu-choices', 'padding-top')['padding-top'], '0px')
+            self.wait(f"!!document.querySelector('{item}')")
+            self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+            # the rows keep their places: 4 px inside the frame's border on every side
+            frame = self.rect(menu)
+            border = self.style(menu, 'border-top-width', 'border-left-width')
+            top = float(border['border-top-width'][:-2])
+            left = float(border['border-left-width'][:-2])
+            row = self.rect(item)
+            self.assertAlmostEqual(row['x'], frame['x'] + left + 4, delta=.5)
+            self.assertAlmostEqual(row['y'], frame['y'] + top + 4, delta=.5)
+            self.assertAlmostEqual(row['width'], frame['width'] - 2 * (left + 4), delta=1.5)
+
+    # -- P2 (round 2): desktop list padding ------------------------------------------
+
+    def test_001e_p2_desktop_list_padding(self):
+        menu = '.o_select_menu_menu'
+        choices = f'{menu} .o_select_menu-choices'
+        item = f'{menu} .o_select_menu_item'
+        sides = ('padding-top', 'padding-right', 'padding-bottom', 'padding-left')
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme):
+                self._open_preferences()
+                self.wait(f"!!document.querySelector('{item}')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+                own = self.style(choices, *sides)
+                self.assertEqual(set(own.values()), {'4px'}, own)
+                frame = self.style(menu, *sides)
+                self.assertEqual(set(frame.values()), {'0px'}, frame)
+                # the first row sits 4 px inside the frame's inner edge
+                border = self.style(menu, 'border-top-width')['border-top-width']
+                self.assertAlmostEqual(
+                    self.rect(item)['y'],
+                    self.rect(menu)['y'] + float(border[:-2]) + 4, delta=.5)
+
+    def test_001e_p2_desktop_long_list_scrolls_to_edge(self):
+        menu = '.o_select_menu_menu'
+        choices = f'{menu} .o_select_menu-choices'
+        item = f'{menu} .o_select_menu_item'
+        for scheme in ('light', 'dark'):
+            with self.page(self.fixtures['apps_kanban_url'], scheme=scheme):
+                self._open_preferences()
+                self.wait(f"!!document.querySelector('{item}')")
+                self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+                state = self.js(f"""(() => {{
+                    const list = document.querySelector('{choices}');
+                    const frame = document.querySelector('{menu}');
+                    const rows = [...list.querySelectorAll('.o_select_menu_item')];
+                    for (let i = 0; i < 25; i++) {{
+                        rows.forEach((row) => list.appendChild(row.cloneNode(true)));
+                    }}
+                    // whichever of the two scrolls
+                    const box = frame.scrollHeight > frame.clientHeight ? frame : list;
+                    box.scrollTop = 400;
+                    return {{
+                        scrollable: box.scrollHeight > box.clientHeight,
+                        top: box.scrollTop,
+                    }};
+                }})()""")
+                self.assertTrue(state['scrollable'], state)
+                self.assertGreater(state['top'], 0)
+                self.js("new Promise((resolve) => setTimeout(resolve, 200))")
+                # the first visible row starts at or above the frame's inner top edge
+                reach = self.js(f"""(() => {{
+                    const frame = document.querySelector('{menu}');
+                    const edge = frame.getBoundingClientRect().top + frame.clientTop;
+                    return [...document.querySelectorAll('{item}')]
+                        .map((row) => row.getBoundingClientRect())
+                        .filter((r) => r.bottom > edge + 1)
+                        .map((r) => r.top - edge)[0];
+                }})()""")
+                self.assertLessEqual(reach, 1, reach)
 
     # -- A4 ------------------------------------------------------------------------
 

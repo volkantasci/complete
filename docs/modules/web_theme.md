@@ -114,8 +114,10 @@ you chose.
   with a lighter shadow, while the search suggestions stay white. On a phone
   the language options open in a bottom sheet with a shadow, and the chosen
   option has an action-coloured border. The list carries a 4 px padding of its
-  own, and the rows sit 20 px from the sheet edge. In the search suggestions and
-  in selection lists, the item the keyboard is on keeps the normal text colour.
+  own, on a phone and on a desktop (the frame around it has none, so rows
+  scroll up to its edge), and on a phone the rows sit 20 px from the sheet
+  edge. In the search suggestions and in selection lists, the item the keyboard
+  is on keeps the normal text colour.
 - **Calendar drop zone.** When a task is dragged in a calendar that allows
   unscheduling, the drop zone fills the side panel column from its top edge,
   and its colours follow the active look, including the dark one.
