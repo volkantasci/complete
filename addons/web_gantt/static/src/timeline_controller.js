@@ -116,18 +116,19 @@ export class TimelineController extends Component {
         return Boolean(this.data.rows[0]?.isGroup);
     }
 
-    get allCollapsed() {
-        const every = (rows) =>
-            rows.every((row) => !row.isGroup || (row.collapsed && every(row.children)));
-        return this.hasGroupRows && every(this.data.rows);
+    /** True when at least one group row is folded: the button then opens everything. */
+    get anyCollapsed() {
+        const some = (rows) =>
+            rows.some((row) => row.isGroup && (row.collapsed || some(row.children)));
+        return this.hasGroupRows && some(this.data.rows);
     }
 
     get collapseAllTitle() {
-        return this.allCollapsed ? _t("Open every group") : _t("Fold every group");
+        return this.anyCollapsed ? _t("Open every group") : _t("Fold every group");
     }
 
     get collapseAllIcon() {
-        return this.allCollapsed ? "fa-caret-right" : "fa-caret-down";
+        return this.anyCollapsed ? "fa-caret-right" : "fa-caret-down";
     }
 
     // ------------------------------------------------------------------------
@@ -155,7 +156,7 @@ export class TimelineController extends Component {
     }
 
     toggleCollapseAll() {
-        this.model.setAllCollapsed(!this.allCollapsed);
+        this.model.setAllCollapsed(!this.anyCollapsed);
     }
 
     resetCustomLine() {

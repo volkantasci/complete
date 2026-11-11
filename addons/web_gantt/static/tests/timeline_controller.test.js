@@ -5,6 +5,7 @@ import { press, queryAllTexts, queryOne } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
+import { TimelineModel } from "@web_gantt/timeline_model";
 
 import {
     HOST_ARCHS,
@@ -217,6 +218,30 @@ test("A63: expand and collapse button visibility", async () => {
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
 });
 
+test("A63: one folded group makes the button open everything", async () => {
+    let model;
+    patchWithCleanup(TimelineModel.prototype, {
+        setup() {
+            super.setup(...arguments);
+            model = this;
+        },
+    });
+    await mountTimeline({ arch: GROUPED, groupBy: ["parent_id", "x_contact"] });
+    model.toggleRow(model.data.rows[0].id);
+    await animationFrame();
+    expect(".o_tl_collapse_all").toHaveAttribute("title", "Open every group");
+    expect(".o_tl_collapse_all .fa-caret-right").toHaveCount(1);
+    await contains(".o_tl_collapse_all").click();
+    expect(model.data.rows.every((row) => !row.collapsed)).toBe(true);
+    expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
+    expect(".o_tl_collapse_all .fa-caret-down").toHaveCount(1);
+});
+
+test("the display mode and collapse buttons are not joined", async () => {
+    await mountTimeline({ arch: GROUPED, groupBy: ["parent_id", "x_contact"] });
+    expect(".o_tl_controls .btn-group").toHaveCount(1); // previous and next only
+});
+
 test("A63: one level in dense mode keeps the invisible button in its place", async () => {
     await mountTimeline({ arch: GROUPED, groupBy: ["parent_id"] });
     expect(".o_tl_collapse_all").toHaveCount(1);
@@ -250,8 +275,17 @@ test("A80: the New button renders with the c shortcut and does nothing", async (
 });
 
 test("A110: access rights switch the buttons off", async () => {
+    let model;
+    patchWithCleanup(TimelineModel.prototype, {
+        setup() {
+            super.setup(...arguments);
+            model = this;
+        },
+    });
     await mountTimeline({ arch: timelineArch(`create="false" delete="false"`) });
     expect(".o_tl_button_add").toHaveCount(0);
+    expect(model.config.canDelete).toBe(false);
+    expect(model.config.canCreate).toBe(false);
 });
 
 test("A118: Today keeps the custom range length", async () => {
