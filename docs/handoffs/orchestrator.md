@@ -50,6 +50,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 3. **Implement** with the superpowers:subagent-driven-development skill on the branch above.
    - Models: implementers sonnet, task reviewers sonnet, and the final whole-branch review on opus.
    - Derive the tests from `acceptance.md`, and name each one after its scenario id.
+   - Tests create the records they need, so that they pass with and without demo data. CI installs every module without it.
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
 5. **Overlap report.** When every task is implemented and reviewed, and before the final review, stop.
@@ -60,8 +61,10 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 7. **Check:**
    - `.venv/bin/pytest -q`;
    - `.venv/bin/pre-commit run --all-files`;
-   - the module tests with the podman command, with and without each module that your code adapts to;
-   - then the final review, with one fix wave.
+   - the module tests with the podman command and demo data, with and without each module that your code adapts to;
+   - the module tests as CI runs them: every module under `addons/` installed together on a fresh database without demo data, with CI's test tags (the step "Install and test modules" in `.github/workflows/ci.yml`);
+   - then the final review, with one fix wave;
+   - then the module tests and CI's configuration again at the final head, each on a fresh database.
 8. **Stop before integration.** The provenance record and the merge come after verification and the owner's approval.
 
 ## Report
@@ -69,9 +72,11 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 Your final message is copied to the coordinator. Make it self-contained, write it in plain English, and include:
 
 - **Status:** DONE, DONE_WITH_QUESTIONS, or BLOCKED with the exact error.
+  - DONE: the branch is ready for verification, even with spec questions that the verifier can judge.
+  - DONE_WITH_QUESTIONS: a question must be answered before verification, such as a scenario not built, or built on a guess the verifier cannot judge. It stops the chained steps.
 - **Branch and commits,** and the plan path.
 - **Modules** and what each covers.
-- **Tests:** counts and results, the exact commands, and a table that maps each scenario id to its test, or to "visual, not automated".
+- **Tests:** counts and results, the exact commands, and a table that maps each scenario id to its test, or to "visual, not automated". Include CI's configuration at the final head.
 - **Screenshots:** paths.
 - **Spec questions and rulings,** in spec language.
 - **Reviews:** fix rounds and the final verdict.
