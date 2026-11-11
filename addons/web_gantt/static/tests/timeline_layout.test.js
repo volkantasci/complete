@@ -158,9 +158,11 @@ test("A43/A44: labels", () => {
     expect(pillLabel(find("Review"), "Review", options)).toBe("Review");
     expect(pillLabel(find("Long task"), "Long task", options)).toBe("Oct 23 - Dec 2 Long task");
     // the stop runs past the end of the range
-    expect(pillLabel(find("Long task"), "Long task", { ...options, scaleId: "month" })).toBe(
-        "Oct 23 - Dec 2 Long task"
-    );
+    // month scale: the displayed range is Oct 1 to Dec 31, so Long task lies inside it
+    const month = { ...options, scaleId: "month", range: namedRange("month", DateTime.now().startOf("day")) };
+    expect(pillLabel(find("Long task"), "Long task", month)).toBe("Long task");
+    const early = { start: at(-60, "09:00"), stop: at(-50, "09:00") }; // Sep 13 to Sep 23
+    expect(pillLabel(early, "Early", month)).toBe("Sep 13 - Sep 23 Early");
     const year = { ...options, scaleId: "year" };
     expect(pillLabel(find("Long task"), "Long task", year)).toBe("Oct 23 - Dec 2 Long task");
     expect(pillLabel(find("Design"), "Design", year)).toBe("Nov 9 - Nov 11 Design");
@@ -184,7 +186,8 @@ test("A45: colour index", () => {
     }
     expect(colorIndexOf(14)).toBe(2);
     expect(colorIndexOf(-1)).toBe(0);
-    expect(colorIndexOf(-0.4)).toBe(0);
+    expect(Object.is(colorIndexOf(-0.4), 0)).toBe(true);
+    expect(Object.is(colorIndexOf(0), 0)).toBe(true);
     expect(colorIndexOf(2.6)).toBe(3);
     expect(colorIndexOf([15, "x"])).toBe(3);
     expect(colorIndexOf({ id: 25 })).toBe(1);

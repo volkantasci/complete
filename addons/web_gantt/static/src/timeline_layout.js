@@ -24,10 +24,10 @@ export function colorIndexOf(value) {
     } else if (value && typeof value === "object") {
         number = value.id;
     }
-    if (typeof number !== "number" || !Number.isFinite(number) || number < 0) {
+    if (typeof number !== "number" || !Number.isFinite(number) || number <= 0) {
         return 0;
     }
-    return number % 12;
+    return number % 12 || 0; // never -0
 }
 
 /** Sub-column position of an instant; `ceil` rounds up to the end of the sub-column. */

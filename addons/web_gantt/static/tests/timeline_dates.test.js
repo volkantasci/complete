@@ -38,6 +38,14 @@ beforeEach(() => {
     today = DateTime.now().startOf("day");
 });
 
+test("A68: day scale marks the current hour only", () => {
+    const columns = buildColumns("day", displayedPeriod(namedRange("day", today), "day"));
+    const marked = columns.filter((column) => column.isToday);
+    expect(marked).toHaveLength(1);
+    // mockDate reads 00:30 as UTC, which is 03:30 in the +3 zone
+    expect(marked[0].start.toISO()).toBe(d("2026-11-12T03:00").toISO());
+});
+
 test("scale table and kinds", () => {
     expect(TIMELINE_SCALES.week).toEqual({
         column: "day",

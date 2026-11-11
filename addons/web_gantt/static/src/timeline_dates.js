@@ -311,7 +311,9 @@ export function buildColumns(scaleId, period) {
     let cursor = period.start;
     while (cursor < period.stop) {
         const next = cursor.plus({ [`${unit}s`]: 1 });
-        columns.push({ start: cursor, stop: next, isToday: cursor.hasSame(now, unitOfToday) });
+        const isToday =
+            unit === "hour" ? cursor <= now && now < next : cursor.hasSame(now, unitOfToday);
+        columns.push({ start: cursor, stop: next, isToday });
         cursor = next;
     }
     return columns;
