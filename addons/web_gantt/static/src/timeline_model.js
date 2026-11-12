@@ -59,8 +59,17 @@ export class TimelineModel extends Model {
         this.fields = { ...params.fields };
         this.config = params.config;
         this.viewId = params.viewId;
+        // what the action kept when the user left this view (range, display mode, scroll)
+        this._restored = params.state || null;
+        this.restoredScroll = this._restored?.scroll || null;
+        this._view = null;
+        this._focusVersion = 0;
+        this._rangeKey = null;
         this.keepLast = new KeepLast();
         this.displayMode = this.config.displayMode;
+        if (["dense", "sparse"].includes(params.state?.displayMode)) {
+            this.displayMode = params.state.displayMode;
+        }
         this.range = null;
         this.scaleId = null;
         this.period = null;
@@ -99,6 +108,35 @@ export class TimelineModel extends Model {
 
     get data() {
         return this._data;
+    }
+
+    /**
+     * The renderer tells the model how to read the grid it draws: `middleDate()` answers the date
+     * in the middle of the visible part, `scroll()` the scroll position (R39). Pass `null` to
+     * forget it.
+     */
+    setViewAccess(access) {
+        this._view = access;
+    }
+
+    /** The date in the middle of the visible part of the grid, else the focus date. */
+    visibleMiddleDate() {
+        return this._view?.middleDate?.() || this.range.focus;
+    }
+
+    /** What the action keeps while another view of it is shown (R39). */
+    getLocalState() {
+        const range = this.range;
+        return {
+            displayMode: this.displayMode,
+            range: range && {
+                kind: range.kind,
+                start: range.start.toISODate(),
+                stop: range.stop.toISODate(),
+                focus: range.focus.toISODate(),
+            },
+            scroll: this._view?.scroll?.() || this.restoredScroll,
+        };
     }
 
     hasData() {
@@ -144,7 +182,7 @@ export class TimelineModel extends Model {
     /** Choose a named range around `focus` (default: the current focus). */
     async setKind(kind, focus) {
         this._dropPendingStep();
-        const range = namedRange(kind, (focus || this.range.focus).startOf("day"));
+        const range = namedRange(kind, (focus || this.visibleMiddleDate()).startOf("day"));
         await this._reload({ range });
         this.notify();
     }
@@ -153,7 +191,7 @@ export class TimelineModel extends Model {
     async applyCustom(start, stop, { focus, edited = "start" } = {}) {
         this._dropPendingStep();
         const dates = fixCustomDates(start.startOf("day"), stop.startOf("day"), edited);
-        let day = (focus || this.range.focus).startOf("day");
+        let day = (focus || this.visibleMiddleDate()).startOf("day");
         day = day < dates.start ? dates.start : day > dates.stop ? dates.stop : day;
         await this._reload({ range: { kind: "custom", ...dates, focus: day } });
         this.notify();
@@ -188,6 +226,8 @@ export class TimelineModel extends Model {
         const today = DateTime.now().startOf("day");
         if (today >= this.period.start && today < this.period.stop) {
             this.range = { ...this.range, focus: today };
+            // the grid scrolls to today even when today already was the focus
+            this._focusVersion++;
             this._publish();
             this.notify();
             return "scrolled";
@@ -270,6 +310,20 @@ export class TimelineModel extends Model {
                 text.length > 10 ? deserializeDateTime(text) : deserializeDate(text)
             ).startOf("day");
         };
+        const restored = this._restored?.range;
+        if (restored && TIMELINE_KINDS.concat("custom").includes(restored.kind)) {
+            this._restored = { ...this._restored, range: null };
+            const day = (text) => DateTime.fromISO(text).startOf("day");
+            const range = {
+                kind: restored.kind,
+                start: day(restored.start),
+                stop: day(restored.stop),
+                focus: day(restored.focus),
+            };
+            if (range.start.isValid && range.stop.isValid && range.focus.isValid) {
+                return range;
+            }
+        }
         const today = DateTime.now().startOf("day");
         let storedKind = null;
         if (this.viewId) {
@@ -386,6 +440,14 @@ export class TimelineModel extends Model {
         if (!this._timer) {
             // a click made while this load was in flight keeps its target
             this._targetRange = null;
+        }
+        const rangeKey = [scaleId, range.kind, range.start, range.stop, range.focus]
+            .map(String)
+            .join("|");
+        if (rangeKey !== this._rangeKey) {
+            // a new range or scale: the grid scrolls to the focus date (R39)
+            this._rangeKey = rangeKey;
+            this._focusVersion++;
         }
         this.range = range;
         this.scaleId = scaleId;
@@ -715,6 +777,7 @@ export class TimelineModel extends Model {
         this._applyCollapsed();
         this._data = {
             range: this.range,
+            focusVersion: this._focusVersion,
             pendingRange: this._targetRange,
             scaleId: this.scaleId,
             period: this.period,

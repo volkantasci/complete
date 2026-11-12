@@ -1,0 +1,281 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { queryAll, queryOne } from "@odoo/hoot-dom";
+import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import {
+    contains,
+    defineWebModels,
+    getService,
+    mountView,
+    mountWithCleanup,
+    patchWithCleanup,
+} from "@web/../tests/web_test_helpers";
+import { localization } from "@web/core/l10n/localization";
+import { WebClient } from "@web/webclient/webclient";
+
+import {
+    HOST_ARCHS,
+    Pill,
+    setupTimelineFixtures,
+    timelineArch,
+    timelineMock,
+} from "./timeline_test_helpers";
+
+const { DateTime } = luxon;
+
+describe.current.tags("desktop");
+
+setupTimelineFixtures();
+defineWebModels();
+
+beforeEach(() => {
+    mockTimeZone(3);
+    mockDate("2026-11-11 21:30:00"); // 00:30 local on D0 = 2026-11-12
+    patchWithCleanup(localization, { weekStart: 7 });
+});
+
+async function mountTimeline({ arch = HOST_ARCHS.H1, ...rest } = {}) {
+    await mountView({ type: "gantt", resModel: "pill", arch, ...rest });
+    await animationFrame();
+}
+
+const renderer = () => queryOne(".o_tl_renderer");
+const headerOf = (date) => queryOne(`.o_tl_col[data-date="${date}"]`);
+const near = (a, b, tolerance = 2) => Math.abs(a - b) <= tolerance;
+const centreOf = (element) => {
+    const rect = element.getBoundingClientRect();
+    return (rect.left + rect.right) / 2;
+};
+
+/** The middle of the visible part: the grid minus the title cell stuck at its start. */
+function visibleCentre() {
+    const box = renderer().getBoundingClientRect();
+    const titleCell = queryAll(".o_tl_title_cell")[0];
+    // without row headers nothing covers the grid
+    const left = titleCell ? Math.max(box.left, titleCell.getBoundingClientRect().right) : box.left;
+    return (left + box.left + renderer().clientWidth) / 2;
+}
+
+/** Scroll like a user would: set the position of the grid and let the layout settle. */
+async function scrollTo(left) {
+    renderer().scrollLeft = left;
+    await animationFrame();
+}
+
+/** Scroll so that the middle of `element` is in the middle of the visible part. */
+async function centre(element) {
+    await scrollTo(renderer().scrollLeft + centreOf(element) - visibleCentre());
+}
+
+const rowOf = (name) =>
+    queryAll(".o_tl_row").find((row) => row.querySelector(".o_tl_row_name")?.textContent === name);
+
+async function settle() {
+    await advanceTime(500);
+    await animationFrame();
+}
+
+test("A20: the grid opens with today in the middle of the visible part", async () => {
+    await mountTimeline();
+    expect(renderer().scrollWidth).toBeGreaterThan(renderer().clientWidth + 100);
+    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+});
+
+test("A20: choosing a range centres the focus date again", async () => {
+    await mountTimeline();
+    await contains(".o_tl_range_button").click();
+    await contains(".o_tl_range_month").click();
+    await animationFrame();
+    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+});
+
+test("A29: Today inside the period scrolls without a request", async () => {
+    await mountTimeline();
+    await scrollTo(0);
+    expect(centreOf(headerOf("2026-11-12"))).toBeGreaterThan(visibleCentre() + 200);
+    await contains(".o_tl_today").click();
+    await animationFrame();
+    expect(timelineMock.calls).toHaveLength(1);
+    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+});
+
+test("A29: Today scrolls again when today already is the focus date", async () => {
+    await mountTimeline();
+    await scrollTo(renderer().scrollWidth);
+    await contains(".o_tl_today").click();
+    await animationFrame();
+    expect(timelineMock.calls).toHaveLength(1);
+    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+});
+
+test("A30: Today after a step reloads and centres today", async () => {
+    await mountTimeline();
+    await contains(".o_tl_next").click();
+    await contains(".o_tl_next").click();
+    await settle();
+    expect(timelineMock.calls).toHaveLength(2);
+    await contains(".o_tl_today").click();
+    await animationFrame();
+    expect(timelineMock.calls).toHaveLength(3);
+    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+});
+
+test("A32: Month chosen after scrolling keeps the date in the middle", async () => {
+    await mountTimeline({ arch: timelineArch(`default_range="week"`), groupBy: ["parent_id"] });
+    // D+7 is too close to the end of the grid to reach the middle: D+4 does
+    await centre(headerOf("2026-11-16"));
+    expect(near(centreOf(headerOf("2026-11-16")), visibleCentre())).toBe(true);
+    await contains(".o_tl_range_button").click();
+    await contains(".o_tl_range_month").click();
+    await animationFrame();
+    // three months centred on the month of D+7: October to December (local), sent as UTC
+    const kwargs = timelineMock.calls.at(-1);
+    expect(kwargs.start_date).toBe("2026-09-30 21:00:00");
+    expect(kwargs.stop_date).toBe("2026-12-31 21:00:00");
+    expect(near(centreOf(headerOf("2026-11-16")), visibleCentre())).toBe(true);
+});
+
+test("A32: the range is rebuilt around the date in the middle, not around today", async () => {
+    await mountTimeline({ arch: timelineArch(`default_range="month"`) });
+    // far right: the middle of the visible part is in December
+    await scrollTo(renderer().scrollWidth);
+    const middle = queryAll(".o_tl_col[data-date]")
+        .map((header) => ({ header, away: Math.abs(centreOf(header) - visibleCentre()) }))
+        .sort((a, b) => a.away - b.away)[0].header.dataset.date;
+    expect(middle > "2026-12-01").toBe(true);
+    await contains(".o_tl_range_button").click();
+    await contains(".o_tl_range_week").click();
+    await animationFrame();
+    const day = DateTime.fromISO(middle);
+    const sunday = day.minus({ days: day.weekday % 7 });
+    const start = sunday.minus({ days: 7 }).toUTC();
+    expect(timelineMock.calls.at(-1).start_date).toBe(start.toFormat("yyyy-MM-dd HH:mm:ss"));
+    expect(near(centreOf(headerOf(day.toISODate())), visibleCentre())).toBe(true);
+});
+
+test("A32: a reload that keeps the range keeps the scroll position", async () => {
+    await mountTimeline();
+    await scrollTo(300);
+    await contains(".o_tl_display_mode").click();
+    await animationFrame();
+    expect(renderer().scrollLeft).toBe(300);
+});
+
+test("A88: coming back from the list restores range, display mode and scroll", async () => {
+    Pill._views["gantt"] = HOST_ARCHS.H1;
+    Pill._views["list"] = `<list><field name="name"/></list>`;
+    Pill._views["search"] = `<search/>`;
+    await mountWithCleanup(WebClient);
+    await getService("action").doAction({
+        type: "ir.actions.act_window",
+        res_model: "pill",
+        views: [
+            [false, "gantt"],
+            [false, "list"],
+        ],
+    });
+    await animationFrame();
+    await contains(".o_tl_range_button").click();
+    await contains(".o_tl_range_month").click();
+    await animationFrame();
+    await contains(".o_tl_display_mode").click();
+    await animationFrame();
+    await scrollTo(777);
+    const left = renderer().scrollLeft;
+    expect(left).toBe(777);
+    await contains(".o_switch_view.o_list").click();
+    await animationFrame();
+    expect(".o_list_view").toHaveCount(1);
+    await contains(".o_switch_view.o_gantt").click();
+    await animationFrame();
+    expect(".o_tl_range_button").toHaveText("Month");
+    expect(".o_tl_display_mode").toHaveAttribute("title", "Group records on shared rows");
+    expect(renderer().scrollLeft).toBe(left);
+});
+
+test("A88: a restored view does not scroll to the focus date", async () => {
+    Pill._views["gantt"] = HOST_ARCHS.H1;
+    Pill._views["list"] = `<list><field name="name"/></list>`;
+    Pill._views["search"] = `<search/>`;
+    await mountWithCleanup(WebClient);
+    await getService("action").doAction({
+        type: "ir.actions.act_window",
+        res_model: "pill",
+        views: [
+            [false, "gantt"],
+            [false, "list"],
+        ],
+    });
+    await animationFrame();
+    await scrollTo(0);
+    await contains(".o_switch_view.o_list").click();
+    await animationFrame();
+    await contains(".o_switch_view.o_gantt").click();
+    await animationFrame();
+    expect(renderer().scrollLeft).toBe(0);
+});
+
+test("A89: a click on a row header centres the first pill of the row", async () => {
+    await mountTimeline({
+        arch: timelineArch(`default_range="quarter" color="x_color"`),
+        groupBy: ["parent_id", "x_contact"],
+    });
+    await scrollTo(renderer().scrollWidth);
+    const pill = [...rowOf("Host Contact 1").querySelectorAll(".o_tl_pill")].find(
+        (element) => element.textContent.trim() === "Design"
+    );
+    expect(centreOf(pill)).toBeLessThan(renderer().getBoundingClientRect().left);
+    await contains(rowOf("Host Contact 1").querySelector(".o_tl_row_header")).click();
+    await animationFrame();
+    expect(near(centreOf(pill), visibleCentre())).toBe(true);
+});
+
+test("A89: a click on a group row header only folds it", async () => {
+    await mountTimeline({
+        arch: timelineArch(`default_range="quarter"`),
+        groupBy: ["parent_id", "x_contact"],
+    });
+    await scrollTo(0);
+    await contains(rowOf("Alpha").querySelector(".o_tl_row_header")).click();
+    await animationFrame();
+    expect(rowOf("Alpha")).toHaveClass("o_tl_collapsed");
+    expect(renderer().scrollLeft).toBe(0);
+});
+
+test("A90: the pointer over a group row swaps its gradient and releases it", async () => {
+    await mountTimeline({ groupBy: ["parent_id", "x_contact"] });
+    const gradient = (row, part) => getComputedStyle(row.querySelector(part)).backgroundImage;
+    const parts = [".o_tl_row_header", ".o_tl_cell:not(.o_tl_is_today)"];
+    const beta = () => rowOf("Beta");
+    const open = parts.map((part) => gradient(beta(), part));
+    // a collapsed group row shows the gradient the pointer gives to an open one
+    await contains(rowOf("Alpha").querySelector(".o_tl_row_header")).click();
+    await contains(".o_tl_title_cell").hover();
+    await animationFrame();
+    const closed = parts.map((part) => gradient(rowOf("Alpha"), part));
+    expect(open[0]).not.toBe(closed[0]);
+    await contains(beta().querySelector(".o_tl_row_header")).hover();
+    expect(beta()).toHaveClass("o_tl_hover");
+    expect(parts.map((part) => gradient(beta(), part))).toEqual(closed);
+    await contains(".o_tl_title_cell").hover();
+    expect(beta()).not.toHaveClass("o_tl_hover");
+    expect(parts.map((part) => gradient(beta(), part))).toEqual(open);
+});
+
+test("R39: in a right-to-left language the focus date is still in the middle", async () => {
+    // the Community sets `direction: ltr` in its styles and lets a converter mirror it per
+    // language, so the test mirrors the grid itself
+    await mountTimeline();
+    renderer().style.direction = "rtl";
+    await scrollTo(0);
+    // the first day is at the right
+    expect(centreOf(headerOf("2026-11-01"))).toBeGreaterThan(centreOf(headerOf("2026-11-21")));
+    await contains(".o_tl_today").click();
+    await animationFrame();
+    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+    await contains(".o_tl_range_button").click();
+    await contains(".o_tl_range_month").click();
+    await animationFrame();
+    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+});

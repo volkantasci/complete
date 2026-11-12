@@ -1,6 +1,16 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, onWillRender, onWillUnmount, proxy, t, useProps } from "@odoo/owl";
+import {
+    Component,
+    onMounted,
+    onPatched,
+    onWillRender,
+    onWillUnmount,
+    proxy,
+    signal,
+    t,
+    useProps,
+} from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { ActionHelper } from "@web/views/action_helper";
 import { usePopover } from "@web/core/popover/popover_hook";
@@ -49,6 +59,9 @@ function textOfDate(date) {
  *   template;
  * - `pillOf(record, line)` builds the description of one pill;
  * - `visibleMiddleDate()` answers the date in the middle of the visible part of the grid.
+ *
+ * Scrolling (R39): the element that scrolls is `.o_tl_renderer`. All measures are made on
+ * rectangles, so they hold in right-to-left languages, where the grid is mirrored.
  */
 export class TimelineRenderer extends Component {
     static template = "web_gantt.TimelineRenderer";
@@ -58,6 +71,8 @@ export class TimelineRenderer extends Component {
         archInfo: t.object(),
         noContentHelp: t.string().optional(),
     });
+
+    rendererRef = signal.ref();
 
     setup() {
         this.ui = useService("ui");
@@ -87,7 +102,151 @@ export class TimelineRenderer extends Component {
                 this.popover.close();
             }
         });
-        onWillUnmount(() => browser.clearTimeout(this._popoverTimer));
+        // the grid scrolls to the focus date whenever the model says so (new range, new scale, a
+        // Today inside the period) and once the grid is first drawn
+        this._scrolledVersion = null;
+        const model = this.props.model;
+        const access = {
+            middleDate: () => this.visibleMiddleDate(),
+            scroll: () => this._scrollState(),
+        };
+        model.setViewAccess(access);
+        onMounted(() => this._syncScroll());
+        onPatched(() => this._syncScroll());
+        onWillUnmount(() => {
+            browser.clearTimeout(this._popoverTimer);
+            if (model._view === access) {
+                model.setViewAccess(null);
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Scrolling (R39)
+    // ------------------------------------------------------------------------
+
+    _scrollState() {
+        const element = this.rendererRef();
+        return element ? { left: element.scrollLeft, top: element.scrollTop } : null;
+    }
+
+    /** The first display, or a new focus: restore the saved position, else centre the focus. */
+    _syncScroll() {
+        const element = this.rendererRef();
+        const data = this.data;
+        if (!element || !element.clientWidth || this._scrolledVersion === data.focusVersion) {
+            return;
+        }
+        this._scrolledVersion = data.focusVersion;
+        const model = this.props.model;
+        const restored = model.restoredScroll;
+        if (restored) {
+            model.restoredScroll = null;
+            element.scrollLeft = restored.left;
+            element.scrollTop = restored.top;
+            return;
+        }
+        this._centreDate(data.range.focus);
+    }
+
+    /** Header elements of the columns, in order; a folded run has one, for its first column. */
+    _headers() {
+        return [...this.rendererRef().querySelectorAll(".o_tl_col[data-index]")];
+    }
+
+    /** The part of the grid that is not under the sticky title cell, in viewport coordinates. */
+    _visibleBounds() {
+        const element = this.rendererRef();
+        const box = element.getBoundingClientRect();
+        let left = box.left + element.clientLeft;
+        let right = left + element.clientWidth;
+        const title = element.querySelector(".o_tl_title_cell");
+        if (title) {
+            const rect = title.getBoundingClientRect();
+            if (rect.left + rect.width / 2 < (left + right) / 2) {
+                left = Math.max(left, rect.right);
+            } else {
+                right = Math.min(right, rect.left);
+            }
+        }
+        return { left, right };
+    }
+
+    /** Scroll the grid so that the viewport coordinate `x` is in the middle of the visible part. */
+    _centreAt(x) {
+        const { left, right } = this._visibleBounds();
+        this.rendererRef().scrollLeft += x - (left + right) / 2;
+    }
+
+    /** The date in the middle of the visible part of the grid; the focus date without a grid (R39). */
+    visibleMiddleDate() {
+        const element = this.rendererRef?.();
+        const headers = element?.clientWidth ? this._headers() : [];
+        if (!headers.length) {
+            return this.data.range.focus;
+        }
+        const { left, right } = this._visibleBounds();
+        const x = (left + right) / 2;
+        let best = null;
+        let distance = Infinity;
+        for (const header of headers) {
+            const rect = header.getBoundingClientRect();
+            const away = x < rect.left ? rect.left - x : x >= rect.right ? x - rect.right : 0;
+            if (away < distance) {
+                best = header;
+                distance = away;
+            }
+        }
+        const column = this.data.columns[Number(best.dataset.index)];
+        return column ? column.start.startOf("day") : this.data.range.focus;
+    }
+
+    /** Centre the day (the month on the year scale) of `date`; false when it is not shown. */
+    _centreDate(date) {
+        const { columns } = this.data;
+        const from = date.startOf("day");
+        const to = from.plus({ days: 1 });
+        let first = -1;
+        let last = -1;
+        columns.forEach((column, index) => {
+            if (column.start < to && column.stop > from) {
+                first = first < 0 ? index : first;
+                last = index;
+            }
+        });
+        if (first < 0) {
+            return false;
+        }
+        const headers = this._headers();
+        const headerOf = (index) =>
+            headers.filter((header) => Number(header.dataset.index) <= index).at(-1);
+        const a = headerOf(first)?.getBoundingClientRect();
+        const b = headerOf(last)?.getBoundingClientRect();
+        if (!a || !b) {
+            return false;
+        }
+        this._centreAt((Math.min(a.left, b.left) + Math.max(a.right, b.right)) / 2);
+        return true;
+    }
+
+    /** A click on the header of a row that is not a group scrolls to its first pill (R39). */
+    onRowHeaderClick(descriptor) {
+        if (descriptor.kind !== "pills" || !descriptor.pills.length) {
+            return;
+        }
+        const first = descriptor.pills.reduce((best, pill) =>
+            pill.record.span.from < best.record.span.from ? pill : best
+        );
+        const row = [...this.rendererRef().querySelectorAll(".o_tl_row")].find(
+            (element) => element.dataset.rowId === descriptor.row.id
+        );
+        const pill = [...(row?.querySelectorAll(".o_tl_pill") || [])].find(
+            (element) => element.dataset.pillId === String(first.id)
+        );
+        if (pill) {
+            const rect = pill.getBoundingClientRect();
+            this._centreAt(rect.left + rect.width / 2);
+        }
     }
 
     /**
@@ -134,11 +293,6 @@ export class TimelineRenderer extends Component {
 
     get data() {
         return this.props.model.data;
-    }
-
-    /** The date in the middle of the visible part of the grid; the focus date for now (R39). */
-    visibleMiddleDate() {
-        return this.data.range.focus;
     }
 
     /** A click on a group row (its header or a cell) folds or opens it (R22). */
@@ -411,6 +565,7 @@ export class TimelineRenderer extends Component {
         if (header.folded) {
             return {
                 key: `fold-${header.index}`,
+                index: header.index,
                 folded: true,
                 run: header.run,
                 tooltip: _t("Show the folded days").toString(),
@@ -454,6 +609,7 @@ export class TimelineRenderer extends Component {
         }
         return {
             key: index,
+            index,
             label,
             meridiem,
             title,
@@ -502,13 +658,13 @@ export class TimelineRenderer extends Component {
         const fold = this._fold;
         const units = total - fold.foldedColumns * data.parts;
         if (!fold.foldedColumns || units <= 0) {
-            return `left: ${(from / total) * 100}%; width: ${((to - from) / total) * 100}%`;
+            return `inset-inline-start: ${(from / total) * 100}%; width: ${((to - from) / total) * 100}%`;
         }
         const column = Math.min(Math.floor(from / data.parts), data.columns.length);
         const before = from - fold.foldedBefore[column] * data.parts;
         const rest = `(100% - ${fold.foldedWidth}px)`;
         const left = `calc(${rest} * ${before / units} + ${fold.runsBefore[column] * FOLDED_WIDTH}px)`;
-        return `left: ${left}; width: calc(${rest} * ${(to - from) / units})`;
+        return `inset-inline-start: ${left}; width: calc(${rest} * ${(to - from) / units})`;
     }
 
     /** The total row: a bar for every segment where records run, over all records shown. */

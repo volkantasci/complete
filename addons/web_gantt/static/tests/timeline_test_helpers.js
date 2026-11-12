@@ -75,7 +75,7 @@ class Tag extends models.Model {
     ];
 }
 
-class Pill extends models.Model {
+export class Pill extends models.Model {
     _name = "pill";
 
     name = fields.Char();

@@ -8,6 +8,7 @@ from . import (
     test_host,
     test_install,
     test_probes,
+    test_tours,
     test_validation,
     test_view_type,
 )

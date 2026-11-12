@@ -8,7 +8,7 @@
     </t>
 
     <t t-name="web_gantt.TimelineController">
-        <div class="o_timeline_view d-flex flex-column" t-att-class="(this.props.className || '') + (this.ui.isSmall ? ' o_tl_phone' : '')">
+        <div class="o_timeline_view d-flex flex-column" t-ref="this.rootRef" t-att-class="(this.props.className || '') + (this.ui.isSmall ? ' o_tl_phone' : '')">
             <Layout className="(this.data.isSample ? 'o_view_sample_data ' : '') + 'd-flex flex-column'" display="this.props.display">
                 <t t-set-slot="control-panel-additional-actions">
                     <CogMenu/>

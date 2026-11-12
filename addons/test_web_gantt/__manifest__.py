@@ -18,6 +18,11 @@
     'demo': [
         'demo/host_records.xml',
     ],
+    'assets': {
+        'web.assets_tests': [
+            'test_web_gantt/static/tests/tours/**/*',
+        ],
+    },
     'installable': True,
     'application': False,
 }

@@ -59,7 +59,7 @@
     grid-column: 1;
     position: sticky;
     top: 0;
-    left: 0;
+    inset-inline-start: 0;
     z-index: 6;
     display: flex;
     align-items: center;
@@ -178,7 +178,7 @@
 .o_tl_row_header {
     grid-column: 1;
     position: sticky;
-    left: 0;
+    inset-inline-start: 0;
     z-index: 3;
     display: flex;
     align-items: center;
@@ -426,14 +426,13 @@
 .o_tl_pills {
     position: absolute;
     top: 0;
-    right: 0;
     bottom: 0;
-    left: 0;
+    inset-inline: 0;
     z-index: 1;
     pointer-events: none;
 
     .o_tl_with_row_headers & {
-        left: var(--o-tl-row-header-width);
+        inset-inline-start: var(--o-tl-row-header-width);
     }
 }
 
