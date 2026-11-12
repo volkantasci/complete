@@ -1,6 +1,8 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, proxy, t, useProps } from "@odoo/owl";
+import { Component, onWillUnmount, proxy, t, useProps } from "@odoo/owl";
+import { browser } from "@web/core/browser/browser";
+import { usePopover } from "@web/core/popover/popover_hook";
 import { _t } from "@web/core/l10n/translation";
 import { is24HourFormat } from "@web/core/l10n/time";
 import { evaluateBooleanExpr } from "@web/core/py_js/py";
@@ -18,6 +20,7 @@ import {
     unavailableParts,
 } from "./timeline_layout";
 import { columnWidth } from "./timeline_dates";
+import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
 
 const { DateTime } = luxon;
 
@@ -62,6 +65,32 @@ export class TimelineRenderer extends Component {
         this._opened = new Set();
         this._openedKey = null;
         this._fold = null;
+        this._popoverTimer = null;
+        this.popover = usePopover(TimelinePopover, { position: "bottom" });
+        onWillUnmount(() => browser.clearTimeout(this._popoverTimer));
+    }
+
+    /**
+     * A single click on a pill opens its popover after a short delay; a double click comes in
+     * between and cancels it (R30). The open popover closes on the click itself (click away) and
+     * the new one opens, so another pill swaps the popovers.
+     */
+    onPillClick(ev, pill) {
+        const target = ev.currentTarget;
+        browser.clearTimeout(this._popoverTimer);
+        this._popoverTimer = browser.setTimeout(() => {
+            this._popoverTimer = null;
+            this.popover.open(target, {
+                model: this.props.model,
+                archInfo: this.props.archInfo,
+                record: pill.record,
+            });
+        }, POPOVER_DELAY);
+    }
+
+    onPillDoubleClick() {
+        browser.clearTimeout(this._popoverTimer);
+        this._popoverTimer = null;
     }
 
     get data() {

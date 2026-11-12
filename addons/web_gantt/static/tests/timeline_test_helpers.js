@@ -104,6 +104,14 @@ class Pill extends models.Model {
     });
     pill_properties_definition = fields.PropertiesDefinition();
 
+    _views = {
+        "card,1": `<card>
+            <templates>
+                <t t-name="card"><div class="o_card_view_body"><field name="x_contact"/></div></t>
+            </templates>
+        </card>`,
+    };
+
     _records = (() => {
         const parents = [
             { id: 1, name: "Alpha", pill_properties_definition: [PROPERTY_DEFINITION] },

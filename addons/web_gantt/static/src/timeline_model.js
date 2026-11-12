@@ -135,6 +135,12 @@ export class TimelineModel extends Model {
         }
     }
 
+    /** Load the current range again (after a button of the popover changed a record). */
+    async reload() {
+        await this._reload();
+        this.notify();
+    }
+
     /** Choose a named range around `focus` (default: the current focus). */
     async setKind(kind, focus) {
         this._dropPendingStep();
