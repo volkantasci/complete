@@ -1,9 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Measured values of the original (spec.md, "Measured values"), probes M1 to M42 and M53 to M64.
+"""Measured values of the original (spec.md, "Measured values"), probes M1 to M64.
 
-``MEASURED[probe][(scheme, viewport)][property]`` is the expected text. Popover, capacity and
-sample probes (M43 to M52) are left to the later part of the probe suite.
+``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
 
 MEASURED = {
@@ -931,6 +930,202 @@ MEASURED = {
             'column-gap': '4',
             'background-color': 'rgba(0, 0, 0, 0)',
             'geometry.height': '101',
+        },
+    },
+    'M43': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(0, 0, 0, 0)',
+            'geometry.width': '272',
+            'geometry.height': '208.688',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(255, 255, 255, 1)',
+            'geometry.width': '388',
+            'geometry.height': '698',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(0, 0, 0, 0)',
+            'geometry.width': '272',
+            'geometry.height': '208.688',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(62, 63, 71, 1)',
+            'geometry.width': '388',
+            'geometry.height': '698',
+        },
+    },
+    'M44': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(233, 236, 239, 1)',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(233, 236, 239, 1)',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(86, 87, 94, 1)',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(86, 87, 94, 1)',
+        },
+    },
+    'M45': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(255, 255, 255, 0.75)',
+            'color': 'rgba(0, 0, 0, 1)',
+            'geometry.width': '36',
+            'geometry.height': '25',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(44, 46, 53, 0.75)',
+            'color': 'rgba(255, 255, 255, 1)',
+            'geometry.width': '36',
+            'geometry.height': '25',
+        },
+    },
+    'M46': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(222, 226, 230, 1)',
+            'geometry.width': '36',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(62, 63, 71, 1)',
+            'geometry.width': '36',
+        },
+    },
+    'M47': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(222, 226, 230, 1)',
+            'geometry.width': '249.953',
+            'geometry.height': '5',
+            'border-top-left-radius': '3',
+            'margin-left': '0',
+            'margin-right': '8',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(222, 226, 230, 1)',
+            'geometry.width': '112.938',
+            'geometry.height': '5',
+            'border-top-left-radius': '3',
+            'margin-left': '0',
+            'margin-right': '8',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(86, 87, 94, 1)',
+            'geometry.width': '249.953',
+            'geometry.height': '5',
+            'border-top-left-radius': '3',
+            'margin-left': '0',
+            'margin-right': '8',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(86, 87, 94, 1)',
+            'geometry.width': '112.938',
+            'geometry.height': '5',
+            'border-top-left-radius': '3',
+            'margin-left': '0',
+            'margin-right': '8',
+        },
+    },
+    'M48': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(0, 169, 69, 0.75)',
+            'geometry.width': '60.391',
+            'geometry.height': '5',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(0, 169, 69, 0.75)',
+            'geometry.width': '27.281',
+            'geometry.height': '5',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(34, 176, 83, 0.75)',
+            'geometry.width': '60.391',
+            'geometry.height': '5',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(34, 176, 83, 0.75)',
+            'geometry.width': '27.281',
+            'geometry.height': '5',
+        },
+    },
+    'M49': {
+        ('light', 'desktop'): {
+            'color': 'rgba(73, 80, 87, 0.76)',
+            'font-size': '13',
+            'padding-left': '4',
+            'margin-right': '4',
+        },
+        ('light', 'phone'): {
+            'color': 'rgba(73, 80, 87, 0.76)',
+            'font-size': '13',
+            'padding-left': '4',
+            'margin-right': '4',
+        },
+        ('dark', 'desktop'): {
+            'color': 'rgba(179, 180, 184, 0.76)',
+            'font-size': '13',
+            'padding-left': '4',
+            'margin-right': '4',
+        },
+        ('dark', 'phone'): {
+            'color': 'rgba(179, 180, 184, 0.76)',
+            'font-size': '13',
+            'padding-left': '4',
+            'margin-right': '4',
+        },
+    },
+    'M50': {
+        ('light', 'desktop'): {
+            'geometry.width': '267',
+            'geometry.height': '66',
+        },
+        ('light', 'phone'): {
+            'geometry.width': '130',
+            'geometry.height': '66',
+        },
+        ('dark', 'desktop'): {
+            'geometry.width': '267',
+            'geometry.height': '66',
+        },
+        ('dark', 'phone'): {
+            'geometry.width': '130',
+            'geometry.height': '66',
+        },
+    },
+    'M51': {
+        ('light', 'desktop'): {
+            'opacity': '0.06',
+            'background-color': 'rgba(0, 0, 0, 0)',
+        },
+        ('light', 'phone'): {
+            'opacity': '0.06',
+            'background-color': 'rgba(0, 0, 0, 0)',
+        },
+        ('dark', 'desktop'): {
+            'opacity': '0.06',
+            'background-color': 'rgba(0, 0, 0, 0)',
+        },
+        ('dark', 'phone'): {
+            'opacity': '0.06',
+            'background-color': 'rgba(0, 0, 0, 0)',
+        },
+    },
+    'M52': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(0, 0, 0, 0)',
+            'geometry.y': '182',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(0, 0, 0, 0)',
+            'geometry.y': '178',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(0, 0, 0, 0)',
+            'geometry.y': '182',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(0, 0, 0, 0)',
+            'geometry.y': '178',
         },
     },
     'M53': {

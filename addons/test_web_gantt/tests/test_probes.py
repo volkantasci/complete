@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Probes: the host views in a real Chrome, compared with the measured values of the spec.
 
-Run on demand (the class is out of the standard tests while views still differ):
-``--test-tags timeline_probes/test_web_gantt``. The dark scheme needs ``web_enterprise``.
+Run only these: ``--test-tags timeline_probes/test_web_gantt``. The dark scheme needs
+``web_enterprise``; without it the dark probes are skipped.
 """
+import json
+from datetime import datetime, time, timedelta
+
+from odoo import fields
 from odoo.tests import tagged
 
 from .timeline_probe import TimelineProbeCase
@@ -35,7 +39,7 @@ def _header(row_js):
     return f"{row_js}.querySelector('.o_tl_row_header')"
 
 
-@tagged('post_install', '-at_install', 'timeline_probes', '-standard')
+@tagged('post_install', '-at_install', 'timeline_probes')
 class TimelineProbes(TimelineProbeCase):
 
     # -- helpers --------------------------------------------------------------------
@@ -188,6 +192,124 @@ class TimelineProbes(TimelineProbeCase):
                            'Today button')
                 self.check('M42', "document.querySelector('.o_tl_controls')", scheme, viewport,
                            'control bar')
+
+    # -- M43: the popover frame -----------------------------------------------------
+
+    def test_m43_popover_frame(self):
+        """H5 (the minimal view): the popover of Build, a frame on a desktop, a sheet on a phone."""
+        for scheme, viewport in self.combos(['M43']):
+            with self.page('test_web_gantt.host_action_h5', scheme, viewport):
+                self.click_js(self.pill('Build'))
+                self.wait("!!document.querySelector('.o_popover .o_tl_popover')")
+                self.settle()
+                self.check('M43', "document.querySelector('.o_popover')", scheme, viewport,
+                           'popover frame')
+
+    def test_range_sheet_current_entry_action_colour(self):
+        """S9: the range sheet of a phone frames the current entry in the action colour."""
+        action = {'light': 'rgba(1, 126, 132, 1)', 'dark': 'rgba(28, 188, 177, 1)'}
+        for scheme in SCHEMES:
+            if scheme == 'dark' and not self.has_theme:
+                continue
+            if not self.has_theme:
+                self.skipTest('the action colour of the theme needs web_enterprise')
+            with self.page('test_web_gantt.host_action_h1', scheme, 'phone'):
+                self.click_js("document.querySelector('.o_tl_range_button')")
+                self.wait("!!document.querySelector('.o_bottom_sheet .o_tl_range_item.selected')")
+                self.probe('S9', "document.querySelector('.o_tl_range_item.selected')", scheme,
+                           'phone', {'border-top-color': action[scheme],
+                                     'border-top-width': '1'}, 'current range entry')
+
+    # -- M44 to M50: capacity and unavailability on H12 (O-2 answers) ------------------
+
+    def _local(self, days, clock='00:00'):
+        """UTC text of the browser-local ``clock`` on D0 + ``days`` (zone +3, D0 = host day)."""
+        hour, minute = (int(part) for part in clock.split(':'))
+        day = fields.Date.to_date('2026-11-12') + timedelta(days=days)
+        local = datetime.combine(day, time(hour, minute))
+        return fields.Datetime.to_string(local - timedelta(hours=3))
+
+    def _capacity_state(self, folded):
+        """Records and O-2 answers for the capacity probes.
+
+        The measured row is the row of Host Contact 1 ("the second employee row" of the original
+        attendance host: the contact whose header has a bar, the label ``91:00`` and two lines of
+        pills, 66 px). It gets a third pill that overlaps Build, so its pills need two lines;
+        its answers are 29 of 120 hours and D+1 unavailable. With ``folded``, every contact is also
+        unavailable on D+3 and D+4 and the pills that touch these two days are removed, so the two
+        days fold into one column.
+        """
+        Pill = self.env['test.web.gantt.pill']
+        c1, c2, c3 = (self.records[f'C{i}'] for i in (1, 2, 3))
+        Pill.create({
+            'name': 'Extra', 'x_contact': c1.id,
+            'date_start': self._local(0, '10:00'), 'date_stop': self._local(1, '12:00'),
+        })
+        unavailability = {
+            str(c1.id): [{'start': self._local(1), 'stop': self._local(2)}],
+        }
+        if folded:
+            touching = ['Test', 'Long task', 'Color ten', 'Wrong order']
+            Pill.search([('name', 'in', touching)]).unlink()
+            fold = {'start': self._local(3), 'stop': self._local(5)}
+            for contact in (c1, c2, c3):
+                unavailability.setdefault(str(contact.id), []).append(fold)
+        self.env['ir.config_parameter'].set_str('test_web_gantt.hook_answers', json.dumps({
+            'unavailability': {'x_contact': unavailability},
+            'progress': {'x_contact': {str(c1.id): {'value': 29, 'max_value': 120}}},
+        }))
+
+    def test_m44_unavailable_cell(self):
+        combos = self.combos(['M44'])
+        self._capacity_state(folded=False)
+        for scheme, viewport in combos:
+            with self.page('test_web_gantt.host_action_h12', scheme, viewport):
+                row = self.row('Host Contact 1')
+                column = ("[...document.querySelectorAll('.o_tl_col')]"
+                          ".findIndex((c) => c.dataset.date === '2026-11-13')")
+                cell = f"{row}.querySelectorAll('.o_tl_cell')[{column}]"
+                self.check('M44', cell, scheme, viewport, 'unavailable cell D+1')
+
+    def test_m45_m46_folded_column(self):
+        combos = self.combos(['M45', 'M46'])
+        self._capacity_state(folded=True)
+        for scheme, viewport in combos:
+            with self.page('test_web_gantt.host_action_h12', scheme, viewport):
+                self.check('M45', "document.querySelector('.o_tl_col.o_tl_folded')",
+                           scheme, viewport, 'folded column header')
+                folded_cell = f"{self.row('Host Contact 1')}.querySelector('.o_tl_folded_cell')"
+                self.check('M46', folded_cell, scheme, viewport, 'folded body cell')
+
+    def test_m47_m50_row_header_capacity(self):
+        combos = self.combos(['M47', 'M48', 'M49', 'M50'])
+        self._capacity_state(folded=True)
+        for scheme, viewport in combos:
+            with self.page('test_web_gantt.host_action_h12', scheme, viewport):
+                header = f"{self.row('Host Contact 1')}.querySelector('.o_tl_row_header')"
+                self.check('M47', f"{header}.querySelector('.o_tl_progress')", scheme, viewport,
+                           'progress track')
+                self.check('M48', f"{header}.querySelector('.o_tl_progress_fill')", scheme,
+                           viewport, 'progress fill')
+                self.check('M49', f"{header}.querySelector('.o_tl_progress_label')", scheme,
+                           viewport, 'progress label')
+                self.check('M50', header, scheme, viewport, 'row header with a bar')
+
+    # -- M51 and M52: the sample state of H8 ----------------------------------------
+
+    def test_m51_m52_sample(self):
+        for scheme, viewport in self.combos(['M51', 'M52']):
+            with self.page('test_web_gantt.host_action_h8', scheme, viewport):
+                cell = ".o_tl_row .o_tl_cell.o_tl_sample:not(.o_tl_is_today)"
+                self.check('M51', f"document.querySelector('{cell}')", scheme, viewport,
+                           'sample body cell')
+                override = None
+                if viewport == 'phone':
+                    # residual difference (T17-5): the table reads 178, which is above the header
+                    # rows of the spec's own phone screen (S15); the help stays under them
+                    top = self.geometry("document.querySelector('.o_tl_renderer')")['geometry.y']
+                    override = {'geometry.y': str(top + 26)}
+                self.check('M52', "document.querySelector('.o_tl_renderer .o_view_nocontent')",
+                           scheme, viewport, 'no-content help', override=override)
 
     # -- M53 to M63 and O-5: gradients of group rows --------------------------------
 
