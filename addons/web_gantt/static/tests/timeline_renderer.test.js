@@ -10,6 +10,7 @@ import {
     makeMockServer,
     MockServer,
     patchWithCleanup,
+    serverState,
 } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 
@@ -476,6 +477,16 @@ test("A49: the user context is available to a condition", async () => {
     expect(".o_tl_pill").toHaveCount(12);
     expect(".o_tl_mark_secondary").toHaveCount(12);
     expect(markColor(pillOf("Build"))).toBe(roleColors().secondary);
+});
+
+test("R15: a condition sees the uid of the user", async () => {
+    await mountTimeline({
+        arch: timelineArch(
+            `default_range="week" decoration-secondary="uid == ${serverState.userId}"`
+        ),
+    });
+    expect(".o_tl_pill").toHaveCount(12);
+    expect(".o_tl_mark_secondary").toHaveCount(12);
 });
 
 test("A50: progress band widths 40% and 75%", async () => {

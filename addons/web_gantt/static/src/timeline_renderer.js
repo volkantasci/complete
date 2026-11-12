@@ -466,7 +466,7 @@ export class TimelineRenderer extends Component {
      */
     _buildFold(data, unavailable, offset, minWidth) {
         const count = data.columns.length;
-        const rawRuns = foldableRuns({
+        const runs = foldableRuns({
             columns: data.columns,
             rowsUnavailable: [...unavailable.values()],
             pillsSubRanges: data.records.map((record) => ({
@@ -476,7 +476,6 @@ export class TimelineRenderer extends Component {
             scaleId: data.scaleId,
             parts: data.parts,
         });
-        const runs = rawRuns;
         // an open run that is no longer a foldable run is forgotten
         const keys = new Set(runs.map((run) => this._runKey(run.first)));
         for (const key of [...this._opened]) {
@@ -569,7 +568,8 @@ export class TimelineRenderer extends Component {
                 const colour = grey ? "var(--o-tl-unavailable-bg)" : "transparent";
                 return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
             });
-            style = `background-image: linear-gradient(to right, ${stops.join(", ")})`;
+            const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
+            style = `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
         }
         return { key: index, className: classes.join(" "), style };
     }
@@ -820,7 +820,13 @@ export class TimelineRenderer extends Component {
         if (!names.length) {
             return [];
         }
-        const evalContext = { context: user.context };
+        const { uid, allowed_company_ids } = user.context;
+        const evalContext = {
+            context: user.context,
+            uid: user.userId ?? uid,
+            allowed_company_ids,
+            current_company_id: user.activeCompany?.id,
+        };
         for (const [name, value] of Object.entries(record.raw)) {
             evalContext[name] = value && typeof value === "object" && "id" in value ? value.id : value;
         }

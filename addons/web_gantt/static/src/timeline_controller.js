@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, proxy, signal, t, useProps } from "@odoo/owl";
+import { Component, onWillUnmount, proxy, signal, t, useProps } from "@odoo/owl";
 import { DateTimeInput } from "@web/core/datetime/datetime_input";
 import { DateTimePicker } from "@web/core/datetime/datetime_picker";
 import { Dialog } from "@web/core/dialog/dialog";
@@ -93,6 +93,7 @@ export class TimelineController extends Component {
             rootRef: this.rootRef,
             getLocalState: () => ({ modelState: this.model.getLocalState() }),
         });
+        onWillUnmount(() => this.model.dispose());
         this.searchBarToggler = useSearchBarToggler();
         this.rangeMenu = useDropdownState({ onOpen: () => this.resetCustomLine() });
         this.custom = proxy({ start: null, stop: null, edited: "start" });

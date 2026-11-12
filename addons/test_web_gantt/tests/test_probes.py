@@ -424,6 +424,8 @@ class TimelineScreenDefects(TimelineProbeCase):
             with self.subTest(viewport=viewport), \
                     self.page('test_web_gantt.host_action_h3', 'light', viewport):
                 self.wait("document.fonts.status === 'loaded'")
+                # fold a group first: its caret and the "Open every group" entry are arrow_right
+                self.click_js("document.querySelector('.o_tl_group_row .o_tl_row_header')")
                 if viewport == 'phone':
                     self.click_js("document.querySelector('.o_tl_gear')")
                     self.wait("!!document.querySelector('.o_tl_gear_menu, .o_bottom_sheet')")
@@ -440,6 +442,7 @@ class TimelineScreenDefects(TimelineProbeCase):
                     };
                 })""")
                 self.assertGreater(len(icons), 5)
+                self.assertIn('arrow_right', [icon['name'] for icon in icons])
                 for icon in icons:
                     self.assertTrue(icon['name'], f'{viewport}: icon without a name')
                     self.assertTrue(0 < icon['width'] < icon['size'] * 1.6,
@@ -561,6 +564,29 @@ class TimelineScreenDefects(TimelineProbeCase):
             })()""")
             self.assertLess(seen['bottom'], seen['height'] - 40, seen)
             self.assertLess(seen['bottom'] - seen['content'], 20, seen)
+
+    def test_tall_grid_scrolls_vertically_with_headers_on_top(self):
+        """A grid taller than the viewport scrolls vertically; the column headers stay on top."""
+        with self.page('test_web_gantt.host_action_h3', 'light', 'desktop'):
+            self.browser._websocket_request('Emulation.setDeviceMetricsOverride', params={
+                'width': 1600, 'height': 500, 'deviceScaleFactor': 1, 'mobile': False,
+            })
+            self.settle()
+            before = self.js("""(() => {
+                const grid = document.querySelector('.o_tl_renderer');
+                return {scrollHeight: grid.scrollHeight, clientHeight: grid.clientHeight};
+            })()""")
+            self.assertGreater(before['scrollHeight'], before['clientHeight'], before)
+            self.js("document.querySelector('.o_tl_renderer').scrollTop = 150")
+            self.settle()
+            seen = self.js("""(() => {
+                const grid = document.querySelector('.o_tl_renderer');
+                const head = document.querySelector('.o_tl_col').getBoundingClientRect();
+                return {scrollTop: grid.scrollTop, headTop: head.top,
+                    gridTop: grid.getBoundingClientRect().top + grid.clientTop};
+            })()""")
+            self.assertGreater(seen['scrollTop'], 0, seen)
+            self.assertLess(abs(seen['headTop'] - seen['gridTop']), 40, seen)
 
     def test_focus_day_starts_in_the_middle(self):
         """D-6 (S1): the focus day starts in the middle of the visible part."""

@@ -98,14 +98,15 @@ test("A83: grouped sample rows are faded and ignore the pointer", async () => {
     for (const selector of [".o_tl_row", ".o_tl_row_header", ".o_tl_cell", ".o_tl_col"]) {
         expect(queryAll(selector)[0]).toHaveStyle({ pointerEvents: "none" });
     }
-    // a real click on a sample row folds nothing
-    try {
-        await click(".o_tl_row_header");
-    } catch {
-        // the pointer cannot reach the row at all
-    }
+    // a real click on a sample row folds nothing: the pointer goes through to what is below it
+    const caret = queryAll(".o_tl_row_header")[0];
+    expect(caret).toHaveStyle({ pointerEvents: "none" });
+    await click(".o_tl_row_header");
     await animationFrame();
     expect(".o_tl_collapsed").toHaveCount(0);
+    expect(".o_tl_row:not(.o_tl_total_row)").toHaveCount(queryAll(".o_tl_row").length);
+    expect(queryAll(".o_tl_row_header")[0]).toBe(caret);
+    expect(caret).toHaveStyle({ pointerEvents: "none" });
 });
 
 test("A84: empty view without help", async () => {

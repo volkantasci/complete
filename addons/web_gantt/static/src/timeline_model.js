@@ -12,7 +12,7 @@ import { _t } from "@web/core/l10n/translation";
 import { KeepLast } from "@web/core/utils/concurrency";
 import { imageUrl } from "@web/core/utils/urls";
 import { addPropertyFieldDefs, Model } from "@web/model/model";
-import { formatFloat } from "@web/views/fields/formatters";
+import { formatFloat, formatInteger } from "@web/views/fields/formatters";
 import {
     buildColumnGroups,
     buildColumns,
@@ -87,6 +87,8 @@ export class TimelineModel extends Model {
         this._rows = [];
         this._collapsed = new Set();
         this._targetRange = null;
+        // the range asked by the last navigation whose answer is not committed yet
+        this._requestedRange = null;
         this._timer = null;
         this._waiters = [];
         this._publish();
@@ -167,13 +169,20 @@ export class TimelineModel extends Model {
         this.groupBy = groupBy;
         this.context = context;
         const offset = sameSearch ? this.offset : 0;
-        const range = this.range || this._firstRange(context);
+        const range = this._requestedRange || this.range || this._firstRange(context);
         const isFirstLoad = !this._hasLoaded;
         await this._reload({ range, offset });
         if (!isFirstLoad) {
             // a new search: the renderer gets the same props, so it must be told to draw again
             this.notify();
         }
+    }
+
+    /** Stop the pending step: the view is left. */
+    dispose() {
+        browser.clearTimeout(this._timer);
+        this._timer = null;
+        this._waiters = [];
     }
 
     /** Load the current range again (after a button of the popover changed a record). */
@@ -214,6 +223,14 @@ export class TimelineModel extends Model {
             try {
                 await this._reload({ range });
                 this.notify();
+            } catch (error) {
+                if (!this._timer) {
+                    // the load failed: the grid keeps the committed range, so does the bar
+                    this._targetRange = null;
+                    this._publish();
+                    this.notify();
+                }
+                throw error;
             } finally {
                 this._flushWaiters();
             }
@@ -372,10 +389,13 @@ export class TimelineModel extends Model {
         const { startField, stopField, startIsDate, stopIsDate } = this.placement;
         // R4, literally: a date-only stop field makes the first comparison a date one, a
         // date-only start field makes the second one "on or after" the first day
+        // A day boundary compared with a datetime field is the local midnight in UTC
+        const first = stopIsDate && startIsDate ? serializeDate : serializeDateTime;
+        const second = startIsDate && stopIsDate ? serializeDate : serializeDateTime;
         return [
-            [startField, "<", (stopIsDate ? serializeDate : serializeDateTime)(period.stop)],
+            [startField, "<", first(period.stop)],
             startIsDate
-                ? [stopField, ">=", serializeDate(period.start)]
+                ? [stopField, ">=", second(period.start)]
                 : [stopField, ">", serializeDateTime(period.start)],
         ];
     }
@@ -431,10 +451,26 @@ export class TimelineModel extends Model {
     }
 
     async _reload({ range = this.range, offset = this.offset } = {}) {
-        const request = this._request(range, offset);
-        const result = await this.keepLast.add(
-            this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs)
-        );
+        let request = this._request(range, offset);
+        this._requestedRange = range;
+        let result;
+        try {
+            result = await this.keepLast.add(
+                this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs)
+            );
+        } catch (error) {
+            this._requestedRange = null;
+            throw error;
+        }
+        if (request.offset > 0 && !result.groups.length) {
+            // the page is past the end of what this range holds: back to the first page, so the
+            // pager stays usable
+            request = this._request(range, 0);
+            result = await this.keepLast.add(
+                this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs)
+            );
+        }
+        this._requestedRange = null;
         this._commit(request, result);
     }
 
@@ -555,7 +591,7 @@ export class TimelineModel extends Model {
     _rawValueName(fieldName, value) {
         const field = this.fields[fieldName];
         if (this._isEmptyValue(fieldName, value)) {
-            return `${_t("Undefined")} ${field.string}`;
+            return field.falsy_value_label || `${_t("Undefined")} ${field.string}`;
         }
         switch (field.type) {
             case "many2one":
@@ -568,6 +604,8 @@ export class TimelineModel extends Model {
             }
             case "boolean":
                 return value ? _t("True") : _t("False");
+            case "integer":
+                return formatInteger(value);
             case "float":
             case "monetary":
                 return formatFloat(value);
@@ -593,7 +631,7 @@ export class TimelineModel extends Model {
             children: [],
             collapsed: false,
             thumbnailUrl:
-                imageField && resId && field.relation
+                imageField && resId > 0 && field.relation
                     ? imageUrl(field.relation, resId, imageField)
                     : null,
             isEmptyValueRow: empty,

@@ -182,6 +182,21 @@ test("A105: sparse progress only on group rows", async () => {
 // Unavailable periods (R28)
 // ----------------------------------------------------------------------------
 
+test("R28: a partly unavailable cell mirrors its gradient in a right-to-left language", async () => {
+    // the document direction, as the Community sets it for such a language
+    document.documentElement.setAttribute("dir", "rtl");
+    try {
+        timelineMock.unavailability = {
+            x_contact: { 1: [{ start: at(2, "00:00"), stop: at(2, "12:00") }] },
+        };
+        await mountTimeline();
+        const image = css(cellsOf(rowOf("Host Contact 1"))[13], "backgroundImage");
+        expect(image).toMatch(/^linear-gradient\(to left, /);
+    } finally {
+        document.documentElement.removeAttribute("dir");
+    }
+});
+
 test("A74: unavailable cells and today fill kept", async () => {
     timelineMock.unavailability = {
         x_contact: {

@@ -14,6 +14,8 @@ import {
     timelineMock,
 } from "./timeline_test_helpers";
 
+const { DateTime } = luxon;
+
 describe.current.tags("headless");
 
 setupTimelineFixtures();
@@ -315,15 +317,99 @@ test("A56: a date property group-by is dropped", async () => {
 });
 
 test("R4: mixed date and datetime fields follow the sentence of the spec", async () => {
+    // at UTC+3: the day boundary compared with a datetime field is the local midnight in UTC,
+    // the one compared with a date field stays a date string
     const dateStop = { date_stop: { type: "date" } };
     let { model } = await makeTimelineModel({ fieldsOverride: dateStop });
     await model.load({});
-    expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-22"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-21 21:00:00"])).toBe(true);
     expect(hasLeaf(lastCall().domain, ["date_stop", ">", "2026-10-31 21:00:00"])).toBe(true);
     ({ model } = await makeTimelineModel({ fieldsOverride: { date_start: { type: "date" } } }));
     await model.load({});
     expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-21 21:00:00"])).toBe(true);
-    expect(hasLeaf(lastCall().domain, ["date_stop", ">=", "2026-11-01"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_stop", ">=", "2026-10-31 21:00:00"])).toBe(true);
+});
+
+test("R24: a range change on a later page without groups goes back to the first page", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H6 });
+    await model.load({ groupBy: ["parent_id"] });
+    await model.setOffset(2);
+    expect(model.data.offset).toBe(2);
+    await model.applyCustom(DateTime.local(2030, 1, 1), DateTime.local(2030, 1, 10));
+    expect(model.data.offset).toBe(0);
+    expect(lastCall().offset).toBe(0);
+});
+
+test("R19: a field with its own empty-value label uses it", async () => {
+    const { model } = await makeTimelineModel({
+        fieldsOverride: { x_state: { falsy_value_label: "Not started" } },
+    });
+    await model.load({ groupBy: ["x_state"] });
+    expect(names(model.data.rows)).toEqual(["Not started", "Draft", "In progress"]);
+    await model.load({ groupBy: ["x_contact"] });
+    expect(names(model.data.rows)[0]).toBe("Undefined Contact");
+});
+
+test("R19: integer group values are formatted for the locale", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({ groupBy: ["x_color"] });
+    expect(model._valueName("x_color", 12345)).toBe("12,345");
+});
+
+test("R33: sample rows request no thumbnail", async () => {
+    const { model } = await makeTimelineModel({
+        arch: timelineArch(
+            `default_range="week" sample="1" thumbnails="{'x_contact': 'avatar_128'}"`
+        ),
+    });
+    await model.load({ domain: [["name", "=", "no such record"]], groupBy: ["x_contact"] });
+    expect(model.data.isSample).toBe(true);
+    expect(model.data.rows.map((row) => row.thumbnailUrl)).toEqual([null, null, null]);
+});
+
+test("a search made while a range change is loading keeps the requested range", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    timelineMock.beforeReply = (kwargs, index) => (index === 1 ? gate : undefined);
+    const changing = model.setKind("month");
+    await animationFrame();
+    expect(calls()).toHaveLength(2);
+    await model.load({ domain: [["name", "!=", "x"]] });
+    expect(model.data.range.kind).toBe("month");
+    release();
+    changing.catch(() => {});
+    await animationFrame();
+    expect(model.data.range.kind).toBe("month");
+});
+
+test("leaving the view clears the pending step", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    model.step(1);
+    model.dispose();
+    await advanceTime(1000);
+    expect(calls()).toHaveLength(1);
+});
+
+test("T8: a failed load during a step restores the committed range", async () => {
+    const { model } = await makeTimelineModel();
+    await model.load({});
+    timelineMock.beforeReply = (kwargs, index) => {
+        if (index === 1) {
+            throw new Error("load failed");
+        }
+    };
+    expect.errors(1);
+    const done = model.step(1);
+    expect(model.data.pendingRange.start.toISODate()).toBe("2026-11-08");
+    await advanceTime(500);
+    await done;
+    await animationFrame();
+    expect(model.data.pendingRange).toBe(null);
+    expect(span(model.data.range)).toEqual(["2026-11-01", "2026-11-21"]);
+    expect.verifyErrors([/load failed/]);
 });
 
 test("a changed context resets the page offset", async () => {
