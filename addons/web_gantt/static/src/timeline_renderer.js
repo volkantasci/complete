@@ -39,6 +39,8 @@ const { DateTime } = luxon;
 const DECORATION_ORDER = ["danger", "warning", "success", "info", "secondary"];
 /** Vertical space of one line of pills, and the gap above the first pill of a line. */
 const LINE_STEP = 25;
+// each side of a pill is one pixel inside its columns (the progress fill is 75 % of what is left)
+const PILL_INSET = 1;
 const LINE_GAP = 2;
 const GROUP_ROW_HEIGHT = 40;
 /** Width of a folded column, in pixels (M45). */
@@ -178,7 +180,11 @@ export class TimelineRenderer extends Component {
         this.rendererRef().scrollLeft += x - (left + right) / 2;
     }
 
-    /** The date in the middle of the visible part of the grid; the focus date without a grid (R39). */
+    /**
+     * The date in the middle of the visible part of the grid; the focus date without a grid (R39).
+     * It is the start of the column under that point: on the year scale, the first day of the
+     * month.
+     */
     visibleMiddleDate() {
         const element = this.rendererRef?.();
         const headers = element?.clientWidth ? this._headers() : [];
@@ -653,18 +659,22 @@ export class TimelineRenderer extends Component {
      * Position of the sub-column range `[from, to)` over the pills layer, as inline style. Folded
      * columns have a fixed width, the others share what is left; no range crosses a folded column.
      */
-    _spanStyle(from, to, data) {
+    _spanStyle(from, to, data, inset = 0) {
         const total = data.columns.length * data.parts;
         const fold = this._fold;
         const units = total - fold.foldedColumns * data.parts;
         if (!fold.foldedColumns || units <= 0) {
-            return `inset-inline-start: ${(from / total) * 100}%; width: ${((to - from) / total) * 100}%`;
+            const start = `${(from / total) * 100}%`;
+            const width = `${((to - from) / total) * 100}%`;
+            return inset
+                ? `inset-inline-start: calc(${start} + ${inset}px); width: calc(${width} - ${2 * inset}px)`
+                : `inset-inline-start: ${start}; width: ${width}`;
         }
         const column = Math.min(Math.floor(from / data.parts), data.columns.length);
         const before = from - fold.foldedBefore[column] * data.parts;
         const rest = `(100% - ${fold.foldedWidth}px)`;
-        const left = `calc(${rest} * ${before / units} + ${fold.runsBefore[column] * FOLDED_WIDTH}px)`;
-        return `inset-inline-start: ${left}; width: calc(${rest} * ${(to - from) / units})`;
+        const left = `calc(${rest} * ${before / units} + ${fold.runsBefore[column] * FOLDED_WIDTH + inset}px)`;
+        return `inset-inline-start: ${left}; width: calc(${rest} * ${(to - from) / units} - ${2 * inset}px)`;
     }
 
     /** The total row: a bar for every segment where records run, over all records shown. */
@@ -789,7 +799,7 @@ export class TimelineRenderer extends Component {
             }),
             className: classes.join(" "),
             style:
-                `${this._spanStyle(from, to, data)};` +
+                `${this._spanStyle(from, to, data, PILL_INSET)};` +
                 ` top: ${LINE_GAP + (line - 1) * LINE_STEP}px`,
             progress,
             mark: DECORATION_ORDER.find((name) => decorations.includes(name)) || null,

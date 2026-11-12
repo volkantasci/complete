@@ -124,7 +124,10 @@ export class TimelineModel extends Model {
         return this._view?.middleDate?.() || this.range.focus;
     }
 
-    /** What the action keeps while another view of it is shown (R39). */
+    /**
+     * What the action keeps while another view of it is shown (R39). The action service calls it
+     * while the view is still mounted, before it is replaced: the scroll is read from the grid then.
+     */
     getLocalState() {
         const range = this.range;
         return {

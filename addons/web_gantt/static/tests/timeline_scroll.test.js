@@ -76,6 +76,23 @@ async function settle() {
     await animationFrame();
 }
 
+/** The host action in a web client, with a list view to leave for and come back from. */
+async function mountAction() {
+    Pill._views["gantt"] = HOST_ARCHS.H1;
+    Pill._views["list"] = `<list><field name="name"/></list>`;
+    Pill._views["search"] = `<search/>`;
+    await mountWithCleanup(WebClient);
+    await getService("action").doAction({
+        type: "ir.actions.act_window",
+        res_model: "pill",
+        views: [
+            [false, "gantt"],
+            [false, "list"],
+        ],
+    });
+    await animationFrame();
+}
+
 test("A20: the grid opens with today in the middle of the visible part", async () => {
     await mountTimeline();
     expect(renderer().scrollWidth).toBeGreaterThan(renderer().clientWidth + 100);
@@ -163,19 +180,7 @@ test("A32: a reload that keeps the range keeps the scroll position", async () =>
 });
 
 test("A88: coming back from the list restores range, display mode and scroll", async () => {
-    Pill._views["gantt"] = HOST_ARCHS.H1;
-    Pill._views["list"] = `<list><field name="name"/></list>`;
-    Pill._views["search"] = `<search/>`;
-    await mountWithCleanup(WebClient);
-    await getService("action").doAction({
-        type: "ir.actions.act_window",
-        res_model: "pill",
-        views: [
-            [false, "gantt"],
-            [false, "list"],
-        ],
-    });
-    await animationFrame();
+    await mountAction();
     await contains(".o_tl_range_button").click();
     await contains(".o_tl_range_month").click();
     await animationFrame();
@@ -195,19 +200,7 @@ test("A88: coming back from the list restores range, display mode and scroll", a
 });
 
 test("A88: a restored view does not scroll to the focus date", async () => {
-    Pill._views["gantt"] = HOST_ARCHS.H1;
-    Pill._views["list"] = `<list><field name="name"/></list>`;
-    Pill._views["search"] = `<search/>`;
-    await mountWithCleanup(WebClient);
-    await getService("action").doAction({
-        type: "ir.actions.act_window",
-        res_model: "pill",
-        views: [
-            [false, "gantt"],
-            [false, "list"],
-        ],
-    });
-    await animationFrame();
+    await mountAction();
     await scrollTo(0);
     await contains(".o_switch_view.o_list").click();
     await animationFrame();
@@ -263,19 +256,30 @@ test("A90: the pointer over a group row swaps its gradient and releases it", asy
     expect(parts.map((part) => gradient(beta(), part))).toEqual(open);
 });
 
-test("R39: in a right-to-left language the focus date is still in the middle", async () => {
-    // the Community sets `direction: ltr` in its styles and lets a converter mirror it per
-    // language, so the test mirrors the grid itself
-    await mountTimeline();
-    renderer().style.direction = "rtl";
-    await scrollTo(0);
-    // the first day is at the right
-    expect(centreOf(headerOf("2026-11-01"))).toBeGreaterThan(centreOf(headerOf("2026-11-21")));
-    await contains(".o_tl_today").click();
-    await animationFrame();
-    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
-    await contains(".o_tl_range_button").click();
-    await contains(".o_tl_range_month").click();
-    await animationFrame();
-    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+test("R39: in a right-to-left language the grid is mirrored and the focus is centred", async () => {
+    // What the Community does for such a language: the direction of the localization and `dir`
+    // on the document; its converter turns the `direction: ltr` of the page styles into rtl,
+    // which the style below stands for (the test bundle is not converted)
+    patchWithCleanup(localization, { direction: "rtl" });
+    document.documentElement.setAttribute("dir", "rtl");
+    const style = document.createElement("style");
+    style.textContent = "* { direction: rtl !important; }";
+    document.head.appendChild(style);
+    try {
+        await mountTimeline();
+        expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+        // the first day is at the right
+        expect(centreOf(headerOf("2026-11-01"))).toBeGreaterThan(centreOf(headerOf("2026-11-21")));
+        await scrollTo(0);
+        await contains(".o_tl_today").click();
+        await animationFrame();
+        expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+        await contains(".o_tl_range_button").click();
+        await contains(".o_tl_range_month").click();
+        await animationFrame();
+        expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+    } finally {
+        style.remove();
+        document.documentElement.removeAttribute("dir");
+    }
 });

@@ -11,7 +11,16 @@ import { registry } from "@web/core/registry";
 const tours = registry.category("web_tour.tours");
 
 const renderer = () => document.querySelector(".o_tl_renderer");
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Poll until `condition` holds (animation frame by frame); fail with `message` after 5 s. */
+async function until(condition, message) {
+    const limit = Date.now() + 5000;
+    while (!condition()) {
+        if (Date.now() > limit) {
+            throw new Error(`Timed out waiting for: ${message}`);
+        }
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+}
 const middleOf = (element) => {
     const rect = element.getBoundingClientRect();
     return (rect.left + rect.right) / 2;
@@ -30,6 +39,8 @@ function visibleMiddle() {
     const left = title ? Math.max(box.left, title.getBoundingClientRect().right) : box.left;
     return (left + box.left + renderer().clientWidth) / 2;
 }
+
+const isCentred = (element) => Math.abs(middleOf(element) - visibleMiddle()) <= 2;
 
 function assertCentred(element, what) {
     const away = Math.abs(middleOf(element) - visibleMiddle());
@@ -90,7 +101,7 @@ tours.add("timeline_today_scrolls", {
             trigger: ".o_tl_today",
             async run(helpers) {
                 await helpers.click();
-                await wait(500);
+                await until(() => isCentred(todayColumn()), "today in the middle");
                 assert(window.__tlRequests === 0, `${window.__tlRequests} request(s) for data`);
                 assertCentred(todayColumn(), "today");
             },
@@ -122,19 +133,19 @@ tours.add("timeline_remembered_range", {
             },
         },
         {
-            // another view of the action and back, without reloading the page, the way the
-            // browser's own navigation does
+            // leave: a real page load of another view, then of H1 again, so H1 opens fresh
             trigger: ".o_tl_range_button",
-            async run() {
-                const open = (host) => {
-                    window.history.pushState({}, "", `/odoo/action-test_web_gantt.host_action_${host}`);
-                    window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
-                };
-                open("h5");
-                await wait(1500);
-                open("h1");
-                await wait(1500);
+            run() {
+                location.href = "/odoo/action-test_web_gantt.host_action_h5";
             },
+            expectUnloadPage: true,
+        },
+        {
+            trigger: ".o_tl_renderer .o_tl_col.o_tl_is_today",
+            run() {
+                location.href = "/odoo/action-test_web_gantt.host_action_h1";
+            },
+            expectUnloadPage: true,
         },
         {
             trigger: ".o_tl_renderer[data-scale=month]",
@@ -165,7 +176,10 @@ tours.add("timeline_restore_after_list", {
         {
             trigger: ".o_tl_renderer[data-scale=month]",
             async run() {
-                await wait(300);
+                await until(
+                    () => Math.abs(renderer().scrollLeft - 777) <= 1,
+                    "the scroll position to come back"
+                );
                 assert(rangeButtonText() === "Month", `range is ${rangeButtonText()}`);
                 assert(
                     document.querySelector(".o_tl_display_mode").title ===
@@ -188,8 +202,12 @@ tours.add("timeline_row_header_scroll", {
         { trigger: ".o_tl_range_menu .o_tl_range_quarter", run: "click" },
         {
             trigger: ".o_tl_renderer[data-scale=month]",
-            run() {
+            async run() {
                 renderer().scrollLeft = renderer().scrollWidth;
+                await until(
+                    () => renderer().scrollLeft >= renderer().scrollWidth - renderer().clientWidth - 1,
+                    "the grid scrolled to its end"
+                );
             },
         },
         {
@@ -208,8 +226,7 @@ tours.add("timeline_row_header_scroll", {
                     "the first pill is already in the middle"
                 );
                 await helpers.click();
-                await wait(300);
-                assertCentred(first, "the first pill");
+                await until(() => isCentred(first), "the first pill in the middle");
             },
         },
     ],
@@ -251,12 +268,16 @@ tours.add("timeline_group_row_hover", {
         {
             trigger: ".o_tl_title_cell",
             async run() {
-                await wait(100);
                 const row = rowNamed("Beta");
-                [".o_tl_row_header", ".o_tl_cell"].forEach((part, index) => {
-                    const image = getComputedStyle(row.querySelector(part)).backgroundImage;
-                    assert(image === window.__tlOpen[index], `${part} after the pointer left`);
-                });
+                await until(
+                    () =>
+                        [".o_tl_row_header", ".o_tl_cell"].every(
+                            (part, index) =>
+                                getComputedStyle(row.querySelector(part)).backgroundImage ===
+                                window.__tlOpen[index]
+                        ),
+                    "the gradient to come back after the pointer left"
+                );
             },
         },
     ],
