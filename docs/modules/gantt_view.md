@@ -240,7 +240,7 @@ the row has no title.
 Three features are drawn by the view but filled in by the module that hosts
 it. A plain installation of the Gantt view supplies no data for them (the two
 hooks return nothing), so you see them only in applications that provide it,
-such as the planning and attendance applications of later slices.
+such as the employee, attendance, event track and time off applications of later slices.
 
 - **Capacity bars.** For a grouping field named by the view definition, a row
   header can show how much of a quantity (typically hours) is used: a small
@@ -377,5 +377,5 @@ that names the problem. An action can pass the context keys `default_range`,
 ## Not included yet
 
 Creating, moving, copying and resizing pills, the dependency arrows and
-buffers, rescheduling, the planning dialog, and the Gantt views of employees,
+buffers, rescheduling, the dialog that plans records, and the Gantt views of employees,
 attendances, event tracks and time off are delivered in later slices.
