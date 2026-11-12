@@ -545,3 +545,25 @@
         );
     }
 }
+
+// ----------------------------------------------------------------------------
+// Sample state (R33): faded rows, nothing reacts to the pointer, the help over the grid
+// ----------------------------------------------------------------------------
+
+.o_tl_sample {
+    opacity: .06;
+    pointer-events: none;
+    user-select: none;
+}
+
+.o_tl_sample_grid {
+    .o_tl_row,
+    .o_tl_col {
+        pointer-events: none;
+    }
+}
+
+// the help starts just below the first header row and fills the rest of the grid
+.o_tl_renderer > .o_view_nocontent {
+    top: $o-tl-header-height;
+}

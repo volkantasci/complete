@@ -5,7 +5,7 @@
         <t t-set="layout" t-value="this.layout"/>
         <div class="o_tl_box">
             <div class="o_tl_renderer" t-att-data-scale="this.data.scaleId">
-                <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders }" t-attf-style="grid-template-columns: {{layout.template}}">
+                <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample }" t-attf-style="grid-template-columns: {{layout.template}}">
                     <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
                     <t t-foreach="layout.groups" t-as="group" t-key="group_index">
                         <div class="o_tl_col_group text-truncate" t-att-title="group.title" t-att-style="group.style" t-out="group.label"/>
@@ -18,7 +18,7 @@
                     </t>
                     <t t-foreach="layout.rows" t-as="row" t-key="row.key">
                         <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
-                            <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-title="row.row.name">
+                            <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-class="{ o_tl_sample: layout.isSample }" t-att-title="row.row.name">
                                 <i t-if="row.kind === 'group'" class="fa o_tl_caret" t-att-class="row.row.collapsed ? 'fa-caret-right' : 'fa-caret-down'"/>
                                 <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
                                 <div class="o_tl_row_body">
@@ -35,7 +35,7 @@
                                 </div>
                             </div>
                             <t t-foreach="row.cells" t-as="cell" t-key="cell.key">
-                                <div class="o_tl_cell" t-att-class="cell.className" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
+                                <div class="o_tl_cell" t-att-class="(cell.className || '') + (layout.isSample ? ' o_tl_sample' : '')" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
                             </t>
                             <div t-if="row.kind === 'group'" class="o_tl_pills">
                                 <div t-foreach="row.counts" t-as="segment" t-key="segment.key" class="o_tl_group_pill" t-att-style="segment.style">
@@ -67,6 +67,7 @@
                         </div>
                     </div>
                 </div>
+                <ActionHelper t-if="layout.isSample and this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
             </div>
         </div>
     </t>

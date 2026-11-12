@@ -23,7 +23,7 @@
                     <t t-component="this.searchBarToggler.component" t-props="this.searchBarToggler.props"/>
                 </t>
                 <t t-call="web_gantt.TimelineControls"/>
-                <t t-component="this.props.Renderer" model="this.model" archInfo="this.props.archInfo"/>
+                <t t-component="this.props.Renderer" model="this.model" archInfo="this.props.archInfo" noContentHelp="this.props.info.noContentHelp"/>
             </Layout>
         </div>
     </t>

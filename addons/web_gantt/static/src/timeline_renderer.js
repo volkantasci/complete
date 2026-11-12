@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Component, onWillRender, onWillUnmount, proxy, t, useProps } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
+import { ActionHelper } from "@web/views/action_helper";
 import { usePopover } from "@web/core/popover/popover_hook";
 import { _t } from "@web/core/l10n/translation";
 import { is24HourFormat } from "@web/core/l10n/time";
@@ -51,9 +52,11 @@ function textOfDate(date) {
  */
 export class TimelineRenderer extends Component {
     static template = "web_gantt.TimelineRenderer";
+    static components = { ActionHelper };
     props = useProps({
         model: t.object(),
         archInfo: t.object(),
+        noContentHelp: t.string().optional(),
     });
 
     setup() {
@@ -247,6 +250,7 @@ export class TimelineRenderer extends Component {
         const track = fold.tracks.join(" ");
         return {
             hasRowHeaders,
+            isSample: data.isSample,
             template: hasRowHeaders ? `var(--o-tl-row-header-width) ${track}` : track,
             columns: fold.headers.map((header) => this._columnView(header)),
             groups: data.columnGroups
