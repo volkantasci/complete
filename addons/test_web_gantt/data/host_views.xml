@@ -1,6 +1,22 @@
 <!-- Copyright 2026 Complete contributors -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <odoo>
+    <record id="host_view_h13" model="ir.ui.view">
+        <field name="name">H13 Search view with archived filter</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="group_parent" string="Parent" context="{'group_by': 'parent_id'}"/>
+                    <filter name="group_contact" string="Contact" context="{'group_by': 'x_contact'}"/>
+                    <filter name="group_tags" string="Tags" context="{'group_by': 'x_tags'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
     <record id="host_view_h1" model="ir.ui.view">
         <field name="name">H1 Main</field>
         <field name="model">test.web.gantt.pill</field>
@@ -14,6 +30,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h1"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{}</field>
     </record>
 
@@ -30,6 +47,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h2"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{'group_by': ['parent_id']}</field>
     </record>
 
@@ -46,6 +64,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h3"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{'group_by': ['parent_id', 'x_contact']}</field>
     </record>
 
@@ -62,6 +81,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h4"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{'group_by': ['x_tags']}</field>
     </record>
 
@@ -78,6 +98,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h5"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{}</field>
     </record>
 
@@ -94,6 +115,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h6"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{'group_by': ['parent_id']}</field>
     </record>
 
@@ -110,6 +132,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h7"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{}</field>
     </record>
 
@@ -126,6 +149,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h8"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{}</field>
         <field name="domain">[('name', '=', 'no record has this name')]</field>
         <field name="help" type="html">
@@ -147,6 +171,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h9"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{}</field>
         <field name="domain">[('name', '=', 'no record has this name')]</field>
     </record>
@@ -180,6 +205,7 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h11"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{'group_by': ['parent_id', 'x_contact']}</field>
     </record>
 
@@ -196,7 +222,44 @@
         <field name="res_model">test.web.gantt.pill</field>
         <field name="view_mode">gantt,list,form</field>
         <field name="view_id" ref="host_view_h12"/>
+        <field name="search_view_id" ref="host_view_h13"/>
         <field name="context">{'group_by': ['x_contact']}</field>
+    </record>
+
+    <record id="host_view_h14" model="ir.ui.view">
+        <field name="name">H14 Mix A</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt date_start="x_day" date_stop="date_stop" default_range="week"/>
+        </field>
+    </record>
+
+    <record id="host_action_h14" model="ir.actions.act_window">
+        <field name="name">H14 Mix A</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h14"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=like', 'MIX%')]</field>
+    </record>
+
+    <record id="host_view_h15" model="ir.ui.view">
+        <field name="name">H15 Mix B</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt date_start="date_start" date_stop="x_day" default_range="week"/>
+        </field>
+    </record>
+
+    <record id="host_action_h15" model="ir.actions.act_window">
+        <field name="name">H15 Mix B</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h15"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=like', 'MIX%')]</field>
     </record>
 
     <menuitem id="host_menu_root" name="Gantt Host" sequence="900" groups="base.group_user"/>
@@ -212,4 +275,6 @@
     <menuitem id="host_menu_h10" name="H10 Dated" parent="host_menu_root" action="host_action_h10" sequence="10"/>
     <menuitem id="host_menu_h11" name="H11 Colour by contact" parent="host_menu_root" action="host_action_h11" sequence="11"/>
     <menuitem id="host_menu_h12" name="H12 Unavailability" parent="host_menu_root" action="host_action_h12" sequence="12"/>
+    <menuitem id="host_menu_h14" name="H14 Mix A" parent="host_menu_root" action="host_action_h14" sequence="14"/>
+    <menuitem id="host_menu_h15" name="H15 Mix B" parent="host_menu_root" action="host_action_h15" sequence="15"/>
 </odoo>

@@ -121,6 +121,21 @@ class TimelineHostPill(models.Model):
             }
             values.update(extra)
             built[name] = self.create(values)
+        # H14 and H15: the first and last displayed days of the week range of today (the week
+        # starts on Sunday, as in US English), and the days around them; 10:00 to 12:00 UTC
+        first_day = today - timedelta(days=(today.weekday() + 1) % 7 + 7)
+        last_day = first_day + timedelta(days=20)
+        for name, day in (
+            ('MIX first', first_day), ('MIX last', last_day),
+            ('MIX before', first_day - timedelta(days=1)),
+            ('MIX after', last_day + timedelta(days=1)),
+        ):
+            built[name] = self.create({
+                'name': name,
+                'x_day': day,
+                'date_start': datetime.combine(day, time(10, 0)),
+                'date_stop': datetime.combine(day, time(12, 0)),
+            })
         pill2 = self.env['test.web.gantt.pill2']
         for name, first, last in (
             ('Day one', 0, 0), ('Three days', -1, 1), ('Next month', 25, 40),
