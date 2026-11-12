@@ -17,8 +17,10 @@ $o-tl-group-today-bg: #FCFAF3 !default;
 // Unavailable part of a cell (M44). The folded cells use the border colour (M46).
 $o-tl-unavailable-bg: #E9ECEF !default;
 
-// Track of a progress bar (M47) and the top edge of the full-height popover sheet of a phone (M43),
-// the distance from the top of the screen to the sheet, in pixels.
+// Track of a progress bar (M47), and the distance from the top of the screen to the popover sheet
+// of a phone. That distance is a measure of the 390 x 844 capture (844 - 698 = 146 px); the sheet
+// reaches the bottom of the screen, so on a taller or shorter screen it is as much taller or
+// shorter (its height is the screen height minus this distance).
 $o-tl-progress-track: $o-border-color !default;
 $o-tl-popover-sheet-top: 146px !default;
 
