@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, onWillUnmount, proxy, t, useProps } from "@odoo/owl";
+import { Component, onWillRender, onWillUnmount, proxy, t, useProps } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { usePopover } from "@web/core/popover/popover_hook";
 import { _t } from "@web/core/l10n/translation";
@@ -66,7 +66,24 @@ export class TimelineRenderer extends Component {
         this._openedKey = null;
         this._fold = null;
         this._popoverTimer = null;
-        this.popover = usePopover(TimelinePopover, { position: "bottom" });
+        this._popoverFor = null;
+        this._seenData = null;
+        this.popover = usePopover(TimelinePopover, {
+            position: "bottom",
+            // a click on the pill the popover hangs from is handled by the pill (it toggles)
+            closeOnClickAway: (target) => !this._isPopoverAnchor(target),
+            onClose: () => {
+                this._popoverFor = null;
+            },
+        });
+        // new data (reload, step, range change) may remove or redraw the pill: close the popover
+        onWillRender(() => {
+            if (this._seenData !== this.data) {
+                this._seenData = this.data;
+                this._cancelPopover();
+                this.popover.close();
+            }
+        });
         onWillUnmount(() => browser.clearTimeout(this._popoverTimer));
     }
 
@@ -78,6 +95,12 @@ export class TimelineRenderer extends Component {
     onPillClick(ev, pill) {
         const target = ev.currentTarget;
         browser.clearTimeout(this._popoverTimer);
+        if (this.popover.isOpen && this._popoverFor === pill.id) {
+            // a second click on the anchor of the open popover closes it, without flicker
+            this._popoverTimer = null;
+            this.popover.close();
+            return;
+        }
         this._popoverTimer = browser.setTimeout(() => {
             this._popoverTimer = null;
             this.popover.open(target, {
@@ -85,12 +108,25 @@ export class TimelineRenderer extends Component {
                 archInfo: this.props.archInfo,
                 record: pill.record,
             });
+            // after `open`, which first closes (and so forgets) the previous popover
+            this._popoverFor = pill.id;
         }, POPOVER_DELAY);
     }
 
     onPillDoubleClick() {
+        this._cancelPopover();
+    }
+
+    _cancelPopover() {
         browser.clearTimeout(this._popoverTimer);
         this._popoverTimer = null;
+    }
+
+    _isPopoverAnchor(target) {
+        return (
+            this._popoverFor !== null &&
+            Boolean(target.closest?.(`.o_tl_pill[data-pill-id="${this._popoverFor}"]`))
+        );
     }
 
     get data() {

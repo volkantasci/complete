@@ -1,10 +1,10 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { click, dblclick, queryAll, queryAllTexts, queryOne } from "@odoo/hoot-dom";
+import { click, dblclick, queryAll, queryAllTexts, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { mountView, onRpc, patchWithCleanup, MockServer } from "@web/../tests/web_test_helpers";
-import { formatDateTime } from "@web/core/l10n/dates";
+import { formatDate, formatDateTime } from "@web/core/l10n/dates";
 import { localization } from "@web/core/l10n/localization";
 
 import { setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
@@ -44,6 +44,14 @@ function popoverArch(templates, attrs = "", fields = "") {
     );
 }
 
+let rpcCount = 0;
+beforeEach(() => {
+    rpcCount = 0;
+    onRpc("*", () => {
+        rpcCount++;
+    });
+});
+
 test("A77: default popover", async () => {
     await mountTimeline(timelineArch());
     await click(pillOf(BUILD));
@@ -63,17 +71,20 @@ test("A77: default popover", async () => {
     expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
     expect(`${POPOVER} .o_tl_popover_button`).toHaveClass("btn btn-primary btn-sm");
     expect(`${POPOVER} .o_card_popover_close`).toHaveCount(1);
-    // the button does nothing yet
+    // the button does nothing yet: the popover stays and no request is sent
+    const requests = rpcCount;
     await click(`${POPOVER} .o_tl_popover_button`);
+    await advanceTime(500);
     await animationFrame();
     expect(POPOVER).toHaveCount(1);
+    expect(rpcCount).toBe(requests);
     await click(`${POPOVER} .o_card_popover_close`);
     await animationFrame();
     expect(POPOVER).toHaveCount(0);
     // a click outside closes it too
     await openPopover(BUILD);
     expect(POPOVER).toHaveCount(1);
-    await click(".o_tl_title_cell, .o_tl_col");
+    await click(".o_tl_col:first");
     await animationFrame();
     expect(POPOVER).toHaveCount(0);
 });
@@ -122,7 +133,7 @@ test("A108: header template", async () => {
     expect(`${POPOVER} .o_tl_popover_line`).toHaveCount(2);
 });
 
-test("A108: footer replace and keep", async () => {
+test("A108: footer replace drops the default button", async () => {
     const button = `<button class="btn btn-secondary o_custom_btn" type="object" name="action_done">Done</button>`;
     await mountTimeline(popoverArch(`<t t-name="popover-footer">${button}</t>`));
     await openPopover(BUILD);
@@ -130,7 +141,7 @@ test("A108: footer replace and keep", async () => {
     expect(queryAllTexts(`${POPOVER} .o_popover_footer button`)).toEqual(["Done"]);
 });
 
-test("A108: footer marked to keep the default button", async () => {
+test('A108: footer replace="0" keeps the default button first', async () => {
     const button = `<button class="btn btn-secondary o_custom_btn" type="object" name="action_done">Done</button>`;
     await mountTimeline(popoverArch(`<t t-name="popover-footer" replace="0">${button}</t>`));
     await openPopover(BUILD);
@@ -176,4 +187,70 @@ test("A109: clicking another pill swaps popovers", async () => {
     expect(`${POPOVER} .o_popover_header`).toHaveText("Plan");
     expect(queryAll(".o_popover")).toHaveLength(1);
     expect(queryOne(POPOVER)).toBeVisible();
+});
+
+test("A108: a card template is the body too", async () => {
+    await mountTimeline(
+        popoverArch(`<t t-name="card"><div class="o_card_as_body">Card body</div></t>`)
+    );
+    await openPopover(BUILD);
+    expect(`${POPOVER} .o_card_as_body`).toHaveText("Card body");
+    expect(`${POPOVER} .o_popover_header`).toHaveCount(0);
+});
+
+test("a date field shows its date, a datetime field its date and time", async () => {
+    await mountView({ type: "gantt", resModel: "pill2", arch: timelineArch() });
+    await click(pillOf(1));
+    await advanceTime(250);
+    await animationFrame();
+    const day = formatDate(luxon.DateTime.local(2026, 11, 12));
+    expect(queryAllTexts(`${POPOVER} .o_tl_popover_line`)).toEqual([`Start: ${day}`, `Stop: ${day}`]);
+});
+
+test("clicking the anchor pill of the open popover closes it without flicker", async () => {
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    await click(pillOf(BUILD));
+    await animationFrame();
+    expect(POPOVER).toHaveCount(0);
+    await advanceTime(500);
+    await animationFrame();
+    expect(POPOVER).toHaveCount(0);
+});
+
+test("a navigation step closes the popover", async () => {
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    expect(POPOVER).toHaveCount(1);
+    await click(".o_tl_next");
+    await advanceTime(500);
+    await animationFrame();
+    expect(POPOVER).toHaveCount(0);
+});
+
+test("M43: the desktop frame is transparent and 272 px wide", async () => {
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    expect(".o_popover:has(.o_tl_popover)").toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+    expect(queryRect(".o_popover:has(.o_tl_popover)").width).toBe(272);
+    expect(POPOVER).not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+});
+
+test("S7 phone: the popover is a full-screen sheet with the same content", async () => {
+    await resize({ width: 390, height: 844 });
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    expect(`${POPOVER} .o_popover_header`).toHaveText("Build");
+    expect(`${POPOVER} .o_tl_popover_line`).toHaveCount(2);
+    expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
+    const rect = queryRect(".o_popover:has(.o_tl_popover)");
+    // the sheet fills the 390 x 844 window (the capture measured 388 x 698 for the original,
+    // whose sheet leaves room for the browser bars; the probes compare the exact size)
+    expect(rect.width).toBe(390);
+    expect(rect.height).toBe(844);
+    expect(queryRect(POPOVER).height).toBeGreaterThan(rect.height - 4);
+    expect(".o_popover:has(.o_tl_popover)").not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+    await click(`${POPOVER} .o_card_popover_close`);
+    await animationFrame();
+    expect(POPOVER).toHaveCount(0);
 });

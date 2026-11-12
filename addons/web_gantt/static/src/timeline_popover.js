@@ -3,6 +3,7 @@
 import { Component, t, useProps } from "@odoo/owl";
 import { formatDate, formatDateTime } from "@web/core/l10n/dates";
 import { _t } from "@web/core/l10n/translation";
+import { useService } from "@web/core/utils/hooks";
 import { createElement, parseXML } from "@web/core/utils/xml";
 import { CARD_ATTRIBUTE } from "@web/views/card/card_arch_parser";
 import { CardPopover } from "@web/views/card/card_popover/card_popover";
@@ -31,6 +32,10 @@ export class TimelinePopover extends Component {
         record: t.object(),
     });
 
+    setup() {
+        this.ui = useService("ui");
+    }
+
     get canEdit() {
         return this.props.archInfo.canEdit;
     }
@@ -48,7 +53,8 @@ export class TimelinePopover extends Component {
             resId: record.resId,
             popoverNode: this.popoverNode,
             readonly: !this.canEdit,
-            rootClass: "o_tl_popover",
+            // a small screen turns the popover into a full-screen sheet (see the stylesheet)
+            rootClass: this.ui.isSmall ? "o_tl_popover o_tl_popover_sheet" : "o_tl_popover",
             context: model.context,
             reloadOnClose: () => model.reload(),
             getDefaultPopoverBody: () => this.getDefaultPopoverBody(),
@@ -76,6 +82,7 @@ export class TimelinePopover extends Component {
         return node;
     }
 
+    /** A date field shows the date only, a datetime field date and time, both in the user's format. */
     formatValue(fieldName, value) {
         if (!value) {
             return "";

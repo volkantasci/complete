@@ -1,9 +1,17 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+
+// The frame is the element of the popover service around the content (`.o_popover`): it is
+// transparent on a desktop screen, the content draws the background (M43).
+.o_popover:has(> .o_tl_popover) {
+    background: transparent;
+}
+
 .o_tl_popover {
     display: flex;
     flex-direction: column;
-    width: 272px;
+    // the frame adds a border of 1px on each side: 272px in all
+    width: 270px;
     max-width: 95vw;
     max-height: 80vh;
     font-size: $font-size-base;
@@ -28,24 +36,29 @@
 
     .o_popover_header {
         // leave room for the cross
-        padding-right: map-get($spacers, 5) !important;
+        &::after {
+            content: "";
+            flex: 0 0 map-get($spacers, 4);
+        }
         border-top-left-radius: $popover-inner-border-radius;
         border-top-right-radius: $popover-inner-border-radius;
     }
+}
 
-    // small screens: the same content as a full-screen sheet
-    @include media-breakpoint-down(md) {
-        width: 100%;
-        height: 100%;
-        max-width: none;
-        max-height: none;
+// small screens: the same content as a full-screen sheet; the frame takes the overlay background
+.o_popover:has(> .o_tl_popover_sheet) {
+    background: $popover-bg;
+    inset: 0 !important;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    border-radius: 0;
+    transform: none !important;
+}
 
-        .o_popover:has(&) {
-            inset: 0 !important;
-            width: 100%;
-            height: 100%;
-            max-width: none;
-            border-radius: 0;
-        }
-    }
+.o_tl_popover.o_tl_popover_sheet {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
 }
