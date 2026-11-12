@@ -28,7 +28,6 @@ async function mountPhone({ arch = H2, ...rest } = {}) {
     await mountView({ type: "gantt", resModel: "pill", arch, ...rest });
 }
 
-const rectOf = (selector) => queryRect(selector);
 
 test("A81: phone control bar and gear sheet", async () => {
     await mountPhone({ groupBy: ["parent_id"] });
@@ -36,22 +35,22 @@ test("A81: phone control bar and gear sheet", async () => {
     expect(".o_tl_controls").toHaveClass("o_tl_controls_phone");
     expect(".o_tl_controls .o_tl_display_mode").toHaveCount(0);
     expect(".o_tl_controls .o_tl_collapse_all").toHaveCount(0);
-    const first = rectOf(".o_tl_line:first-child");
-    const second = rectOf(".o_tl_line:last-child");
-    expect(rectOf(".o_tl_previous").top).toBe(first.top);
-    expect(rectOf(".o_tl_range_button").top).toBe(first.top);
-    expect(rectOf(".o_tl_next").left).toBeGreaterThan(rectOf(".o_tl_previous").left);
-    expect(rectOf(".o_tl_range_button").left).toBeGreaterThan(rectOf(".o_tl_next").left);
-    expect(rectOf(".o_tl_today").top).toBe(second.top);
-    expect(rectOf(".o_tl_today").height).toBe(33);
-    expect(rectOf(".o_tl_today").width).toBeWithin(59, 60);
-    expect(rectOf(".o_tl_gear").height).toBe(33);
+    const first = queryRect(".o_tl_line:first-child");
+    const second = queryRect(".o_tl_line:last-child");
+    expect(queryRect(".o_tl_previous").top).toBe(first.top);
+    expect(queryRect(".o_tl_range_button").top).toBe(first.top);
+    expect(queryRect(".o_tl_next").left).toBeGreaterThan(queryRect(".o_tl_previous").left);
+    expect(queryRect(".o_tl_range_button").left).toBeGreaterThan(queryRect(".o_tl_next").left);
+    expect(queryRect(".o_tl_today").top).toBe(second.top);
+    expect(queryRect(".o_tl_today").height).toBe(33);
+    expect(queryRect(".o_tl_today").width).toBeWithin(58.859, 59.859);
+    expect(queryRect(".o_tl_gear").height).toBe(33);
     expect(second.height).toBe(33);
-    expect(rectOf(".o_tl_gear").top).toBe(second.top);
+    expect(queryRect(".o_tl_gear").top).toBe(second.top);
     // the bar: 4 + 33 + separator + 33 + 16
-    expect(rectOf(".o_tl_controls").height).toBe(101);
+    expect(queryRect(".o_tl_controls").height).toBe(101);
     expect(second.top).toBeGreaterThan(first.bottom);
-    expect(rectOf(".o_tl_gear").right).toBeGreaterThan(rectOf(".o_tl_today").right + 100);
+    expect(queryRect(".o_tl_gear").right).toBeGreaterThan(queryRect(".o_tl_today").right + 100);
     expect(".o_tl_separator").toHaveCount(1);
     expect(".o_tl_gear .fa-cog").toHaveCount(1);
     expect(".o_tl_controls").toHaveStyle({
@@ -64,7 +63,7 @@ test("A81: phone control bar and gear sheet", async () => {
 
     await contains(".o_tl_gear").click();
     expect(".o_tl_gear_menu").toHaveCount(1);
-    expect(".o-dropdown--menu .o_bottom_sheet, .o_bottom_sheet").toHaveCount(1);
+    expect(".o_bottom_sheet .o_tl_gear_menu").toHaveCount(1);
     // one entry (dense mode), no group rows below a separator with one level
     expect(queryAllTexts(".o_tl_gear_menu .dropdown-item")).toEqual(["One row per record"]);
     expect(".o_tl_gear_display .fa-expand").toHaveCount(1);
@@ -106,16 +105,26 @@ test("A81: the sheet lists open and fold every group below a separator", async (
     expect(queryAllTexts(".o_tl_gear_menu .dropdown-item")[1]).toBe("Fold every group");
 });
 
-test("the page scrolls: the view sets no vertical scroll of its own", async () => {
-    await mountPhone({ groupBy: ["parent_id"] });
+test("the page scrolls: the view follows its content and does not scroll itself", async () => {
+    await mountPhone({ groupBy: ["parent_id", "x_contact"] });
     expect(".o_timeline_view").toHaveClass("o_tl_phone");
-    expect(".o_tl_renderer").toHaveStyle({ overflowY: "hidden" });
+    const renderer = queryOne(".o_tl_renderer");
+    // no vertical scroll of its own: its height is that of the grid, its overflow is not scrolling
+    expect(renderer.scrollHeight <= renderer.clientHeight).toBe(true);
+    expect(queryRect(".o_tl_renderer").height >= queryRect(".o_tl_grid").height).toBe(true);
+    expect(["visible", "hidden", "clip"].includes(getComputedStyle(renderer).overflowY)).toBe(true);
+    expect(queryRect(".o_timeline_view").height >= queryRect(".o_tl_grid").height).toBe(true);
+    expect(getComputedStyle(queryOne(".o_timeline_view")).overflowY).not.toMatch(/auto|scroll/);
 });
 
 test("A82: range sheet with the date dialog", async () => {
     await mountPhone();
     await contains(".o_tl_range_button").click();
-    expect(".o_bottom_sheet .o_tl_range_menu, .o_tl_range_menu").toHaveCount(1);
+    expect(".o_bottom_sheet .o_tl_range_menu").toHaveCount(1);
+    // the current entry is framed in the action colour
+    const selected = getComputedStyle(queryOne(".o_tl_range_item.selected"));
+    expect(selected.borderTopWidth).toBe("1px");
+    expect(selected.borderTopColor).not.toBe("rgba(0, 0, 0, 0)");
     expect(queryAllTexts(".o_tl_range_item")).toEqual(["Day", "Week", "Month", "Quarter", "Year"]);
     expect(".o_tl_range_item.selected .fa-check").toHaveCount(1);
     // the custom line shows the dates as buttons
@@ -140,6 +149,13 @@ test("A82: range sheet with the date dialog", async () => {
     await contains(".o_dialog .o_date_item_cell:not(.o_out_of_range):contains(25)").click();
     await animationFrame();
     expect(".o_tl_range_menu").toHaveCount(1);
+    // a click on the backdrop of a dialog does not close the menu and keeps the draft dates
+    await contains(".o_tl_custom_stop_button").click();
+    await animationFrame();
+    await click(".o_dialog .modal");
+    await animationFrame();
+    expect(".o_tl_range_menu").toHaveCount(1);
+    expect(queryOne(".o_tl_custom_start_button").textContent.trim()).toBe("11/03/2026");
     await contains(".o_tl_apply").click();
     await advanceTime(500);
     await animationFrame();

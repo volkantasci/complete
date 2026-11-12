@@ -1,9 +1,9 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { queryAll, queryRect, resize } from "@odoo/hoot-dom";
-import { markup } from "@odoo/owl";
+import { click, queryAll, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import { markup } from "@odoo/owl";
 import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 
@@ -23,7 +23,6 @@ beforeEach(async () => {
 const HELP = markup`<p class="o_view_nocontent_smiling_face">No pill yet</p><p>Create one to see it here.</p>`;
 const H8 = HOST_ARCHS.H8;
 const H9 = timelineArch(`string="Pills" default_range="week"`);
-
 
 async function mountEmpty(arch, rest = {}) {
     // a domain that matches no record
@@ -51,7 +50,8 @@ test("A83: sample state then next ends it", async () => {
     expect(".o_tl_renderer .o_view_nocontent").toHaveText("No pill yet\n\nCreate one to see it here.");
     const grid = queryRect(".o_tl_renderer");
     const help = queryRect(".o_tl_renderer .o_view_nocontent");
-    expect(help.top - grid.top).toBe(25);
+    // just below the first header row (the column group headers)
+    expect(help.top - grid.top).toBe(queryRect(queryAll(".o_tl_col_group")[0]).height);
     expect(".o_view_sample_data").toHaveCount(1);
     await contains(".o_tl_next").click();
     await advanceTime(500);
@@ -74,6 +74,13 @@ test("A83: grouped sample rows are faded and ignore the pointer", async () => {
     for (const selector of [".o_tl_row", ".o_tl_row_header", ".o_tl_cell", ".o_tl_col"]) {
         expect(queryAll(selector)[0]).toHaveStyle({ pointerEvents: "none" });
     }
+    // a real click on a sample row folds nothing
+    try {
+        await click(".o_tl_row_header");
+    } catch {
+        // the pointer cannot reach the row at all
+    }
+    await animationFrame();
     expect(".o_tl_collapsed").toHaveCount(0);
 });
 

@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, proxy, t, useProps } from "@odoo/owl";
+import { Component, proxy, signal, t, useProps } from "@odoo/owl";
 import { DateTimeInput } from "@web/core/datetime/datetime_input";
 import { DateTimePicker } from "@web/core/datetime/datetime_picker";
 import { Dialog } from "@web/core/dialog/dialog";
@@ -13,6 +13,7 @@ import { useService } from "@web/core/utils/hooks";
 import { useModel } from "@web/model/model";
 import { CogMenu } from "@web/search/cog_menu/cog_menu";
 import { Layout } from "@web/search/layout";
+import { useSetupAction } from "@web/search/action_hook";
 import { usePager } from "@web/search/pager_hook";
 import { SearchBar } from "@web/search/search_bar/search_bar";
 import { useSearchBarToggler } from "@web/search/search_bar/search_bar_toggler";
@@ -29,11 +30,11 @@ const KIND_LABELS = {
 
 /**
  * The Community dropdown, except that a click inside the date dialog of the range menu does not
- * close the menu: it stays open while dates are picked (R10).
+ * close the menu: it stays open while dates are picked (R10), even when the backdrop is clicked.
  */
 class TimelineDropdown extends Dropdown {
     popoverCloseOnClickAway(target) {
-        if (target.closest?.(".o_tl_date_dialog")) {
+        if (target.closest?.(".o_dialog")) {
             return false;
         }
         return super.popoverCloseOnClickAway(target);
@@ -74,6 +75,8 @@ export class TimelineController extends Component {
         archInfo: t.object(),
     });
 
+    rootRef = signal.ref();
+
     setup() {
         this.ui = useService("ui");
         this.dialog = useService("dialog");
@@ -82,6 +85,13 @@ export class TimelineController extends Component {
             fields: this.props.fields,
             config: this.props.archInfo,
             viewId: this.env.config.viewId,
+            state: this.props.state?.modelState,
+        });
+        // coming back from another view of the action restores range, display mode and scroll
+        // position (R39); collapsed rows are not kept
+        useSetupAction({
+            rootRef: this.rootRef,
+            getLocalState: () => ({ modelState: this.model.getLocalState() }),
         });
         this.searchBarToggler = useSearchBarToggler();
         this.rangeMenu = useDropdownState({ onOpen: () => this.resetCustomLine() });

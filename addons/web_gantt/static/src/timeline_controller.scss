@@ -28,14 +28,22 @@
     width: 8em;
 }
 
-// the icon keeps the height of a line of text, so the button is as high as Today (M41)
-.o_tl_gear .fa {
-    display: inline-block;
-    width: 14px;
-    line-height: 21px;
+// the current range is framed in the action colour in the bottom sheet of a phone (S9)
+.o_bottom_sheet .o_tl_range_menu .o_tl_range_item.selected {
+    border: 1px solid $o-brand-primary;
+    border-radius: $border-radius;
 }
 
-// the gear menu entries (bottom sheet on a phone)
+.o_timeline_view .o_tl_controls {
+    // the icon keeps the height of a line of text, so the button is as high as Today (M41)
+    .o_tl_gear .fa {
+        display: inline-block;
+        width: 14px;
+        line-height: 21px;
+    }
+}
+
+// the gear menu entries (bottom sheet of a phone): the menu lives in the overlay, outside the view
 .o_tl_gear_menu .dropdown-item {
     display: flex;
     align-items: center;

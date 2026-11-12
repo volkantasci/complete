@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { after, beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { hover, queryAll, queryAllTexts, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import {
@@ -88,6 +88,11 @@ test("A52: ungrouped dense has no row headers", async () => {
 });
 
 test("A59: row header width 267 / 130 / one third at 700", async () => {
+    // the test browser draws classic scrollbars, a phone overlays them: hide them to pin the rule
+    const style = document.createElement("style");
+    style.textContent = "* { scrollbar-width: none !important; } *::-webkit-scrollbar { width: 0; height: 0; }";
+    document.head.appendChild(style);
+    after(() => style.remove());
     await mountTimeline({ groupBy: GROUP_BY });
     await resize({ width: 1600 });
     await animationFrame();
@@ -96,27 +101,19 @@ test("A59: row header width 267 / 130 / one third at 700", async () => {
     expect(queryRect(".o_tl_title_cell").height).toBe(50);
     expect(queryAll(".o_tl_row_header").every((el) => queryRect(el).width === 267)).toBe(true);
 
-    // on a phone the page scrolls: the test browser then keeps room for the classic scrollbar
-    // (15 px) that a phone draws over the content, so the box is measured, not assumed
     await resize({ width: 390 });
     await animationFrame();
-    const phoneWidth = queryRect(".o_tl_box").width;
-    expect(phoneWidth).toBeWithin(375, 390);
-    expect(queryRect(".o_tl_title_cell").width).toBe(Math.round(phoneWidth / 3));
-    expect(
-        queryAll(".o_tl_row_header").every(
-            (el) => queryRect(el).width === Math.round(phoneWidth / 3)
-        )
-    ).toBe(true);
+    expect(queryRect(".o_tl_box").width).toBe(390);
+    expect(queryRect(".o_tl_title_cell").width).toBe(130);
+    expect(queryAll(".o_tl_row_header").every((el) => queryRect(el).width === 130)).toBe(true);
 
     // above 768 px of content: a sixth; otherwise a third; whole pixels
     for (const width of [700, 768, 769, 900]) {
         await resize({ width });
         await animationFrame();
-        const boxWidth = queryRect(".o_tl_box").width;
-        expect(boxWidth).toBeWithin(width - 15, width);
+        expect(queryRect(".o_tl_box").width).toBe(width);
         expect(queryRect(".o_tl_title_cell").width).toBe(
-            Math.round(boxWidth > 768 ? boxWidth / 6 : boxWidth / 3)
+            Math.round(width > 768 ? width / 6 : width / 3)
         );
     }
 });
