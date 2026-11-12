@@ -131,9 +131,9 @@ test("the page scrolls: the view follows its content and does not scroll itself"
     const renderer = queryOne(".o_tl_renderer");
     // no vertical scroll of its own: its height is that of the grid, its overflow is not scrolling
     expect(renderer.scrollHeight <= renderer.clientHeight).toBe(true);
-    expect(queryRect(".o_tl_renderer").height >= queryRect(".o_tl_grid").height).toBe(true);
+    expect(queryRect(".o_tl_renderer").height).toBeWithin(queryRect(".o_tl_grid").height, Infinity);
     expect(["visible", "hidden", "clip"].includes(getComputedStyle(renderer).overflowY)).toBe(true);
-    expect(queryRect(".o_timeline_view").height >= queryRect(".o_tl_grid").height).toBe(true);
+    expect(queryRect(".o_timeline_view").height).toBeWithin(queryRect(".o_tl_grid").height, Infinity);
     expect(getComputedStyle(queryOne(".o_timeline_view")).overflowY).not.toMatch(/auto|scroll/);
 });
 
@@ -226,8 +226,8 @@ test("F10: on the phone the grid's scroll area fills the box and carries the vie
     expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)", flexGrow: "1" });
     expect(".o_tl_renderer").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)", flexGrow: "1" });
     expect(queryRect(".o_tl_renderer").bottom).toBe(queryRect(".o_tl_box").bottom);
-    expect(queryRect(".o_tl_renderer").height >= queryRect(".o_tl_grid").height).toBe(true);
-    expect(queryRect(".o_tl_renderer").bottom >= queryRect(".o_tl_grid").bottom).toBe(true);
+    expect(queryRect(".o_tl_renderer").height).toBeWithin(queryRect(".o_tl_grid").height, Infinity);
+    expect(queryRect(".o_tl_renderer").bottom).toBeWithin(queryRect(".o_tl_grid").bottom, Infinity);
 });
 
 // The Community marks a touch device with two classes (`o_web_client` on the body is the

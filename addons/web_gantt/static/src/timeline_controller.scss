@@ -59,7 +59,7 @@
 // 83.9 px with the 15.4 px text of a touch device.
 .o_tl_range_menu .o_tl_custom_line .o_datetime_input {
     box-sizing: border-box;
-    width: calc(4.9308em + 8px);
+    width: calc(#{$o-tl-date-width-em}em + 8px);
     height: 24px;
     padding: 0 4px;
     border-bottom-color: $o-tl-date-line;
@@ -71,8 +71,10 @@
 
 // While a picker is open on desktop, the whole custom line takes the black role (M76): the colour
 // of the dates is neither the primary colour nor the body text colour then. The Apply button
-// keeps its own. The picker input carries the `text-primary` utility, which is important.
-.o_tl_range_menu .o_tl_custom_line:has(.o_datetime_input:focus) {
+// keeps its own. The picker service puts the `text-primary` utility (important) on the input of
+// the open picker, and only while it is open, so the class marks the open picker even when a click
+// inside the picker has moved the focus away from the input.
+.o_tl_range_menu .o_tl_custom_line:has(.o_datetime_input.text-primary) {
     color: $o-black;
 
     .o_datetime_input,
@@ -85,7 +87,7 @@
 // custom line is 20.5 px padded in the desktop menu (M75, 275.7 px wide) and 16 px in the sheet
 // (Apply starts at x 231 on a touch phone).
 .o_tl_range_menu .o_tl_custom_line {
-    padding-inline: 20.525px;
+    padding-inline: $o-tl-custom-line-padding-x;
 
     > .o_tl_custom_arrow {
         margin-inline: -4px;
@@ -141,7 +143,7 @@
 .o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_stop_button {
     flex: 0 0 auto;
     box-sizing: border-box;
-    width: calc(4.9308em + 8px);
+    width: calc(#{$o-tl-date-width-em}em + 8px);
     // 24 px tall, 26.1 px with touch (M73)
     height: 24px;
     padding: 0 4px;

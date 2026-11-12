@@ -431,17 +431,28 @@ test("P10: the date fields of the desktop menu are 77 px wide, 24 px tall, 14 px
 test("P11: while a picker is open the custom line takes the black role, not the primary colour (M76)", async () => {
     await mountTimeline();
     await openRangeMenu();
+    // the primary text colour: what the open picker's input has without the rule
+    const sample = document.createElement("span");
+    sample.className = "text-primary";
+    document.body.append(sample);
+    const primary = getComputedStyle(sample).color;
+    sample.remove();
+    const parts = [".o_tl_custom_start input", ".o_tl_custom_stop input", ".o_tl_custom_arrow"];
     await click(".o_tl_custom_start input");
     await animationFrame();
     await advanceTime(100);
     await animationFrame();
     expect(".o_datetime_picker").toHaveCount(1);
-    // the black role of the scheme: black in light
-    const black = "rgb(0, 0, 0)";
-    for (const part of [".o_tl_custom_start input", ".o_tl_custom_stop input", ".o_tl_custom_arrow"]) {
-        expect(part).toHaveStyle({ color: black });
+    // the black role of the scheme: black in light (white in dark, read by the dark probe)
+    for (const part of parts) {
+        expect(part).toHaveStyle({ color: "rgb(0, 0, 0)" });
     }
-    expect(getComputedStyle(queryOne(".o_tl_custom_start input")).color).not.toBe(
-        getComputedStyle(queryOne(".o_tl_apply")).backgroundColor
-    );
+    expect("rgb(0, 0, 0)").not.toBe(primary);
+    // a click inside the picker (next month) moves the focus into it: still the black role
+    await click(".o_datetime_picker .o_next");
+    await animationFrame();
+    expect(".o_datetime_picker").toHaveCount(1);
+    for (const part of parts) {
+        expect(part).toHaveStyle({ color: "rgb(0, 0, 0)" });
+    }
 });

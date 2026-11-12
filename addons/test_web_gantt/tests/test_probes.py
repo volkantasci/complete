@@ -329,7 +329,9 @@ class TimelineProbes(TimelineProbeCase):
 
     def test_h1_phone_bar_lines(self):
         """P12 (A81, M77 to M79): the separator of the phone bar has no margin; the lines of
-        buttons lie 4.7 px from it on each side without touch, 2 px with touch."""
+        buttons lie 4.7 px from it on each side without touch, 2 px with touch. The touch
+        variant (separator y 151, lines y 112 and 154) is the spec's target, not a measured
+        value of the original."""
         for scheme, viewport in self.combos(['M77', 'M78', 'M79'], viewports=('phone',)):
             for touch in (False, True):
                 with self.page('test_web_gantt.host_action_h1', scheme, viewport, touch=touch):
@@ -386,12 +388,19 @@ class TimelineProbes(TimelineProbeCase):
                     self.click_js("document.querySelector('.o_tl_range_button')")
                     self.wait("!!document.querySelector('.o_tl_custom_line')")
                     self.settle()
-                    # the arrow takes the touch text size (15.4 px) with touch (P10: Apply at 231)
-                    self.check('M72', "document.querySelector('.o_tl_custom_line "
-                               "> .o_tl_custom_arrow')", scheme, viewport,
-                               'arrow of the custom line' + label,
-                               override={'font-size': '15.4', 'geometry.width': '15.406',
-                                         'geometry.height': '15.406'} if touch else None)
+                    arrow = "document.querySelector('.o_tl_custom_line > .o_tl_custom_arrow')"
+                    if touch:
+                        # with touch the arrow takes the touch text size and stays square (P10:
+                        # Apply at x 231); M72's 14 px is the value without touch
+                        self.probe('M72', arrow, scheme, viewport, {'font-size': '15.4'},
+                                   'arrow of the custom line' + label)
+                        box = self.geometry(arrow)
+                        self.assertLess(abs(box['geometry.width'] - 15.4), 0.5, box)
+                        self.assertLess(abs(box['geometry.width'] - box['geometry.height']),
+                                        0.5, box)
+                    else:
+                        self.check('M72', arrow, scheme, viewport,
+                                   'arrow of the custom line' + label)
                     field = ("document.querySelector('.o_tl_custom_start_button')"
                              if viewport == 'phone'
                              else "document.querySelector('.o_tl_custom_start input')")
@@ -399,11 +408,20 @@ class TimelineProbes(TimelineProbeCase):
                     self.check('M73', field, scheme, viewport, 'start date field' + label,
                                override={'geometry.height': '26.1', 'geometry.width': '83.93',
                                          'font-size': '15.4'} if touch else None)
-                    self.check('M75', "document.querySelector('.o_tl_custom_line')", scheme,
-                               viewport, 'custom line' + label,
-                               override={'geometry.width': str(self.geometry(
-                                   "document.querySelector('.o_tl_custom_line')")
-                                   ['geometry.width'])} if viewport == 'phone' else None)
+                    line = "document.querySelector('.o_tl_custom_line')"
+                    if not touch:
+                        # without touch the menu is a popover on the phone too (M75's table)
+                        self.check('M75', line, scheme, viewport, 'custom line' + label)
+                    else:
+                        # Spec question Q-6: the table's phone value of M75 (275.656) is that of
+                        # a popover; with touch the menu is a bottom sheet and its line is the
+                        # sheet's width minus the menu's own padding on each side.
+                        menu = self.read("document.querySelector('.o_tl_range_menu')",
+                                         ['geometry.width', 'padding-left', 'padding-right'])
+                        width = self.geometry(line)['geometry.width']
+                        want = (menu['geometry.width'] - float(menu['padding-left'][:-2])
+                                - float(menu['padding-right'][:-2]))
+                        self.assertLess(abs(width - want), 0.5, (width, want, menu))
                     if viewport == 'desktop':
                         self._assert_date_unselected(field)
                         self._assert_black_role(field, scheme)
@@ -415,10 +433,32 @@ class TimelineProbes(TimelineProbeCase):
         in the black role (black in light, white in dark), never the primary colour."""
         self.pointer_away()
         self.check('M76', field, scheme, 'desktop', 'start date, picker open')
+        # a real click inside the open picker (next month) moves the focus into it: the line
+        # stays in the black role while the picker is open
+        self._click_in_picker(".o_datetime_picker .o_next")
+        self.check('M76', field, scheme, 'desktop', 'start date, picker open after a click in it')
+        self.check('M76', "document.querySelector('.o_tl_custom_stop input')", scheme,
+                   'desktop', 'stop date, picker open after a click in it')
         self.check('M76', "document.querySelector('.o_tl_custom_stop input')", scheme,
                    'desktop', 'stop date, picker open')
         self.check('M76', "document.querySelector('.o_tl_custom_line > .o_tl_custom_arrow')",
                    scheme, 'desktop', 'arrow, picker open')
+
+    def _click_in_picker(self, selector):
+        """A real pointer click on an element of the open picker (the focus follows it)."""
+        element = f"document.querySelector('{selector}')"
+        box = self.geometry(element)
+        point = {'x': box['geometry.x'] + box['geometry.width'] / 2,
+                 'y': box['geometry.y'] + box['geometry.height'] / 2,
+                 'button': 'left', 'clickCount': 1}
+        request = self.browser._websocket_request
+        request('Input.dispatchMouseEvent', params={'type': 'mouseMoved', **point})
+        request('Input.dispatchMouseEvent', params={'type': 'mousePressed', **point})
+        request('Input.dispatchMouseEvent', params={'type': 'mouseReleased', **point})
+        self.settle()
+        self.assertTrue(self.js("!!document.querySelector('.o_datetime_picker')"),
+                        'the picker closed')
+        self.pointer_away()
 
     def _assert_body_colour(self, scheme, label):
         """P11: on the phone the dates keep the body text colour, before and after a tap."""

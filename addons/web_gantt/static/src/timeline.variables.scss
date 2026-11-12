@@ -35,6 +35,14 @@ $o-tl-pill-nudges: () !default;
 // The bottom line of the date fields in the custom line of the range menu (M73).
 $o-tl-date-line: $o-gray-200 !default;
 
+// Fitted constants (they are fitted to the measured values, not derived from a rule):
+// the width of a date field of the custom line is this many em plus its 8 px of padding, which
+// gives 77.03 px at 14 px text and 83.93 px at the 15.4 px text of a touch device (M73, P10);
+// the custom line of the desktop menu is padded by this much on each side, which makes it
+// 275.7 px wide (M75).
+$o-tl-date-width-em: 4.9308 !default;
+$o-tl-custom-line-padding-x: 20.525px !default;
+
 // The popover: the band behind the record name, and the room around the lines of its body.
 $o-tl-popover-header-bg: $o-gray-200 !default;
 $o-tl-popover-body-padding-x: 30px !default;
