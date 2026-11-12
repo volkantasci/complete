@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { click, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
-import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import { markup } from "@odoo/owl";
 import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
@@ -135,4 +135,39 @@ test("a sample view that finds records is not a sample", async () => {
     await mountView({ type: "gantt", resModel: "pill", arch: H8, noContentHelp: HELP });
     expect(".o_tl_sample").toHaveCount(0);
     expect(".o_view_nocontent").toHaveCount(0);
+});
+
+test("F1: the sample state keeps the page background below its faded row (R41, M66)", async () => {
+    await mountEmpty(H8, { noContentHelp: HELP });
+    expect(".o_tl_box").toHaveClass("o_tl_box_sample");
+    expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+    // the grid area ends after the faded row and does not scroll (M66, M67)
+    expect(".o_tl_renderer").toHaveStyle({ overflowX: "hidden", overflowY: "hidden" });
+    expect(queryRect(".o_tl_renderer").height).toBe(92);
+    expect(queryRect(".o_tl_grid").height).toBe(91);
+    expect(".o_tl_renderer").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
+});
+
+test("F1: below a short grid the box takes the view background (R41, M65)", async () => {
+    await mountView({ type: "gantt", resModel: "pill", arch: H9 });
+    expect(".o_tl_box").not.toHaveClass("o_tl_box_sample");
+    expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
+    expect(".o_tl_grid").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
+});
+
+test("F2: on the phone the help starts 26 px above the grid area and ignores the pointer", async () => {
+    await resize({ width: 390, height: 844 });
+    await mockTouch(true);
+    await mountEmpty(H8, { noContentHelp: HELP });
+    const box = queryRect(".o_tl_box");
+    const help = queryRect(".o_tl_box .o_view_nocontent");
+    // M52: the top of the box minus 26 px (178 without touch, 182 with touch)
+    expect(help.top).toBe(box.top - 26);
+    expect(".o_tl_box .o_view_nocontent").toHaveStyle({
+        backgroundColor: "rgba(0, 0, 0, 0)",
+        pointerEvents: "none",
+    });
+    // the grid area ends after the faded row, whatever the height of the box
+    expect(queryRect(".o_tl_renderer").height).toBe(92);
+    expect(queryRect(".o_tl_grid").height).toBe(91);
 });

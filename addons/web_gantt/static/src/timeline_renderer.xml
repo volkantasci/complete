@@ -3,7 +3,7 @@
 <templates xml:space="preserve">
     <t t-name="web_gantt.TimelineRenderer">
         <t t-set="layout" t-value="this.layout"/>
-        <div class="o_tl_box">
+        <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
             <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId">
                 <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample }" t-attf-style="grid-template-columns: {{layout.template}}">
                     <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
@@ -23,7 +23,7 @@
                                 <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
                                 <div class="o_tl_row_body">
                                     <div class="o_tl_row_line">
-                                        <span class="o_tl_row_name text-truncate" t-out="row.row.name"/>
+                                        <span class="o_tl_row_name"><span class="o_tl_row_label" t-out="row.row.name"/></span>
                                         <t t-if="row.progress">
                                             <span class="o_tl_progress_label" t-att-class="{ o_tl_over: row.progress.over }" t-att-data-tooltip="row.progress.tooltip" t-out="row.progress.label"/>
                                             <i t-if="row.progress.warning" class="oi o_tl_progress_warning" data-icon="warning" t-att-data-tooltip="row.progress.warning"/>
@@ -55,7 +55,7 @@
                     </t>
                     <div t-if="layout.total" class="o_tl_row o_tl_total_row" t-attf-style="height: {{layout.total.height}}px">
                         <div t-if="layout.hasRowHeaders" class="o_tl_row_header">
-                            <span class="o_tl_row_name text-truncate">Total</span>
+                            <span class="o_tl_row_name"><span class="o_tl_row_label">Total</span></span>
                         </div>
                         <t t-foreach="layout.total.cells" t-as="cell" t-key="cell.key">
                             <div class="o_tl_cell" t-att-class="cell.className" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>

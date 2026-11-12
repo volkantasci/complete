@@ -153,13 +153,15 @@ class TimelineProbeCase(HttpCase):
     # -- session --------------------------------------------------------------------
 
     @contextlib.contextmanager
-    def page(self, action, scheme='light', viewport='desktop', query='', login='admin'):
+    def page(self, action, scheme='light', viewport='desktop', query='', login='admin',
+             touch=None):
         """Open ``/odoo/action-<xmlid>`` and wait for the timeline grid (or the list)."""
         if scheme == 'dark':
             user = self.env['res.users'].search([('login', '=', login)], limit=1)
             self.env['res.users.settings']._find_or_create_for_user(user).color_scheme = 'dark'
         width, height = VIEWPORTS[viewport]['size']
-        touch = VIEWPORTS[viewport]['touch']
+        if touch is None:
+            touch = VIEWPORTS[viewport]['touch']
         self.browser_size = f'{width}x{height}'
         self.touch_enabled = touch
         browser = ChromeBrowser(self, headless=True)

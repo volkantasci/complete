@@ -1,6 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Measured values of the original (spec.md, "Measured values"), probes M1 to M64.
+"""Measured values of the original (spec.md, "Measured values"), probes M1 to M74 as listed.
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
@@ -1234,6 +1234,118 @@ MEASURED = {
         },
         ('dark', 'desktop'): {
             'color': 'rgba(179, 180, 184, 1)',
+        },
+    },
+    'M65': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(255, 255, 255, 1)',
+            'geometry.y': '156',
+            'geometry.height': '744',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(255, 255, 255, 1)',
+            'geometry.y': '204',
+            'geometry.height': '640',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(44, 46, 53, 1)',
+            'geometry.y': '156',
+            'geometry.height': '744',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(44, 46, 53, 1)',
+            'geometry.y': '204',
+            'geometry.height': '640',
+        },
+    },
+    'M66': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(255, 255, 255, 1)',
+            'geometry.y': '156',
+            'geometry.height': '92',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(255, 255, 255, 1)',
+            'geometry.y': '204',
+            'geometry.height': '92',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(44, 46, 53, 1)',
+            'geometry.y': '156',
+            'geometry.height': '92',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(44, 46, 53, 1)',
+            'geometry.y': '204',
+            'geometry.height': '92',
+        },
+    },
+    'M67': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(255, 255, 255, 1)',
+            'geometry.y': '157',
+            'geometry.height': '91',
+        },
+        ('light', 'phone'): {
+            'background-color': 'rgba(255, 255, 255, 1)',
+            'geometry.y': '205',
+            'geometry.height': '91',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(44, 46, 53, 1)',
+            'geometry.y': '157',
+            'geometry.height': '91',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(44, 46, 53, 1)',
+            'geometry.y': '205',
+            'geometry.height': '91',
+        },
+    },
+    'M68': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(113, 75, 103, 0.8)',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(146, 66, 125, 0.8)',
+        },
+    },
+    'M74': {
+        ('light', 'desktop'): {
+            'padding-left': '1',
+            'padding-right': '1',
+            'text-overflow': 'ellipsis',
+            'white-space': 'nowrap',
+            'overflow-x': 'hidden',
+            'geometry.width': '253.953',
+            'geometry.height': '27',
+        },
+        ('light', 'phone'): {
+            'padding-left': '1',
+            'padding-right': '1',
+            'text-overflow': 'ellipsis',
+            'white-space': 'nowrap',
+            'overflow-x': 'hidden',
+            'geometry.width': '116.938',
+            'geometry.height': '27',
+        },
+        ('dark', 'desktop'): {
+            'padding-left': '1',
+            'padding-right': '1',
+            'text-overflow': 'ellipsis',
+            'white-space': 'nowrap',
+            'overflow-x': 'hidden',
+            'geometry.width': '253.953',
+            'geometry.height': '27',
+        },
+        ('dark', 'phone'): {
+            'padding-left': '1',
+            'padding-right': '1',
+            'text-overflow': 'ellipsis',
+            'white-space': 'nowrap',
+            'overflow-x': 'hidden',
+            'geometry.width': '116.938',
+            'geometry.height': '27',
         },
     },
 }

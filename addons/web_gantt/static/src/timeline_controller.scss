@@ -82,12 +82,22 @@
     min-height: auto;
     flex: none;
 
+    // the box fills what the page leaves below the controls, so the view background reaches the
+    // bottom of the view (M65); a taller grid makes the page scroll
     .o_tl_box {
-        flex: none;
+        flex: 1 0 auto;
 
-        // the sample state: room for the help under the headers
-        &:has(> .o_view_nocontent) .o_tl_renderer {
-            min-height: 60dvh;
+        // The help area starts 26 px above the grid area (M52: 178 without touch, 182 with touch,
+        // that is the top of the box minus 26 px); only its content takes the pointer. Its
+        // content is centred under the grid: the padding balances the 26 px.
+        > .o_view_nocontent {
+            top: -26px;
+            padding-top: 26px;
+            pointer-events: none;
+
+            > * {
+                pointer-events: auto;
+            }
         }
     }
 
@@ -95,6 +105,10 @@
         flex: none;
         overflow-x: auto;
         overflow-y: hidden;
+
+        &:has(.o_tl_sample_grid) {
+            overflow: hidden;
+        }
     }
 }
 

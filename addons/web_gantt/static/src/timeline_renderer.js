@@ -243,7 +243,7 @@ export class TimelineRenderer extends Component {
         return getComputedStyle(this.rendererRef()).direction === "rtl";
     }
 
-    /** A click on the header of a row that is not a group scrolls to its first pill (R39). */
+    /** A click on the header of a row that is not a group scrolls to its first pill's column (R39). */
     onRowHeaderClick(descriptor) {
         if (descriptor.kind !== "pills" || !descriptor.pills.length) {
             return;
@@ -258,9 +258,24 @@ export class TimelineRenderer extends Component {
             (element) => element.dataset.pillId === String(first.id)
         );
         if (pill) {
-            const rect = pill.getBoundingClientRect();
-            this._centreAt(rect.left + rect.width / 2);
+            this._centreAt(this._columnStartOf(pill));
         }
+    }
+
+    /**
+     * Viewport coordinate of the start of the column in which the pill starts (R39): the left edge
+     * of that column header, the right edge in a mirrored grid. A pill that starts inside a column
+     * is not followed to its own start.
+     */
+    _columnStartOf(pill) {
+        const rect = pill.getBoundingClientRect();
+        const headers = this._headers().map((header) => header.getBoundingClientRect());
+        if (this._isRtl()) {
+            const edges = headers.map((box) => box.right).filter((edge) => edge >= rect.right - 0.5);
+            return edges.length ? Math.min(...edges) : rect.right;
+        }
+        const edges = headers.map((box) => box.left).filter((edge) => edge <= rect.left + 0.5);
+        return edges.length ? Math.max(...edges) : rect.left;
     }
 
     /**

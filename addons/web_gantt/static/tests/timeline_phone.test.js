@@ -180,3 +180,19 @@ test("A82: the popover is a sheet on the phone", async () => {
     expect(rect.width).toBe(388);
     expect(rect.height).toBe(698);
 });
+
+test("A122: P9, 'Undefined Contact' is cut with an ellipsis on the phone (M74)", async () => {
+    await mountPhone({ groupBy: ["parent_id", "x_contact"] });
+    const label = queryAll(".o_tl_row_label").find(
+        (element) => element.textContent === "Undefined Contact"
+    );
+    expect(queryRect(queryAll(".o_tl_row_header")[0]).width).toBe(130);
+    expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
+    expect(label).toHaveStyle({ textOverflow: "ellipsis", paddingLeft: "1px", paddingRight: "1px" });
+});
+
+test("F1: the box fills the page on the phone and takes the view background (M65)", async () => {
+    await mountPhone();
+    expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
+    expect(".o_tl_box").toHaveStyle({ flexGrow: "1" });
+});

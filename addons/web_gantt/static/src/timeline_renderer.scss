@@ -10,13 +10,21 @@
     display: flex;
     flex-direction: column;
     container-type: inline-size;
+    // the area below a short grid is the view background (R41, M65); it is the box that fills
+    // the view, so the scrollbar of the grid stays under the last row
+    background-color: $o-view-background-color;
+}
+
+// the sample state shows the page background below its faded row (M66)
+.o_tl_box.o_tl_box_sample {
+    background-color: transparent;
 }
 
 // The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
 // grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
 .o_tl_renderer {
-    // as high as the grid (the scrollbar sits under the last row, the rest of the view shows the
-    // page), shrinking and scrolling when the rows do not fit
+    // as high as the grid (the scrollbar sits under the last row, the box around it shows the view
+    // background below), shrinking and scrolling when the rows do not fit
     flex: 0 1 auto;
     min-height: 0;
     overflow: auto;
@@ -42,6 +50,7 @@
     // container's box, not of the tracks that overflow it)
     width: max-content;
     min-width: 100%;
+    background-color: $o-view-background-color;
     grid-template-rows: $o-tl-header-height $o-tl-header-height;
     position: relative;
     font-size: 14px;
@@ -235,10 +244,22 @@
     border-bottom: 1px solid $o-border-color;
 }
 
-// the name: 4 px of room on its right
+// the name: 4 px of room on its right (M29); the label inside has 1 px of padding on each side and is
+// cut with an ellipsis when it does not fit (M74)
 .o_tl_row_name {
+    flex: 1 1 auto;
     min-width: 0;
     padding: 0 4px 0 0;
+}
+
+.o_tl_row_label {
+    display: block;
+    padding: 0 1px;
+    // the label is 27 px tall (M74); the text stays centred in the row
+    line-height: 27px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 // The header wraps: the caret, the thumbnail and the body (the name and the capacity label on a
@@ -443,7 +464,7 @@
 
     &:hover,
     &.o_tl_hover {
-        background-color: rgba($o-brand-primary, .75);
+        background-color: rgba($o-brand-primary, .8);
 
         // the band from the bar up to the top of the grid
         &::before {
@@ -628,9 +649,14 @@
     }
 }
 
-// The help starts just below the first header row (and the line above the headers) and fills the
-// rest of the view. It sits next to the grid, not in it: inside the scrolled grid it would scroll
-// away with the columns, and only the cells are faded.
+// The grid of the sample state ends after its faded row and cannot be scrolled (M66, M67).
+.o_tl_renderer:has(.o_tl_sample_grid) {
+    overflow: hidden;
+}
+
+// The help is a transparent area that starts just below the first header row (and the line above
+// the headers) and fills the rest of the view (M52). It sits next to the grid, not in it: inside
+// the scrolled grid it would scroll away with the columns, and only the cells are faded.
 .o_tl_box > .o_view_nocontent {
     top: $o-tl-header-height + 1px;
 }

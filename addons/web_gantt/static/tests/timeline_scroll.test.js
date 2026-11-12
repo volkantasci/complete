@@ -219,19 +219,28 @@ test("A88: a restored view does not scroll to the focus date", async () => {
     expect(renderer().scrollLeft).toBe(0);
 });
 
-test("A89: a click on a row header centres the first pill of the row", async () => {
+test("A89: a click on a row header centres the start of the column of the first pill", async () => {
     await mountTimeline({
         arch: timelineArch(`default_range="quarter" color="x_color"`),
         groupBy: ["parent_id", "x_contact"],
     });
     await scrollTo(renderer().scrollWidth);
-    const pill = [...rowOf("Host Contact 1").querySelectorAll(".o_tl_pill")].find(
-        (element) => element.textContent.trim() === "Design"
+    // "Host Contact 2" holds "Review", which starts in the middle of its month column
+    const pill = [...rowOf("Host Contact 2").querySelectorAll(".o_tl_pill")].reduce((best, element) =>
+        element.getBoundingClientRect().left < best.getBoundingClientRect().left ? element : best
     );
     expect(centreOf(pill)).toBeLessThan(renderer().getBoundingClientRect().left);
-    await contains(rowOf("Host Contact 1").querySelector(".o_tl_row_header")).click();
+    // the last column that does not begin after the pill
+    const column = queryAll(".o_tl_col[data-index]")
+        .filter((header) => header.getBoundingClientRect().left <= pill.getBoundingClientRect().left + 0.5)
+        .at(-1);
+    await contains(rowOf("Host Contact 2").querySelector(".o_tl_row_header")).click();
     await animationFrame();
-    expect(near(centreOf(pill), visibleCentre())).toBe(true);
+    expect(near(startOf(column), visibleCentre())).toBe(true);
+    // the pill starts inside its column on the quarter scale: its own start is not centred
+    const pillStart = pill.getBoundingClientRect().left;
+    expect(pillStart - startOf(column)).toBeGreaterThan(5);
+    expect(near(pillStart, visibleCentre())).toBe(false);
 });
 
 test("A89: a click on a group row header only folds it", async () => {

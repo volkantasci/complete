@@ -15,7 +15,7 @@ from datetime import datetime, time, timedelta
 from odoo import fields
 from odoo.tests import tagged
 
-from .timeline_probe import TimelineProbeCase
+from .timeline_probe import TimelineProbeCase, compare_value
 from .timeline_probe_values import MEASURED
 
 SCHEMES = ('light', 'dark')
@@ -147,6 +147,8 @@ class TimelineProbes(TimelineProbeCase):
                 self._rows(scheme, viewport)
                 self._consolidated_and_total(scheme, viewport)
                 self._control_bar(scheme, viewport)
+                if viewport == 'desktop':
+                    self._total_bar_hover(scheme, viewport)
                 # sticky headers: the same reads after the grid was scrolled
                 self.scroll_grid(300)
                 self._rows(scheme, viewport, scrolled=True)
@@ -168,6 +170,8 @@ class TimelineProbes(TimelineProbeCase):
                    'Alpha caret' + note)
         if scrolled:
             return
+        self.check('M74', f"{_header(self.row('Undefined Contact'))}.querySelector"
+                   "('.o_tl_row_label')", scheme, viewport, 'row name "Undefined Contact"')
         self.check('M26', _first_cell(alpha, False), scheme, viewport,
                    'Alpha group row, cell of another day')
         self.check('M27', _first_cell(alpha, True), scheme, viewport,
@@ -200,6 +204,18 @@ class TimelineProbes(TimelineProbeCase):
                    'Today button')
         self.check('M42', "document.querySelector('.o_tl_controls')", scheme, viewport,
                    'control bar')
+
+    def _total_bar_hover(self, scheme, viewport):
+        """M68 (P3): the fourth total bar that is not under the row headers, hovered; read
+        before the grid is scrolled, as the bars at its start lie under the sticky headers."""
+        bar = ("(() => { const title = document.querySelector('.o_tl_title_cell')"
+               ".getBoundingClientRect().right;"
+               " return [...document.querySelectorAll('.o_tl_total_bar')].filter("
+               "(b) => b.getBoundingClientRect().left > title && "
+               "b.getBoundingClientRect().right < innerWidth)[3]; })()")
+        self.pointer_to(bar)
+        self.check('M68', bar, scheme, viewport, 'fourth total bar, hovered')
+        self.pointer_away()
 
     def _pointer(self, scheme, viewport):
         self.pointer_to(self.pill('Build'))
@@ -347,22 +363,66 @@ class TimelineProbes(TimelineProbeCase):
     # -- H8: M51 and M52 --------------------------------------------------------------
 
     def test_h8_sample(self):
-        for scheme, viewport in self.combos(['M51', 'M52']):
-            with self.page('test_web_gantt.host_action_h8', scheme, viewport):
-                cell = ".o_tl_row .o_tl_cell.o_tl_sample:not(.o_tl_is_today)"
-                self.check('M51', f"document.querySelector('{cell}')", scheme, viewport,
-                           'sample body cell')
-                override = None
-                if viewport == 'phone':
-                    # residual difference: the table reads 178, which is above the header rows;
-                    # R33 and the phone screen S15 put the help under them, so the probe expects
-                    # the first header row (25 px) and the line above the grid (1 px) below the
-                    # top of the grid
-                    top = self.geometry("document.querySelector('.o_tl_renderer')")['geometry.y']
-                    override = {'geometry.y': str(top + 26)}
-                self.check('M52', "document.querySelector('.o_tl_box .o_view_nocontent')",
-                           scheme, viewport, 'no-content help', override=override)
-                self._assert_help_visible(viewport)
+        """M51, M52 (phone: 178 without touch, 182 with touch), M66 and M67."""
+        for scheme, viewport in self.combos(['M51', 'M52', 'M66', 'M67']):
+            # the table is measured without touch; a touch phone has a 4 px taller control bar
+            for touch in ((False, True) if viewport == 'phone' else (None,)):
+                with self.page('test_web_gantt.host_action_h8', scheme, viewport, touch=touch):
+                    label = ' (touch)' if touch else ''
+                    cell = ".o_tl_row .o_tl_cell.o_tl_sample:not(.o_tl_is_today)"
+                    self.check('M51', f"document.querySelector('{cell}')", scheme, viewport,
+                               'sample body cell' + label)
+                    override = {'geometry.y': '182'} if touch else None
+                    self.check('M52', "document.querySelector('.o_tl_box .o_view_nocontent')",
+                               scheme, viewport, 'no-content help' + label, override=override)
+                    if touch:
+                        # the help sits 26 px above the box on the phone, the top of the box
+                        # moves with the touch size
+                        box = self.geometry("document.querySelector('.o_tl_box')")
+                        self.assertEqual(box['geometry.y'] - 26, 182)
+                    self.check('M66', "document.querySelector('.o_tl_renderer')", scheme,
+                               viewport, 'scroll area ends after the faded row' + label,
+                               override={'geometry.y': str(self.geometry(
+                                   "document.querySelector('.o_tl_renderer')")['geometry.y'])}
+                               if touch else None)
+                    self.check('M67', "document.querySelector('.o_tl_grid')", scheme, viewport,
+                               'sample grid' + label,
+                               override={'geometry.y': str(self.geometry(
+                                   "document.querySelector('.o_tl_grid')")['geometry.y'])}
+                               if touch else None)
+                    self._assert_sample_layout(viewport, label)
+                    self._assert_help_visible(viewport)
+
+    def _assert_sample_layout(self, viewport, label=''):
+        """F2: the box is transparent (page background below the faded row); the help content is
+        centred in the free space under the grid (phone) and the help takes no pointer."""
+        seen = self.js("""(() => {
+            const box = document.querySelector('.o_tl_box');
+            const renderer = document.querySelector('.o_tl_renderer');
+            const help = box.querySelector('.o_view_nocontent');
+            const content = help.querySelector('.o_nocontent_help') || help.firstElementChild;
+            const rect = content.getBoundingClientRect();
+            return {
+                boxBackground: getComputedStyle(box).backgroundColor,
+                helpBackground: getComputedStyle(help).backgroundColor,
+                renderer: renderer.getBoundingClientRect().toJSON(),
+                box: box.getBoundingClientRect().toJSON(),
+                contentMiddle: (rect.top + rect.bottom) / 2,
+                bottom: innerHeight,
+            };
+        })()""")
+        self.assertEqual(seen['boxBackground'], 'rgba(0, 0, 0, 0)', f'F2 box background{label}')
+        self.assertEqual(seen['helpBackground'], 'rgba(0, 0, 0, 0)', f'F2 help background{label}')
+        self.assertAlmostEqual(seen['renderer']['height'], 92, delta=.5)
+        if viewport == 'phone':
+            # the page background shows from the faded row down to the bottom of the view
+            self.assertAlmostEqual(seen['box']['bottom'], seen['bottom'], delta=1,
+                                   msg=f'F2 the box reaches the bottom of the view{label}')
+            free = (seen['renderer']['bottom'] + seen['bottom']) / 2
+            self.assertGreater(seen['contentMiddle'], seen['renderer']['bottom'],
+                               f'F2 the help content is under the faded row{label}')
+            self.assertLess(abs(seen['contentMiddle'] - free), 70,
+                            f'F2 the help content is centred in the free space{label}')
 
     def _assert_help_visible(self, viewport):
         """D-2: the help is fully opaque and inside the screen, though the grid is scrolled and
@@ -387,6 +447,32 @@ class TimelineProbes(TimelineProbeCase):
             seen['left'] >= 0 and seen['right'] <= seen['width']
             and seen['top'] >= 0 and seen['bottom'] <= seen['height'],
             f'{viewport}: help is outside the screen: {seen}')
+
+    # -- H1: M65 (F1) -----------------------------------------------------------------
+
+    def test_f1_view_background_below_short_grid(self):
+        """The area below a short grid takes the view background, light and dark, desktop and
+        phone (without touch, as the table is measured). The grid's scrollbar stays under the
+        grid: the scroll container is as high as the grid, the box around it fills the view."""
+        for scheme, viewport in self.combos(['M65']):
+            with self.page('test_web_gantt.host_action_h1', scheme, viewport, touch=False):
+                self.check('M65', "document.querySelector('.o_tl_box')", scheme, viewport,
+                           'the area below the last row')
+                seen = self.js("""(() => {
+                    const box = document.querySelector('.o_tl_box').getBoundingClientRect();
+                    const grid = document.querySelector('.o_tl_renderer').getBoundingClientRect();
+                    const probe = document.elementFromPoint(box.left + 60, box.bottom - 20);
+                    return {
+                        box: box.bottom, grid: grid.bottom, height: innerHeight,
+                        under: getComputedStyle(probe.closest('.o_tl_box')).backgroundColor,
+                    };
+                })()""")
+                self.assertAlmostEqual(seen['box'], seen['height'], delta=1)
+                self.assertLess(seen['grid'], seen['box'] - 100,
+                                'the grid scroll area is as high as the grid, not the view')
+                self.assertIsNone(compare_value(
+                    'background-color', MEASURED['M65'][(scheme, viewport)]['background-color'],
+                    seen['under']))
 
     # -- M64 --------------------------------------------------------------------------
 

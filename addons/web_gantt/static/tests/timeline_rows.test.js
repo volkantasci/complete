@@ -166,6 +166,16 @@ test("A60: thumbnails", async () => {
     expect(css(header(rowOf("Host Contact 1")), "fontWeight")).toBe("400");
 });
 
+test("P9: row names have 1 px padding and are cut with an ellipsis (M74)", async () => {
+    await mountTimeline({ groupBy: GROUP_BY });
+    const label = rowOf("Host Contact 1").querySelector(".o_tl_row_label");
+    expect(css(label, "paddingLeft")).toBe("1px");
+    expect(css(label, "paddingRight")).toBe("1px");
+    expect(css(label, "textOverflow")).toBe("ellipsis");
+    expect(css(label, "whiteSpace")).toBe("nowrap");
+    expect(css(label, "overflowX")).toBe("hidden");
+});
+
 // ----------------------------------------------------------------------------
 // Group rows
 // ----------------------------------------------------------------------------
@@ -455,6 +465,8 @@ test("A71: total bar hover band", async () => {
     expect(hovered).not.toBe(resting);
     const alpha = (color) => Number(color.match(/, ([\d.]+)\)$/)[1]);
     expect(alpha(hovered)).toBeGreaterThan(alpha(resting));
+    // P3 (M68): the primary colour at 80 %
+    expect(hovered).toBe("rgba(113, 75, 103, 0.8)");
     // the band: brand colour at 10 %, from the bar up to the top of the grid
     expect(css(bar, "content", "::before")).toBe('""');
     expect(alpha(css(bar, "backgroundColor", "::before"))).toBe(0.1);

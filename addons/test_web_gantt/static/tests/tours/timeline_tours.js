@@ -224,12 +224,18 @@ tours.add("timeline_row_header_scroll", {
                         ? pill
                         : best
                 );
+                // the column in which the first pill starts (P4): the last header that does not
+                // begin after the pill
+                const column = [...document.querySelectorAll(".o_tl_col[data-index]")]
+                    .filter((header) => header.getBoundingClientRect().left <= first.getBoundingClientRect().left + 0.5)
+                    .at(-1);
+                assert(column, "no column holds the start of the first pill");
                 assert(
-                    Math.abs(middleOf(first) - visibleMiddle()) > 100,
-                    "the first pill is already in the middle"
+                    Math.abs(startOf(column) - visibleMiddle()) > 100,
+                    "the column of the first pill is already in the middle"
                 );
                 await helpers.click();
-                await until(() => isCentred(first), "the first pill in the middle");
+                await until(() => startsInMiddle(column), "the start of the column in the middle");
             },
         },
     ],
