@@ -46,7 +46,11 @@ The menu lists the ranges the view offers, with the current one checked, then
 a line for a **custom range**: two plain date fields (only a line under each)
 with an arrow between them and an **Apply** button. Picking a date in either
 field opens a date picker, and the date stays unselected so that you can type
-over it; the menu stays open until you press Apply. If you pick a start after the stop (or
+over it; the menu stays open until you press Apply. The dates are set a little
+larger than the menu text, with room for ten characters, and while a date
+picker is open the dates and the arrow take the strongest text colour (black in
+the light scheme, white in the dark one); they return to the accent colour when
+it closes. If you pick a start after the stop (or
 the reverse), the other date follows. A range can be at most ten years minus
 one day long. Choosing another range in the list rebuilds the grid around the
 date that is currently in the middle of the screen.
@@ -289,7 +293,9 @@ phone it starts at the top of the grid area). The sample state ends at the
 next load (any navigation or search). When sample data is not allowed, an empty
 result shows the normal grid with empty rows and no help. Whenever the grid is
 shorter than the screen, the area under it takes the background of the view
-rather than the page's.
+rather than the page's. The grid's own scroll area reaches the bottom of the
+view, so its horizontal scrollbar sits at the bottom edge of the view and not
+under the last row.
 
 ![The sample state, light](../assets/gantt_view/15-sample-data.png)
 
@@ -302,13 +308,15 @@ rather than the page's.
 ## On a phone
 
 On a small screen the control bar wraps: previous, next and the range button
-on the first line, then Today and a gear button on the second. The gear menu
+on the first line, then Today and a gear button on the second; without touch
+the two lines are packed close, the first with a little more room below and the
+second with a little more above. The gear menu
 holds the display mode switch ("One row per record" or "Shared rows") and, below
 a separator, "Open every group" or "Fold every group"; its icon is the filled
 gear. On a touch phone the buttons of the bar take the larger touch size (37 px
 tall; previous, next and the gear 44 px wide) while the bar keeps its height.
 The range menu opens as a bottom sheet (424 px tall, with the custom range
-line well spaced), dates are picked in a dialog, popovers open full screen and
+line well spaced, its dates and Apply button sized for touch), dates are picked in a dialog, popovers open full screen and
 the row header column takes a third of the width, where a long name such as
 "Undefined Contact" is cut with an ellipsis. Month names in the headers
 are abbreviated, and the page itself scrolls.
