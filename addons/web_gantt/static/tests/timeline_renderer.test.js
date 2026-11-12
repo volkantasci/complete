@@ -95,6 +95,8 @@ function roleColors() {
 }
 const markColor = (pill) =>
     getComputedStyle(pill.querySelector(".o_tl_pill_mark")).backgroundColor;
+// the total row has a today cell of its own
+const BODY_TODAY_CELL = ".o_tl_row:not(.o_tl_total_row) .o_tl_cell.o_tl_is_today";
 const near = (a, b) => Math.abs(a - b) < 1.5;
 
 // ----------------------------------------------------------------------------
@@ -495,12 +497,11 @@ test("A50: progress band widths 40% and 75%", async () => {
 // ----------------------------------------------------------------------------
 
 test("A68: today column on week and day", async () => {
-    // without the total row, which has a today cell of its own
-    await mountTimeline({ arch: HOST_ARCHS.H1.replace('total_row="1"', "") });
-    const today = queryAll(".o_tl_is_today");
+    await mountTimeline();
+    const today = queryAll(`.o_tl_col.o_tl_is_today, ${BODY_TODAY_CELL}`);
     // one header and one cell
     expect(queryAll(".o_tl_col.o_tl_is_today")).toHaveLength(1);
-    expect(queryAll(".o_tl_cell.o_tl_is_today")).toHaveLength(1);
+    expect(queryAll(BODY_TODAY_CELL)).toHaveLength(1);
     expect(columns()[11]).toHaveClass("o_tl_is_today");
     expect(columns()[11]).toHaveText("Thursday 12");
     expect(today.length).toBe(2);
@@ -525,7 +526,7 @@ test("A68: today column on week and day", async () => {
         "1px",
         "1px",
     ]);
-    const cell = queryOne(".o_tl_cell.o_tl_is_today");
+    const cell = queryOne(BODY_TODAY_CELL);
     expect(style(cell, "backgroundColor", "borderLeftColor", "borderLeftWidth")).toEqual([
         "rgb(255, 250, 235)",
         "rgb(220, 166, 101)",

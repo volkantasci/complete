@@ -113,7 +113,7 @@ test("A59: row header width 267 / 130 / one third at 700", async () => {
     }
 });
 
-test("A59: the title cell is bold with a blur and the view title", async () => {
+test("A59: the title cell is bold, sticky, on the translucent view background", async () => {
     await mountTimeline({ groupBy: GROUP_BY });
     const title = queryOne(".o_tl_title_cell");
     expect(title).toHaveText("Pills");
@@ -187,6 +187,15 @@ test("A61: Alpha consolidated pills 1 1 2 1", async () => {
     expect(css(label, "paddingRight")).toBe("4px");
     expect(css(label, "backgroundColor")).toBe("rgb(255, 255, 255)");
     expect(css(label, "fontSize")).toBe("14px");
+    // each line ends with a small tick
+    for (const line of alpha.querySelectorAll(".o_tl_group_pill")) {
+        const tick = getComputedStyle(line, "::after");
+        expect(tick.content).toBe('""');
+        expect(tick.width).toBe("1px");
+        expect(tick.height).toBe("6px");
+        expect(tick.right).toBe("0px");
+        expect(tick.backgroundColor).toBe(css(line, "backgroundColor"));
+    }
     // the group row shows no pill of its own
     expect(alpha.querySelectorAll(".o_tl_pill")).toHaveCount(0);
     // the line of the first segment ends with the half day that holds the end of Design (D-1)
@@ -195,7 +204,7 @@ test("A61: Alpha consolidated pills 1 1 2 1", async () => {
     expect(near(design.right, day.right)).toBe(true);
 });
 
-test("A61: group row names and nesting", async () => {
+test("A61: group row names and their count", async () => {
     await mountTimeline({ groupBy: GROUP_BY });
     expect(rowNames().filter((name) => !name.includes("Contact"))).toEqual([
         "Undefined Parent",
@@ -469,8 +478,6 @@ test("A106: narrow total bar small count", async () => {
 for (const step of ["quarter", "month", "day", "custom"]) {
     test(`A117: total bars on the year grid after ${step}`, async () => {
         await mountTimeline({ arch: H2 });
-        const weekCounts = bars().map(barCount);
-        expect(weekCounts.length).toBeGreaterThan(5);
         if (step === "custom") {
             await applyCustom("11/10/2026", "11/20/2026");
         } else {
@@ -478,21 +485,19 @@ for (const step of ["quarter", "month", "day", "custom"]) {
         }
         await chooseRange("Year");
         expect(queryAllTexts(".o_tl_col_group")).toEqual(["2025", "2026", "2027"]);
+        // Long task covers October to December, the other eleven records lie in November:
+        // three bars with the counts 1, 12 and 1 (S24)
         const all = bars();
-        expect(all.length).toBeGreaterThan(0);
-        const maxCount = Math.max(...all.map(barCount));
+        expect(all.map(barCount)).toEqual([1, 12, 1]);
         const row = queryRect(".o_tl_total_row");
-        const tallest = all.find((bar) => barCount(bar) === maxCount);
-        expect(near(tallest.getBoundingClientRect().height, 0.9 * row.height, 0.05)).toBe(true);
-        // a bar covers whole months: November 2026 holds the busiest count of the records
+        expect(near(all[1].getBoundingClientRect().height, 0.9 * row.height, 0.05)).toBe(true);
+        expect(near(all[0].getBoundingClientRect().height, (0.9 * row.height) / 12, 0.05)).toBe(
+            true
+        );
+        // the middle bar covers exactly November 2026
         const november = queryAll(".o_tl_col")[22].getBoundingClientRect();
-        const covering = all.filter((bar) => {
-            const rect = bar.getBoundingClientRect();
-            return rect.left < november.right - 1 && rect.right > november.left + 1;
-        });
-        expect(covering).toHaveLength(1);
-        expect(near(covering[0].getBoundingClientRect().left, november.left)).toBe(true);
-        expect(near(covering[0].getBoundingClientRect().right, november.right)).toBe(true);
-        expect(barCount(covering[0])).toBeGreaterThan(5);
+        const middle = all[1].getBoundingClientRect();
+        expect(near(middle.left, november.left)).toBe(true);
+        expect(near(middle.right, november.right)).toBe(true);
     });
 }

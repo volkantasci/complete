@@ -1,10 +1,8 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
-// grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
-// the box measures the width of the view (without the scrollbar of the grid) for the width of
-// the row header column
+// The box measures the width of the view (without the scrollbar of the grid) for the width of
+// the row header column.
 .o_tl_box {
     flex: 1 1 auto;
     min-height: 0;
@@ -13,6 +11,8 @@
     container-type: inline-size;
 }
 
+// The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
+// grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
 .o_tl_renderer {
     flex: 1 1 auto;
     min-height: 0;
@@ -32,6 +32,13 @@
     grid-template-rows: $o-tl-header-height $o-tl-header-height;
     position: relative;
     font-size: 14px;
+}
+
+// the wider screens (container query on the box around the grid)
+@container (width > 768px) {
+    .o_tl_grid {
+        --o-tl-row-header-width: #{"round(calc(100cqw / 6), 1px)"};
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -60,13 +67,6 @@
     background-color: rgba($o-view-background-color, .75);
     border-right: 1px solid $o-border-color;
     min-width: 0;
-}
-
-// the wider screens (container query on the box around the grid)
-@container (width > 768px) {
-    .o_tl_grid {
-        --o-tl-row-header-width: #{"round(calc(100cqw / 6), 1px)"};
-    }
 }
 
 .o_tl_title_text {
@@ -212,7 +212,8 @@
     // open: light at the top; the pointer swaps it, as does the closed state
     @include o-tl-group-gradient($o-tl-group-gradient-start, $o-tl-group-gradient-end);
 
-    // `o_tl_hover` is set by the renderer on pointer enter, the same as :hover
+    // `o_tl_hover` is set by the renderer on pointer enter and acts as :hover; it exists because
+    // tests cannot drive :hover
     &:hover,
     &.o_tl_hover {
         @include o-tl-group-gradient($o-tl-group-gradient-end, $o-tl-group-gradient-start);
@@ -247,7 +248,19 @@
     top: 19px;
     height: 2px;
     background-color: $o-brand-primary;
+    // black in both schemes (M32)
     color: #000000;
+
+    // the small tick at the end of the line marks the end of the segment
+    &::after {
+        content: "";
+        position: absolute;
+        top: -2px;
+        right: 0;
+        width: 1px;
+        height: 6px;
+        background-color: $o-brand-primary;
+    }
 }
 
 .o_tl_group_count {
