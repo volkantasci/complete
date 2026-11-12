@@ -1,0 +1,58 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <record id="host_field_x_progress" model="ir.model.fields">
+        <field name="name">x_progress</field>
+        <field name="field_description">Progress</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">float</field>
+        <field name="state">manual</field>
+    </record>
+    <record id="host_field_x_color" model="ir.model.fields">
+        <field name="name">x_color</field>
+        <field name="field_description">Color</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">integer</field>
+        <field name="state">manual</field>
+    </record>
+    <record id="host_field_x_flagged" model="ir.model.fields">
+        <field name="name">x_flagged</field>
+        <field name="field_description">Flagged</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">boolean</field>
+        <field name="state">manual</field>
+    </record>
+    <record id="host_field_x_done" model="ir.model.fields">
+        <field name="name">x_done</field>
+        <field name="field_description">Done</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">boolean</field>
+        <field name="state">manual</field>
+    </record>
+    <record id="host_field_x_contact" model="ir.model.fields">
+        <field name="name">x_contact</field>
+        <field name="field_description">Contact</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">many2one</field>
+        <field name="state">manual</field>
+        <field name="relation">res.partner</field>
+    </record>
+    <record id="host_field_x_tags" model="ir.model.fields">
+        <field name="name">x_tags</field>
+        <field name="field_description">Tags</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">many2many</field>
+        <field name="state">manual</field>
+        <field name="relation">res.partner.category</field>
+        <field name="relation_table">x_web_gantt_pill_tag_rel</field>
+        <field name="column1">pill_id</field>
+        <field name="column2">tag_id</field>
+    </record>
+    <record id="host_field_x_day" model="ir.model.fields">
+        <field name="name">x_day</field>
+        <field name="field_description">Day</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">date</field>
+        <field name="state">manual</field>
+    </record>
+</odoo>

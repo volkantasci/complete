@@ -1,0 +1,5 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <function model="test.web.gantt.pill" name="_tl_build_host_records"/>
+</odoo>

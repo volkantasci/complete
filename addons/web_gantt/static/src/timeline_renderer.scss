@@ -1,0 +1,657 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The box measures the width of the view (without the scrollbar of the grid) for the width of
+// the row header column.
+.o_tl_box {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+}
+
+// The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
+// grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
+.o_tl_renderer {
+    // The scroll area fills the rest of the view below a short grid and carries the view
+    // background there (R41, M65), so its horizontal scrollbar sits at the bottom of the view;
+    // it scrolls when the rows do not fit.
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    position: relative;
+    color: $o-main-text-color;
+    background-color: $o-view-background-color;
+    // the line above the headers: the grid starts one pixel under the control bar (M52)
+    border-top: 1px solid $o-border-color;
+}
+
+.o_tl_grid {
+    // the row header column (R20): a sixth of the content width when that is more than 768 px,
+    // otherwise a third, in whole pixels; the content width is that of the box around the grid
+    --o-tl-row-header-width: #{"round(calc(100cqw / 3), 1px)"};
+    // the grey of unavailable parts, for the gradient of a partly covered cell
+    --o-tl-unavailable-bg: #{$o-tl-unavailable-bg};
+    // the part at the start of the grid that the row headers cover
+    --o-tl-label-start: 0px;
+
+    display: grid;
+    // as wide as the tracks, never narrower than the view: the title cell sticks inside the box of
+    // the grid, which must reach the last column (a sticky item stops at the end of its
+    // container's box, not of the tracks that overflow it)
+    width: max-content;
+    min-width: 100%;
+    background-color: $o-view-background-color;
+    grid-template-rows: $o-tl-header-height $o-tl-header-height;
+    position: relative;
+    font-size: 14px;
+}
+
+.o_tl_grid.o_tl_with_row_headers {
+    --o-tl-label-start: var(--o-tl-row-header-width);
+}
+
+// the wider screens (container query on the box around the grid)
+@container (width > 768px) {
+    .o_tl_grid {
+        --o-tl-row-header-width: #{"round(calc(100cqw / 6), 1px)"};
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Headers
+// ----------------------------------------------------------------------------
+
+// the blur of the theme (M24), when it is enabled: the custom property only exists then
+@mixin o-tl-header-blur {
+    backdrop-filter: var(--o-backdrop-blur, none);
+}
+
+// The cell is the width of the row header column but spans every track: a sticky item sticks
+// inside its grid area, so a one-track cell would scroll away with the first column.
+.o_tl_title_cell {
+    @include o-tl-header-blur;
+    grid-row: 1 / span 2;
+    grid-column: 1 / -1;
+    justify-self: start;
+    box-sizing: border-box;
+    width: var(--o-tl-row-header-width);
+    position: sticky;
+    top: 0;
+    inset-inline-start: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: $o-main-text-color;
+    background-color: rgba($o-view-background-color, .75);
+    border-right: 1px solid $o-border-color;
+    min-width: 0;
+}
+
+.o_tl_title_text {
+    min-width: 0;
+    padding: 0 8px;
+}
+
+.o_tl_col_group {
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    box-sizing: border-box;
+    height: $o-tl-header-height;
+    padding-inline-start: 8px;
+    line-height: $o-tl-header-height - 2px;
+    color: $o-main-text-color;
+    background-color: $o-view-background-color;
+    border-right: 1px solid $o-border-color;
+    min-width: 0;
+    // `clip` keeps the group header from being a scroll container: the label sticks to the
+    // scrolled grid, not to its own box
+    overflow: clip;
+    white-space: nowrap;
+}
+
+// The text of a group header stays at the left edge of the visible part while its group is partly
+// scrolled off. The sticky box is zero wide, so it is never pushed away from the edge by the end of
+// the group: the text runs out of it and is cut at the end of the group header.
+.o_tl_col_group_label {
+    position: sticky;
+    inset-inline-start: calc(var(--o-tl-label-start, 0px) + 8px);
+    display: inline-block;
+    width: 0;
+    overflow: visible;
+    vertical-align: top;
+}
+
+.o_tl_col {
+    @include o-tl-header-blur;
+    grid-row: 2;
+    position: sticky;
+    top: $o-tl-header-height;
+    z-index: 4;
+    isolation: isolate;
+    box-sizing: border-box;
+    height: $o-tl-header-height;
+    line-height: $o-tl-header-height - 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    min-width: 0;
+    color: $o-main-headings-color;
+    background-color: rgba($o-view-background-color, .75);
+    border: 1px solid transparent;
+    border-right-color: $o-border-color;
+    border-bottom-color: $o-border-color;
+
+    // Keeps the content scrolled under the header from showing through the today tint: the view
+    // background, then the tint above it. Both layers sit below the text but above the cell's own
+    // background (a negative layer paints over the background of its stacking context), so the
+    // tint has to be repeated in the second layer to stay visible.
+    &.o_tl_is_today::before,
+    &.o_tl_is_today::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: -1;
+        background-color: $o-view-background-color;
+    }
+
+    &.o_tl_is_today::after {
+        background-color: $o-tl-today-bg;
+    }
+
+    &.o_tl_is_today {
+        background-color: $o-tl-today-bg;
+        border-left-color: $o-tl-today-border;
+        border-top-color: $o-tl-today-border;
+    }
+
+    .o_tl_col_meridiem {
+        margin-left: 1px;
+        font-size: 10px;
+    }
+
+    // folded column (R29): two arrows pointing at each other; a click opens it
+    &.o_tl_folded {
+        cursor: pointer;
+    }
+
+    // the header of an open foldable column: a click folds its run again
+    &.o_tl_foldable {
+        cursor: pointer;
+    }
+
+    // arrows pointing outwards, shown instead of the title while the pointer is over the run
+    .o_tl_col_arrows {
+        display: none;
+    }
+
+    &.o_tl_run_hover {
+        .o_tl_col_title {
+            display: none;
+        }
+
+        .o_tl_col_arrows {
+            display: inline;
+        }
+    }
+}
+
+// while the pointer is over an open foldable header, the headers outside its run are dimmed
+.o_tl_run_hovering .o_tl_col:not(.o_tl_run_hover) {
+    opacity: .5;
+}
+
+// ----------------------------------------------------------------------------
+// Rows and cells
+// ----------------------------------------------------------------------------
+
+.o_tl_row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    position: relative;
+    min-width: 0;
+}
+
+.o_tl_row_header {
+    @include o-tl-header-blur;
+    grid-column: 1;
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 0 0 8px;
+    color: $o-main-headings-color;
+    background-color: rgba($o-view-background-color, .75);
+    border-right: 1px solid $o-border-color;
+    border-bottom: 1px solid $o-border-color;
+}
+
+// the name: 4 px of room on its right (M29); the label inside has 1 px of padding on each side and is
+// cut with an ellipsis when it does not fit (M74)
+.o_tl_row_name {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 4px 0 0;
+}
+
+.o_tl_row_label {
+    display: block;
+    padding: 0 1px;
+    // the label is 27 px tall (M74); the text stays centred in the row
+    line-height: 27px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// The header wraps: the caret, the thumbnail and the body (the name and the capacity label on a
+// line) are the first line, the capacity bar the second one across the whole header (M47).
+.o_tl_row_header {
+    flex-wrap: wrap;
+    align-content: center;
+}
+
+.o_tl_row_body {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.o_tl_row_line {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+// R27: remaining quantity, small and muted; red above 100 %
+.o_tl_progress_label {
+    flex: 0 0 auto;
+    padding-left: 4px;
+    margin-right: 4px;
+    font-size: 13px;
+    color: $o-main-color-muted;
+
+    &.o_tl_over {
+        color: $o-danger;
+    }
+}
+
+.o_tl_progress_warning {
+    flex: 0 0 auto;
+    margin-right: 4px;
+    color: $o-warning;
+}
+
+.o_tl_progress {
+    flex: 0 0 calc(100% - 8px);
+    height: 5px;
+    margin: 0 8px 0 0;
+    border-radius: 3px;
+    overflow: hidden;
+    background-color: $o-tl-progress-track;
+}
+
+.o_tl_progress_fill {
+    height: 100%;
+    border-radius: 3px;
+    background-color: rgba($o-success, .75);
+
+    &.o_tl_over {
+        background-color: $o-danger;
+    }
+}
+
+.o_tl_caret {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 14px;
+    margin-right: 4px;
+    font-size: 14px;
+    line-height: 14px;
+    text-align: center;
+}
+
+.o_tl_thumbnail {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-right: 0;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.o_tl_cell {
+    min-width: 0;
+    border: 0 solid $o-border-color;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+
+    &.o_tl_is_today {
+        background-color: $o-tl-today-bg;
+        border-left-color: $o-tl-today-border;
+    }
+}
+
+// unavailable (R28) and folded (R29, M46) cells; after the today rule, so they win over it
+.o_tl_cell.o_tl_unavailable {
+    background-color: $o-tl-unavailable-bg;
+}
+
+// a folded cell takes no part in the highlight of group rows (R40), hence the importance
+.o_tl_cell.o_tl_folded_cell {
+    cursor: pointer;
+    background-color: $o-border-color;
+    background-image: none !important;
+}
+
+// ----------------------------------------------------------------------------
+// Group rows (R22, R25, R40)
+// ----------------------------------------------------------------------------
+
+@mixin o-tl-group-gradient($from, $to) {
+    .o_tl_row_header,
+    .o_tl_cell {
+        background-image: linear-gradient($from, $to);
+    }
+}
+
+.o_tl_group_row {
+    cursor: pointer;
+
+    // open: light at the top; the pointer swaps it, as does the closed state
+    @include o-tl-group-gradient($o-tl-group-gradient-start, $o-tl-group-gradient-end);
+
+    // `o_tl_hover` is set by the renderer on pointer enter and acts as :hover; it exists because
+    // tests cannot drive :hover
+    &:hover,
+    &.o_tl_hover {
+        @include o-tl-group-gradient($o-tl-group-gradient-end, $o-tl-group-gradient-start);
+    }
+
+    &.o_tl_collapsed {
+        @include o-tl-group-gradient($o-tl-group-gradient-end, $o-tl-group-gradient-start);
+
+        &:hover,
+        &.o_tl_hover {
+            @include o-tl-group-gradient($o-tl-group-gradient-start, $o-tl-group-gradient-end);
+        }
+    }
+
+    // today: no shade in an open row; a flat mix in a collapsed one
+    .o_tl_cell.o_tl_is_today {
+        background-color: transparent;
+        border-left-color: transparent;
+    }
+
+    &.o_tl_collapsed .o_tl_cell.o_tl_is_today,
+    &.o_tl_collapsed:hover .o_tl_cell.o_tl_is_today,
+    &.o_tl_collapsed.o_tl_hover .o_tl_cell.o_tl_is_today {
+        background-color: $o-tl-group-today-bg;
+        background-image: none;
+    }
+}
+
+// consolidated pill: a thin line with the count on the view background at its left
+.o_tl_group_pill {
+    position: absolute;
+    top: 19px;
+    height: 2px;
+    // no width, but the colour of the line is the brand colour (M32)
+    border: 0 solid $o-brand-primary;
+    background-color: $o-brand-primary;
+    // black in both schemes (M32)
+    color: #000000;
+
+    // the small tick at the end of the line marks the end of the segment
+    &::after {
+        content: "";
+        position: absolute;
+        top: -2px;
+        right: 0;
+        width: 1px;
+        height: 6px;
+        background-color: $o-brand-primary;
+    }
+}
+
+.o_tl_group_count {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    padding: 0 4px;
+    font-size: 14px;
+    line-height: 21px;
+    transform: translateY(-50%);
+    color: $o-main-text-color;
+    background-color: $o-view-background-color;
+}
+
+// ----------------------------------------------------------------------------
+// Total row (R26)
+// ----------------------------------------------------------------------------
+
+// a bar is a container of its own, so the size of its count follows its width in pixels
+.o_tl_total_bar {
+    position: absolute;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    container-type: inline-size;
+    color: $o-main-text-color;
+    background-color: rgba($o-brand-primary, .5);
+    // a hairline between neighbouring bars: the colour stops one pixel short of the right edge
+    padding-right: 1px;
+    background-clip: content-box;
+    pointer-events: auto;
+
+    &:hover,
+    &.o_tl_hover {
+        background-color: rgba($o-brand-primary, .8);
+
+        // the band from the bar up to the top of the grid
+        &::before {
+            content: "";
+            position: absolute;
+            right: 1px;
+            bottom: 100%;
+            left: 0;
+            height: 10000px;
+            background-color: rgba($o-brand-primary, .1);
+            pointer-events: none;
+        }
+    }
+}
+
+.o_tl_total_count {
+    margin-bottom: 4px;
+    font-size: 9.8px;
+    line-height: 1;
+    color: $o-main-headings-color;
+}
+
+// too narrow for its count (under 30 px): a smaller size
+@container (max-width: 29.99px) {
+    .o_tl_total_count {
+        font-size: 7px;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Pills
+// ----------------------------------------------------------------------------
+
+.o_tl_pills {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    inset-inline: 0;
+    z-index: 1;
+    pointer-events: none;
+
+    .o_tl_with_row_headers & {
+        inset-inline-start: var(--o-tl-row-header-width);
+    }
+}
+
+.o_tl_pill {
+    position: absolute;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    height: $o-tl-pill-height;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 21px;
+    // the text of a pill is black on every palette colour, in both schemes
+    color: #000000;
+    pointer-events: auto;
+
+    // the pointer changes neither the colours nor the shadow; the stripes take the full colour
+    &:hover {
+        box-shadow: none;
+    }
+}
+
+// more specific than the stripes of every colour index, the dark one included
+.o_tl_renderer .o_tl_pill.o_tl_striped:hover {
+    background-image: none;
+}
+
+.o_tl_pill_title {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 4px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: clip;
+}
+
+// the darker band over the left part of the pill, as wide as the progress
+.o_tl_pill_progress {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    opacity: .2;
+    pointer-events: none;
+}
+
+// the small triangle at the top left corner: a rotated square of which only the corner inside
+// the pill shows
+.o_tl_pill_mark {
+    position: absolute;
+    top: -11px;
+    left: -13px;
+    width: 20px;
+    height: 16px;
+    transform: rotate(45deg);
+    box-shadow: 1px 1px 0 0 #FFFFFF;
+
+    &.o_tl_mark_danger {
+        background-color: $o-danger;
+    }
+
+    &.o_tl_mark_warning {
+        background-color: $o-warning;
+    }
+
+    &.o_tl_mark_success {
+        background-color: $o-success;
+    }
+
+    &.o_tl_mark_info {
+        background-color: $o-info;
+    }
+
+    &.o_tl_mark_secondary {
+        background-color: $o-gray-300;
+    }
+}
+
+// Palette: index 0 is the first colour of the theme palette, the others follow; each is
+// 60 % of the palette colour over white. The progress band is the palette colour darkened.
+@mixin o-tl-pill-color($base, $pill) {
+    background-color: $pill;
+
+    .o_tl_pill_progress {
+        background-color: darken($base, 30%);
+    }
+
+    &.o_tl_striped {
+        background-image: repeating-linear-gradient(
+            -45deg,
+            $pill 0,
+            $pill 10px,
+            lighten($pill, 6%) 10px,
+            lighten($pill, 6%) 20px
+        );
+    }
+}
+
+@function o-tl-pill-source($base, $index) {
+    $nudge: map-get($o-tl-pill-nudges, $index);
+    @if $nudge {
+        @return rgb(
+            red($base) + nth($nudge, 1),
+            green($base) + nth($nudge, 2),
+            blue($base) + nth($nudge, 3)
+        );
+    }
+    @return $base;
+}
+
+@for $-index from 0 through 11 {
+    .o_tl_color_#{$-index} {
+        @include o-tl-pill-color(
+            nth($o-colors, $-index + 1),
+            mix(o-tl-pill-source(nth($o-colors, $-index + 1), $-index), #FFFFFF, 60%)
+        );
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Sample state (R33): faded rows, nothing reacts to the pointer, the help over the grid
+// ----------------------------------------------------------------------------
+
+.o_tl_sample {
+    opacity: .06;
+    pointer-events: none;
+    user-select: none;
+}
+
+.o_tl_sample_grid {
+    .o_tl_row,
+    .o_tl_col {
+        pointer-events: none;
+    }
+}
+
+// The grid of the sample state ends after its faded row and cannot be scrolled; the page
+// background shows below it (M66, M67).
+.o_tl_renderer:has(.o_tl_sample_grid) {
+    flex: none;
+    overflow: hidden;
+}
+
+// The help is a transparent area that starts just below the first header row (and the line above
+// the headers) and fills the rest of the view (M52). It sits next to the grid, not in it: inside
+// the scrolled grid it would scroll away with the columns, and only the cells are faded.
+.o_tl_box > .o_view_nocontent {
+    top: $o-tl-header-height + 1px;
+}

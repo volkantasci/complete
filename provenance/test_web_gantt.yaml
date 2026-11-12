@@ -1,0 +1,90 @@
+# Copyright 2026 Complete contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+module: test_web_gantt
+slice: 002a-gantt-display
+spec_sha256: 26f94a18be49e7b20a4631fd3cdcb57b22ed51999055a2e8e61c200acbefeed8
+ee_build: "20261106"
+implementer_sessions:
+  - 13f0b69b-7bf6-4e69-85ad-c771d479ca22
+verifier_session: fd0f2dc7-b079-49c2-978e-f9cd91ac7a16
+overlap:
+  ratio: 0.01
+  longest_run: 2
+  reviewed_matches:
+    - file: addons/test_web_gantt/data/host_fields.xml
+      line: 15
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 31
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 48
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 65
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 82
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 99
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 116
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 133
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 150
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 172
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 190
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 206
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 223
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 240
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/data/host_views.xml
+      line: 258
+      reason: prescribed by acceptance.md, only framework form
+    - file: addons/test_web_gantt/models/test_pills.py
+      line: 32
+      reason: database compatibility (model.md)
+    - file: addons/test_web_gantt/models/test_pills.py
+      line: 38
+      reason: database compatibility (model.md)
+    - file: addons/test_web_gantt/models/test_pills.py
+      line: 41
+      reason: database compatibility (model.md)
+    - file: addons/test_web_gantt/models/test_pills.py
+      line: 152
+      reason: database compatibility (model.md)
+    - file: addons/test_web_gantt/models/test_pills.py
+      line: 153
+      reason: database compatibility (model.md)
+    - file: addons/test_web_gantt/models/test_pills.py
+      line: 159
+      reason: database compatibility (model.md)
+    - file: addons/test_web_gantt/models/test_pills.py
+      line: 162
+      reason: database compatibility (model.md)
+audit_log_sha256: 6ffc639eda6c91bc62823e6dd294d0e3969b734ff6d5e4624ce3bc9038cf1557
+escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+dates:
+  spec_approved: "2026-11-11"
+  implemented: "2026-11-12"
+  verified: "2026-11-12"
+approvals:
+  - "owner: spec approved at CP-spec with decisions D1-D8 (2026-11-11)"
+  - "owner: after verification round 1, had the package corrected, decided D9, and promoted the verifier's polish items P1-P9 into the rework round (2026-11-12)"
+  - "owner: after verification round 2, had the package corrected again, had the rework item F10 and the polish items P10-P12 fixed, and accepted the three new overlap matches of round 2 (2026-11-12)"
+  - "owner: release approved at CP-release, on the condition that verification round 3 pass with no new rework or polish item and no new overlap match since round 2 (2026-11-12)"

@@ -1,0 +1,226 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+.o_timeline_view {
+    min-height: 0;
+
+    .o_tl_controls {
+        padding: 0 16px 16px;
+        column-gap: 4px;
+
+        &.o_tl_controls_phone {
+            padding: 4px 0 16px;
+
+            // line 1: previous, next, range; line 2: Today and the gear button at the right
+            .o_tl_line {
+                padding: 0 16px;
+                column-gap: 4px;
+            }
+
+            // Without touch the buttons keep the padding of a desktop button (M41). On a touch
+            // device the theme's own touch size applies (37 px tall, 7 px and 14 px padding).
+            body:not(.o_touch_device) & .btn {
+                padding: $btn-padding-y $btn-padding-x;
+            }
+
+            // The separator has no margin of its own (M77): the space around it is that of the
+            // two lines (M78, M79). Without touch 4.7 px lie between a line of buttons and the
+            // separator, and 2.3 px on the outer side; the bar keeps its height (M42).
+            .o_tl_separator {
+                margin: 0;
+                border-top: 1px solid $o-border-color;
+            }
+
+            .o_tl_line:first-child {
+                padding-top: 2.3px;
+                padding-bottom: 4.7px;
+            }
+
+            .o_tl_line:last-child {
+                padding-top: 4.7px;
+                padding-bottom: 2.3px;
+            }
+
+            // with touch, 2 px on each side of the separator (the buttons are 37 px tall)
+            body.o_touch_device & .o_tl_line:first-child {
+                padding-top: 1px;
+                padding-bottom: 2px;
+            }
+
+            body.o_touch_device & .o_tl_line:last-child {
+                padding-top: 2px;
+                padding-bottom: 1px;
+            }
+        }
+    }
+}
+
+// The dates of the custom line are plain fields: a bottom line only, 4 px side padding (M73). The
+// width is that of a date's text (4.93 em, 69 px at 14 px) plus the padding: 77 px without touch,
+// 83.9 px with the 15.4 px text of a touch device.
+.o_tl_range_menu .o_tl_custom_line .o_datetime_input {
+    box-sizing: border-box;
+    width: calc(#{$o-tl-date-width-em}em + 8px);
+    height: 24px;
+    padding: 0 4px;
+    border-bottom-color: $o-tl-date-line;
+
+    body.o_touch_device & {
+        height: 26.1px;
+    }
+}
+
+// While a picker is open on desktop, the whole custom line takes the black role (M76): the colour
+// of the dates is neither the primary colour nor the body text colour then. The Apply button
+// keeps its own. The picker service puts the `text-primary` utility (important) on the input of
+// the open picker, and only while it is open, so the class marks the open picker even when a click
+// inside the picker has moved the focus away from the input.
+.o_tl_range_menu .o_tl_custom_line:has(.o_datetime_input.text-primary) {
+    color: $o-black;
+
+    .o_datetime_input,
+    .o_tl_custom_arrow {
+        color: $o-black !important; // stylelint-disable-line declaration-no-important
+    }
+}
+
+// The arrow sits 4 px from each date (the line's gap is 8 px, so a negative margin of 4 px); the
+// custom line is 20.5 px padded in the desktop menu (M75, 275.7 px wide) and 16 px in the sheet
+// (Apply starts at x 231 on a touch phone).
+.o_tl_range_menu .o_tl_custom_line {
+    padding-inline: $o-tl-custom-line-padding-x;
+
+    > .o_tl_custom_arrow {
+        margin-inline: -4px;
+    }
+
+    body.o_touch_device & > .o_tl_custom_arrow {
+        font-size: 15.4px;
+    }
+}
+
+.o_bottom_sheet .o_tl_range_menu .o_tl_custom_line {
+    padding-inline: 16px;
+}
+
+// the custom line: 4 px above and below in the menu, 16 px in the bottom sheet of a phone (the
+// sheet is 424 px tall on the 844 px screen of the captures)
+.o_tl_range_menu .o_tl_custom_line {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+// The 16 px padding is fitted to the 424 px high sheet of the 390x844 phone capture (S9): the
+// custom line then sits between the last range entry and the sheet's bottom edge.
+.o_bottom_sheet .o_tl_range_menu .o_tl_custom_line {
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+// the current range is framed in the action colour in the bottom sheet of a phone (S9)
+.o_bottom_sheet .o_tl_range_menu .o_tl_range_item.selected {
+    border: 1px solid $o-action;
+    border-radius: $border-radius;
+}
+
+.o_timeline_view .o_tl_controls {
+    // the icon keeps the height of a line of text, so the button is as high as Today (M41)
+    .o_tl_gear .oi {
+        display: inline-block;
+        width: 14px;
+        line-height: 21px;
+    }
+}
+
+// the gear menu entries (bottom sheet of a phone): the menu lives in the overlay, outside the view
+.o_tl_gear_menu .dropdown-item {
+    display: flex;
+    align-items: center;
+}
+
+// the dates of the custom line are buttons that open a dialog on a phone; they look like plain
+// date inputs with an underline (S9)
+.o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_start_button,
+.o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_stop_button {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: calc(#{$o-tl-date-width-em}em + 8px);
+    // 24 px tall, 26.1 px with touch (M73)
+    height: 24px;
+    padding: 0 4px;
+    line-height: 23px;
+    font-size: 14px;
+    text-align: left;
+    white-space: nowrap;
+    color: $o-main-text-color;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid $o-tl-date-line;
+    border-radius: 0;
+    box-shadow: none;
+
+    // the text of a touch device is 15.4 px
+    body.o_touch_device & {
+        height: 26.1px;
+        line-height: 25px;
+        font-size: 15.4px;
+    }
+}
+
+// the arrow between the two dates is a 14 x 14 px icon, in the range menu (M72) and on the
+// range button (M71)
+.o_tl_range_menu .o_tl_custom_line > .o_tl_custom_arrow {
+    font-size: 14px;
+}
+
+// phone: the page scrolls (the view delegates scrolling to the action); the grid only scrolls
+// sideways
+.o_timeline_view.o_tl_phone {
+    min-height: auto;
+    flex: none;
+
+    // the box fills what the page leaves below the controls and its scroll area fills the box, so
+    // the view background reaches the bottom of the view (M65); a taller grid makes the page scroll
+    .o_tl_box {
+        flex: 1 0 auto;
+
+        // The help area starts 26 px above the grid area (M52: 178 without touch, 182 with touch,
+        // that is the top of the box minus 26 px); only its content takes the pointer. Its
+        // content is centred under the grid: the padding balances the 26 px.
+        > .o_view_nocontent {
+            top: -26px;
+            padding-top: 26px;
+            pointer-events: none;
+
+            > * {
+                pointer-events: auto;
+            }
+        }
+    }
+
+    .o_tl_renderer {
+        flex: 1 0 auto;
+        overflow-x: auto;
+        overflow-y: hidden;
+
+        &:has(.o_tl_sample_grid) {
+            flex: none;
+            overflow: hidden;
+        }
+    }
+}
+
+// the range button lays its content out in a row: the range name (or the dates and the arrow
+// between them) and the caret, 5 px apart (M69 to M71)
+.o_timeline_view .o_tl_range_button {
+    display: flex;
+    align-items: center;
+    column-gap: 5px;
+
+    > .oi {
+        font-size: 14px;
+        flex: none;
+        width: 14px;
+        margin: 0;
+        vertical-align: 3.4px;
+    }
+}

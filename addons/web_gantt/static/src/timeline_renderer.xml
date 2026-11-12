@@ -1,0 +1,74 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineRenderer">
+        <t t-set="layout" t-value="this.layout"/>
+        <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
+            <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId">
+                <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample }" t-attf-style="grid-template-columns: {{layout.template}}">
+                    <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
+                    <t t-foreach="layout.groups" t-as="group" t-key="group_index">
+                        <div class="o_tl_col_group" t-att-title="group.title" t-att-style="group.style"><span class="o_tl_col_group_label" t-out="group.label"/></div>
+                    </t>
+                    <t t-foreach="layout.columns" t-as="column" t-key="column.key">
+                        <div class="o_tl_col text-center" t-att-class="{ o_tl_is_today: column.isToday, o_tl_folded: column.folded, o_tl_foldable: column.run !== null and !column.folded }" t-att-title="column.title" t-att-data-tooltip="column.tooltip" t-att-data-date="column.date" t-att-data-run="column.run" t-att-data-index="column.index" t-att-style="column.style" t-on-click="() => this.onColumnClick(column)" t-on-mouseenter="(ev) => this.onColumnEnter(ev, column)" t-on-mouseleave="this.onColumnLeave">
+                            <t t-if="column.folded"><i class="oi" data-icon="keyboard_double_arrow_right"/><i class="oi" data-icon="keyboard_double_arrow_left"/></t>
+                            <t t-else=""><span class="o_tl_col_title"><t t-out="column.label"/><small t-if="column.meridiem" class="o_tl_col_meridiem" t-out="column.meridiem"/></span><span t-if="column.run !== null" class="o_tl_col_arrows"><i class="oi" data-icon="keyboard_double_arrow_left"/><i class="oi" data-icon="keyboard_double_arrow_right"/></span></t>
+                        </div>
+                    </t>
+                    <t t-foreach="layout.rows" t-as="row" t-key="row.key">
+                        <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
+                            <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-class="{ o_tl_sample: layout.isSample }" t-att-title="row.row.name" t-on-click="() => this.onRowHeaderClick(row)">
+                                <i t-if="row.kind === 'group'" class="oi o_tl_caret" t-att-data-icon="row.row.collapsed ? 'arrow_right' : 'arrow_drop_down'"/>
+                                <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
+                                <div class="o_tl_row_body">
+                                    <div class="o_tl_row_line">
+                                        <span class="o_tl_row_name"><span class="o_tl_row_label" t-out="row.row.name"/></span>
+                                        <t t-if="row.progress">
+                                            <span class="o_tl_progress_label" t-att-class="{ o_tl_over: row.progress.over }" t-att-data-tooltip="row.progress.tooltip" t-out="row.progress.label"/>
+                                            <i t-if="row.progress.warning" class="oi o_tl_progress_warning" data-icon="warning" t-att-data-tooltip="row.progress.warning"/>
+                                        </t>
+                                    </div>
+                                </div>
+                                <div t-if="row.progress and row.progress.hasBar" class="o_tl_progress" t-att-data-tooltip="row.progress.tooltip">
+                                    <div t-if="row.progress.fill > 0" class="o_tl_progress_fill" t-att-class="{ o_tl_over: row.progress.over }" t-attf-style="width: {{row.progress.fill}}%"/>
+                                </div>
+                            </div>
+                            <t t-foreach="row.cells" t-as="cell" t-key="cell.key">
+                                <div class="o_tl_cell" t-att-class="(cell.className || '') + (layout.isSample ? ' o_tl_sample' : '')" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
+                            </t>
+                            <div t-if="row.kind === 'group'" class="o_tl_pills">
+                                <div t-foreach="row.counts" t-as="segment" t-key="segment.key" class="o_tl_group_pill" t-att-style="segment.style">
+                                    <span class="o_tl_group_count" t-out="segment.count"/>
+                                </div>
+                            </div>
+                            <div t-if="row.kind === 'pills'" class="o_tl_pills">
+                                <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
+                                    <div class="o_tl_pill" t-att-class="pill.className" t-att-style="pill.style" t-att-data-pill-id="pill.id" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="this.onPillDoubleClick">
+                                        <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
+                                        <span class="o_tl_pill_title" t-out="pill.label"/>
+                                        <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </t>
+                    <div t-if="layout.total" class="o_tl_row o_tl_total_row" t-attf-style="height: {{layout.total.height}}px">
+                        <div t-if="layout.hasRowHeaders" class="o_tl_row_header">
+                            <span class="o_tl_row_name"><span class="o_tl_row_label">Total</span></span>
+                        </div>
+                        <t t-foreach="layout.total.cells" t-as="cell" t-key="cell.key">
+                            <div class="o_tl_cell" t-att-class="cell.className" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
+                        </t>
+                        <div class="o_tl_pills">
+                            <div t-foreach="layout.total.bars" t-as="bar" t-key="bar.key" class="o_tl_total_bar" t-att-style="bar.style" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
+                                <span class="o_tl_total_count" t-out="bar.count"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <ActionHelper t-if="layout.isSample and this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
+        </div>
+    </t>
+</templates>

@@ -1,0 +1,280 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <record id="host_view_h13" model="ir.ui.view">
+        <field name="name">H13 Search view with archived filter</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="group_parent" string="Parent" context="{'group_by': 'parent_id'}"/>
+                    <filter name="group_contact" string="Contact" context="{'group_by': 'x_contact'}"/>
+                    <filter name="group_tags" string="Tags" context="{'group_by': 'x_tags'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="host_view_h1" model="ir.ui.view">
+        <field name="name">H1 Main</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" progress="x_progress" decoration-danger="x_flagged" decoration-info="x_done" total_row="1" thumbnails="{'x_contact': 'avatar_128'}"><field name="x_flagged"/><field name="x_done"/></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h1" model="ir.actions.act_window">
+        <field name="name">H1 Main</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h1"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_view_h2" model="ir.ui.view">
+        <field name="name">H2 Main by parent</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" progress="x_progress" decoration-danger="x_flagged" decoration-info="x_done" total_row="1" thumbnails="{'x_contact': 'avatar_128'}"><field name="x_flagged"/><field name="x_done"/></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h2" model="ir.actions.act_window">
+        <field name="name">H2 Main by parent</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h2"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_view_h3" model="ir.ui.view">
+        <field name="name">H3 Main by parent and contact</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" progress="x_progress" decoration-danger="x_flagged" decoration-info="x_done" total_row="1" thumbnails="{'x_contact': 'avatar_128'}"><field name="x_flagged"/><field name="x_done"/></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h3" model="ir.actions.act_window">
+        <field name="name">H3 Main by parent and contact</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h3"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id', 'x_contact']}</field>
+    </record>
+
+    <record id="host_view_h4" model="ir.ui.view">
+        <field name="name">H4 Main by tags</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" progress="x_progress" decoration-danger="x_flagged" decoration-info="x_done" total_row="1" thumbnails="{'x_contact': 'avatar_128'}"><field name="x_flagged"/><field name="x_done"/></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h4" model="ir.actions.act_window">
+        <field name="name">H4 Main by tags</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h4"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['x_tags']}</field>
+    </record>
+
+    <record id="host_view_h5" model="ir.ui.view">
+        <field name="name">H5 Minimal</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt date_start="date_start" date_stop="date_stop"/>
+        </field>
+    </record>
+
+    <record id="host_action_h5" model="ir.actions.act_window">
+        <field name="name">H5 Minimal</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h5"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_view_h6" model="ir.ui.view">
+        <field name="name">H6 Labels sparse</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" default_range="week" pill_label="1" color="x_color" display_mode="sparse" groups_limit="2" date_start="date_start" date_stop="date_stop"/>
+        </field>
+    </record>
+
+    <record id="host_action_h6" model="ir.actions.act_window">
+        <field name="name">H6 Labels sparse</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h6"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_view_h7" model="ir.ui.view">
+        <field name="name">H7 Custom popover</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" default_range="week" color="x_color" date_start="date_start" date_stop="date_stop"><field name="x_contact"/><popover><templates><t t-name="popover-body"><div class="text-muted"><field name="x_contact"/></div><div><field name="x_progress"/></div></t></templates></popover></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h7" model="ir.actions.act_window">
+        <field name="name">H7 Custom popover</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h7"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_view_h8" model="ir.ui.view">
+        <field name="name">H8 Empty with sample</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" default_range="week" sample="1" date_start="date_start" date_stop="date_stop"/>
+        </field>
+    </record>
+
+    <record id="host_action_h8" model="ir.actions.act_window">
+        <field name="name">H8 Empty with sample</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h8"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=', 'no record has this name')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing is scheduled yet</p>
+            <p>Records with a start and a stop will show up here as bars on the timeline.</p>
+        </field>
+    </record>
+
+    <record id="host_view_h9" model="ir.ui.view">
+        <field name="name">H9 Empty plain</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt date_start="date_start" date_stop="date_stop"/>
+        </field>
+    </record>
+
+    <record id="host_action_h9" model="ir.actions.act_window">
+        <field name="name">H9 Empty plain</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h9"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=', 'no record has this name')]</field>
+    </record>
+
+    <record id="host_view_h10" model="ir.ui.view">
+        <field name="name">H10 Dated</field>
+        <field name="model">test.web.gantt.pill2</field>
+        <field name="arch" type="xml">
+            <gantt string="Dated pills" default_range="month" scales="day,week,month" precision="{'month': 'day:full'}" date_start="date_start" date_stop="date_stop"/>
+        </field>
+    </record>
+
+    <record id="host_action_h10" model="ir.actions.act_window">
+        <field name="name">H10 Dated</field>
+        <field name="res_model">test.web.gantt.pill2</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h10"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_view_h11" model="ir.ui.view">
+        <field name="name">H11 Colour by contact</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_contact" progress="x_progress" decoration-danger="x_flagged" decoration-info="x_done" total_row="1" thumbnails="{'x_contact': 'avatar_128'}"><field name="x_flagged"/><field name="x_done"/></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h11" model="ir.actions.act_window">
+        <field name="name">H11 Colour by contact</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h11"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id', 'x_contact']}</field>
+    </record>
+
+    <record id="host_view_h12" model="ir.ui.view">
+        <field name="name">H12 Unavailability</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" progress="x_progress" decoration-danger="x_flagged" decoration-info="x_done" total_row="1" thumbnails="{'x_contact': 'avatar_128'}" display_unavailability="1" progress_bar="x_contact"><field name="x_flagged"/><field name="x_done"/></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h12" model="ir.actions.act_window">
+        <field name="name">H12 Unavailability</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h12"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['x_contact']}</field>
+    </record>
+
+    <record id="host_view_h14" model="ir.ui.view">
+        <field name="name">H14 Mix A</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt date_start="x_day" date_stop="date_stop" default_range="week"/>
+        </field>
+    </record>
+
+    <record id="host_action_h14" model="ir.actions.act_window">
+        <field name="name">H14 Mix A</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h14"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=like', 'MIX%')]</field>
+    </record>
+
+    <record id="host_view_h15" model="ir.ui.view">
+        <field name="name">H15 Mix B</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt date_start="date_start" date_stop="x_day" default_range="week"/>
+        </field>
+    </record>
+
+    <record id="host_action_h15" model="ir.actions.act_window">
+        <field name="name">H15 Mix B</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h15"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=like', 'MIX%')]</field>
+    </record>
+
+    <menuitem id="host_menu_root" name="Gantt Host" sequence="900" groups="base.group_user"/>
+    <menuitem id="host_menu_h1" name="H1 Main" parent="host_menu_root" action="host_action_h1" sequence="1"/>
+    <menuitem id="host_menu_h2" name="H2 Main by parent" parent="host_menu_root" action="host_action_h2" sequence="2"/>
+    <menuitem id="host_menu_h3" name="H3 Main by parent and contact" parent="host_menu_root" action="host_action_h3" sequence="3"/>
+    <menuitem id="host_menu_h4" name="H4 Main by tags" parent="host_menu_root" action="host_action_h4" sequence="4"/>
+    <menuitem id="host_menu_h5" name="H5 Minimal" parent="host_menu_root" action="host_action_h5" sequence="5"/>
+    <menuitem id="host_menu_h6" name="H6 Labels sparse" parent="host_menu_root" action="host_action_h6" sequence="6"/>
+    <menuitem id="host_menu_h7" name="H7 Custom popover" parent="host_menu_root" action="host_action_h7" sequence="7"/>
+    <menuitem id="host_menu_h8" name="H8 Empty with sample" parent="host_menu_root" action="host_action_h8" sequence="8"/>
+    <menuitem id="host_menu_h9" name="H9 Empty plain" parent="host_menu_root" action="host_action_h9" sequence="9"/>
+    <menuitem id="host_menu_h10" name="H10 Dated" parent="host_menu_root" action="host_action_h10" sequence="10"/>
+    <menuitem id="host_menu_h11" name="H11 Colour by contact" parent="host_menu_root" action="host_action_h11" sequence="11"/>
+    <menuitem id="host_menu_h12" name="H12 Unavailability" parent="host_menu_root" action="host_action_h12" sequence="12"/>
+    <menuitem id="host_menu_h14" name="H14 Mix A" parent="host_menu_root" action="host_action_h14" sequence="14"/>
+    <menuitem id="host_menu_h15" name="H15 Mix B" parent="host_menu_root" action="host_action_h15" sequence="15"/>
+</odoo>

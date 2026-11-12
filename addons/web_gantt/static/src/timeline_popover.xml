@@ -1,0 +1,11 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelinePopover">
+        <CardPopover t-props="this.cardPopoverProps">
+            <t t-set-slot="footer">
+                <button type="button" class="btn btn-primary btn-sm o_tl_popover_button" t-on-click="this.onButtonClick" t-out="this.buttonLabel"/>
+            </t>
+        </CardPopover>
+    </t>
+</templates>
