@@ -95,7 +95,13 @@
         flex: none;
         overflow-x: auto;
         overflow-y: hidden;
-
-
     }
+}
+
+// the caret of the range button is as large as the one of a Community dropdown toggle; its
+// negative margins keep the button as high as the others
+.o_timeline_view .o_tl_range_button > .oi {
+    font-size: 1.6em;
+    margin: -.4em -.15em;
+    vertical-align: middle;
 }

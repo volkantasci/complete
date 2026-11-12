@@ -229,10 +229,12 @@ export class TimelineRenderer extends Component {
         }
         const rect = header.getBoundingClientRect();
         const column = columns[index];
-        const exact = Number(header.dataset.index) === index && !header.classList.contains("o_tl_folded");
+        const exact =
+            Number(header.dataset.index) === index && !header.classList.contains("o_tl_folded");
         const fraction = exact ? (from - column.start) / (column.stop - column.start) : 0;
         // the day starts at the right in a mirrored grid
-        this._centreAt(this._isRtl() ? rect.right - rect.width * fraction : rect.left + rect.width * fraction);
+        const shift = rect.width * fraction;
+        this._centreAt(this._isRtl() ? rect.right - shift : rect.left + shift);
         return true;
     }
 

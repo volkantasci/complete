@@ -176,7 +176,7 @@ export class TimelineController extends Component {
     }
 
     get collapseAllIcon() {
-        return this.anyCollapsed ? "keyboard_double_arrow_down" : "keyboard_double_arrow_up";
+        return this.anyCollapsed ? "arrow_right" : "arrow_drop_down";
     }
 
     // ------------------------------------------------------------------------

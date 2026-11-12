@@ -88,7 +88,7 @@ test("A81: the sheet lists open and fold every group below a separator", async (
         "Fold every group",
     ]);
     expect(".o_tl_gear_menu .dropdown-divider").toHaveCount(1);
-    expect(".o_tl_gear_collapse_all [data-icon='keyboard_double_arrow_up']").toHaveCount(1);
+    expect(".o_tl_gear_collapse_all [data-icon='arrow_drop_down']").toHaveCount(1);
     await contains(".o_tl_gear_collapse_all").click();
     await animationFrame();
     expect(".o_tl_controls .o_tl_collapse_all").toHaveCount(0);
@@ -98,7 +98,7 @@ test("A81: the sheet lists open and fold every group below a separator", async (
         "One row per record",
         "Open every group",
     ]);
-    expect(".o_tl_gear_collapse_all [data-icon='keyboard_double_arrow_down']").toHaveCount(1);
+    expect(".o_tl_gear_collapse_all [data-icon='arrow_right']").toHaveCount(1);
     await contains(".o_tl_gear_collapse_all").click();
     await animationFrame();
     await contains(".o_tl_gear").click();
@@ -128,6 +128,11 @@ test("A82: range sheet with the date dialog", async () => {
     expect(queryAllTexts(".o_tl_range_item")).toEqual(["Day", "Week", "Month", "Quarter", "Year"]);
     // the current entry is marked by the dropdown itself (a check mark of the theme)
     expect(".o_tl_range_item.selected").toHaveCount(1);
+    const marked = ["::before", "::after"].some((pseudo) => {
+        const content = getComputedStyle(queryOne(".o_tl_range_item.selected"), pseudo).content;
+        return content !== "none" && content !== "normal" && content !== '""';
+    });
+    expect(marked).toBe(true);
     // the custom line shows the dates as buttons
     expect(".o_tl_custom_start input").toHaveCount(0);
     expect(queryOne(".o_tl_custom_start_button").textContent.trim()).toBe("11/01/2026");

@@ -15,7 +15,9 @@
 // The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
 // grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
 .o_tl_renderer {
-    flex: 1 1 auto;
+    // as high as the grid (the scrollbar sits under the last row, the rest of the view shows the
+    // page), shrinking and scrolling when the rows do not fit
+    flex: 0 1 auto;
     min-height: 0;
     overflow: auto;
     position: relative;
@@ -100,7 +102,7 @@
     z-index: 4;
     box-sizing: border-box;
     height: $o-tl-header-height;
-    padding-left: 8px;
+    padding-inline-start: 8px;
     line-height: $o-tl-header-height - 2px;
     color: $o-main-text-color;
     background-color: $o-view-background-color;
@@ -143,8 +145,12 @@
     border-right-color: $o-border-color;
     border-bottom-color: $o-border-color;
 
-    // keeps the content scrolled under the header from showing through the today tint
-    &.o_tl_is_today::before {
+    // Keeps the content scrolled under the header from showing through the today tint: the view
+    // background, then the tint above it. Both layers sit below the text but above the cell's own
+    // background (a negative layer paints over the background of its stacking context), so the
+    // tint has to be repeated in the second layer to stay visible.
+    &.o_tl_is_today::before,
+    &.o_tl_is_today::after {
         content: "";
         position: absolute;
         top: 0;
@@ -153,6 +159,10 @@
         left: 0;
         z-index: -1;
         background-color: $o-view-background-color;
+    }
+
+    &.o_tl_is_today::after {
+        background-color: $o-tl-today-bg;
     }
 
     &.o_tl_is_today {
@@ -426,6 +436,9 @@
     container-type: inline-size;
     color: $o-main-text-color;
     background-color: rgba($o-brand-primary, .5);
+    // a hairline between neighbouring bars, without changing their size
+    border-right: 1px solid transparent;
+    background-clip: padding-box;
     pointer-events: auto;
 
     &:hover,

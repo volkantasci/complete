@@ -466,12 +466,30 @@ class TimelineScreenDefects(TimelineProbeCase):
                     ['geometry.x', 'background-color', 'backdrop-filter'])
                 self.assertLess(abs(header['geometry.x'] - grid['geometry.x']), 2.0)
                 self.assertEqual(header['background-color'], 'rgba(255, 255, 255, 0.75)')
-                # the blur of the theme, when it is enabled (the variable exists only then)
-                blur = self.js("getComputedStyle(document.documentElement)"
-                               ".getPropertyValue('--o-backdrop-blur').trim()")
-                if blur:
-                    self.assertEqual(title['backdrop-filter'], blur)
-                    self.assertEqual(header['backdrop-filter'], blur)
+                # both branches of the blur: the variable of the theme set, and not set
+                filters = "[document.querySelector('.o_tl_title_cell'), " \
+                          "document.querySelector('.o_tl_row_header')]" \
+                          ".map((el) => getComputedStyle(el).backdropFilter)"
+                root = "document.documentElement.style"
+                self.js(f"{root}.setProperty('--o-backdrop-blur', 'blur(3px)')")
+                self.assertEqual(self.js(filters), ['blur(3px)', 'blur(3px)'])
+                # `initial` makes the variable undefined: the fallback applies
+                self.js(f"{root}.setProperty('--o-backdrop-blur', 'initial')")
+                self.assertEqual(self.js(filters), ['none', 'none'])
+                self.js(f"{root}.removeProperty('--o-backdrop-blur')")
+
+    def test_range_menu_marks_current_entry(self):
+        """The current range entry shows the check the dropdown draws (we draw none ourselves)."""
+        for viewport in self.viewports:
+            with self.subTest(viewport=viewport), \
+                    self.page('test_web_gantt.host_action_h3', 'light', viewport):
+                self.click_js("document.querySelector('.o_tl_range_button')")
+                self.wait("!!document.querySelector('.o_tl_range_item.selected')")
+                marks = self.js("""['::before', '::after'].map((pseudo) =>
+                    getComputedStyle(document.querySelector('.o_tl_range_item.selected'), pseudo)
+                        .content)""")
+                self.assertTrue(
+                    any(content not in ('none', 'normal', '""') for content in marks), marks)
 
     def test_group_header_label_sticks(self):
         """D-5: the label of a partly scrolled group stays at the edge of the visible part."""
@@ -503,6 +521,46 @@ class TimelineScreenDefects(TimelineProbeCase):
                 self.assertLess(seen['groupLeft'], seen['edge'], f'{found} {seen}')
                 self.assertTrue(seen['text'].startswith('Week'), seen)
                 self.assertLess(abs(seen['labelLeft'] - (seen['edge'] + 8)), 1.5, seen)
+
+    def test_today_header_tint_is_painted(self):
+        """The warm fill of today's header is really painted: a read of the pixels of a
+        screenshot differs from the header of another day (a layer above the cell's background
+        would hide a fill that the computed style still reports)."""
+        import base64
+        import io
+
+        from PIL import Image
+        for scheme in ('light', 'dark'):
+            if scheme == 'dark' and not self.has_theme:
+                continue
+            with self.subTest(scheme=scheme), \
+                    self.page('test_web_gantt.host_action_h1', scheme, 'desktop'):
+                def pixel(selector):
+                    box = self.geometry(f"document.querySelector('{selector}')")
+                    shot = self.browser._websocket_request('Page.captureScreenshot')
+                    image = Image.open(io.BytesIO(base64.b64decode(shot['data']))).convert('RGB')
+                    # inside the cell, left of the text
+                    return image.getpixel((int(box['geometry.x']) + 6,
+                                           int(box['geometry.y']) + 12))
+                today = pixel('.o_tl_col.o_tl_is_today')
+                other = pixel('.o_tl_col:not(.o_tl_is_today)')
+                if scheme == 'light':
+                    self.assertEqual(today, (255, 250, 235))
+                self.assertNotEqual(today, other)
+                # warm: more red than blue, against the colour of the other headers
+                self.assertGreater(today[0] - today[2], other[0] - other[2] + 5, (today, other))
+
+    def test_no_stray_scrollbar_strip(self):
+        """The grid is as high as its rows: its scrollbar is not at the bottom of the screen."""
+        with self.page('test_web_gantt.host_action_h3', 'light', 'desktop'):
+            seen = self.js("""(() => {
+                const grid = document.querySelector('.o_tl_renderer');
+                const rect = grid.getBoundingClientRect();
+                return {bottom: rect.bottom, height: innerHeight,
+                    content: grid.querySelector('.o_tl_grid').getBoundingClientRect().bottom};
+            })()""")
+            self.assertLess(seen['bottom'], seen['height'] - 40, seen)
+            self.assertLess(seen['bottom'] - seen['content'], 20, seen)
 
     def test_focus_day_starts_in_the_middle(self):
         """D-6 (S1): the focus day starts in the middle of the visible part."""

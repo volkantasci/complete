@@ -42,6 +42,12 @@ const customLine = () => [
 ];
 const rangeButtonText = () =>
     queryAllTexts(".o_tl_range_button span").join(" ") || queryOne(".o_tl_range_button").textContent.trim();
+/** The dropdown draws a mark (a check) on the current entry with a pseudo-element. */
+const hasMark = (item) =>
+    ["::before", "::after"].some((pseudo) => {
+        const content = getComputedStyle(item, pseudo).content;
+        return content !== "none" && content !== "normal" && content !== '""';
+    });
 const scale = () => queryOne(".o_tl_renderer").dataset.scale;
 const formatDay = (date) => date.toFormat("MM/dd/yyyy");
 
@@ -73,6 +79,8 @@ test("A25: range menu content", async () => {
     expect(".o_tl_range_item.selected").toHaveText("Week");
     // the current entry is marked by the dropdown itself (a check mark of the theme)
     expect(".o_tl_range_item.selected").toHaveCount(1);
+    expect(hasMark(queryOne(".o_tl_range_item.selected"))).toBe(true);
+    expect(hasMark(queryAll(".o_tl_range_item:not(.selected)")[0])).toBe(false);
     expect(".o_tl_range_menu .dropdown-divider").toHaveCount(1);
     expect(".o_tl_custom_line input").toHaveCount(2);
     expect(".o_tl_apply").toHaveClass("btn-primary btn-sm");
@@ -211,10 +219,10 @@ test("A63: expand and collapse button visibility", async () => {
     await mountTimeline({ arch: GROUPED, groupBy: ["parent_id", "x_contact"] });
     expect(".o_tl_collapse_all").not.toHaveClass("invisible");
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
-    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_up']").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='arrow_drop_down']").toHaveCount(1);
     await contains(".o_tl_collapse_all").click();
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Open every group");
-    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_down']").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='arrow_right']").toHaveCount(1);
     await contains(".o_tl_collapse_all").click();
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
 });
@@ -231,11 +239,11 @@ test("A63: one folded group makes the button open everything", async () => {
     model.toggleRow(model.data.rows[0].id);
     await animationFrame();
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Open every group");
-    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_down']").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='arrow_right']").toHaveCount(1);
     await contains(".o_tl_collapse_all").click();
     expect(model.data.rows.every((row) => !row.collapsed)).toBe(true);
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
-    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_up']").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='arrow_drop_down']").toHaveCount(1);
 });
 
 test("the display mode and collapse buttons are not joined", async () => {
@@ -346,8 +354,6 @@ test("D-1: every icon of the bar and the rows renders a glyph of the Community i
         "arrow_forward",
         "arrow_drop_down",
         "expand_content",
-        "keyboard_double_arrow_up",
-        "arrow_drop_down",
     ]) {
         expect(names.has(name)).toBe(true);
     }

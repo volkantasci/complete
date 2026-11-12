@@ -273,6 +273,13 @@ test("R39: in a right-to-left language the grid is mirrored and the focus is cen
     try {
         await mountTimeline();
         expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+        // D-5: the padding and the sticky label follow the writing direction
+        const group = queryAll(".o_tl_col_group")[1];
+        expect(getComputedStyle(group).paddingRight).toBe("8px");
+        expect(getComputedStyle(group).paddingLeft).toBe("0px");
+        const label = getComputedStyle(group.querySelector(".o_tl_col_group_label"));
+        expect(label.right).toBe("8px");
+        expect(label.left).toBe("auto");
         // the first day is at the right
         expect(centreOf(headerOf("2026-11-01"))).toBeGreaterThan(centreOf(headerOf("2026-11-21")));
         await scrollTo(0);
