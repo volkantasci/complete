@@ -1,7 +1,16 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { click, dblclick, queryAll, queryAllTexts, queryOne, queryRect, resize } from "@odoo/hoot-dom";
+import {
+    click,
+    dblclick,
+    queryAll,
+    queryAllTexts,
+    queryOne,
+    queryRect,
+    resize,
+    waitFor,
+} from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { mountView, onRpc, patchWithCleanup, MockServer } from "@web/../tests/web_test_helpers";
 import { toLocaleDateString, toLocaleDateTimeString } from "@web/core/l10n/dates";
@@ -184,6 +193,9 @@ test("A109: clicking another pill swaps popovers", async () => {
     await animationFrame();
     expect(POPOVER).toHaveCount(0);
     await advanceTime(250);
+    await animationFrame();
+    // the swapped popover is placed after its first frame: wait until it is shown
+    await waitFor(POPOVER, { visible: true });
     await animationFrame();
     expect(POPOVER).toHaveCount(1);
     expect(`${POPOVER} .o_popover_header`).toHaveText("Plan");
