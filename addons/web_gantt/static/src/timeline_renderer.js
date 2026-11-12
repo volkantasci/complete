@@ -49,7 +49,7 @@ export class TimelineRenderer extends Component {
 
     setup() {
         this.ui = useService("ui");
-        this._cache = { data: null, layout: null };
+        this._cache = { data: null, small: null, layout: null };
     }
 
     get data() {
@@ -84,8 +84,9 @@ export class TimelineRenderer extends Component {
     /** Everything the template reads, rebuilt only when the model published new data. */
     get layout() {
         const data = this.data;
-        if (this._cache.data !== data) {
-            this._cache = { data, layout: this._buildLayout(data) };
+        const small = this.ui.isSmall;
+        if (this._cache.data !== data || this._cache.small !== small) {
+            this._cache = { data, small, layout: this._buildLayout(data) };
         }
         return this._cache.layout;
     }
@@ -93,7 +94,14 @@ export class TimelineRenderer extends Component {
     _buildLayout(data) {
         const hasRowHeaders = data.groupBy.length > 0 || data.displayMode === "sparse";
         const offset = hasRowHeaders ? 2 : 1;
-        const { width: minWidth } = columnWidth(data.scaleId, data.columns.length, data.parts, 0);
+        // no available width: the answer is the minimum width a column may take
+        const availableWidth = 0;
+        const { width: minWidth } = columnWidth(
+            data.scaleId,
+            data.columns.length,
+            data.parts,
+            availableWidth
+        );
         const track = `repeat(${data.columns.length}, minmax(${minWidth}px, 1fr))`;
         return {
             hasRowHeaders,
@@ -283,7 +291,8 @@ export class TimelineRenderer extends Component {
         return names.filter((name) => {
             try {
                 return Boolean(evaluateBooleanExpr(conditions[name], evalContext));
-            } catch {
+            } catch (error) {
+                console.warn(`Gantt decoration "${name}" could not be evaluated:`, error);
                 return false;
             }
         });

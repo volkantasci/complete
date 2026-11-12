@@ -70,6 +70,31 @@ const style = (element, ...names) => {
     const computed = getComputedStyle(element);
     return names.map((name) => computed[name]);
 };
+/**
+ * Computed colours of the decoration roles in the light bundle of this run: the theme values
+ * when web_enterprise is installed (it publishes the `--o-cws-*` role properties), the
+ * Community values otherwise.
+ */
+function roleColors() {
+    const themed = getComputedStyle(document.documentElement).getPropertyValue("--o-cws-danger");
+    return themed.trim()
+        ? {
+              danger: "rgb(239, 68, 68)", // M16 light
+              info: "rgb(23, 162, 184)", // M17 light
+              warning: "rgb(245, 158, 11)",
+              success: "rgb(0, 169, 69)",
+              secondary: "rgb(222, 226, 230)", // grey 300
+          }
+        : {
+              danger: "rgb(220, 53, 69)",
+              info: "rgb(23, 162, 184)",
+              warning: "rgb(255, 172, 0)",
+              success: "rgb(40, 167, 69)",
+              secondary: "rgb(222, 226, 230)",
+          };
+}
+const markColor = (pill) =>
+    getComputedStyle(pill.querySelector(".o_tl_pill_mark")).backgroundColor;
 const near = (a, b) => Math.abs(a - b) < 1.5;
 
 // ----------------------------------------------------------------------------
@@ -152,6 +177,15 @@ test("A36: hours with am and pm", async () => {
     expect(queryAllTexts(".o_tl_col").slice(21, 24)).toEqual(["9pm", "10pm", "11pm"]);
     expect(".o_tl_col small").toHaveCount(72);
     expect(columns()[21].getAttribute("title")).toMatch(/^November 11, 2026.*9:00 PM$/);
+});
+
+test("A36: month names are abbreviated on a small screen", async () => {
+    await resize({ width: 400 });
+    await mountTimeline({ arch: timelineArch(`default_range="year"`) });
+    expect(queryAllTexts(".o_tl_col").slice(0, 3)).toEqual(["Jan", "Feb", "Mar"]);
+    await chooseRange("Month");
+    expect(groups().map((el) => el.textContent)).toEqual(["Oct 2026", "Nov 2026", "Dec 2026"]);
+    expect(queryAllTexts(".o_tl_col").slice(0, 2)).toEqual(["01", "02"]);
 });
 
 test("A36: the header row sizes", async () => {
@@ -292,7 +326,7 @@ test("A43: label truncated without ellipsis", async () => {
     expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
 });
 
-test("pill box: height, radius, font, margins", async () => {
+test("A41/M13: pill box: height, radius, font, margins", async () => {
     await mountTimeline();
     const pill = pillOf("Build");
     expect(queryRect(pill).height).toBe(23);
@@ -377,6 +411,7 @@ test("A47: danger mark only on Test", async () => {
     expect(".o_tl_mark_danger").toHaveCount(1);
     const mark = pillOf("Test").querySelector(".o_tl_pill_mark");
     expect(mark).toHaveClass("o_tl_mark_danger");
+    expect(markColor(pillOf("Test"))).toBe(roleColors().danger);
     expect(style(mark, "width", "height", "top", "left", "transform", "boxShadow")).toEqual([
         "20px",
         "16px",
@@ -392,6 +427,7 @@ test("A48: info stripes and mark", async () => {
     const deploy = pillOf("Deploy");
     expect(deploy).toHaveClass("o_tl_striped");
     expect(deploy.querySelector(".o_tl_mark_info")).not.toBe(null);
+    expect(markColor(deploy)).toBe(roleColors().info);
     expect(style(deploy, "backgroundColor", "backgroundImage")).toEqual([
         "rgb(197, 161, 188)",
         "repeating-linear-gradient(-45deg, rgb(197, 161, 188) 0px, rgb(197, 161, 188) 10px, rgb(209, 180, 201) 10px, rgb(209, 180, 201) 20px)",
@@ -421,6 +457,13 @@ test("A49: a warning decoration compares dates as text and sees the context", as
     expect(marked).toEqual(
         ["Build", "Color ten", "Deploy", "Long task", "Overlap C", "Test"].sort()
     );
+    expect(markColor(pillOf("Build"))).toBe(roleColors().warning);
+});
+
+test("A49: a success decoration mark has the success colour", async () => {
+    await mountTimeline({ arch: timelineArch(`default_range="week" decoration-success="x_done"`) });
+    expect(".o_tl_mark_success").toHaveCount(1);
+    expect(markColor(pillOf("Deploy"))).toBe(roleColors().success);
 });
 
 test("A49: the user context is available to a condition", async () => {
@@ -429,6 +472,7 @@ test("A49: the user context is available to a condition", async () => {
     });
     expect(".o_tl_pill").toHaveCount(12);
     expect(".o_tl_mark_secondary").toHaveCount(12);
+    expect(markColor(pillOf("Build"))).toBe(roleColors().secondary);
 });
 
 test("A50: progress band widths 40% and 75%", async () => {

@@ -348,11 +348,12 @@
     // the pointer changes neither the colours nor the shadow; the stripes take the full colour
     &:hover {
         box-shadow: none;
-
-        &.o_tl_striped {
-            background-image: none;
-        }
     }
+}
+
+// more specific than the stripes of every colour index, the dark one included
+.o_tl_renderer .o_tl_pill.o_tl_striped:hover {
+    background-image: none;
 }
 
 .o_tl_pill_title {
