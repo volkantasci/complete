@@ -410,11 +410,17 @@ test("A123: same-day records are drawn, an inverted one is left out", async () =
     expect(first14.span.to - first14.span.from).toBe(2);
     // a date-only stop on a local day before the start is left out (E3)
     const { columns, parts } = h15.model.data;
+    // (the stop is read under the placement's own stop field, "day" in H15)
+    const { placement } = h15.model.data;
+    expect(placement.stopField).toBe("day");
     const record = {
         date_start: DateTime.local(2026, 11, 6, 10),
-        date_stop: DateTime.local(2026, 11, 5),
+        [placement.stopField]: DateTime.local(2026, 11, 5),
     };
-    expect(pillSpan(record, h15.model.data.placement, columns, parts)).toBe(null);
+    expect(pillSpan(record, placement, columns, parts)).toBe(null);
+    // the same record with its stop on the start's day is drawn: the null above is the order check
+    record[placement.stopField] = DateTime.local(2026, 11, 6);
+    expect(pillSpan(record, placement, columns, parts)).not.toBe(null);
 });
 
 test("R24: a range change on a later page without groups goes back to the first page", async () => {

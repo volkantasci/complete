@@ -55,6 +55,8 @@
     padding-bottom: 4px;
 }
 
+// The 16 px padding is fitted to the 424 px high sheet of the 390x844 phone capture (S9): the
+// custom line then sits between the last range entry and the sheet's bottom edge.
 .o_bottom_sheet .o_tl_range_menu .o_tl_custom_line {
     padding-top: 16px;
     padding-bottom: 16px;

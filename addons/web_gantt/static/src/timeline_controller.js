@@ -257,6 +257,8 @@ export class TimelineController extends Component {
                 input.setSelectionRange(end, end);
             }
         };
+        // two frames: the picker selects the text after the focus event, in a frame of its own;
+        // a single frame would run before that selection and be overwritten by it
         browser.requestAnimationFrame(() => browser.requestAnimationFrame(collapse));
     }
 

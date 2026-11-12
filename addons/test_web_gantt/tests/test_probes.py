@@ -337,8 +337,7 @@ class TimelineProbes(TimelineProbeCase):
                 self._button_edges(scheme, 'phone', True)
                 fill = self.js("getComputedStyle(document.querySelector("
                                "'.o_tl_gear .oi')).fontVariationSettings")
-                self.assertIn('FILL', fill, 'the gear icon is not the filled one')
-                self.assertIn('1', fill)
+                self.assertIn('"FILL" 1', fill, 'the gear icon is not the filled one')
 
     def test_h5_custom_range_arrow_and_date_fields(self):
         """M71 (arrow on the range button), M72 and M73 (range menu open), P8 (the date's text
