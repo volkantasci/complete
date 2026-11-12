@@ -127,7 +127,12 @@ export class TimelineModel extends Model {
         this.context = context;
         const offset = sameSearch ? this.offset : 0;
         const range = this.range || this._firstRange(context);
+        const isFirstLoad = !this._hasLoaded;
         await this._reload({ range, offset });
+        if (!isFirstLoad) {
+            // a new search: the renderer gets the same props, so it must be told to draw again
+            this.notify();
+        }
     }
 
     /** Choose a named range around `focus` (default: the current focus). */

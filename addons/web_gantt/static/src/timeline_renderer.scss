@@ -3,23 +3,29 @@
 
 // The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
 // grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
+// the box measures the width of the view (without the scrollbar of the grid) for the width of
+// the row header column
+.o_tl_box {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+}
+
 .o_tl_renderer {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
     position: relative;
-    container-type: inline-size;
     color: $o-main-text-color;
     background-color: $o-view-background-color;
 }
 
 .o_tl_grid {
-    // the row header column: a sixth of the width, a third on small screens
-    --o-tl-row-header-width: #{"calc(100cqw / 6)"};
-
-    @include media-breakpoint-down(md) {
-        --o-tl-row-header-width: #{"calc(100cqw / 3)"};
-    }
+    // the row header column (R20): a sixth of the content width when that is more than 768 px,
+    // otherwise a third, in whole pixels; the content width is that of the box around the grid
+    --o-tl-row-header-width: #{"round(calc(100cqw / 3), 1px)"};
 
     display: grid;
     min-width: 100%;
@@ -54,6 +60,13 @@
     background-color: rgba($o-view-background-color, .75);
     border-right: 1px solid $o-border-color;
     min-width: 0;
+}
+
+// the wider screens (container query on the box around the grid)
+@container (width > 768px) {
+    .o_tl_grid {
+        --o-tl-row-header-width: #{"round(calc(100cqw / 6), 1px)"};
+    }
 }
 
 .o_tl_title_text {
@@ -138,15 +151,36 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 0 8px;
-    color: $o-main-text-color;
+    padding: 0 0 0 8px;
+    color: $o-main-headings-color;
     background-color: rgba($o-view-background-color, .75);
     border-right: 1px solid $o-border-color;
     border-bottom: 1px solid $o-border-color;
 }
 
+// the name: 4 px of room on its right
 .o_tl_row_name {
     min-width: 0;
+    padding: 0 4px 0 0;
+}
+
+.o_tl_caret {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 14px;
+    margin-right: 4px;
+    font-size: 14px;
+    line-height: 14px;
+    text-align: center;
+}
+
+.o_tl_thumbnail {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-right: 0;
+    border-radius: 6px;
+    object-fit: cover;
 }
 
 .o_tl_cell {
@@ -158,6 +192,121 @@
     &.o_tl_is_today {
         background-color: $o-tl-today-bg;
         border-left-color: $o-tl-today-border;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Group rows (R22, R25, R40)
+// ----------------------------------------------------------------------------
+
+@mixin o-tl-group-gradient($from, $to) {
+    .o_tl_row_header,
+    .o_tl_cell {
+        background-image: linear-gradient($from, $to);
+    }
+}
+
+.o_tl_group_row {
+    cursor: pointer;
+
+    // open: light at the top; the pointer swaps it, as does the closed state
+    @include o-tl-group-gradient($o-tl-group-gradient-start, $o-tl-group-gradient-end);
+
+    // `o_tl_hover` is set by the renderer on pointer enter, the same as :hover
+    &:hover,
+    &.o_tl_hover {
+        @include o-tl-group-gradient($o-tl-group-gradient-end, $o-tl-group-gradient-start);
+    }
+
+    &.o_tl_collapsed {
+        @include o-tl-group-gradient($o-tl-group-gradient-end, $o-tl-group-gradient-start);
+
+        &:hover,
+        &.o_tl_hover {
+            @include o-tl-group-gradient($o-tl-group-gradient-start, $o-tl-group-gradient-end);
+        }
+    }
+
+    // today: no shade in an open row; a flat mix in a collapsed one
+    .o_tl_cell.o_tl_is_today {
+        background-color: transparent;
+        border-left-color: transparent;
+    }
+
+    &.o_tl_collapsed .o_tl_cell.o_tl_is_today,
+    &.o_tl_collapsed:hover .o_tl_cell.o_tl_is_today,
+    &.o_tl_collapsed.o_tl_hover .o_tl_cell.o_tl_is_today {
+        background-color: $o-tl-group-today-bg;
+        background-image: none;
+    }
+}
+
+// consolidated pill: a thin line with the count on the view background at its left
+.o_tl_group_pill {
+    position: absolute;
+    top: 19px;
+    height: 2px;
+    background-color: $o-brand-primary;
+    color: #000000;
+}
+
+.o_tl_group_count {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    padding: 0 4px;
+    font-size: 14px;
+    line-height: 21px;
+    transform: translateY(-50%);
+    color: $o-main-text-color;
+    background-color: $o-view-background-color;
+}
+
+// ----------------------------------------------------------------------------
+// Total row (R26)
+// ----------------------------------------------------------------------------
+
+// a bar is a container of its own, so the size of its count follows its width in pixels
+.o_tl_total_bar {
+    position: absolute;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    container-type: inline-size;
+    color: $o-main-text-color;
+    background-color: rgba($o-brand-primary, .5);
+    pointer-events: auto;
+
+    &:hover,
+    &.o_tl_hover {
+        background-color: rgba($o-brand-primary, .75);
+
+        // the band from the bar up to the top of the grid
+        &::before {
+            content: "";
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            left: 0;
+            height: 10000px;
+            background-color: rgba($o-brand-primary, .1);
+            pointer-events: none;
+        }
+    }
+}
+
+.o_tl_total_count {
+    margin-bottom: 4px;
+    font-size: 9.8px;
+    line-height: 1;
+    color: $o-main-headings-color;
+}
+
+// too narrow for its count (under 30 px): a smaller size
+@container (max-width: 29.99px) {
+    .o_tl_total_count {
+        font-size: 7px;
     }
 }
 

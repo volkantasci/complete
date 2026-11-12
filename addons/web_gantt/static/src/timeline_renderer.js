@@ -5,7 +5,14 @@ import { is24HourFormat } from "@web/core/l10n/time";
 import { evaluateBooleanExpr } from "@web/core/py_js/py";
 import { useService } from "@web/core/utils/hooks";
 import { user } from "@web/core/user";
-import { colorIndexOf, pillLabel, rowHeightFor, stackPills } from "./timeline_layout";
+import {
+    colorIndexOf,
+    pillLabel,
+    rowHeightFor,
+    segmentCounts,
+    stackPills,
+    totalBars,
+} from "./timeline_layout";
 import { columnWidth } from "./timeline_dates";
 
 const { DateTime } = luxon;
@@ -54,6 +61,22 @@ export class TimelineRenderer extends Component {
         return this.data.range.focus;
     }
 
+    /** A click on a group row (its header or a cell) folds or opens it (R22). */
+    onRowClick(descriptor) {
+        if (descriptor.kind === "group") {
+            this.props.model.toggleRow(descriptor.row.id);
+        }
+    }
+
+    /** The pointer marks a group row or a total bar with a class (R26, R40). */
+    onPointerEnter(ev) {
+        ev.currentTarget.classList.add("o_tl_hover");
+    }
+
+    onPointerLeave(ev) {
+        ev.currentTarget.classList.remove("o_tl_hover");
+    }
+
     // ------------------------------------------------------------------------
     // Layout
     // ------------------------------------------------------------------------
@@ -78,6 +101,7 @@ export class TimelineRenderer extends Component {
             columns: data.columns.map((column, index) => this._columnView(column, index, offset)),
             groups: data.columnGroups.map((group) => this._groupView(group, offset)),
             rows: this._buildRows(data),
+            total: this.props.archInfo.totalRow ? this._buildTotal(data) : null,
             totalParts: data.columns.length * data.parts,
         };
     }
@@ -140,6 +164,24 @@ export class TimelineRenderer extends Component {
         };
     }
 
+    /** Position of the sub-column range `[from, to)` over the pills layer, as inline style. */
+    _spanStyle(from, to, data) {
+        const total = data.columns.length * data.parts;
+        return `left: ${(from / total) * 100}%; width: ${((to - from) / total) * 100}%`;
+    }
+
+    /** The total row: a bar for every segment where records run, over all records shown. */
+    _buildTotal(data) {
+        const height = rowHeightFor(1);
+        const spans = data.records.map((record) => ({ from: record.span.from, to: record.span.to }));
+        const bars = totalBars(segmentCounts(spans), height).map((bar) => ({
+            key: bar.from,
+            count: bar.count,
+            style: `${this._spanStyle(bar.from, bar.to, data)}; height: ${bar.heightPx}px`,
+        }));
+        return { height, bars };
+    }
+
     /** One descriptor per visible row. */
     _buildRows(data) {
         return data.visibleRows.map((row) => {
@@ -150,6 +192,11 @@ export class TimelineRenderer extends Component {
                     row,
                     height: GROUP_ROW_HEIGHT,
                     pills: [],
+                    counts: segmentCounts(this._pillsOfRow(row, data)).map((segment) => ({
+                        key: segment.from,
+                        count: segment.count,
+                        style: this._spanStyle(segment.from, segment.to, data),
+                    })),
                 };
             }
             const pills = stackPills(this._pillsOfRow(row, data));

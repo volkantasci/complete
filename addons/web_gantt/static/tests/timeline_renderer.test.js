@@ -451,7 +451,8 @@ test("A50: progress band widths 40% and 75%", async () => {
 // ----------------------------------------------------------------------------
 
 test("A68: today column on week and day", async () => {
-    await mountTimeline();
+    // without the total row, which has a today cell of its own
+    await mountTimeline({ arch: HOST_ARCHS.H1.replace('total_row="1"', "") });
     const today = queryAll(".o_tl_is_today");
     // one header and one cell
     expect(queryAll(".o_tl_col.o_tl_is_today")).toHaveLength(1);
@@ -570,6 +571,6 @@ for (const step of ["quarter", "month", "day", "custom"]) {
         expect(queryAllTexts(".o_tl_col").slice(0, 2)).toEqual(["January", "February"]);
         expect(pills().length).toBeGreaterThan(5);
         expect(pillNames().includes("Build")).toBe(true);
-        // TODO(task 11): the total bars of the year grid are asserted with the total row
+        // the total bars of the year grid are asserted in timeline_rows.test.js
     });
 }

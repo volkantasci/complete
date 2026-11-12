@@ -8,8 +8,11 @@
 $o-tl-today-bg: #FFFAEB !default;
 $o-tl-today-border: #DCA665 !default;
 
-// End colour of the vertical gradient of a group row (the start is grey 100).
+// Colours of the vertical gradient of an open group row (a closed one or the pointer reverse it),
+// and the flat colour of today's cell in a collapsed group row.
+$o-tl-group-gradient-start: #F8F9FA !default;
 $o-tl-group-gradient-end: #E9ECEF !default;
+$o-tl-group-today-bg: #FCFAF3 !default;
 
 // Size of the header rows and of a pill, in pixels.
 $o-tl-header-height: 25px !default;
