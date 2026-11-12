@@ -50,8 +50,11 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - Give every scenario in `acceptance.md` a task, including the scenarios that check a correction to an earlier package and need no new code.
 3. **Implement** with the superpowers:subagent-driven-development skill on the branch above.
    - Models: implementers sonnet, task reviewers sonnet, and the final whole-branch review on opus.
+   - Dispatch implementers one after another, never two at once. They share one checkout, so one could commit the other's unfinished lines.
    - Derive the tests from `acceptance.md`, and name each one after its scenario id.
    - A test of a measured value checks the element that the package's probe names, in a state where a misplaced value would show, such as a scrolled list, and not only where the content ends up.
+   - Where the package gives a value for a touch device or with scrollbars drawn, test it in that state: with touch emulation, or with classic scrollbars switched on.
+   - Browser unit tests assert structure, such as heights, paddings and truncation. Exact widths that depend on the text belong in the browser probes, because the unit-test bundle's fonts change when every module is installed.
    - Tests create the records they need, so that they pass with and without demo data. CI installs every module without it.
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
