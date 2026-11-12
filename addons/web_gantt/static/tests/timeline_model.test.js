@@ -5,6 +5,7 @@ import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { MockServer, makeTestApp, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { browser } from "@web/core/browser/browser";
 import { localization } from "@web/core/l10n/localization";
+import { pillSpan } from "@web_gantt/timeline_layout";
 
 import {
     HOST_ARCHS,
@@ -395,13 +396,25 @@ for (const [zone, label, bounds] of [
     });
 }
 
-test("A123: a date-only stop on the day of its date-time start is drawn", async () => {
-    const { model } = await makeTimelineModel({ arch: MIX_ARCHS.H15, resModel: "mix" });
-    await model.load({});
-    // 13:00 local on 1 November with the stop on that day: drawn to the end of the day;
-    // a stop on an earlier local day than the start would be left out (E3)
-    const record = model.data.records.find((r) => r.displayName === "MIX first");
-    expect(record.span.to - record.span.from).toBe(1);
+test("A123: same-day records are drawn, an inverted one is left out", async () => {
+    const h15 = await makeTimelineModel({ arch: MIX_ARCHS.H15, resModel: "mix" });
+    await h15.model.load({});
+    // date-time start 13:00 local on 1 November, date-only stop the same day: drawn from the
+    // half containing 13:00 to the end of the day
+    const first = h15.model.data.records.find((r) => r.displayName === "MIX first");
+    expect(first.span.to - first.span.from).toBe(1);
+    // date-only start, date-time stop 15:00 local the same day (H14): the whole day
+    const h14 = await makeTimelineModel({ arch: MIX_ARCHS.H14, resModel: "mix" });
+    await h14.model.load({});
+    const first14 = h14.model.data.records.find((r) => r.displayName === "MIX first");
+    expect(first14.span.to - first14.span.from).toBe(2);
+    // a date-only stop on a local day before the start is left out (E3)
+    const { columns, parts } = h15.model.data;
+    const record = {
+        date_start: DateTime.local(2026, 11, 6, 10),
+        date_stop: DateTime.local(2026, 11, 5),
+    };
+    expect(pillSpan(record, h15.model.data.placement, columns, parts)).toBe(null);
 });
 
 test("R24: a range change on a later page without groups goes back to the first page", async () => {

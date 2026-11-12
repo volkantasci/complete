@@ -378,6 +378,7 @@ test("D-1: every icon of the bar and the rows renders a glyph of the Community i
 test("A103: archived records are drawn only with the Archived filter of the search view", async () => {
     await makeMockServer();
     MockServer.current.env["pill"].find((record) => record.name === "Overlap C").active = false;
+    // the search view is the mock of H13 (name field and the "Archived" filter)
     await mountTimeline({
         searchViewArch: `<search>
             <field name="name"/>

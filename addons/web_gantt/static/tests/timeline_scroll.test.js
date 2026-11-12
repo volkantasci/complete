@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { queryAll, queryOne } from "@odoo/hoot-dom";
+import { queryAll, queryOne, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import {
     contains,
@@ -144,15 +144,16 @@ test("A30: Today after a step reloads and centres today", async () => {
 });
 
 test("A32: Month chosen after scrolling keeps the date in the middle", async () => {
+    await resize({ width: 1600 });
     await mountTimeline({ arch: timelineArch(`default_range="week"`), groupBy: ["parent_id"] });
-    // scrolled as far right as the grid goes, the middle of the visible part is on D+6 at
-    // 1600 px (F6; D+7 cannot reach it), a day or two later in the narrower test window
+    // scrolled as far right as the grid goes, the middle of the visible part is Wednesday D+6
+    // (F6; D+7 cannot reach it)
     await scrollTo(renderer().scrollWidth);
     const middle = queryAll(".o_tl_col[data-date]")
         .map((header) => ({ header, away: Math.abs(centreOf(header) - visibleCentre()) }))
         .sort((a, b) => a.away - b.away)[0].header;
     const middleDate = middle.dataset.date;
-    expect(middleDate >= "2026-11-18" && middleDate <= "2026-11-20").toBe(true);
+    expect(middleDate).toBe("2026-11-18");
     await contains(".o_tl_range_button").click();
     await contains(".o_tl_range_month").click();
     await animationFrame();

@@ -78,7 +78,7 @@ class TestHost(TransactionCase):
         self.assertEqual(Pill.search([('active', '=', False)] + domain), built['Overlap C'])
 
     def test_host_views_load(self):
-        for number in range(1, 13):
+        for number in (*range(1, 13), 14, 15):
             view = self.env.ref(f'test_web_gantt.host_view_h{number}')
             action = self.env.ref(f'test_web_gantt.host_action_h{number}')
             self.assertEqual(action.view_id, view)
