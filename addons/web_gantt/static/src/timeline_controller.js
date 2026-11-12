@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Component, proxy, t, useProps } from "@odoo/owl";
 import { DateTimeInput } from "@web/core/datetime/datetime_input";
+import { DateTimePicker } from "@web/core/datetime/datetime_picker";
+import { Dialog } from "@web/core/dialog/dialog";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
 import { useDropdownState } from "@web/core/dropdown/dropdown_hooks";
@@ -25,12 +27,42 @@ const KIND_LABELS = {
     year: _t("Year"),
 };
 
+/**
+ * The Community dropdown, except that a click inside the date dialog of the range menu does not
+ * close the menu: it stays open while dates are picked (R10).
+ */
+class TimelineDropdown extends Dropdown {
+    popoverCloseOnClickAway(target) {
+        if (target.closest?.(".o_tl_date_dialog")) {
+            return false;
+        }
+        return super.popoverCloseOnClickAway(target);
+    }
+}
+
+/** The date picker of the custom range line on a phone, in a dialog titled with the role. */
+export class TimelineDateDialog extends Component {
+    static template = "web_gantt.TimelineDateDialog";
+    static components = { DateTimePicker, Dialog };
+    props = useProps({
+        close: t.function(),
+        title: t.string(),
+        value: t.any().optional(),
+        onPick: t.function(),
+    });
+
+    onSelect(value) {
+        this.props.onPick(value);
+        this.props.close();
+    }
+}
+
 export class TimelineController extends Component {
     static template = "web_gantt.TimelineController";
     static components = {
         CogMenu,
         DateTimeInput,
-        Dropdown,
+        Dropdown: TimelineDropdown,
         DropdownItem,
         Layout,
         SearchBar,
@@ -44,6 +76,7 @@ export class TimelineController extends Component {
 
     setup() {
         this.ui = useService("ui");
+        this.dialog = useService("dialog");
         this.model = useModel(this.props.Model, {
             resModel: this.props.resModel,
             fields: this.props.fields,
@@ -106,6 +139,11 @@ export class TimelineController extends Component {
         return this.data.displayMode === "dense"
             ? _t("Show one row per record")
             : _t("Group records on shared rows");
+    }
+
+    /** Label of the gear menu entry: what the display mode switches to. */
+    get displayModeLabel() {
+        return this.data.displayMode === "dense" ? _t("One row per record") : _t("Shared rows");
     }
 
     get displayModeIcon() {
@@ -176,6 +214,19 @@ export class TimelineController extends Component {
             which
         );
         Object.assign(this.custom, dates, { edited: which });
+    }
+
+    /** @param {"start"|"stop"} which */
+    openDateDialog(which) {
+        this.dialog.add(TimelineDateDialog, {
+            title: String(
+                which === "start"
+                    ? _t("Start date of the timeline")
+                    : _t("Stop date of the timeline")
+            ),
+            value: this.custom[which],
+            onPick: (value) => this.onCustomDate(which, value),
+        });
     }
 
     applyCustom() {

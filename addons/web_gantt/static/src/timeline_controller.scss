@@ -9,10 +9,57 @@
 
         &.o_tl_controls_phone {
             padding: 4px 0 16px;
+
+            // line 1: previous, next, range; line 2: Today and the gear button at the right
+            .o_tl_line {
+                padding: 0 16px;
+                column-gap: 4px;
+            }
+
+            .o_tl_separator {
+                margin: 7px 0;
+                border-top: 1px solid $o-border-color;
+            }
         }
     }
 }
 
 .o_tl_range_menu .o_tl_custom_line .o_datetime_input {
     width: 8em;
+}
+
+// the icon keeps the height of a line of text, so the button is as high as Today (M41)
+.o_tl_gear .fa {
+    display: inline-block;
+    width: 14px;
+    line-height: 21px;
+}
+
+// the gear menu entries (bottom sheet on a phone)
+.o_tl_gear_menu .dropdown-item {
+    display: flex;
+    align-items: center;
+}
+
+// the dates of the custom line are buttons that open a dialog on a phone
+.o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_start_button,
+.o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_stop_button {
+    white-space: nowrap;
+}
+
+// phone: the page scrolls (the view delegates scrolling to the action); the grid only scrolls
+// sideways
+.o_timeline_view.o_tl_phone {
+    min-height: auto;
+    flex: none;
+
+    .o_tl_box {
+        flex: none;
+    }
+
+    .o_tl_renderer {
+        flex: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
 }

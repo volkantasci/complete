@@ -96,19 +96,27 @@ test("A59: row header width 267 / 130 / one third at 700", async () => {
     expect(queryRect(".o_tl_title_cell").height).toBe(50);
     expect(queryAll(".o_tl_row_header").every((el) => queryRect(el).width === 267)).toBe(true);
 
+    // on a phone the page scrolls: the test browser then keeps room for the classic scrollbar
+    // (15 px) that a phone draws over the content, so the box is measured, not assumed
     await resize({ width: 390 });
     await animationFrame();
-    expect(queryRect(".o_tl_box").width).toBe(390);
-    expect(queryRect(".o_tl_title_cell").width).toBe(130);
-    expect(queryAll(".o_tl_row_header").every((el) => queryRect(el).width === 130)).toBe(true);
+    const phoneWidth = queryRect(".o_tl_box").width;
+    expect(phoneWidth).toBeWithin(375, 390);
+    expect(queryRect(".o_tl_title_cell").width).toBe(Math.round(phoneWidth / 3));
+    expect(
+        queryAll(".o_tl_row_header").every(
+            (el) => queryRect(el).width === Math.round(phoneWidth / 3)
+        )
+    ).toBe(true);
 
     // above 768 px of content: a sixth; otherwise a third; whole pixels
     for (const width of [700, 768, 769, 900]) {
         await resize({ width });
         await animationFrame();
-        expect(queryRect(".o_tl_box").width).toBe(width);
+        const boxWidth = queryRect(".o_tl_box").width;
+        expect(boxWidth).toBeWithin(width - 15, width);
         expect(queryRect(".o_tl_title_cell").width).toBe(
-            Math.round(width > 768 ? width / 6 : width / 3)
+            Math.round(boxWidth > 768 ? boxWidth / 6 : boxWidth / 3)
         );
     }
 });
