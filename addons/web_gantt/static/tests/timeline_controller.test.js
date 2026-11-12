@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { click, press, queryAll, queryAllTexts, queryOne } from "@odoo/hoot-dom";
+import { click, press, queryAll, queryAllTexts, queryOne, queryRect } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import {
     contains,
@@ -407,4 +407,41 @@ test("P8: the picked date's text is not selected when its picker opens (A122)", 
         expect(input.value.length).toBeGreaterThan(0);
         expect(input.selectionStart).toBe(input.selectionEnd);
     }
+});
+
+test("P10: the date fields of the desktop menu are 77 px wide, 24 px tall, 14 px text (M73, M75)", async () => {
+    await mountTimeline();
+    await openRangeMenu();
+    for (const which of ["start", "stop"]) {
+        const input = `.o_tl_custom_${which} input`;
+        expect(input).toHaveStyle({ fontSize: "14px", boxSizing: "border-box" });
+        expect(queryRect(input).width).toBeWithin(76.9, 77.2);
+        expect(queryRect(input).height).toBe(24);
+    }
+    // the line is the width of its content: two fields, the arrow, Apply, the gaps (the arrow's
+    // 4 px negative margins take 8 px back) and the padding
+    const line = queryRect(".o_tl_custom_line");
+    const parts = [".o_tl_custom_start", ".o_tl_custom_arrow", ".o_tl_custom_stop", ".o_tl_apply"];
+    const content = parts.reduce((sum, part) => sum + queryRect(part).width, 0);
+    expect(line.width).toBeWithin(content + 3 * 8 - 8 + 2 * 20.525 - 0.5, content + 3 * 8 - 8 + 2 * 20.525 + 0.5);
+    // 275.7 px in the original's menu (M75), to the width of the fonts
+    expect(line.width).toBeWithin(274.5, 276.8);
+});
+
+test("P11: while a picker is open the custom line takes the black role, not the primary colour (M76)", async () => {
+    await mountTimeline();
+    await openRangeMenu();
+    await click(".o_tl_custom_start input");
+    await animationFrame();
+    await advanceTime(100);
+    await animationFrame();
+    expect(".o_datetime_picker").toHaveCount(1);
+    // the black role of the scheme: black in light
+    const black = "rgb(0, 0, 0)";
+    for (const part of [".o_tl_custom_start input", ".o_tl_custom_stop input", ".o_tl_custom_arrow"]) {
+        expect(part).toHaveStyle({ color: black });
+    }
+    expect(getComputedStyle(queryOne(".o_tl_custom_start input")).color).not.toBe(
+        getComputedStyle(queryOne(".o_tl_apply")).backgroundColor
+    );
 });

@@ -327,6 +327,40 @@ class TimelineProbes(TimelineProbeCase):
                         })()""")
                         self.assertLess(abs(gap - 5), 0.6, f'gap before the caret: {gap}')
 
+    def test_h1_phone_bar_lines(self):
+        """P12 (A81, M77 to M79): the separator of the phone bar has no margin; the lines of
+        buttons lie 4.7 px from it on each side without touch, 2 px with touch."""
+        for scheme, viewport in self.combos(['M77', 'M78', 'M79'], viewports=('phone',)):
+            for touch in (False, True):
+                with self.page('test_web_gantt.host_action_h1', scheme, viewport, touch=touch):
+                    label = ' (touch)' if touch else ''
+                    separator = "document.querySelector('.o_tl_separator')"
+                    previous = "document.querySelector('.o_tl_previous')"
+                    today = "document.querySelector('.o_tl_today')"
+                    if not touch:
+                        self.check('M77', separator, scheme, viewport, 'separator')
+                        self.check('M78', previous, scheme, viewport, 'previous (first line)')
+                        self.check('M79', today, scheme, viewport, 'Today (second line)')
+                    else:
+                        self.probe('P12', separator, scheme, viewport,
+                                   {'margin-top': '0', 'margin-bottom': '0',
+                                    'geometry.y': '151', 'geometry.height': '1'},
+                                   'separator' + label)
+                        self.probe('P12', previous, scheme, viewport, {'geometry.y': '112'},
+                                   'previous' + label)
+                        self.probe('P12', today, scheme, viewport, {'geometry.y': '154'},
+                                   'Today' + label)
+                    # the gaps between the lines of buttons and the separator
+                    gaps = self.js(f"""(() => {{
+                        const sep = {separator}.getBoundingClientRect();
+                        return [sep.top - {previous}.getBoundingClientRect().bottom,
+                                {today}.getBoundingClientRect().top - sep.bottom];
+                    }})()""")
+                    for gap in gaps:
+                        self.assertLess(abs(gap - (2 if touch else 4.7)), 0.6, f'{gaps}{label}')
+                    self.probe('M42', "document.querySelector('.o_tl_controls')", scheme,
+                               viewport, {'geometry.height': '101'}, 'control bar' + label)
+
     def test_h3_touch_control_bar(self):
         """F3: on a touch phone the bar is 101 px high (4 + 37 + 7 + 37 + 16), as without touch;
         the gear shows the filled gear (P6)."""
@@ -352,16 +386,51 @@ class TimelineProbes(TimelineProbeCase):
                     self.click_js("document.querySelector('.o_tl_range_button')")
                     self.wait("!!document.querySelector('.o_tl_custom_line')")
                     self.settle()
+                    # the arrow takes the touch text size (15.4 px) with touch (P10: Apply at 231)
                     self.check('M72', "document.querySelector('.o_tl_custom_line "
                                "> .o_tl_custom_arrow')", scheme, viewport,
-                               'arrow of the custom line' + label)
+                               'arrow of the custom line' + label,
+                               override={'font-size': '15.4', 'geometry.width': '15.406',
+                                         'geometry.height': '15.406'} if touch else None)
                     field = ("document.querySelector('.o_tl_custom_start_button')"
                              if viewport == 'phone'
                              else "document.querySelector('.o_tl_custom_start input')")
+                    # P10: with touch 15.4 px text in a field of 83.9 x 26.1 px (77 x 24 without)
                     self.check('M73', field, scheme, viewport, 'start date field' + label,
-                               override={'geometry.height': '26'} if touch else None)
+                               override={'geometry.height': '26.1', 'geometry.width': '83.93',
+                                         'font-size': '15.4'} if touch else None)
+                    self.check('M75', "document.querySelector('.o_tl_custom_line')", scheme,
+                               viewport, 'custom line' + label,
+                               override={'geometry.width': str(self.geometry(
+                                   "document.querySelector('.o_tl_custom_line')")
+                                   ['geometry.width'])} if viewport == 'phone' else None)
                     if viewport == 'desktop':
                         self._assert_date_unselected(field)
+                        self._assert_black_role(field, scheme)
+                    else:
+                        self._assert_body_colour(scheme, label)
+
+    def _assert_black_role(self, field, scheme):
+        """P11 (M76): with the start picker open and the pointer elsewhere, the custom line is
+        in the black role (black in light, white in dark), never the primary colour."""
+        self.pointer_away()
+        self.check('M76', field, scheme, 'desktop', 'start date, picker open')
+        self.check('M76', "document.querySelector('.o_tl_custom_stop input')", scheme,
+                   'desktop', 'stop date, picker open')
+        self.check('M76', "document.querySelector('.o_tl_custom_line > .o_tl_custom_arrow')",
+                   scheme, 'desktop', 'arrow, picker open')
+
+    def _assert_body_colour(self, scheme, label):
+        """P11: on the phone the dates keep the body text colour, before and after a tap."""
+        body = {'light': 'rgba(33, 37, 41, 1)', 'dark': 'rgba(235, 235, 235, 1)'}[scheme]
+        for which in ('start', 'stop'):
+            self.probe('M76', f"document.querySelector('.o_tl_custom_{which}_button')", scheme,
+                       'phone', {'color': body}, f'{which} date (body colour)' + label)
+        self.click_js("document.querySelector('.o_tl_custom_start_button')")
+        self.wait("!!document.querySelector('.o_dialog .o_datetime_picker')")
+        self.settle()
+        self.probe('M76', "document.querySelector('.o_tl_custom_start_button')", scheme, 'phone',
+                   {'color': body}, 'start date, dialog open' + label)
 
     def _assert_date_unselected(self, field):
         """P8: the click opens the picker; the text of the date is not selected."""
@@ -386,9 +455,13 @@ class TimelineProbes(TimelineProbeCase):
             self.assertLess(abs(sheet['geometry.height'] - 424), 0.6, sheet)
             for which in ('start', 'stop'):
                 self.probe('M73', f"document.querySelector('.o_tl_custom_{which}_button')",
-                           'light', 'phone', {'geometry.height': '26',
+                           'light', 'phone', {'geometry.height': '26.1', 'geometry.width': '83.93',
+                                              'font-size': '15.4',
                                               'border-bottom-width': '1', 'border-top-width': '0'},
                            f'{which} date (touch)')
+            # P10: Apply starts at x 231 in the sheet
+            self.probe('P10', "document.querySelector('.o_tl_apply')", 'light', 'phone',
+                       {'geometry.x': '231'}, 'Apply (touch)')
 
     # -- H5: A116 and M43 -------------------------------------------------------------
 
@@ -567,28 +640,46 @@ class TimelineProbes(TimelineProbeCase):
             and seen['top'] >= 0 and seen['bottom'] <= seen['height'],
             f'{viewport}: help is outside the screen: {seen}')
 
-    # -- H1: M65 (F1) -----------------------------------------------------------------
+    # -- H1: M65 (F1, F10) ------------------------------------------------------------
 
-    def test_f1_view_background_below_short_grid(self):
-        """The area below a short grid takes the view background, light and dark, desktop and
-        phone (without touch, as the table is measured). The grid's scrollbar stays under the
-        grid: the scroll container is as high as the grid, the box around it fills the view."""
+    def test_f10_scroll_area_reaches_the_view_bottom(self):
+        """F10 (A120, M65): below a short grid the grid's own scroll area (headers, rows, total
+        row) fills the rest of the view and carries the view background, so its horizontal
+        scrollbar sits at the bottom of the view. The harness hides scrollbars; this probe draws
+        classic ones, as a desktop Chrome on Linux or Windows does by default. Without touch."""
         for scheme, viewport in self.combos(['M65']):
             with self.page('test_web_gantt.host_action_h1', scheme, viewport, touch=False):
-                self.check('M65', "document.querySelector('.o_tl_box')", scheme, viewport,
-                           'the area below the last row')
+                self.browser._websocket_request(
+                    'Emulation.setScrollbarsHidden', params={'hidden': False})
+                self.settle()
+                area = "document.querySelector('.o_tl_renderer')"
+                self.check('M65', area, scheme, viewport, 'the grid scroll area')
                 seen = self.js("""(() => {
-                    const box = document.querySelector('.o_tl_box').getBoundingClientRect();
-                    const grid = document.querySelector('.o_tl_renderer').getBoundingClientRect();
-                    const probe = document.elementFromPoint(box.left + 60, box.bottom - 20);
+                    const area = document.querySelector('.o_tl_renderer');
+                    const rect = area.getBoundingClientRect();
+                    const grid = document.querySelector('.o_tl_grid').getBoundingClientRect();
+                    const style = getComputedStyle(area);
+                    const probe = document.elementFromPoint(rect.left + 60, rect.bottom - 40);
                     return {
-                        box: box.bottom, grid: grid.bottom, height: innerHeight,
-                        under: getComputedStyle(probe.closest('.o_tl_box')).backgroundColor,
+                        bottom: rect.bottom, height: innerHeight, grid: grid.bottom,
+                        scrollbar: area.offsetHeight - area.clientHeight
+                            - parseFloat(style.borderTopWidth)
+                            - parseFloat(style.borderBottomWidth),
+                        wide: area.scrollWidth > area.clientWidth,
+                        under: getComputedStyle(probe.closest('.o_tl_renderer')).backgroundColor,
+                        outer: getComputedStyle(document.querySelector('.o_tl_box'))
+                            .backgroundColor,
                     };
                 })()""")
-                self.assertAlmostEqual(seen['box'], seen['height'], delta=1)
-                self.assertLess(seen['grid'], seen['box'] - 100,
-                                'the grid scroll area is as high as the grid, not the view')
+                self.assertAlmostEqual(seen['bottom'], seen['height'], delta=1,
+                                       msg='the scroll area does not reach the bottom of the view')
+                self.assertLess(seen['grid'], seen['bottom'] - 100,
+                                'the host view is meant to have a short grid')
+                self.assertTrue(seen['wide'], 'the grid has no horizontal scroll')
+                # the horizontal scrollbar is drawn in the scroll area's last pixels, which are
+                # the last pixels of the view
+                self.assertGreater(seen['scrollbar'], 4, f'no classic scrollbar drawn: {seen}')
+                self.assertEqual(seen['outer'], 'rgba(0, 0, 0, 0)', 'an outer box has a fill')
                 self.assertIsNone(compare_value(
                     'background-color', MEASURED['M65'][(scheme, viewport)]['background-color'],
                     seen['under']))
@@ -758,8 +849,9 @@ class TimelineScreenDefects(TimelineProbeCase):
                 # warm: more red than blue, against the colour of the other headers
                 self.assertGreater(today[0] - today[2], other[0] - other[2] + 5, (today, other))
 
-    def test_no_stray_scrollbar_strip(self):
-        """The grid is as high as its rows: its scrollbar is not at the bottom of the screen."""
+    def test_scrollbar_at_the_view_bottom(self):
+        """F10: the grid's scroll area fills the rest of the view below a short grid, so its
+        scrollbar is at the bottom of the screen, not under the last row."""
         with self.page('test_web_gantt.host_action_h3', 'light', 'desktop'):
             seen = self.js("""(() => {
                 const grid = document.querySelector('.o_tl_renderer');
@@ -767,8 +859,8 @@ class TimelineScreenDefects(TimelineProbeCase):
                 return {bottom: rect.bottom, height: innerHeight,
                     content: grid.querySelector('.o_tl_grid').getBoundingClientRect().bottom};
             })()""")
-            self.assertLess(seen['bottom'], seen['height'] - 40, seen)
-            self.assertLess(seen['bottom'] - seen['content'], 20, seen)
+            self.assertAlmostEqual(seen['bottom'], seen['height'], delta=1, msg=seen)
+            self.assertGreater(seen['bottom'] - seen['content'], 20, seen)
 
     def test_tall_grid_scrolls_vertically_with_headers_on_top(self):
         """A grid taller than the viewport scrolls vertically; the column headers stay on top."""

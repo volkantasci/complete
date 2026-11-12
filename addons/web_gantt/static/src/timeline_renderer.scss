@@ -10,22 +10,15 @@
     display: flex;
     flex-direction: column;
     container-type: inline-size;
-    // the area below a short grid is the view background (R41, M65); it is the box that fills
-    // the view, so the scrollbar of the grid stays under the last row
-    background-color: $o-view-background-color;
-}
-
-// the sample state shows the page background below its faded row (M66)
-.o_tl_box.o_tl_box_sample {
-    background-color: transparent;
 }
 
 // The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
 // grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
 .o_tl_renderer {
-    // as high as the grid (the scrollbar sits under the last row, the box around it shows the view
-    // background below), shrinking and scrolling when the rows do not fit
-    flex: 0 1 auto;
+    // The scroll area fills the rest of the view below a short grid and carries the view
+    // background there (R41, M65), so its horizontal scrollbar sits at the bottom of the view;
+    // it scrolls when the rows do not fit.
+    flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
     position: relative;
@@ -649,8 +642,10 @@
     }
 }
 
-// The grid of the sample state ends after its faded row and cannot be scrolled (M66, M67).
+// The grid of the sample state ends after its faded row and cannot be scrolled; the page
+// background shows below it (M66, M67).
 .o_tl_renderer:has(.o_tl_sample_grid) {
+    flex: none;
     overflow: hidden;
 }
 

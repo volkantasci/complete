@@ -22,30 +22,82 @@
                 padding: $btn-padding-y $btn-padding-x;
             }
 
+            // The separator has no margin of its own (M77): the space around it is that of the
+            // two lines (M78, M79). Without touch 4.7 px lie between a line of buttons and the
+            // separator, and 2.3 px on the outer side; the bar keeps its height (M42).
             .o_tl_separator {
-                margin: 7px 0;
+                margin: 0;
                 border-top: 1px solid $o-border-color;
             }
 
-            // the buttons are 4 px higher each on a touch device: the separator is as much
-            // tighter, so the bar keeps its height (the grid starts at the same place)
-            body.o_touch_device & .o_tl_separator {
-                margin: 3px 0;
+            .o_tl_line:first-child {
+                padding-top: 2.3px;
+                padding-bottom: 4.7px;
+            }
+
+            .o_tl_line:last-child {
+                padding-top: 4.7px;
+                padding-bottom: 2.3px;
+            }
+
+            // with touch, 2 px on each side of the separator (the buttons are 37 px tall)
+            body.o_touch_device & .o_tl_line:first-child {
+                padding-top: 1px;
+                padding-bottom: 2px;
+            }
+
+            body.o_touch_device & .o_tl_line:last-child {
+                padding-top: 2px;
+                padding-bottom: 1px;
             }
         }
     }
 }
 
-// the dates of the custom line are plain fields: a bottom line only, 4 px side padding (M73)
+// The dates of the custom line are plain fields: a bottom line only, 4 px side padding (M73). The
+// width is that of a date's text (4.93 em, 69 px at 14 px) plus the padding: 77 px without touch,
+// 83.9 px with the 15.4 px text of a touch device.
 .o_tl_range_menu .o_tl_custom_line .o_datetime_input {
-    width: 6em;
+    box-sizing: border-box;
+    width: calc(4.9308em + 8px);
     height: 24px;
     padding: 0 4px;
     border-bottom-color: $o-tl-date-line;
 
     body.o_touch_device & {
-        height: 26px;
+        height: 26.1px;
     }
+}
+
+// While a picker is open on desktop, the whole custom line takes the black role (M76): the colour
+// of the dates is neither the primary colour nor the body text colour then. The Apply button
+// keeps its own. The picker input carries the `text-primary` utility, which is important.
+.o_tl_range_menu .o_tl_custom_line:has(.o_datetime_input:focus) {
+    color: $o-black;
+
+    .o_datetime_input,
+    .o_tl_custom_arrow {
+        color: $o-black !important; // stylelint-disable-line declaration-no-important
+    }
+}
+
+// The arrow sits 4 px from each date (the line's gap is 8 px, so a negative margin of 4 px); the
+// custom line is 20.5 px padded in the desktop menu (M75, 275.7 px wide) and 16 px in the sheet
+// (Apply starts at x 231 on a touch phone).
+.o_tl_range_menu .o_tl_custom_line {
+    padding-inline: 20.525px;
+
+    > .o_tl_custom_arrow {
+        margin-inline: -4px;
+    }
+
+    body.o_touch_device & > .o_tl_custom_arrow {
+        font-size: 15.4px;
+    }
+}
+
+.o_bottom_sheet .o_tl_range_menu .o_tl_custom_line {
+    padding-inline: 16px;
 }
 
 // the custom line: 4 px above and below in the menu, 16 px in the bottom sheet of a phone (the
@@ -88,8 +140,9 @@
 .o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_start_button,
 .o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_stop_button {
     flex: 0 0 auto;
-    width: 7.5em;
-    // 24 px tall, 26 px with touch (M73)
+    box-sizing: border-box;
+    width: calc(4.9308em + 8px);
+    // 24 px tall, 26.1 px with touch (M73)
     height: 24px;
     padding: 0 4px;
     line-height: 23px;
@@ -103,9 +156,11 @@
     border-radius: 0;
     box-shadow: none;
 
+    // the text of a touch device is 15.4 px
     body.o_touch_device & {
-        height: 26px;
+        height: 26.1px;
         line-height: 25px;
+        font-size: 15.4px;
     }
 }
 
@@ -121,8 +176,8 @@
     min-height: auto;
     flex: none;
 
-    // the box fills what the page leaves below the controls, so the view background reaches the
-    // bottom of the view (M65); a taller grid makes the page scroll
+    // the box fills what the page leaves below the controls and its scroll area fills the box, so
+    // the view background reaches the bottom of the view (M65); a taller grid makes the page scroll
     .o_tl_box {
         flex: 1 0 auto;
 
@@ -141,11 +196,12 @@
     }
 
     .o_tl_renderer {
-        flex: none;
+        flex: 1 0 auto;
         overflow-x: auto;
         overflow-y: hidden;
 
         &:has(.o_tl_sample_grid) {
+            flex: none;
             overflow: hidden;
         }
     }

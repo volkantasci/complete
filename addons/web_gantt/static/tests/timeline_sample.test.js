@@ -148,11 +148,19 @@ test("F1: the sample state keeps the page background below its faded row (R41, M
     expect(".o_tl_renderer").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
 });
 
-test("F1: below a short grid the box takes the view background (R41, M65)", async () => {
+test("F10: below a short grid the scroll area fills the view and takes the view background (R41, M65)", async () => {
     await mountView({ type: "gantt", resModel: "pill", arch: H9 });
     expect(".o_tl_box").not.toHaveClass("o_tl_box_sample");
-    expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
+    // no outer box carries the background: the grid's own scroll area does
+    expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+    expect(".o_tl_renderer").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
     expect(".o_tl_grid").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
+    const renderer = queryRect(".o_tl_renderer");
+    expect(renderer.bottom).toBe(queryRect(".o_tl_box").bottom);
+    expect(renderer.height).toBeGreaterThan(queryRect(".o_tl_grid").height + 50);
+    // the scroll area holds the headers and the rows
+    expect(".o_tl_renderer .o_tl_col").not.toHaveCount(0);
+    expect(".o_tl_renderer .o_tl_row").not.toHaveCount(0);
 });
 
 test("F2: on the phone the help starts 26 px above the grid area and ignores the pointer", async () => {

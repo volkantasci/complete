@@ -1,6 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Measured values of the original (spec.md, "Measured values"), probes M1 to M74 as listed.
+"""Measured values of the original (spec.md, "Measured values"), probes M1 to M79 as listed.
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
@@ -1419,6 +1419,7 @@ MEASURED = {
             'padding-left': '4',
             'padding-right': '4',
             'font-size': '14',
+            'geometry.width': '77.031',
             'geometry.height': '24',
         },
         ('light', 'phone'): {
@@ -1429,6 +1430,7 @@ MEASURED = {
             'padding-left': '4',
             'padding-right': '4',
             'font-size': '14',
+            'geometry.width': '77.031',
             'geometry.height': '24',
         },
         ('dark', 'desktop'): {
@@ -1439,6 +1441,7 @@ MEASURED = {
             'padding-left': '4',
             'padding-right': '4',
             'font-size': '14',
+            'geometry.width': '77.031',
             'geometry.height': '24',
         },
         ('dark', 'phone'): {
@@ -1449,6 +1452,7 @@ MEASURED = {
             'padding-left': '4',
             'padding-right': '4',
             'font-size': '14',
+            'geometry.width': '77.031',
             'geometry.height': '24',
         },
     },
@@ -1488,6 +1492,60 @@ MEASURED = {
             'overflow-x': 'hidden',
             'geometry.width': '116.938',
             'geometry.height': '27',
+        },
+    },
+    'M75': {
+        ('light', 'desktop'): {
+            'geometry.width': '275.656',
+        },
+        ('light', 'phone'): {
+            'geometry.width': '275.656',
+        },
+        ('dark', 'desktop'): {
+            'geometry.width': '275.656',
+        },
+        ('dark', 'phone'): {
+            'geometry.width': '275.656',
+        },
+    },
+    'M76': {
+        ('light', 'desktop'): {
+            'color': 'rgba(0, 0, 0, 1)',
+        },
+        ('dark', 'desktop'): {
+            'color': 'rgba(255, 255, 255, 1)',
+        },
+    },
+    'M77': {
+        ('light', 'phone'): {
+            'margin-top': '0',
+            'margin-bottom': '0',
+            'border-top-width': '1',
+            'geometry.y': '147',
+            'geometry.height': '1',
+        },
+        ('dark', 'phone'): {
+            'margin-top': '0',
+            'margin-bottom': '0',
+            'border-top-width': '1',
+            'geometry.y': '147',
+            'geometry.height': '1',
+        },
+    },
+    'M78': {
+        ('light', 'phone'): {
+            'geometry.y': '109.328',
+        },
+        ('dark', 'phone'): {
+            'geometry.y': '109.328',
+        },
+    },
+    'M79': {
+        ('light', 'phone'): {
+            'geometry.y': '152.656',
+        },
+        ('dark', 'phone'): {
+            'geometry.y': '152.656',
         },
     },
 }

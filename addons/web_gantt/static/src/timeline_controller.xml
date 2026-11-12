@@ -99,7 +99,7 @@
                     <span t-out="item.label"/>
                 </DropdownItem>
                 <div class="dropdown-divider" role="separator"/>
-                <div class="o_tl_custom_line d-flex align-items-center gap-2 px-3">
+                <div class="o_tl_custom_line d-flex align-items-center gap-2">
                     <t t-if="this.ui.isSmall">
                         <button type="button" class="btn btn-secondary o_tl_custom_start_button" t-on-click="() => this.openDateDialog('start')" t-out="this.formatDay(this.custom.start)"/>
                         <i class="oi o_tl_custom_arrow" data-icon="arrow_forward"/>

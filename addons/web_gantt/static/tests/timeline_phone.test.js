@@ -50,8 +50,9 @@ test("A81: phone control bar and gear sheet", async () => {
     expect(".o_tl_controls").toHaveClass("o_tl_controls_phone");
     expect(".o_tl_controls .o_tl_display_mode").toHaveCount(0);
     expect(".o_tl_controls .o_tl_collapse_all").toHaveCount(0);
-    const first = queryRect(".o_tl_line:first-child");
-    const second = queryRect(".o_tl_line:last-child");
+    // the buttons of each line (the lines carry their own space around the separator, P12)
+    const first = queryRect(".o_tl_previous");
+    const second = queryRect(".o_tl_today");
     expect(queryRect(".o_tl_previous").top).toBe(first.top);
     expect(queryRect(".o_tl_range_button").top).toBe(first.top);
     expect(queryRect(".o_tl_next").left).toBeGreaterThan(queryRect(".o_tl_previous").left);
@@ -66,8 +67,8 @@ test("A81: phone control bar and gear sheet", async () => {
     expect(queryRect(".o_tl_gear").height).toBe(33);
     expect(second.height).toBe(33);
     expect(queryRect(".o_tl_gear").top).toBe(second.top);
-    // the bar: 4 + 33 + separator + 33 + 16
-    expect(queryRect(".o_tl_controls").height).toBe(101);
+    // the bar: 4 + 33 + separator + 33 + 16 and the lines' own space (sub-pixel layout)
+    expect(queryRect(".o_tl_controls").height).toBeWithin(100.9, 101.1);
     expect(second.top).toBeGreaterThan(first.bottom);
     expect(queryRect(".o_tl_gear").right).toBeGreaterThan(queryRect(".o_tl_today").right + 100);
     expect(".o_tl_separator").toHaveCount(1);
@@ -219,10 +220,14 @@ test("A122: P9, 'Undefined Contact' is cut with an ellipsis on the phone (M74)",
     expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
 });
 
-test("F1: the box fills the page on the phone and takes the view background (M65)", async () => {
+test("F10: on the phone the grid's scroll area fills the box and carries the view background (M65)", async () => {
     await mountPhone();
-    expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
-    expect(".o_tl_box").toHaveStyle({ flexGrow: "1" });
+    // no outer box carries the background: the scroll area does, and fills the view
+    expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)", flexGrow: "1" });
+    expect(".o_tl_renderer").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)", flexGrow: "1" });
+    expect(queryRect(".o_tl_renderer").bottom).toBe(queryRect(".o_tl_box").bottom);
+    expect(queryRect(".o_tl_renderer").height >= queryRect(".o_tl_grid").height).toBe(true);
+    expect(queryRect(".o_tl_renderer").bottom >= queryRect(".o_tl_grid").bottom).toBe(true);
 });
 
 // The Community marks a touch device with two classes (`o_web_client` on the body is the
@@ -256,8 +261,13 @@ test("F3: previous, next, range, Today and the gear take the touch size on a tou
     expect(boxExtra(".o_tl_today")).toBeGreaterThan(27.9);
     const rangeWidth = contentWidth(".o_tl_range_button") + boxExtra(".o_tl_range_button");
     expect(queryRect(".o_tl_range_button").width).toBeWithin(rangeWidth - 0.5, rangeWidth + 0.5);
-    // 4 + 37 + separator (3 + 1 + 3) + 37 + 16: the bar keeps the height it has without touch
-    expect(queryRect(".o_tl_controls").height).toBe(101);
+    // 4 + 37 + separator + 37 + 16 with the lines' own space: the height without touch
+    expect(queryRect(".o_tl_controls").height).toBeWithin(100.9, 101.1);
+    // P12 (M77): the separator has no margin; 2 px lie between it and each line of buttons
+    expect(".o_tl_separator").toHaveStyle({ marginTop: "0px", marginBottom: "0px" });
+    const separator = queryRect(".o_tl_separator");
+    expect(separator.top - queryRect(".o_tl_previous").bottom).toBeWithin(1.5, 2.5);
+    expect(queryRect(".o_tl_today").top - separator.bottom).toBeWithin(1.5, 2.5);
 });
 
 test("F3: without touch the buttons keep the measured size (M41, M42, M69)", async () => {
@@ -266,7 +276,13 @@ test("F3: without touch the buttons keep the measured size (M41, M42, M69)", asy
         expect(selector).toHaveStyle({ paddingTop: "5px", paddingLeft: "10px" });
         expect(queryRect(selector).height).toBe(33);
     }
-    expect(queryRect(".o_tl_controls").height).toBe(101);
+    expect(queryRect(".o_tl_controls").height).toBeWithin(100.9, 101.1);
+    // P12 (M77 to M79): no margin on the separator, 4.7 px between it and each line of buttons
+    expect(".o_tl_separator").toHaveStyle({ marginTop: "0px", marginBottom: "0px" });
+    const separator = queryRect(".o_tl_separator");
+    expect(separator.height).toBe(1);
+    expect(separator.top - queryRect(".o_tl_previous").bottom).toBeWithin(4.6, 4.8);
+    expect(queryRect(".o_tl_today").top - separator.bottom).toBeWithin(4.6, 4.8);
 });
 
 test("P5: the caret sits 5 px after the range name, 14 px glyph (M69, M70)", async () => {
@@ -317,10 +333,41 @@ test("P7: the dates of the range sheet are plain fields, 24 px, 26 px with touch
     }
 });
 
-test("P7: the dates of the range sheet are 26 px tall with touch (M73)", async () => {
+test("P7: the dates of the range sheet are 26.1 px tall with touch (M73)", async () => {
     makeTouchDevice();
     await mountPhone();
     await contains(".o_tl_range_button").click();
-    expect(queryRect(".o_tl_custom_start_button").height).toBe(26);
-    expect(queryRect(".o_tl_custom_stop_button").height).toBe(26);
+    expect(queryRect(".o_tl_custom_start_button").height).toBeWithin(26, 26.2);
+    expect(queryRect(".o_tl_custom_stop_button").height).toBeWithin(26, 26.2);
+});
+
+test("P10: the date fields of the range sheet are 83.9 px wide with 15.4 px text on touch, 77 px without (M73)", async () => {
+    await mountPhone();
+    await contains(".o_tl_range_button").click();
+    for (const selector of [".o_tl_custom_start_button", ".o_tl_custom_stop_button"]) {
+        expect(selector).toHaveStyle({ fontSize: "14px" });
+        expect(queryRect(selector).width).toBeWithin(76.9, 77.2);
+    }
+});
+
+test("P10: with touch the date fields are 83.9 x 26.1 px with 15.4 px text", async () => {
+    makeTouchDevice();
+    await mountPhone();
+    await contains(".o_tl_range_button").click();
+    for (const selector of [".o_tl_custom_start_button", ".o_tl_custom_stop_button"]) {
+        expect(selector).toHaveStyle({ fontSize: "15.4px" });
+        expect(queryRect(selector).width).toBeWithin(83.8, 84.1);
+        expect(queryRect(selector).height).toBeWithin(26, 26.2);
+    }
+});
+
+test("P11: on the phone the dates keep the body text colour, never the primary colour (M76)", async () => {
+    await mountPhone();
+    await contains(".o_tl_range_button").click();
+    const body = getComputedStyle(document.body).color;
+    for (const selector of [".o_tl_custom_start_button", ".o_tl_custom_stop_button"]) {
+        expect(selector).toHaveStyle({ color: body });
+    }
+    await contains(".o_tl_custom_start_button").click();
+    expect(".o_tl_custom_start_button").toHaveStyle({ color: body });
 });
