@@ -214,9 +214,8 @@ export class TimelineRenderer extends Component {
             template: hasRowHeaders ? `var(--o-tl-row-header-width) ${track}` : track,
             columns: fold.headers.map((header) => this._columnView(header)),
             groups: data.columnGroups
-                .map((group) => this._groupView(group, fold))
-                // all columns folded: the one column keeps the first group header
-                .slice(0, fold.everyFolded ? 1 : undefined),
+                .map((group, index) => this._groupView(group, fold, index))
+                .filter(Boolean),
             rows: this._buildRows(data, unavailable, fold),
             total: this.props.archInfo.totalRow ? this._buildTotal(data, fold) : null,
             totalParts: data.columns.length * data.parts,
@@ -270,7 +269,7 @@ export class TimelineRenderer extends Component {
             scaleId: data.scaleId,
             parts: data.parts,
         });
-        const runs = this._splitRuns(rawRuns, data);
+        const runs = rawRuns;
         // an open run that is no longer a foldable run is forgotten
         const keys = new Set(runs.map((run) => this._runKey(run.first)));
         for (const key of [...this._opened]) {
@@ -338,6 +337,7 @@ export class TimelineRenderer extends Component {
             headers: headers.map((header) => ({ ...header, gridColumn: gridColumn[header.index] })),
             gridColumn,
             everyFolded,
+            foldedRun,
             plainCells: cellsFor(null),
             cellsFor,
             foldedBefore,
@@ -345,31 +345,6 @@ export class TimelineRenderer extends Component {
             foldedColumns: foldedBefore[count],
             foldedWidth: foldedRuns * FOLDED_WIDTH,
         };
-    }
-
-    /**
-     * A folded track holds one column group header at most, so a run is cut at the boundaries of
-     * the column groups (weeks, months, ...). A run of every column stays whole: the grid is then
-     * one full-width column.
-     */
-    _splitRuns(runs, data) {
-        const count = data.columns.length;
-        if (runs.length === 1 && runs[0].first === 0 && runs[0].last === count - 1) {
-            return runs;
-        }
-        const bounds = new Set(data.columnGroups.map((group) => group.firstColumn));
-        const parts = [];
-        for (const run of runs) {
-            let first = run.first;
-            for (let index = run.first + 1; index <= run.last; index++) {
-                if (bounds.has(index)) {
-                    parts.push({ first, last: index - 1 });
-                    first = index;
-                }
-            }
-            parts.push({ first, last: run.last });
-        }
-        return data.scaleId === "week" ? parts : parts.filter((run) => run.last > run.first);
     }
 
     /** One cell of a row: the today class, and the grey of the unavailable parts (R28). */
@@ -449,15 +424,30 @@ export class TimelineRenderer extends Component {
         };
     }
 
-    _groupView(group, fold) {
+    /**
+     * A group header spans the tracks of its columns. A folded run that crosses into the next group
+     * is one track that belongs to the group of the run's first column: that header ends there
+     * (its text is cut short) and the next one starts after the fold. A first group whose only
+     * track is a fold shows no text (its full text stays in the tooltip).
+     */
+    _groupView(group, fold, index) {
         let label = group.label;
         if (this.ui.isSmall && this.data.scaleId === "month") {
             label = group.start.toLocaleString({ month: "short", year: "numeric" });
         }
-        const first = fold.gridColumn[group.firstColumn];
-        const last = fold.gridColumn[group.firstColumn + group.span - 1];
+        const firstColumn = group.firstColumn;
+        const lastColumn = firstColumn + group.span - 1;
+        const startRun = fold.foldedRun(firstColumn);
+        // the first column lies in a fold begun in the previous group: the track is not ours
+        const first = fold.gridColumn[firstColumn] + (startRun && startRun.first < firstColumn ? 1 : 0);
+        const last = fold.gridColumn[lastColumn];
+        if (first > last) {
+            return null;
+        }
+        const sliver =
+            index === 0 && !fold.everyFolded && first === last && fold.foldedRun(firstColumn);
         return {
-            label,
+            label: sliver ? "" : label,
             title: group.tooltip,
             style: `grid-column: ${first} / span ${last - first + 1}`,
         };

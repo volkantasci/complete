@@ -464,15 +464,27 @@ test("A75: an open run is forgotten when a search removes it", async () => {
     expect(".o_tl_col.o_tl_folded").toHaveCount(1);
 });
 
-test("A75: a run is cut at the boundary of two weeks", async () => {
+test("A75: Saturday and Sunday across two weeks fold into one column", async () => {
     // D+2 (Saturday 11-14) and D+3 (Sunday 11-15) lie in two different weeks
     timelineMock.unavailability = {
         x_contact: { 1: [{ start: at(2, "00:00"), stop: at(4, "00:00") }] },
     };
     await mountTimeline({ domain: [["id", "in", [4]]] });
-    expect(".o_tl_col.o_tl_folded").toHaveCount(2);
-    const groups = queryAll(".o_tl_col_group").map((el) => queryRect(el));
-    for (let i = 1; i < groups.length; i++) {
-        expect(groups[i].left >= groups[i - 1].right - 1).toBe(true);
+    expect(".o_tl_col").toHaveCount(20);
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    const fold = queryRect(".o_tl_col.o_tl_folded");
+    expect(fold.width).toBe(36);
+    const groups = queryAll(".o_tl_col_group");
+    expect(groups).toHaveCount(3);
+    const rects = groups.map((el) => queryRect(el));
+    // no overlap
+    for (let i = 1; i < rects.length; i++) {
+        expect(rects[i].left >= rects[i - 1].right - 1).toBe(true);
     }
+    // the earlier week ends at the fold, the next one starts right after it
+    expect(near(rects[1].right, fold.right, 1)).toBe(true);
+    expect(near(rects[2].left, fold.right, 1)).toBe(true);
+    // the full text stays in the tooltip
+    expect(groups[1].title).toMatch(/Week 46/);
+    expect(groups[2].title).toMatch(/Week 47/);
 });
