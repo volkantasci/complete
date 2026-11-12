@@ -24,6 +24,21 @@ beforeEach(async () => {
 
 const H2 = timelineArch(`string="Pills" default_range="week" color="x_color" total_row="1"`);
 
+// Width of the content of an element (its children laid out), whatever the fonts of the bundle are.
+function contentWidth(selector) {
+    const range = document.createRange();
+    range.selectNodeContents(queryOne(selector));
+    return range.getBoundingClientRect().width;
+}
+
+// Horizontal paddings and borders of an element: what its box adds to its content.
+function boxExtra(selector) {
+    const style = getComputedStyle(queryOne(selector));
+    return ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"]
+        .map((name) => parseFloat(style[name]))
+        .reduce((total, value) => total + value, 0);
+}
+
 async function mountPhone({ arch = H2, ...rest } = {}) {
     await mountView({ type: "gantt", resModel: "pill", arch, ...rest });
 }
@@ -43,7 +58,11 @@ test("A81: phone control bar and gear sheet", async () => {
     expect(queryRect(".o_tl_range_button").left).toBeGreaterThan(queryRect(".o_tl_next").left);
     expect(queryRect(".o_tl_today").top).toBe(second.top);
     expect(queryRect(".o_tl_today").height).toBe(33);
-    expect(queryRect(".o_tl_today").width).toBeWithin(58.859, 59.859);
+    // 10 + text + 10: the text width belongs to the bundle's fonts, the paddings do not
+    expect(queryRect(".o_tl_today").width).toBeWithin(
+        contentWidth(".o_tl_today") + boxExtra(".o_tl_today") - 0.5,
+        contentWidth(".o_tl_today") + boxExtra(".o_tl_today") + 0.5
+    );
     expect(queryRect(".o_tl_gear").height).toBe(33);
     expect(second.height).toBe(33);
     expect(queryRect(".o_tl_gear").top).toBe(second.top);
@@ -187,8 +206,17 @@ test("A122: P9, 'Undefined Contact' is cut with an ellipsis on the phone (M74)",
         (element) => element.textContent === "Undefined Contact"
     );
     expect(queryRect(queryAll(".o_tl_row_header")[0]).width).toBe(130);
+    // the rules, not a pixel count of the text: ellipsis styles, and the text is wider than its box
+    expect(label).toHaveStyle({
+        overflowX: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        paddingLeft: "1px",
+        paddingRight: "1px",
+    });
+    // whether the text of the data is wider than 117 px depends on the fonts: a longer one is cut
+    label.textContent = "Undefined Contact, a label much longer than its column";
     expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
-    expect(label).toHaveStyle({ textOverflow: "ellipsis", paddingLeft: "1px", paddingRight: "1px" });
 });
 
 test("F1: the box fills the page on the phone and takes the view background (M65)", async () => {
@@ -222,8 +250,12 @@ test("F3: previous, next, range, Today and the gear take the touch size on a tou
     expect(queryRect(".o_tl_previous").width).toBeWithin(43.9, 44.1);
     expect(queryRect(".o_tl_next").width).toBeWithin(43.9, 44.1);
     expect(queryRect(".o_tl_gear").width).toBeWithin(43.9, 44.1);
-    expect(queryRect(".o_tl_range_button").width).toBeWithin(84, 85);
-    expect(queryRect(".o_tl_today").width).toBeWithin(66.9, 67.9);
+    // content + paddings (the text width depends on the bundle's fonts)
+    const todayWidth = contentWidth(".o_tl_today") + boxExtra(".o_tl_today");
+    expect(queryRect(".o_tl_today").width).toBeWithin(todayWidth - 0.5, todayWidth + 0.5);
+    expect(boxExtra(".o_tl_today")).toBeGreaterThan(27.9);
+    const rangeWidth = contentWidth(".o_tl_range_button") + boxExtra(".o_tl_range_button");
+    expect(queryRect(".o_tl_range_button").width).toBeWithin(rangeWidth - 0.5, rangeWidth + 0.5);
     // 4 + 37 + separator (3 + 1 + 3) + 37 + 16: the bar keeps the height it has without touch
     expect(queryRect(".o_tl_controls").height).toBe(101);
 });
