@@ -157,7 +157,7 @@ export class TimelineController extends Component {
     }
 
     get displayModeIcon() {
-        return this.data.displayMode === "dense" ? "fa-expand" : "fa-compress";
+        return this.data.displayMode === "dense" ? "expand_content" : "close_fullscreen";
     }
 
     get hasGroupRows() {
@@ -176,7 +176,7 @@ export class TimelineController extends Component {
     }
 
     get collapseAllIcon() {
-        return this.anyCollapsed ? "fa-caret-right" : "fa-caret-down";
+        return this.anyCollapsed ? "keyboard_double_arrow_down" : "keyboard_double_arrow_up";
     }
 
     // ------------------------------------------------------------------------

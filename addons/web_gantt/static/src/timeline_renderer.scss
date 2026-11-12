@@ -4,6 +4,7 @@
 // The box measures the width of the view (without the scrollbar of the grid) for the width of
 // the row header column.
 .o_tl_box {
+    position: relative;
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
@@ -30,12 +31,22 @@
     --o-tl-row-header-width: #{"round(calc(100cqw / 3), 1px)"};
     // the grey of unavailable parts, for the gradient of a partly covered cell
     --o-tl-unavailable-bg: #{$o-tl-unavailable-bg};
+    // the part at the start of the grid that the row headers cover
+    --o-tl-label-start: 0px;
 
     display: grid;
+    // as wide as the tracks, never narrower than the view: the title cell sticks inside the box of
+    // the grid, which must reach the last column (a sticky item stops at the end of its
+    // container's box, not of the tracks that overflow it)
+    width: max-content;
     min-width: 100%;
     grid-template-rows: $o-tl-header-height $o-tl-header-height;
     position: relative;
     font-size: 14px;
+}
+
+.o_tl_grid.o_tl_with_row_headers {
+    --o-tl-label-start: var(--o-tl-row-header-width);
 }
 
 // the wider screens (container query on the box around the grid)
@@ -49,16 +60,20 @@
 // Headers
 // ----------------------------------------------------------------------------
 
+// the blur of the theme (M24), when it is enabled: the custom property only exists then
 @mixin o-tl-header-blur {
-    @if global-variable-exists(o-backdrop-blur) {
-        backdrop-filter: $o-backdrop-blur;
-    }
+    backdrop-filter: var(--o-backdrop-blur, none);
 }
 
+// The cell is the width of the row header column but spans every track: a sticky item sticks
+// inside its grid area, so a one-track cell would scroll away with the first column.
 .o_tl_title_cell {
     @include o-tl-header-blur;
     grid-row: 1 / span 2;
-    grid-column: 1;
+    grid-column: 1 / -1;
+    justify-self: start;
+    box-sizing: border-box;
+    width: var(--o-tl-row-header-width);
     position: sticky;
     top: 0;
     inset-inline-start: 0;
@@ -75,6 +90,7 @@
 
 .o_tl_title_text {
     min-width: 0;
+    padding: 0 8px;
 }
 
 .o_tl_col_group {
@@ -90,6 +106,22 @@
     background-color: $o-view-background-color;
     border-right: 1px solid $o-border-color;
     min-width: 0;
+    // `clip` keeps the group header from being a scroll container: the label sticks to the
+    // scrolled grid, not to its own box
+    overflow: clip;
+    white-space: nowrap;
+}
+
+// The text of a group header stays at the left edge of the visible part while its group is partly
+// scrolled off. The sticky box is zero wide, so it is never pushed away from the edge by the end of
+// the group: the text runs out of it and is cut at the end of the group header.
+.o_tl_col_group_label {
+    position: sticky;
+    inset-inline-start: calc(var(--o-tl-label-start, 0px) + 8px);
+    display: inline-block;
+    width: 0;
+    overflow: visible;
+    vertical-align: top;
 }
 
 .o_tl_col {
@@ -178,6 +210,7 @@
 }
 
 .o_tl_row_header {
+    @include o-tl-header-blur;
     grid-column: 1;
     position: sticky;
     inset-inline-start: 0;
@@ -582,7 +615,9 @@
     }
 }
 
-// the help starts just below the first header row and fills the rest of the grid
-.o_tl_renderer > .o_view_nocontent {
-    top: $o-tl-header-height;
+// The help starts just below the first header row (and the line above the headers) and fills the
+// rest of the view. It sits next to the grid, not in it: inside the scrolled grid it would scroll
+// away with the columns, and only the cells are faded.
+.o_tl_box > .o_view_nocontent {
+    top: $o-tl-header-height + 1px;
 }

@@ -192,7 +192,9 @@ export class TimelineRenderer extends Component {
             return this.data.range.focus;
         }
         const { left, right } = this._visibleBounds();
-        const x = (left + right) / 2;
+        // the focus day starts at the middle (R39); a pixel of slack keeps the rounding of the
+        // scroll offset from picking the day before
+        const x = (left + right) / 2 + (this._isRtl() ? -1 : 1);
         let best = null;
         let distance = Infinity;
         for (const header of headers) {
@@ -207,32 +209,35 @@ export class TimelineRenderer extends Component {
         return column ? column.start.startOf("day") : this.data.range.focus;
     }
 
-    /** Centre the day (the month on the year scale) of `date`; false when it is not shown. */
+    /**
+     * Put the start of the day of `date` in the middle of the visible part (R39: the focus is the
+     * start of the focus day, so on the week scale the focus column starts at the middle; on the
+     * year scale the focus lies inside its month column); false when it is not shown.
+     */
     _centreDate(date) {
         const { columns } = this.data;
         const from = date.startOf("day");
-        const to = from.plus({ days: 1 });
-        let first = -1;
-        let last = -1;
-        columns.forEach((column, index) => {
-            if (column.start < to && column.stop > from) {
-                first = first < 0 ? index : first;
-                last = index;
-            }
-        });
-        if (first < 0) {
+        const index = columns.findIndex((column) => column.start <= from && column.stop > from);
+        if (index < 0) {
             return false;
         }
-        const headers = this._headers();
-        const headerOf = (index) =>
-            headers.filter((header) => Number(header.dataset.index) <= index).at(-1);
-        const a = headerOf(first)?.getBoundingClientRect();
-        const b = headerOf(last)?.getBoundingClientRect();
-        if (!a || !b) {
+        const header = this._headers()
+            .filter((element) => Number(element.dataset.index) <= index)
+            .at(-1);
+        if (!header) {
             return false;
         }
-        this._centreAt((Math.min(a.left, b.left) + Math.max(a.right, b.right)) / 2);
+        const rect = header.getBoundingClientRect();
+        const column = columns[index];
+        const exact = Number(header.dataset.index) === index && !header.classList.contains("o_tl_folded");
+        const fraction = exact ? (from - column.start) / (column.stop - column.start) : 0;
+        // the day starts at the right in a mirrored grid
+        this._centreAt(this._isRtl() ? rect.right - rect.width * fraction : rect.left + rect.width * fraction);
         return true;
+    }
+
+    _isRtl() {
+        return getComputedStyle(this.rendererRef()).direction === "rtl";
     }
 
     /** A click on the header of a row that is not a group scrolls to its first pill (R39). */

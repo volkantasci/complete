@@ -152,7 +152,7 @@ test("A73: a warning without maximum shows the quantity, an icon and no bar", as
     expect(header.querySelector(".o_tl_progress_label")).not.toHaveAttribute("data-tooltip");
     expect(header.querySelectorAll(".o_tl_progress")).toHaveCount(0);
     const icon = header.querySelector(".o_tl_progress_warning");
-    expect(icon).toHaveClass("fa-exclamation-triangle");
+    expect(icon).toHaveAttribute("data-icon", "warning");
     expect(icon).toHaveAttribute("data-tooltip", "No allocation is planned");
     expect(queryRect(icon).left >= queryRect(header.querySelector(".o_tl_progress_label")).right - 1).toBe(
         true
@@ -243,7 +243,7 @@ test("A75: two days fold into 36 px and reopen", async () => {
     expect(queryRect(folded).width).toBe(36);
     expect(queryRect(folded).height).toBe(25);
     expect(css(folded, "backgroundColor")).toBe("rgba(255, 255, 255, 0.75)");
-    expect(folded.querySelectorAll("i.fa")).toHaveCount(2);
+    expect(folded.querySelectorAll("i.oi")).toHaveCount(2);
     expect(folded).toHaveAttribute("data-tooltip", "Show the folded days");
     // M46: the cells of every row, the group-less total row included
     expect(".o_tl_cell.o_tl_folded_cell").toHaveCount(4);
@@ -345,7 +345,7 @@ test("A107: hover arrows and total-row folded cell click", async () => {
     for (const date of [D3, D4]) {
         const header = headerOf(date);
         expect(header).toHaveClass("o_tl_run_hover");
-        expect(header.querySelectorAll("i.fa")).toHaveCount(2);
+        expect(header.querySelectorAll("i.oi")).toHaveCount(2);
         expect(css(header.querySelector(".o_tl_col_arrows"), "display")).not.toBe("none");
         expect(css(header.querySelector(".o_tl_col_title"), "display")).toBe("none");
         expect(css(header, "opacity")).toBe("1");

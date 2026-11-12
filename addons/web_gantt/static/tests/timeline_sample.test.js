@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { click, queryAll, queryRect, resize } from "@odoo/hoot-dom";
+import { click, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { markup } from "@odoo/owl";
 import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
@@ -35,6 +35,30 @@ async function mountEmpty(arch, rest = {}) {
     });
 }
 
+test("D-2: the help is fully visible over the faded grid, whatever the scroll position", async () => {
+    await mountEmpty(H8, { noContentHelp: HELP });
+    const renderer = queryOne(".o_tl_renderer");
+    expect(renderer.scrollWidth).toBeGreaterThan(renderer.clientWidth);
+    for (const left of [0, renderer.scrollWidth]) {
+        renderer.scrollLeft = left;
+        await animationFrame();
+        const help = queryOne(".o_tl_box .o_view_nocontent .o_nocontent_help");
+        // only the cells are faded: no element from the help up to the page is
+        let opacity = 1;
+        for (let element = help; element; element = element.parentElement) {
+            opacity *= Number(getComputedStyle(element).opacity);
+        }
+        expect(opacity).toBe(1);
+        const box = queryRect(".o_tl_box");
+        const rect = queryRect(help);
+        expect(rect.width).toBeGreaterThan(50);
+        expect(rect.left).not.toBeLessThan(box.left);
+        expect(rect.right).not.toBeGreaterThan(box.right);
+        expect(rect.top).not.toBeLessThan(box.top);
+        expect(rect.bottom).not.toBeGreaterThan(box.bottom);
+    }
+});
+
 test("A83: sample state then next ends it", async () => {
     await mountEmpty(H8, { noContentHelp: HELP });
     expect(".o_tl_row:not(.o_tl_total_row)").toHaveCount(1);
@@ -46,10 +70,10 @@ test("A83: sample state then next ends it", async () => {
         backgroundColor: "rgba(0, 0, 0, 0)",
     });
     // the help is drawn over the grid, below the first header row
-    expect(".o_tl_renderer .o_view_nocontent").toHaveCount(1);
-    expect(".o_tl_renderer .o_view_nocontent").toHaveText("No pill yet\n\nCreate one to see it here.");
+    expect(".o_tl_box .o_view_nocontent").toHaveCount(1);
+    expect(".o_tl_box .o_view_nocontent").toHaveText("No pill yet\n\nCreate one to see it here.");
     const grid = queryRect(".o_tl_renderer");
-    const help = queryRect(".o_tl_renderer .o_view_nocontent");
+    const help = queryRect(".o_tl_box .o_view_nocontent");
     // just below the first header row (the column group headers), under the line above the grid
     expect(help.top - grid.top).toBe(queryRect(queryAll(".o_tl_col_group")[0]).height + 1);
     expect(".o_view_sample_data").toHaveCount(1);
@@ -97,7 +121,7 @@ test("A114: no pill in the sample state", async () => {
     await mountEmpty(H8, { noContentHelp: HELP });
     expect(".o_tl_pill").toHaveCount(0);
     expect(".o_tl_cell").toHaveStyle({ opacity: "0.06" });
-    expect(".o_tl_renderer .o_view_nocontent").toHaveCount(1);
+    expect(".o_tl_box .o_view_nocontent").toHaveCount(1);
 });
 
 test("A114: sample state without action help draws no help", async () => {

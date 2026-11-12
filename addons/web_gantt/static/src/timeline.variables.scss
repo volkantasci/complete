@@ -31,3 +31,8 @@ $o-tl-pill-height: 23px !default;
 // Channel shifts (red, green, blue) applied to the palette colour of an index before it is mixed
 // with white into the colour of a pill. The light scheme needs none; see the dark file.
 $o-tl-pill-nudges: () !default;
+
+// The popover: the band behind the record name, and the room around the lines of its body.
+$o-tl-popover-header-bg: $o-gray-200 !default;
+$o-tl-popover-body-padding-x: 30px !default;
+$o-tl-popover-body-padding-y: 23.5px !default;

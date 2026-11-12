@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Component, t, useProps } from "@odoo/owl";
-import { formatDate, formatDateTime } from "@web/core/l10n/dates";
+import { toLocaleDateString, toLocaleDateTimeString } from "@web/core/l10n/dates";
 import { _t } from "@web/core/l10n/translation";
 import { useService } from "@web/core/utils/hooks";
 import { createElement, parseXML } from "@web/core/utils/xml";
@@ -82,14 +82,17 @@ export class TimelinePopover extends Component {
         return node;
     }
 
-    /** A date field shows the date only, a datetime field date and time, both in the user's format. */
+    /**
+     * A date field shows the date only, a datetime field date and time, both in the short form of
+     * the Community popovers ("Nov 12, 9:00 AM"; the year only when it is not the current one).
+     */
     formatValue(fieldName, value) {
         if (!value) {
             return "";
         }
         return this.props.model.fields[fieldName]?.type === "date"
-            ? formatDate(value)
-            : formatDateTime(value);
+            ? toLocaleDateString(value)
+            : toLocaleDateTimeString(value);
     }
 
     getDefaultPopoverBody() {

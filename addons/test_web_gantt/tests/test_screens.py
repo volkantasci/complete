@@ -195,6 +195,9 @@ class TimelineScreens(TimelineProbeCase):
             self.open_range_menu()
             self.tap("document.querySelector('.o_tl_custom_start input')")
             self.wait("!!document.querySelector('.o_datetime_picker')")
+            # the click selects the text of the input; the screen shows the field with its caret
+            self.js("(() => { const input = document.querySelector('.o_tl_custom_start input');"
+                    " input.setSelectionRange(input.value.length, input.value.length); })()")
         self.each('14-custom-picker', 'h2', prepare, viewports=DESKTOP)
 
     # -- S15 to S18 -----------------------------------------------------------------

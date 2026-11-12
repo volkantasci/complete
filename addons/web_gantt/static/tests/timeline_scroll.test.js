@@ -47,6 +47,11 @@ const centreOf = (element) => {
     const rect = element.getBoundingClientRect();
     return (rect.left + rect.right) / 2;
 };
+/** Where a day begins: the left edge of its column, the right edge in a mirrored grid. */
+const startOf = (element) => {
+    const rect = element.getBoundingClientRect();
+    return getComputedStyle(element).direction === "rtl" ? rect.right : rect.left;
+};
 
 /** The middle of the visible part: the grid minus the title cell stuck at its start. */
 function visibleCentre() {
@@ -93,10 +98,10 @@ async function mountAction() {
     await animationFrame();
 }
 
-test("A20: the grid opens with today in the middle of the visible part", async () => {
+test("A20: the grid opens with the start of today in the middle of the visible part", async () => {
     await mountTimeline();
     expect(renderer().scrollWidth).toBeGreaterThan(renderer().clientWidth + 100);
-    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
 });
 
 test("A20: choosing a range centres the focus date again", async () => {
@@ -104,17 +109,17 @@ test("A20: choosing a range centres the focus date again", async () => {
     await contains(".o_tl_range_button").click();
     await contains(".o_tl_range_month").click();
     await animationFrame();
-    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
 });
 
 test("A29: Today inside the period scrolls without a request", async () => {
     await mountTimeline();
     await scrollTo(0);
-    expect(centreOf(headerOf("2026-11-12"))).toBeGreaterThan(visibleCentre() + 200);
+    expect(startOf(headerOf("2026-11-12"))).toBeGreaterThan(visibleCentre() + 200);
     await contains(".o_tl_today").click();
     await animationFrame();
     expect(timelineMock.calls).toHaveLength(1);
-    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
 });
 
 test("A29: Today scrolls again when today already is the focus date", async () => {
@@ -123,7 +128,7 @@ test("A29: Today scrolls again when today already is the focus date", async () =
     await contains(".o_tl_today").click();
     await animationFrame();
     expect(timelineMock.calls).toHaveLength(1);
-    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
 });
 
 test("A30: Today after a step reloads and centres today", async () => {
@@ -135,7 +140,7 @@ test("A30: Today after a step reloads and centres today", async () => {
     await contains(".o_tl_today").click();
     await animationFrame();
     expect(timelineMock.calls).toHaveLength(3);
-    expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
 });
 
 test("A32: Month chosen after scrolling keeps the date in the middle", async () => {
@@ -150,7 +155,7 @@ test("A32: Month chosen after scrolling keeps the date in the middle", async () 
     const kwargs = timelineMock.calls.at(-1);
     expect(kwargs.start_date).toBe("2026-09-30 21:00:00");
     expect(kwargs.stop_date).toBe("2026-12-31 21:00:00");
-    expect(near(centreOf(headerOf("2026-11-16")), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf("2026-11-16")), visibleCentre())).toBe(true);
 });
 
 test("A32: the range is rebuilt around the date in the middle, not around today", async () => {
@@ -168,7 +173,7 @@ test("A32: the range is rebuilt around the date in the middle, not around today"
     const sunday = day.minus({ days: day.weekday % 7 });
     const start = sunday.minus({ days: 7 }).toUTC();
     expect(timelineMock.calls.at(-1).start_date).toBe(start.toFormat("yyyy-MM-dd HH:mm:ss"));
-    expect(near(centreOf(headerOf(day.toISODate())), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf(day.toISODate())), visibleCentre())).toBe(true);
 });
 
 test("A32: a reload that keeps the range keeps the scroll position", async () => {
@@ -267,19 +272,63 @@ test("R39: in a right-to-left language the grid is mirrored and the focus is cen
     document.head.appendChild(style);
     try {
         await mountTimeline();
-        expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+        expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
         // the first day is at the right
         expect(centreOf(headerOf("2026-11-01"))).toBeGreaterThan(centreOf(headerOf("2026-11-21")));
         await scrollTo(0);
         await contains(".o_tl_today").click();
         await animationFrame();
-        expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+        expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
         await contains(".o_tl_range_button").click();
         await contains(".o_tl_range_month").click();
         await animationFrame();
-        expect(near(centreOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
+        expect(near(startOf(headerOf("2026-11-12")), visibleCentre())).toBe(true);
     } finally {
         style.remove();
         document.documentElement.removeAttribute("dir");
     }
+});
+
+test("D-3: the title cell stays at the start of the view and covers what scrolls under it", async () => {
+    await mountTimeline({ groupBy: ["parent_id"] });
+    await scrollTo(renderer().scrollWidth);
+    const title = queryOne(".o_tl_title_cell");
+    const box = renderer().getBoundingClientRect();
+    expect(title).toHaveText("Pills");
+    expect(Math.abs(title.getBoundingClientRect().left - (box.left + renderer().clientLeft))).toBeLessThan(2);
+    const style = getComputedStyle(title);
+    expect(style.fontWeight).toBe("700");
+    expect(style.justifyContent).toBe("center");
+    // the cell is above the headers and shows them through at 75 % of the view background
+    expect(style.backgroundColor).toMatch(/, 0\.75\)$/);
+    expect(Number(style.zIndex)).toBeGreaterThan(Number(getComputedStyle(queryAll(".o_tl_col")[0]).zIndex));
+    // so are the row headers
+    const header = queryAll(".o_tl_row_header")[0];
+    expect(Math.abs(header.getBoundingClientRect().left - title.getBoundingClientRect().left)).toBeLessThan(2);
+    expect(getComputedStyle(header).backgroundColor).toMatch(/, 0\.75\)$/);
+});
+
+test("D-5: the label of a group header stays at the left edge of the visible part", async () => {
+    await mountTimeline({ groupBy: ["parent_id"] });
+    const title = queryOne(".o_tl_title_cell");
+    const groups = queryAll(".o_tl_col_group");
+    expect(groups.length).toBeGreaterThan(2);
+    // the second group starts 100 px under the title cell
+    await scrollTo(
+        renderer().scrollLeft + groups[1].getBoundingClientRect().left - (title.getBoundingClientRect().right - 100)
+    );
+    const rect = groups[0].getBoundingClientRect();
+    const second = groups[1].getBoundingClientRect();
+    expect(second.left).toBeLessThan(title.getBoundingClientRect().right);
+    // the group before it ends under the cell: nothing to see; the second group is partly hidden
+    const label = groups[1].querySelector(".o_tl_col_group_label");
+    expect(label.textContent).not.toBe("");
+    expect(near(label.getBoundingClientRect().left, title.getBoundingClientRect().right + 8, 1.5)).toBe(true);
+    // the group is not a scroll container, so the label is not cut at the edge of its own box
+    expect(getComputedStyle(groups[1]).overflowX).not.toBe("hidden");
+    expect(rect.right).not.toBeGreaterThan(second.left + 1);
+    // scrolled back, the label sits at the padding of its group
+    await scrollTo(0);
+    const back = groups[1].getBoundingClientRect();
+    expect(near(groups[1].querySelector(".o_tl_col_group_label").getBoundingClientRect().left, back.left + 8, 1.5)).toBe(true);
 });

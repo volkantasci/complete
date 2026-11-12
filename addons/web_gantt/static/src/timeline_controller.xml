@@ -39,16 +39,16 @@
                 <div class="o_tl_line d-flex align-items-center w-100">
                     <t t-call="web_gantt.TimelineTodayButton"/>
                     <Dropdown menuClass="'o_tl_gear_menu'">
-                        <button type="button" class="btn btn-secondary o_tl_gear ms-auto" title="Menu" aria-label="Menu"><i class="fa fa-cog"/></button>
+                        <button type="button" class="btn btn-secondary o_tl_gear ms-auto" title="Menu" aria-label="Menu"><i class="oi" data-icon="settings"/></button>
                         <t t-set-slot="content">
                             <DropdownItem class="'o_tl_gear_display'" onSelected="() => this.toggleDisplayMode()">
-                                <i class="fa fa-fw me-2" t-att-class="this.displayModeIcon"/>
+                                <i class="oi oi-fw me-2" t-att-data-icon="this.displayModeIcon"/>
                                 <span t-out="this.displayModeLabel"/>
                             </DropdownItem>
                             <t t-if="this.hasGroupRows">
                                 <div class="dropdown-divider" role="separator"/>
                                 <DropdownItem class="'o_tl_gear_collapse_all'" onSelected="() => this.toggleCollapseAll()">
-                                    <i class="fa fa-fw me-2" t-att-class="this.collapseAllIcon"/>
+                                    <i class="oi oi-fw me-2" t-att-data-icon="this.collapseAllIcon"/>
                                     <span t-out="this.collapseAllTitle"/>
                                 </DropdownItem>
                             </t>
@@ -61,10 +61,10 @@
                 <t t-call="web_gantt.TimelineRangeMenu"/>
                 <t t-call="web_gantt.TimelineTodayButton"/>
                 <button type="button" class="btn btn-secondary o_tl_display_mode" t-att-title="this.displayModeTitle" t-on-click="this.toggleDisplayMode">
-                    <i class="fa" t-att-class="this.displayModeIcon"/>
+                    <i class="oi" t-att-data-icon="this.displayModeIcon"/>
                 </button>
                 <button type="button" class="btn btn-secondary o_tl_collapse_all" t-att-class="{ invisible: !this.hasGroupRows }" t-att-title="this.collapseAllTitle" t-on-click="this.toggleCollapseAll">
-                    <i class="fa" t-att-class="this.collapseAllIcon"/>
+                    <i class="oi" t-att-data-icon="this.collapseAllIcon"/>
                 </button>
             </t>
         </div>
@@ -72,8 +72,8 @@
 
     <t t-name="web_gantt.TimelineStepButtons">
         <div class="btn-group o_tl_step_buttons">
-            <button type="button" class="btn btn-secondary o_tl_previous" data-hotkey="p" title="Previous" aria-label="Previous" t-on-click="() => this.step(-1)"><i class="oi oi-chevron-left"/></button>
-            <button type="button" class="btn btn-secondary o_tl_next" data-hotkey="n" title="Next" aria-label="Next" t-on-click="() => this.step(1)"><i class="oi oi-chevron-right"/></button>
+            <button type="button" class="btn btn-secondary o_tl_previous" data-hotkey="p" title="Previous" aria-label="Previous" t-on-click="() => this.step(-1)"><i class="oi" data-icon="arrow_back"/></button>
+            <button type="button" class="btn btn-secondary o_tl_next" data-hotkey="n" title="Next" aria-label="Next" t-on-click="() => this.step(1)"><i class="oi" data-icon="arrow_forward"/></button>
         </div>
     </t>
 
@@ -87,22 +87,22 @@
                 <t t-if="this.rangeLabel" t-out="this.rangeLabel"/>
                 <t t-else="">
                     <span class="o_tl_range_start" t-out="this.formatDay(this.shownRange.start)"/>
-                    <i class="fa fa-long-arrow-right mx-1"/>
+                    <i class="oi mx-1" data-icon="arrow_forward"/>
                     <span class="o_tl_range_stop" t-out="this.formatDay(this.shownRange.stop)"/>
                 </t>
+                <i class="oi" t-att-data-icon="this.rangeMenu.isOpen ? 'arrow_drop_up' : 'arrow_drop_down'"/>
             </button>
             <t t-set-slot="content">
                 <DropdownItem t-foreach="this.offeredKinds" t-as="item" t-key="item.kind"
                     class="`o_tl_range_item o_tl_range_${item.kind} ${item.isCurrent ? 'selected' : ''}`"
                     onSelected="() => this.setKind(item.kind)">
                     <span t-out="item.label"/>
-                    <i t-if="item.isCurrent" class="fa fa-check ms-auto"/>
                 </DropdownItem>
                 <div class="dropdown-divider" role="separator"/>
                 <div class="o_tl_custom_line d-flex align-items-center gap-2 px-3 py-1">
                     <t t-if="this.ui.isSmall">
                         <button type="button" class="btn btn-secondary o_tl_custom_start_button" t-on-click="() => this.openDateDialog('start')" t-out="this.formatDay(this.custom.start)"/>
-                        <i class="fa fa-long-arrow-right"/>
+                        <i class="oi" data-icon="arrow_forward"/>
                         <button type="button" class="btn btn-secondary o_tl_custom_stop_button" t-on-click="() => this.openDateDialog('stop')" t-out="this.formatDay(this.custom.stop)"/>
                     </t>
                     <t t-else="">
@@ -111,7 +111,7 @@
                                 onChange="(value) => this.onCustomDate('start', value)"
                                 onApply="(value) => this.onCustomDate('start', value)"/>
                         </span>
-                        <i class="fa fa-long-arrow-right"/>
+                        <i class="oi" data-icon="arrow_forward"/>
                         <span class="o_tl_custom_stop">
                             <DateTimeInput type="'date'" value="this.custom.stop"
                                 onChange="(value) => this.onCustomDate('stop', value)"

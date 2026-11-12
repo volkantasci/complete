@@ -177,7 +177,7 @@ test("A61: Alpha consolidated pills 1 1 2 1", async () => {
     expect(queryRect(alpha).height).toBe(40);
     expect(queryRect(header(alpha)).height).toBe(40);
     const caret = alpha.querySelector(".o_tl_caret");
-    expect(caret).toHaveClass("fa-caret-down");
+    expect(caret).toHaveAttribute("data-icon", "arrow_drop_down");
     expect(queryRect(caret).width).toBe(18);
     expect(queryRect(caret).height).toBe(14);
     expect(css(caret, "marginRight")).toBe("4px");
@@ -227,13 +227,13 @@ test("A62: collapse and reopen Alpha", async () => {
     const alpha = rowOf("Alpha");
     expect(rows()).toHaveCount(before - 2);
     expect(alpha).toHaveClass("o_tl_collapsed");
-    expect(alpha.querySelector(".o_tl_caret")).toHaveClass("fa-caret-right");
+    expect(alpha.querySelector(".o_tl_caret")).toHaveAttribute("data-icon", "arrow_right");
     expect(counts(alpha)).toEqual(["1", "1", "2", "1"]);
     expect(rowNames()).not.toInclude("Host Contact 1");
     await contains(alpha.querySelectorAll(".o_tl_cell")[3]).click();
     expect(rows()).toHaveCount(before);
     expect(rowOf("Alpha")).not.toHaveClass("o_tl_collapsed");
-    expect(rowOf("Alpha").querySelector(".o_tl_caret")).toHaveClass("fa-caret-down");
+    expect(rowOf("Alpha").querySelector(".o_tl_caret")).toHaveAttribute("data-icon", "arrow_drop_down");
 });
 
 test("A62: a click on the row of a plain row changes nothing", async () => {
@@ -283,12 +283,12 @@ test("A64: changing the grouping reopens rows", async () => {
 
 test("A65: sparse rows and switch back", async () => {
     await mountTimeline({ arch: HOST_ARCHS.H6, groupBy: ["parent_id"] });
-    expect(".o_tl_display_mode .fa-compress").toHaveCount(1);
+    expect(".o_tl_display_mode [data-icon='close_fullscreen']").toHaveCount(1);
     const names = rowNames();
     const alphaAt = names.indexOf("Alpha");
     expect(names.slice(alphaAt, alphaAt + 4)).toEqual(["Alpha", "Design", "Build", "Review"]);
     expect(rowOf("Alpha")).toHaveClass("o_tl_group_row");
-    expect(rowOf("Alpha").querySelector(".o_tl_caret")).toHaveClass("fa-caret-down");
+    expect(rowOf("Alpha").querySelector(".o_tl_caret")).toHaveAttribute("data-icon", "arrow_drop_down");
     expect(counts(rowOf("Alpha"))).toEqual(["1", "1", "2", "1"]);
     expect(rowOf("Design").querySelectorAll(".o_tl_pill")).toHaveCount(1);
     expect(rowOf("Design")).not.toHaveClass("o_tl_group_row");
@@ -296,7 +296,7 @@ test("A65: sparse rows and switch back", async () => {
     expect(css(header(rowOf("Design")), "fontWeight")).toBe("400");
 
     await contains(".o_tl_display_mode").click();
-    expect(".o_tl_display_mode .fa-expand").toHaveCount(1);
+    expect(".o_tl_display_mode [data-icon='expand_content']").toHaveCount(1);
     const alpha = rowOf("Alpha");
     expect(alpha).not.toHaveClass("o_tl_group_row");
     expect(alpha.querySelectorAll(".o_tl_pill")).toHaveCount(3);

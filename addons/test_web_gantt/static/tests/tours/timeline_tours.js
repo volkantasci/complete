@@ -42,6 +42,10 @@ function visibleMiddle() {
 
 const isCentred = (element) => Math.abs(middleOf(element) - visibleMiddle()) <= 2;
 
+/** R39: the focus day starts in the middle of the visible part (the column is to its right). */
+const startOf = (element) => element.getBoundingClientRect().left;
+const startsInMiddle = (element) => Math.abs(startOf(element) - visibleMiddle()) <= 2;
+
 function assertCentred(element, what) {
     const away = Math.abs(middleOf(element) - visibleMiddle());
     assert(away <= 2, `${what} is ${away}px away from the middle of the visible part`);
@@ -69,7 +73,7 @@ tours.add("timeline_week_scroll_centres_today", {
                     renderer().scrollWidth > renderer().clientWidth,
                     "the week grid does not scroll"
                 );
-                assertCentred(todayColumn(), "today");
+                assert(startsInMiddle(todayColumn()), "today does not start in the middle");
             },
         },
     ],
@@ -92,7 +96,7 @@ tours.add("timeline_today_scrolls", {
                 };
                 renderer().scrollLeft = 0;
                 assert(
-                    Math.abs(middleOf(todayColumn()) - visibleMiddle()) > 100,
+                    Math.abs(startOf(todayColumn()) - visibleMiddle()) > 100,
                     "the grid did not scroll away from today"
                 );
             },
@@ -101,9 +105,8 @@ tours.add("timeline_today_scrolls", {
             trigger: ".o_tl_today",
             async run(helpers) {
                 await helpers.click();
-                await until(() => isCentred(todayColumn()), "today in the middle");
+                await until(() => startsInMiddle(todayColumn()), "today starting in the middle");
                 assert(window.__tlRequests === 0, `${window.__tlRequests} request(s) for data`);
-                assertCentred(todayColumn(), "today");
             },
         },
     ],

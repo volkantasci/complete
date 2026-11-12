@@ -8,6 +8,7 @@
 }
 
 .o_tl_popover {
+    position: relative;
     display: flex;
     flex-direction: column;
     // the frame adds a border of 1px on each side: 272px in all
@@ -19,6 +20,8 @@
     border-radius: inherit;
 
     .o_card {
+        // the card has a minimum width of 240 px, which made the body scroll sideways
+        --Card-min-width: 0;
         display: flex;
         flex-direction: column;
         height: 100%;
@@ -26,15 +29,19 @@
 
         .o_popover_body {
             min-height: 0;
+            // the body is `p-3` (an important utility)
+            padding: $o-tl-popover-body-padding-y $o-tl-popover-body-padding-x !important;
         }
     }
 
+    // the cross sits in the top right corner of the header
     .o_card_popover_close {
-        margin: map-get($spacers, 3) map-get($spacers, 2);
         z-index: 1;
     }
 
+    // the record name on a light grey band
     .o_popover_header {
+        background-color: $o-tl-popover-header-bg;
         // leave room for the cross
         &::after {
             content: "";
@@ -56,6 +63,16 @@
     max-width: none;
     border-radius: 0;
     transform: none !important;
+}
+
+// the page behind the sheet is dimmed
+.o_popover:has(> .o_tl_popover_sheet)::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: rgba(0, 0, 0, 0.25);
+    pointer-events: none;
 }
 
 .o_tl_popover.o_tl_popover_sheet {

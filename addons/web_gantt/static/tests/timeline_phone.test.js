@@ -52,7 +52,7 @@ test("A81: phone control bar and gear sheet", async () => {
     expect(second.top).toBeGreaterThan(first.bottom);
     expect(queryRect(".o_tl_gear").right).toBeGreaterThan(queryRect(".o_tl_today").right + 100);
     expect(".o_tl_separator").toHaveCount(1);
-    expect(".o_tl_gear .fa-cog").toHaveCount(1);
+    expect(".o_tl_gear [data-icon='settings']").toHaveCount(1);
     expect(".o_tl_controls").toHaveStyle({
         paddingTop: "4px",
         paddingBottom: "16px",
@@ -66,7 +66,7 @@ test("A81: phone control bar and gear sheet", async () => {
     expect(".o_bottom_sheet .o_tl_gear_menu").toHaveCount(1);
     // one entry (dense mode), no group rows below a separator with one level
     expect(queryAllTexts(".o_tl_gear_menu .dropdown-item")).toEqual(["One row per record"]);
-    expect(".o_tl_gear_display .fa-expand").toHaveCount(1);
+    expect(".o_tl_gear_display [data-icon='expand_content']").toHaveCount(1);
     expect(".o_tl_gear_menu .dropdown-divider").toHaveCount(0);
     await contains(".o_tl_gear_display").click();
     await animationFrame();
@@ -77,7 +77,7 @@ test("A81: phone control bar and gear sheet", async () => {
         "Shared rows",
         "Fold every group",
     ]);
-    expect(".o_tl_gear_display .fa-compress").toHaveCount(1);
+    expect(".o_tl_gear_display [data-icon='close_fullscreen']").toHaveCount(1);
 });
 
 test("A81: the sheet lists open and fold every group below a separator", async () => {
@@ -88,7 +88,7 @@ test("A81: the sheet lists open and fold every group below a separator", async (
         "Fold every group",
     ]);
     expect(".o_tl_gear_menu .dropdown-divider").toHaveCount(1);
-    expect(".o_tl_gear_collapse_all .fa-caret-down").toHaveCount(1);
+    expect(".o_tl_gear_collapse_all [data-icon='keyboard_double_arrow_up']").toHaveCount(1);
     await contains(".o_tl_gear_collapse_all").click();
     await animationFrame();
     expect(".o_tl_controls .o_tl_collapse_all").toHaveCount(0);
@@ -98,7 +98,7 @@ test("A81: the sheet lists open and fold every group below a separator", async (
         "One row per record",
         "Open every group",
     ]);
-    expect(".o_tl_gear_collapse_all .fa-caret-right").toHaveCount(1);
+    expect(".o_tl_gear_collapse_all [data-icon='keyboard_double_arrow_down']").toHaveCount(1);
     await contains(".o_tl_gear_collapse_all").click();
     await animationFrame();
     await contains(".o_tl_gear").click();
@@ -126,7 +126,8 @@ test("A82: range sheet with the date dialog", async () => {
     expect(selected.borderTopWidth).toBe("1px");
     expect(selected.borderTopColor).not.toBe("rgba(0, 0, 0, 0)");
     expect(queryAllTexts(".o_tl_range_item")).toEqual(["Day", "Week", "Month", "Quarter", "Year"]);
-    expect(".o_tl_range_item.selected .fa-check").toHaveCount(1);
+    // the current entry is marked by the dropdown itself (a check mark of the theme)
+    expect(".o_tl_range_item.selected").toHaveCount(1);
     // the custom line shows the dates as buttons
     expect(".o_tl_custom_start input").toHaveCount(0);
     expect(queryOne(".o_tl_custom_start_button").textContent.trim()).toBe("11/01/2026");

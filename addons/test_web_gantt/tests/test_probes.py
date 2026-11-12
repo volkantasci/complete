@@ -360,8 +360,33 @@ class TimelineProbes(TimelineProbeCase):
                     # top of the grid
                     top = self.geometry("document.querySelector('.o_tl_renderer')")['geometry.y']
                     override = {'geometry.y': str(top + 26)}
-                self.check('M52', "document.querySelector('.o_tl_renderer .o_view_nocontent')",
+                self.check('M52', "document.querySelector('.o_tl_box .o_view_nocontent')",
                            scheme, viewport, 'no-content help', override=override)
+                self._assert_help_visible(viewport)
+
+    def _assert_help_visible(self, viewport):
+        """D-2: the help is fully opaque and inside the screen, though the grid is scrolled and
+        its cells faded (M51)."""
+        seen = self.js("""(() => {
+            const help = document.querySelector('.o_tl_box .o_view_nocontent');
+            const text = help.querySelector('.o_nocontent_help') || help;
+            const rect = text.getBoundingClientRect();
+            let opacity = 1;
+            for (let el = text; el; el = el.parentElement) {
+                opacity *= Number(getComputedStyle(el).opacity);
+            }
+            return {
+                opacity, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+                width: innerWidth, height: innerHeight, text: text.textContent.trim(),
+                scrolled: document.querySelector('.o_tl_renderer').scrollLeft,
+            };
+        })()""")
+        self.assertEqual(seen['opacity'], 1, f'help is faded: {seen}')
+        self.assertTrue(seen['text'], 'help has no text')
+        self.assertTrue(
+            seen['left'] >= 0 and seen['right'] <= seen['width']
+            and seen['top'] >= 0 and seen['bottom'] <= seen['height'],
+            f'{viewport}: help is outside the screen: {seen}')
 
     # -- M64 --------------------------------------------------------------------------
 
@@ -373,3 +398,176 @@ class TimelineProbes(TimelineProbeCase):
                            query='?view_type=list'):
                 self.check('M64', "document.querySelector('.o_list_renderer th.o_column_sortable')",
                            scheme, 'desktop', 'sortable list column header')
+
+
+@tagged('post_install', '-at_install', 'timeline_probes')
+class TimelineScreenDefects(TimelineProbeCase):
+    """The defects the screenshots of the slice showed (D-1 to D-7), read in a real Chrome."""
+
+    def setUp(self):
+        super().setUp()
+        self.viewports = ('desktop', 'phone')
+
+    def _centre_js(self):
+        """JS for the middle of the visible part of the grid (title cell excluded)."""
+        return """(() => {
+            const grid = document.querySelector('.o_tl_renderer');
+            const box = grid.getBoundingClientRect();
+            const title = document.querySelector('.o_tl_title_cell');
+            const left = title ? title.getBoundingClientRect().right : box.left;
+            return (left + box.left + grid.clientLeft + grid.clientWidth) / 2;
+        })()"""
+
+    def test_icons_render_one_glyph(self):
+        """D-1: every icon is a square glyph of the icon font, not the written-out name."""
+        for viewport in self.viewports:
+            with self.subTest(viewport=viewport), \
+                    self.page('test_web_gantt.host_action_h3', 'light', viewport):
+                self.wait("document.fonts.status === 'loaded'")
+                if viewport == 'phone':
+                    self.click_js("document.querySelector('.o_tl_gear')")
+                    self.wait("!!document.querySelector('.o_tl_gear_menu, .o_bottom_sheet')")
+                else:
+                    self.click_js("document.querySelector('.o_tl_range_button')")
+                    self.wait("!!document.querySelector('.o_tl_range_menu')")
+                icons = self.js("""[...document.querySelectorAll(
+                    '.o_timeline_view i.oi, .o_tl_gear_menu i.oi, .o_bottom_sheet i.oi, ' +
+                    '.o_tl_range_menu i.oi')].map((icon) => {
+                    const rect = icon.getBoundingClientRect();
+                    return {
+                        name: icon.getAttribute('data-icon'), width: rect.width,
+                        size: parseFloat(getComputedStyle(icon).fontSize),
+                    };
+                })""")
+                self.assertGreater(len(icons), 5)
+                for icon in icons:
+                    self.assertTrue(icon['name'], f'{viewport}: icon without a name')
+                    self.assertTrue(0 < icon['width'] < icon['size'] * 1.6,
+                                    f'{viewport}: icon {icon} has no glyph')
+
+    def test_title_cell_and_headers_cover_the_scrolled_grid(self):
+        """D-3: the title cell is stuck at the start, bold, centred, 75 % background and blur."""
+        for viewport in self.viewports:
+            with self.subTest(viewport=viewport), \
+                    self.page('test_web_gantt.host_action_h3', 'light', viewport):
+                self.scroll_grid(900)
+                title = self.read("document.querySelector('.o_tl_title_cell')", [
+                    'geometry.x', 'geometry.width', 'font-weight', 'justify-content',
+                    'background-color', 'backdrop-filter', 'z-index'])
+                grid = self.geometry("document.querySelector('.o_tl_renderer')")
+                self.assertLess(abs(title['geometry.x'] - grid['geometry.x']), 2.0)
+                self.assertEqual(title['font-weight'], '700')
+                self.assertEqual(title['justify-content'], 'center')
+                self.assertEqual(title['background-color'], 'rgba(255, 255, 255, 0.75)')
+                self.assertEqual(self.js(
+                    "document.querySelector('.o_tl_title_cell').textContent.trim()"), 'Pills')
+                header = self.read(
+                    "document.querySelector('.o_tl_row_header')",
+                    ['geometry.x', 'background-color', 'backdrop-filter'])
+                self.assertLess(abs(header['geometry.x'] - grid['geometry.x']), 2.0)
+                self.assertEqual(header['background-color'], 'rgba(255, 255, 255, 0.75)')
+                # the blur of the theme, when it is enabled (the variable exists only then)
+                blur = self.js("getComputedStyle(document.documentElement)"
+                               ".getPropertyValue('--o-backdrop-blur').trim()")
+                if blur:
+                    self.assertEqual(title['backdrop-filter'], blur)
+                    self.assertEqual(header['backdrop-filter'], blur)
+
+    def test_group_header_label_sticks(self):
+        """D-5: the label of a partly scrolled group stays at the edge of the visible part."""
+        for viewport in self.viewports:
+            with self.subTest(viewport=viewport), \
+                    self.page('test_web_gantt.host_action_h3', 'light', viewport):
+                found = self.js("""(() => {
+                    const grid = document.querySelector('.o_tl_renderer');
+                    const edge = document.querySelector('.o_tl_row_header')
+                        .getBoundingClientRect().right;
+                    const groups = [...document.querySelectorAll('.o_tl_col_group')];
+                    // put the second group 80 px under the row headers
+                    const second = groups[1].getBoundingClientRect();
+                    grid.scrollLeft += second.left - (edge - 80);
+                    return edge;
+                })()""")
+                self.settle()
+                seen = self.js("""(() => {
+                    const edge = document.querySelector('.o_tl_row_header')
+                        .getBoundingClientRect().right;
+                    const group = document.querySelectorAll('.o_tl_col_group')[1];
+                    const label = group.querySelector('.o_tl_col_group_label');
+                    return {
+                        edge, groupLeft: group.getBoundingClientRect().left,
+                        labelLeft: label.getBoundingClientRect().left,
+                        text: label.textContent.trim(),
+                    };
+                })()""")
+                self.assertLess(seen['groupLeft'], seen['edge'], f'{found} {seen}')
+                self.assertTrue(seen['text'].startswith('Week'), seen)
+                self.assertLess(abs(seen['labelLeft'] - (seen['edge'] + 8)), 1.5, seen)
+
+    def test_focus_day_starts_in_the_middle(self):
+        """D-6 (S1): the focus day starts in the middle of the visible part."""
+        for host, viewport in (('h1', 'desktop'), ('h3', 'desktop'), ('h2', 'desktop')):
+            with self.subTest(host=host), \
+                    self.page(f'test_web_gantt.host_action_{host}', 'light', viewport):
+                today = self.js(
+                    "document.querySelector('.o_tl_col.o_tl_is_today').getBoundingClientRect().left")
+                centre = self.js(self._centre_js())
+                seen = self.js('''(() => {
+                    const grid = document.querySelector('.o_tl_renderer');
+                    const rect = (el) => el && JSON.stringify(el.getBoundingClientRect());
+                    return {grid: rect(grid), client: grid.clientWidth, left: grid.scrollLeft,
+                        title: rect(document.querySelector('.o_tl_title_cell')),
+                        today: rect(document.querySelector('.o_tl_col.o_tl_is_today'))};
+                })()''')
+                self.assertLess(abs(today - centre), 2.0, f'{host}: {today} vs {centre} {seen}')
+
+    def test_popover_band_cross_scroll_and_dates(self):
+        """D-4: grey header band, cross in the top right corner, no scrollbar, short dates."""
+        for viewport in self.viewports:
+            with self.subTest(viewport=viewport), \
+                    self.page('test_web_gantt.host_action_h5', 'light', viewport):
+                self.click_js(self.pill('Build'))
+                self.wait("!!document.querySelector('.o_popover .o_tl_popover')")
+                self.settle()
+                popover = self.geometry("document.querySelector('.o_tl_popover')")
+                cross = self.geometry("document.querySelector('.o_card_popover_close')")
+                self.assertLess(abs(cross['geometry.y'] - popover['geometry.y']), 2.0)
+                self.assertLess(
+                    abs(cross['geometry.x'] + cross['geometry.width']
+                        - (popover['geometry.x'] + popover['geometry.width'])), 2.0)
+                band = self.read("document.querySelector('.o_popover_header')",
+                                 ['background-color'])['background-color']
+                # the grey-200 role of the theme: neither white nor the colour of the body
+                body_bg = self.read("document.querySelector('.o_tl_popover .o_popover_body')",
+                                    ['background-color'])['background-color']
+                self.assertNotIn(band, ('rgb(255, 255, 255)', 'rgba(0, 0, 0, 0)', body_bg))
+                body = self.js("""(() => {
+                    const el = document.querySelector('.o_tl_popover .o_popover_body');
+                    return {
+                        scroll: el.scrollWidth, client: el.clientWidth,
+                        vscroll: el.scrollHeight, vclient: el.clientHeight,
+                        text: el.innerText,
+                    };
+                })()""")
+                self.assertLessEqual(body['scroll'], body['client'], body)
+                self.assertLessEqual(body['vscroll'], body['vclient'], body)
+                self.assertIn('Start: Nov 12, 9:00 AM', body['text'])
+                self.assertIn('Stop: Nov 14, 6:00 PM', body['text'])
+                if viewport == 'phone':
+                    dim = self.js("getComputedStyle(document.querySelector('.o_popover:has("
+                                  "> .o_tl_popover_sheet)'), '::before').backgroundColor")
+                    self.assertEqual(dim, 'rgba(0, 0, 0, 0.25)')
+
+    def test_phone_custom_range_dates_are_plain_fields(self):
+        """D-7: the two dates of the custom line look like plain underlined fields."""
+        with self.page('test_web_gantt.host_action_h2', 'light', 'phone'):
+            self.click_js("document.querySelector('.o_tl_range_button')")
+            self.wait("!!document.querySelector('.o_bottom_sheet .o_tl_custom_line')")
+            self.settle()
+            for which in ('start', 'stop'):
+                style = self.read(f"document.querySelector('.o_tl_custom_{which}_button')", [
+                    'border-top-width', 'border-bottom-width', 'border-bottom-style',
+                    'background-color'])
+                self.assertEqual(style['border-top-width'], '0px')
+                self.assertEqual(style['border-bottom-width'], '1px')
+                self.assertEqual(style['background-color'], 'rgba(0, 0, 0, 0)')

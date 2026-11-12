@@ -31,7 +31,7 @@
 }
 
 .o_tl_range_menu .o_tl_custom_line .o_datetime_input {
-    width: 8em;
+    width: 6em;
 }
 
 // the current range is framed in the action colour in the bottom sheet of a phone (S9)
@@ -42,7 +42,7 @@
 
 .o_timeline_view .o_tl_controls {
     // the icon keeps the height of a line of text, so the button is as high as Today (M41)
-    .o_tl_gear .fa {
+    .o_tl_gear .oi {
         display: inline-block;
         width: 14px;
         line-height: 21px;
@@ -55,10 +55,25 @@
     align-items: center;
 }
 
-// the dates of the custom line are buttons that open a dialog on a phone
+// the dates of the custom line are buttons that open a dialog on a phone; they look like plain
+// date inputs with an underline (S9)
 .o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_start_button,
 .o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_stop_button {
+    flex: 0 0 auto;
+    width: 7.5em;
+    padding: 4px 4px;
+    text-align: left;
     white-space: nowrap;
+    color: $o-main-text-color;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid $o-border-color;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.o_tl_range_menu .o_tl_custom_line > .oi[data-icon="arrow_forward"] {
+    font-size: 1.25em;
 }
 
 // phone: the page scrolls (the view delegates scrolling to the action); the grid only scrolls
@@ -69,6 +84,11 @@
 
     .o_tl_box {
         flex: none;
+
+        // the sample state: room for the help under the headers
+        &:has(> .o_view_nocontent) .o_tl_renderer {
+            min-height: 60dvh;
+        }
     }
 
     .o_tl_renderer {
@@ -76,9 +96,6 @@
         overflow-x: auto;
         overflow-y: hidden;
 
-        // the sample state: room for the help under the headers
-        &:has(> .o_view_nocontent) {
-            min-height: 60dvh;
-        }
+
     }
 }

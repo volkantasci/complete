@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { press, queryAllTexts, queryOne } from "@odoo/hoot-dom";
+import { press, queryAll, queryAllTexts, queryOne } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
@@ -71,7 +71,8 @@ test("A25: range menu content", async () => {
     await openRangeMenu();
     expect(queryAllTexts(".o_tl_range_item")).toEqual(["Day", "Week", "Month", "Quarter", "Year"]);
     expect(".o_tl_range_item.selected").toHaveText("Week");
-    expect(".o_tl_range_item.selected .fa-check").toHaveCount(1);
+    // the current entry is marked by the dropdown itself (a check mark of the theme)
+    expect(".o_tl_range_item.selected").toHaveCount(1);
     expect(".o_tl_range_menu .dropdown-divider").toHaveCount(1);
     expect(".o_tl_custom_line input").toHaveCount(2);
     expect(".o_tl_apply").toHaveClass("btn-primary btn-sm");
@@ -210,10 +211,10 @@ test("A63: expand and collapse button visibility", async () => {
     await mountTimeline({ arch: GROUPED, groupBy: ["parent_id", "x_contact"] });
     expect(".o_tl_collapse_all").not.toHaveClass("invisible");
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
-    expect(".o_tl_collapse_all .fa-caret-down").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_up']").toHaveCount(1);
     await contains(".o_tl_collapse_all").click();
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Open every group");
-    expect(".o_tl_collapse_all .fa-caret-right").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_down']").toHaveCount(1);
     await contains(".o_tl_collapse_all").click();
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
 });
@@ -230,11 +231,11 @@ test("A63: one folded group makes the button open everything", async () => {
     model.toggleRow(model.data.rows[0].id);
     await animationFrame();
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Open every group");
-    expect(".o_tl_collapse_all .fa-caret-right").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_down']").toHaveCount(1);
     await contains(".o_tl_collapse_all").click();
     expect(model.data.rows.every((row) => !row.collapsed)).toBe(true);
     expect(".o_tl_collapse_all").toHaveAttribute("title", "Fold every group");
-    expect(".o_tl_collapse_all .fa-caret-down").toHaveCount(1);
+    expect(".o_tl_collapse_all [data-icon='keyboard_double_arrow_up']").toHaveCount(1);
 });
 
 test("the display mode and collapse buttons are not joined", async () => {
@@ -250,13 +251,13 @@ test("A63: one level in dense mode keeps the invisible button in its place", asy
 
 test("A65: display mode toggle", async () => {
     await mountTimeline({ arch: HOST_ARCHS.H6, groupBy: ["parent_id"] });
-    expect(".o_tl_display_mode .fa-compress").toHaveCount(1);
+    expect(".o_tl_display_mode [data-icon='close_fullscreen']").toHaveCount(1);
     expect(".o_tl_display_mode").toHaveAttribute("title", "Group records on shared rows");
     // groups_limit 2 pages the four groups
     expect(".o_pager_value").toHaveText("1-2");
     expect(".o_pager_limit").toHaveText("4");
     await contains(".o_tl_display_mode").click();
-    expect(".o_tl_display_mode .fa-expand").toHaveCount(1);
+    expect(".o_tl_display_mode [data-icon='expand_content']").toHaveCount(1);
     expect(".o_tl_display_mode").toHaveAttribute("title", "Show one row per record");
 });
 
@@ -319,4 +320,43 @@ test("A119: quarter and year offered", async () => {
     expect(scale()).toBe("month");
     await applyCustom("11/01/2026", "12/06/2027");
     expect(scale()).toBe("year");
+});
+
+test("D-1: every icon of the bar and the rows renders a glyph of the Community icon font", async () => {
+    await mountTimeline({ groupBy: ["parent_id", "x_contact"] });
+    await document.fonts.ready;
+    await animationFrame();
+    const icons = [...document.querySelectorAll(".o_timeline_view i.oi")];
+    // previous, next, range caret is the dropdown's own, display mode, expand all, group carets
+    expect(icons.length).toBeGreaterThan(5);
+    const names = new Set();
+    for (const icon of icons) {
+        const name = icon.getAttribute("data-icon");
+        expect(name).not.toBe("");
+        names.add(name);
+        const { width } = icon.getBoundingClientRect();
+        const size = parseFloat(getComputedStyle(icon).fontSize);
+        // a name the font has no ligature for is written out letter by letter: far wider than
+        // the square of one glyph
+        expect(width).toBeGreaterThan(0);
+        expect(width).toBeLessThan(size * 1.6);
+    }
+    for (const name of [
+        "arrow_back",
+        "arrow_forward",
+        "arrow_drop_down",
+        "expand_content",
+        "keyboard_double_arrow_up",
+        "arrow_drop_down",
+    ]) {
+        expect(names.has(name)).toBe(true);
+    }
+    // the open range menu: the arrow of the custom line
+    await openRangeMenu();
+    for (const icon of document.querySelectorAll(".o_tl_range_menu i.oi")) {
+        const { width } = icon.getBoundingClientRect();
+        expect(width).toBeGreaterThan(0);
+        expect(width).toBeLessThan(parseFloat(getComputedStyle(icon).fontSize) * 1.6);
+    }
+    expect(".o_tl_range_menu [data-icon='arrow_forward']").toHaveCount(1);
 });

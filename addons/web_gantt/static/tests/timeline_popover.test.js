@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odo
 import { click, dblclick, queryAll, queryAllTexts, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { mountView, onRpc, patchWithCleanup, MockServer } from "@web/../tests/web_test_helpers";
-import { formatDate, formatDateTime } from "@web/core/l10n/dates";
+import { toLocaleDateString, toLocaleDateTimeString } from "@web/core/l10n/dates";
 import { localization } from "@web/core/l10n/localization";
 
 import { setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
@@ -63,9 +63,11 @@ test("A77: default popover", async () => {
     expect(POPOVER).toHaveCount(1);
     expect(`${POPOVER} .o_popover_header`).toHaveText("Build");
     const lines = queryAllTexts(`${POPOVER} .o_popover_body .o_tl_popover_line`);
-    const start = formatDateTime(luxon.DateTime.local(2026, 11, 12, 9, 0));
-    const stop = formatDateTime(luxon.DateTime.local(2026, 11, 14, 18, 0));
-    expect(lines).toEqual([`Start: ${start}`, `Stop: ${stop}`]);
+    // the short form of the Community popovers: no seconds, no year in the current year
+    expect(lines).toEqual(["Start: Nov 12, 9:00 AM", "Stop: Nov 14, 6:00 PM"]);
+    expect(lines[0]).toBe(
+        `Start: ${toLocaleDateTimeString(luxon.DateTime.local(2026, 11, 12, 9, 0))}`
+    );
     expect(`${POPOVER} .o_tl_popover_line b`).toHaveCount(2);
     expect(`${POPOVER} .o_popover_footer button`).toHaveCount(1);
     expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
@@ -203,7 +205,8 @@ test("a date field shows its date, a datetime field its date and time", async ()
     await click(pillOf(1));
     await advanceTime(250);
     await animationFrame();
-    const day = formatDate(luxon.DateTime.local(2026, 11, 12));
+    const day = toLocaleDateString(luxon.DateTime.local(2026, 11, 12));
+    expect(day).toBe("Nov 12");
     expect(queryAllTexts(`${POPOVER} .o_tl_popover_line`)).toEqual([`Start: ${day}`, `Stop: ${day}`]);
 });
 

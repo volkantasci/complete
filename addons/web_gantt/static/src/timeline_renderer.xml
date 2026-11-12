@@ -8,25 +8,25 @@
                 <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample }" t-attf-style="grid-template-columns: {{layout.template}}">
                     <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
                     <t t-foreach="layout.groups" t-as="group" t-key="group_index">
-                        <div class="o_tl_col_group text-truncate" t-att-title="group.title" t-att-style="group.style" t-out="group.label"/>
+                        <div class="o_tl_col_group" t-att-title="group.title" t-att-style="group.style"><span class="o_tl_col_group_label" t-out="group.label"/></div>
                     </t>
                     <t t-foreach="layout.columns" t-as="column" t-key="column.key">
                         <div class="o_tl_col text-center" t-att-class="{ o_tl_is_today: column.isToday, o_tl_folded: column.folded, o_tl_foldable: column.run !== null and !column.folded }" t-att-title="column.title" t-att-data-tooltip="column.tooltip" t-att-data-date="column.date" t-att-data-run="column.run" t-att-data-index="column.index" t-att-style="column.style" t-on-click="() => this.onColumnClick(column)" t-on-mouseenter="(ev) => this.onColumnEnter(ev, column)" t-on-mouseleave="this.onColumnLeave">
-                            <t t-if="column.folded"><i class="fa fa-long-arrow-right"/><i class="fa fa-long-arrow-left"/></t>
-                            <t t-else=""><span class="o_tl_col_title"><t t-out="column.label"/><small t-if="column.meridiem" class="o_tl_col_meridiem" t-out="column.meridiem"/></span><span t-if="column.run !== null" class="o_tl_col_arrows"><i class="fa fa-long-arrow-left"/><i class="fa fa-long-arrow-right"/></span></t>
+                            <t t-if="column.folded"><i class="oi" data-icon="keyboard_double_arrow_right"/><i class="oi" data-icon="keyboard_double_arrow_left"/></t>
+                            <t t-else=""><span class="o_tl_col_title"><t t-out="column.label"/><small t-if="column.meridiem" class="o_tl_col_meridiem" t-out="column.meridiem"/></span><span t-if="column.run !== null" class="o_tl_col_arrows"><i class="oi" data-icon="keyboard_double_arrow_left"/><i class="oi" data-icon="keyboard_double_arrow_right"/></span></t>
                         </div>
                     </t>
                     <t t-foreach="layout.rows" t-as="row" t-key="row.key">
                         <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
                             <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-class="{ o_tl_sample: layout.isSample }" t-att-title="row.row.name" t-on-click="() => this.onRowHeaderClick(row)">
-                                <i t-if="row.kind === 'group'" class="fa o_tl_caret" t-att-class="row.row.collapsed ? 'fa-caret-right' : 'fa-caret-down'"/>
+                                <i t-if="row.kind === 'group'" class="oi o_tl_caret" t-att-data-icon="row.row.collapsed ? 'arrow_right' : 'arrow_drop_down'"/>
                                 <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
                                 <div class="o_tl_row_body">
                                     <div class="o_tl_row_line">
                                         <span class="o_tl_row_name text-truncate" t-out="row.row.name"/>
                                         <t t-if="row.progress">
                                             <span class="o_tl_progress_label" t-att-class="{ o_tl_over: row.progress.over }" t-att-data-tooltip="row.progress.tooltip" t-out="row.progress.label"/>
-                                            <i t-if="row.progress.warning" class="fa fa-exclamation-triangle o_tl_progress_warning" t-att-data-tooltip="row.progress.warning"/>
+                                            <i t-if="row.progress.warning" class="oi o_tl_progress_warning" data-icon="warning" t-att-data-tooltip="row.progress.warning"/>
                                         </t>
                                     </div>
                                 </div>
@@ -67,8 +67,8 @@
                         </div>
                     </div>
                 </div>
-                <ActionHelper t-if="layout.isSample and this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
             </div>
+            <ActionHelper t-if="layout.isSample and this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
         </div>
     </t>
 </templates>
