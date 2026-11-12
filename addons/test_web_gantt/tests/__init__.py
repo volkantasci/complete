@@ -7,6 +7,7 @@ from . import (
     test_gantt_data,
     test_host,
     test_install,
+    test_probes,
     test_validation,
     test_view_type,
 )
