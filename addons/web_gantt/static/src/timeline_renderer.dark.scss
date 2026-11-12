@@ -1,0 +1,22 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Index 0 of the pill palette is the theme's grey 700 role in the dark scheme; the other
+// indexes keep the colours the palette gives in both schemes.
+.o_tl_renderer .o_tl_color_0 {
+    background-color: $o-gray-700;
+
+    .o_tl_pill_progress {
+        background-color: darken($o-gray-700, 30%);
+    }
+
+    &.o_tl_striped {
+        background-image: repeating-linear-gradient(
+            -45deg,
+            $o-gray-700 0,
+            $o-gray-700 10px,
+            lighten($o-gray-700, 6%) 10px,
+            lighten($o-gray-700, 6%) 20px
+        );
+    }
+}

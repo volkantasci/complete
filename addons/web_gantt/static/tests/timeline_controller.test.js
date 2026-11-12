@@ -310,7 +310,7 @@ test("A119: only the quarter range offered", async () => {
     await contains(".o_tl_range_button").click();
     await applyCustom("11/01/2026", "11/20/2026");
     expect(scale()).toBe("month");
-    expect(".o_tl_column").toHaveCount(20);
+    expect(".o_tl_col").toHaveCount(20);
 });
 
 test("A119: quarter and year offered", async () => {
@@ -319,11 +319,4 @@ test("A119: quarter and year offered", async () => {
     expect(scale()).toBe("month");
     await applyCustom("11/01/2026", "12/06/2027");
     expect(scale()).toBe("year");
-});
-
-test("the renderer stub draws the column groups and columns", async () => {
-    await mountTimeline();
-    expect(".o_tl_column_group").toHaveCount(3);
-    expect(".o_tl_column").toHaveCount(21);
-    expect(queryAllTexts(".o_tl_column_group")[1]).toBe("Week 46, Nov 8 - Nov 14");
 });

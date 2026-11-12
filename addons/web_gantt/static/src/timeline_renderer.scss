@@ -1,17 +1,288 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+
+// The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
+// grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
 .o_tl_renderer {
     flex: 1 1 auto;
     min-height: 0;
+    overflow: auto;
+    position: relative;
+    container-type: inline-size;
+    color: $o-main-text-color;
+    background-color: $o-view-background-color;
+}
 
-    .o_tl_column_group,
-    .o_tl_column {
-        flex: 1 1 0;
-        min-width: 0;
-        border-bottom: 1px solid $o-border-color;
+.o_tl_grid {
+    // the row header column: a sixth of the width, a third on small screens
+    --o-tl-row-header-width: #{"calc(100cqw / 6)"};
+
+    @include media-breakpoint-down(md) {
+        --o-tl-row-header-width: #{"calc(100cqw / 3)"};
     }
 
-    .o_tl_column_group {
-        padding-left: 8px;
+    display: grid;
+    min-width: 100%;
+    grid-template-rows: $o-tl-header-height $o-tl-header-height;
+    position: relative;
+    font-size: 14px;
+}
+
+// ----------------------------------------------------------------------------
+// Headers
+// ----------------------------------------------------------------------------
+
+@mixin o-tl-header-blur {
+    @if global-variable-exists(o-backdrop-blur) {
+        backdrop-filter: $o-backdrop-blur;
+    }
+}
+
+.o_tl_title_cell {
+    @include o-tl-header-blur;
+    grid-row: 1 / span 2;
+    grid-column: 1;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: $o-main-text-color;
+    background-color: rgba($o-view-background-color, .75);
+    border-right: 1px solid $o-border-color;
+    min-width: 0;
+}
+
+.o_tl_title_text {
+    min-width: 0;
+}
+
+.o_tl_col_group {
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    box-sizing: border-box;
+    height: $o-tl-header-height;
+    padding-left: 8px;
+    line-height: $o-tl-header-height - 2px;
+    color: $o-main-text-color;
+    background-color: $o-view-background-color;
+    border-right: 1px solid $o-border-color;
+    min-width: 0;
+}
+
+.o_tl_col {
+    @include o-tl-header-blur;
+    grid-row: 2;
+    position: sticky;
+    top: $o-tl-header-height;
+    z-index: 4;
+    isolation: isolate;
+    box-sizing: border-box;
+    height: $o-tl-header-height;
+    line-height: $o-tl-header-height - 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    min-width: 0;
+    color: $o-main-headings-color;
+    background-color: rgba($o-view-background-color, .75);
+    border: 1px solid transparent;
+    border-right-color: $o-border-color;
+    border-bottom-color: $o-border-color;
+
+    // keeps the content scrolled under the header from showing through the today tint
+    &.o_tl_is_today::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: -1;
+        background-color: $o-view-background-color;
+    }
+
+    &.o_tl_is_today {
+        background-color: $o-tl-today-bg;
+        border-left-color: $o-tl-today-border;
+        border-top-color: $o-tl-today-border;
+    }
+
+    .o_tl_col_meridiem {
+        margin-left: 1px;
+        font-size: 10px;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Rows and cells
+// ----------------------------------------------------------------------------
+
+.o_tl_row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    position: relative;
+    min-width: 0;
+}
+
+.o_tl_row_header {
+    grid-column: 1;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 8px;
+    color: $o-main-text-color;
+    background-color: rgba($o-view-background-color, .75);
+    border-right: 1px solid $o-border-color;
+    border-bottom: 1px solid $o-border-color;
+}
+
+.o_tl_row_name {
+    min-width: 0;
+}
+
+.o_tl_cell {
+    min-width: 0;
+    border: 0 solid $o-border-color;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+
+    &.o_tl_is_today {
+        background-color: $o-tl-today-bg;
+        border-left-color: $o-tl-today-border;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Pills
+// ----------------------------------------------------------------------------
+
+.o_tl_pills {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+
+    .o_tl_with_row_headers & {
+        left: var(--o-tl-row-header-width);
+    }
+}
+
+.o_tl_pill {
+    position: absolute;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    height: $o-tl-pill-height;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 21px;
+    // the text of a pill is black on every palette colour, in both schemes
+    color: #000000;
+    pointer-events: auto;
+
+    // the pointer changes neither the colours nor the shadow; the stripes take the full colour
+    &:hover {
+        box-shadow: none;
+
+        &.o_tl_striped {
+            background-image: none;
+        }
+    }
+}
+
+.o_tl_pill_title {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 4px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: clip;
+}
+
+// the darker band over the left part of the pill, as wide as the progress
+.o_tl_pill_progress {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    opacity: .2;
+    pointer-events: none;
+}
+
+// the small triangle at the top left corner: a rotated square of which only the corner inside
+// the pill shows
+.o_tl_pill_mark {
+    position: absolute;
+    top: -11px;
+    left: -13px;
+    width: 20px;
+    height: 16px;
+    transform: rotate(45deg);
+    box-shadow: 1px 1px 0 0 #FFFFFF;
+
+    &.o_tl_mark_danger {
+        background-color: $o-danger;
+    }
+
+    &.o_tl_mark_warning {
+        background-color: $o-warning;
+    }
+
+    &.o_tl_mark_success {
+        background-color: $o-success;
+    }
+
+    &.o_tl_mark_info {
+        background-color: $o-info;
+    }
+
+    &.o_tl_mark_secondary {
+        background-color: $o-gray-300;
+    }
+}
+
+// Palette: index 0 is the first colour of the theme palette, the others follow; each is
+// 60 % of the palette colour over white. The progress band is the palette colour darkened.
+@mixin o-tl-pill-color($base, $pill) {
+    background-color: $pill;
+
+    .o_tl_pill_progress {
+        background-color: darken($base, 30%);
+    }
+
+    &.o_tl_striped {
+        background-image: repeating-linear-gradient(
+            -45deg,
+            $pill 0,
+            $pill 10px,
+            lighten($pill, 6%) 10px,
+            lighten($pill, 6%) 20px
+        );
+    }
+}
+
+@for $-index from 0 through 11 {
+    .o_tl_color_#{$-index} {
+        @include o-tl-pill-color(
+            nth($o-colors, $-index + 1),
+            mix(nth($o-colors, $-index + 1), #FFFFFF, 60%)
+        );
     }
 }

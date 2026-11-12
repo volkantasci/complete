@@ -1,0 +1,9 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Dark counterparts of timeline.variables.scss. The `!default` of the light file then keeps
+// these values in the dark bundle.
+
+$o-tl-today-bg: rgba($o-warning, .15) !default;
+$o-tl-today-border: rgba($o-warning, .5) !default;
+$o-tl-group-gradient-end: #131315 !default;

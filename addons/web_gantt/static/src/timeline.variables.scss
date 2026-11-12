@@ -1,0 +1,16 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Values of the timeline view that match no theme role. The dark counterparts live in
+// timeline.variables.dark.scss, which the dark bundle places before this file.
+
+// Highlight of the column of now: fill and the left and top border of its header.
+$o-tl-today-bg: #FFFAEB !default;
+$o-tl-today-border: #DCA665 !default;
+
+// End colour of the vertical gradient of a group row (the start is grey 100).
+$o-tl-group-gradient-end: #E9ECEF !default;
+
+// Size of the header rows and of a pill, in pixels.
+$o-tl-header-height: 25px !default;
+$o-tl-pill-height: 23px !default;

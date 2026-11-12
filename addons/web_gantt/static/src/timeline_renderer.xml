@@ -2,20 +2,39 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
     <t t-name="web_gantt.TimelineRenderer">
-        <div class="o_tl_renderer o_tl_grid_scroller overflow-auto" t-att-data-scale="this.data.scaleId">
-            <div class="o_tl_headers">
-                <div class="o_tl_column_groups d-flex">
-                    <t t-foreach="this.data.columnGroups" t-as="group" t-key="group_index">
-                        <div class="o_tl_column_group text-truncate" t-att-title="group.tooltip" t-att-style="`flex: ${group.span} 1 0`" t-out="group.label"/>
-                    </t>
-                </div>
-                <div class="o_tl_columns d-flex">
-                    <t t-foreach="this.data.columns" t-as="column" t-key="column_index">
-                        <div class="o_tl_column text-center" t-att-class="{ 'o_tl_column_today': column.isToday }" t-att-title="this.columnTitle(column)" t-out="this.columnLabel(column)"/>
-                    </t>
-                </div>
+        <t t-set="layout" t-value="this.layout"/>
+        <div class="o_tl_renderer" t-att-data-scale="this.data.scaleId">
+            <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders }" t-attf-style="grid-template-columns: {{layout.template}}">
+                <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
+                <t t-foreach="layout.groups" t-as="group" t-key="group_index">
+                    <div class="o_tl_col_group text-truncate" t-att-title="group.title" t-att-style="group.style" t-out="group.label"/>
+                </t>
+                <t t-foreach="layout.columns" t-as="column" t-key="column.key">
+                    <div class="o_tl_col text-center" t-att-class="{ o_tl_is_today: column.isToday }" t-att-title="column.title" t-att-data-date="column.date" t-att-style="column.style"><t t-out="column.label"/><small t-if="column.meridiem" class="o_tl_col_meridiem" t-out="column.meridiem"/></div>
+                </t>
+                <t t-foreach="layout.rows" t-as="row" t-key="row.key">
+                    <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px">
+                        <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-title="row.row.name">
+                            <!-- Task 11: caret, thumbnail, progress bar -->
+                            <span class="o_tl_row_name text-truncate" t-out="row.row.name"/>
+                        </div>
+                        <t t-foreach="this.data.columns" t-as="cell" t-key="cell_index">
+                            <div class="o_tl_cell" t-att-class="{ o_tl_is_today: cell.isToday }"/>
+                        </t>
+                        <!-- Task 12: capacity bars and folded column runs go beside the cells -->
+                        <div t-if="row.kind === 'pills'" class="o_tl_pills">
+                            <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
+                                <div class="o_tl_pill" t-att-class="pill.className" t-att-style="pill.style" t-att-data-pill-id="pill.id">
+                                    <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
+                                    <span class="o_tl_pill_title" t-out="pill.label"/>
+                                    <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </t>
+                <!-- Task 11: the total row -->
             </div>
-            <div class="o_tl_body"/>
         </div>
     </t>
 </templates>
