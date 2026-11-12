@@ -128,8 +128,13 @@ export class TimelineRenderer extends Component {
 
     _setRunOpen(run, open) {
         this._clearRunHover();
-        this._opened[open ? "add" : "delete"](run);
+        this._opened[open ? "add" : "delete"](this._runKey(run));
         this.state.version++;
+    }
+
+    /** An open run is remembered by the start of its first column, not by its position. */
+    _runKey(first) {
+        return this.data.columns[first].start.toISO();
     }
 
     /** The pointer over the header of an open foldable column marks its whole run (R29). */
@@ -208,7 +213,10 @@ export class TimelineRenderer extends Component {
             hasRowHeaders,
             template: hasRowHeaders ? `var(--o-tl-row-header-width) ${track}` : track,
             columns: fold.headers.map((header) => this._columnView(header)),
-            groups: data.columnGroups.map((group) => this._groupView(group, fold)),
+            groups: data.columnGroups
+                .map((group) => this._groupView(group, fold))
+                // all columns folded: the one column keeps the first group header
+                .slice(0, fold.everyFolded ? 1 : undefined),
             rows: this._buildRows(data, unavailable, fold),
             total: this.props.archInfo.totalRow ? this._buildTotal(data, fold) : null,
             totalParts: data.columns.length * data.parts,
@@ -252,7 +260,7 @@ export class TimelineRenderer extends Component {
      */
     _buildFold(data, unavailable, offset, minWidth) {
         const count = data.columns.length;
-        const runs = foldableRuns({
+        const rawRuns = foldableRuns({
             columns: data.columns,
             rowsUnavailable: [...unavailable.values()],
             pillsSubRanges: data.records.map((record) => ({
@@ -262,9 +270,17 @@ export class TimelineRenderer extends Component {
             scaleId: data.scaleId,
             parts: data.parts,
         });
+        const runs = this._splitRuns(rawRuns, data);
+        // an open run that is no longer a foldable run is forgotten
+        const keys = new Set(runs.map((run) => this._runKey(run.first)));
+        for (const key of [...this._opened]) {
+            if (!keys.has(key)) {
+                this._opened.delete(key);
+            }
+        }
         const runOf = new Map();
         for (const run of runs) {
-            run.open = this._opened.has(run.first);
+            run.open = this._opened.has(this._runKey(run.first));
             for (let index = run.first; index <= run.last; index++) {
                 runOf.set(index, run);
             }
@@ -321,6 +337,7 @@ export class TimelineRenderer extends Component {
             tracks,
             headers: headers.map((header) => ({ ...header, gridColumn: gridColumn[header.index] })),
             gridColumn,
+            everyFolded,
             plainCells: cellsFor(null),
             cellsFor,
             foldedBefore,
@@ -328,6 +345,31 @@ export class TimelineRenderer extends Component {
             foldedColumns: foldedBefore[count],
             foldedWidth: foldedRuns * FOLDED_WIDTH,
         };
+    }
+
+    /**
+     * A folded track holds one column group header at most, so a run is cut at the boundaries of
+     * the column groups (weeks, months, ...). A run of every column stays whole: the grid is then
+     * one full-width column.
+     */
+    _splitRuns(runs, data) {
+        const count = data.columns.length;
+        if (runs.length === 1 && runs[0].first === 0 && runs[0].last === count - 1) {
+            return runs;
+        }
+        const bounds = new Set(data.columnGroups.map((group) => group.firstColumn));
+        const parts = [];
+        for (const run of runs) {
+            let first = run.first;
+            for (let index = run.first + 1; index <= run.last; index++) {
+                if (bounds.has(index)) {
+                    parts.push({ first, last: index - 1 });
+                    first = index;
+                }
+            }
+            parts.push({ first, last: run.last });
+        }
+        return data.scaleId === "week" ? parts : parts.filter((run) => run.last > run.first);
     }
 
     /** One cell of a row: the today class, and the grey of the unavailable parts (R28). */

@@ -3,7 +3,13 @@
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { hover, queryAll, queryOne, queryRect } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
-import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
+import {
+    contains,
+    mountView,
+    patchWithCleanup,
+    toggleMenuItem,
+    toggleSearchBarMenu,
+} from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 
 import { at, setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
@@ -51,7 +57,11 @@ const near = (a, b, tolerance = 0.6) => Math.abs(a - b) < tolerance;
 const headerOf = (date) => queryOne(`.o_tl_col[data-date="${date}"]`);
 const D3 = "2026-11-15";
 const D4 = "2026-11-16";
+// the unavailable grey (M44), the border grey of a folded cell and of a bar track (M46, M47) and
+// the light today fill (the highlight of the column of now)
 const GREY = "rgb(233, 236, 239)";
+const BORDER_GREY = "rgb(222, 226, 230)";
+const TODAY_FILL = "rgb(255, 250, 235)";
 
 /** Every contact is unavailable on D+3 and D+4 (from D+3 00:00 to D+5 00:00). */
 function unavailableOnWeekend(contacts = [1, 2, 3], days = [3, 5]) {
@@ -84,7 +94,7 @@ test("A72: progress bar 24% with 91:00 and tooltip 29:00/120:00 (24%)", async ()
     expect(css(track, "borderTopLeftRadius")).toBe("3px");
     expect(css(track, "marginRight")).toBe("8px");
     expect(css(track, "marginLeft")).toBe("0px");
-    expect(css(track, "backgroundColor")).toBe("rgb(222, 226, 230)");
+    expect(css(track, "backgroundColor")).toBe(BORDER_GREY);
     // 8 px padding at the left, 8 px margin at the right, 1 px border
     expect(near(queryRect(track).width, queryRect(header).width - 8 - 8 - 1)).toBe(true);
     // M48: filled to 24 % in the success colour at 75 % opacity
@@ -105,7 +115,7 @@ test("A72: progress bar 24% with 91:00 and tooltip 29:00/120:00 (24%)", async ()
     );
 });
 
-test("A73: over 100% and warning without maximum", async () => {
+test("A73: over 100% shows the danger colours", async () => {
     timelineMock.progress = {
         x_contact: { 1: { value: 130, max_value: 120 }, 2: { value: 60, max_value: 120 } },
     };
@@ -196,7 +206,7 @@ test("A74: unavailable cells and today fill kept", async () => {
     expect(image).toInclude("50%, rgba(0, 0, 0, 0) 100%");
     // today (D0): the second half is grey, the available half keeps the today fill
     expect(cells[11]).toHaveClass("o_tl_is_today");
-    expect(css(cells[11], "backgroundColor")).toBe("rgb(255, 250, 235)");
+    expect(css(cells[11], "backgroundColor")).toBe(TODAY_FILL);
     expect(css(cells[11], "backgroundImage")).toInclude(`rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 50%, ${GREY} 50%`);
     // another contact and the row without a value get nothing
     for (const name of ["Host Contact 2", "Undefined Contact"]) {
@@ -239,7 +249,7 @@ test("A75: two days fold into 36 px and reopen", async () => {
     expect(".o_tl_cell.o_tl_folded_cell").toHaveCount(4);
     for (const cell of queryAll(".o_tl_cell.o_tl_folded_cell")) {
         expect(queryRect(cell).width).toBe(36);
-        expect(css(cell, "backgroundColor")).toBe("rgb(222, 226, 230)");
+        expect(css(cell, "backgroundColor")).toBe(BORDER_GREY);
     }
     // the cells of the following columns stay aligned with their headers
     const last = queryAll(".o_tl_col").at(-1);
@@ -264,14 +274,14 @@ test("A75: two days fold into 36 px and reopen", async () => {
     expect(".o_tl_col").toHaveCount(21);
 });
 
-test("A75: a single day folds on Week but not on Month; the range menu keeps working", async () => {
+test("A75: a single day folds alone on Week but not on Month", async () => {
     unavailableOnWeekend([1, 2, 3], [3, 4]);
     await mountTimeline();
     // one header replaces the one day
     expect(".o_tl_col").toHaveCount(21);
     expect(".o_tl_col.o_tl_folded").toHaveCount(1);
     expect(queryOne(".o_tl_col.o_tl_folded")).toHaveText("");
-    // open it, then change the range: the folding comes back
+    // open it, then go to Month: a single day does not fold there
     await contains(".o_tl_col.o_tl_folded").click();
     expect(".o_tl_col.o_tl_folded").toHaveCount(0);
     await contains(".o_tl_range_button").click();
@@ -281,8 +291,29 @@ test("A75: a single day folds on Week but not on Month; the range menu keeps wor
     expect(".o_tl_col.o_tl_folded").toHaveCount(0);
 });
 
-test("A76: folding needs every row and no pill", async () => {
-    // one contact is available on both days
+test("A76: a contact available on D+3 keeps D+3 open and D+4 folds alone", async () => {
+    // contact 1 is unavailable on D+3 and D+4, contact 2 only on D+4
+    timelineMock.unavailability = {
+        x_contact: {
+            1: [{ start: at(3, "00:00"), stop: at(5, "00:00") }],
+            2: [{ start: at(4, "00:00"), stop: at(5, "00:00") }],
+        },
+    };
+    await mountTimeline();
+    // D+3 stays a normal column; D+4 is one folded column on its own (R29 on Week)
+    expect(".o_tl_col").toHaveCount(21);
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    expect(`.o_tl_col[data-date="${D3}"]`).toHaveCount(1);
+    expect(`.o_tl_col[data-date="${D3}"]`).not.toHaveClass("o_tl_folded");
+    expect(`.o_tl_col[data-date="${D4}"]`).toHaveCount(0);
+    // a folded cell in every row, the total row included, none at D+3
+    expect(".o_tl_folded_cell").toHaveCount(4);
+    expect(".o_tl_total_row .o_tl_folded_cell").toHaveCount(1);
+    expect(queryRect(".o_tl_col.o_tl_folded").width).toBe(36);
+    expect(queryRect(`.o_tl_col[data-date="${D3}"]`).width > 36).toBe(true);
+});
+
+test("A76: a contact available on both days stops the folding", async () => {
     unavailableOnWeekend([1]);
     await mountTimeline();
     expect(".o_tl_col").toHaveCount(21);
@@ -346,4 +377,102 @@ test("A75: a click on a folded cell of a group row does not toggle the group", a
     await contains(group.querySelector(".o_tl_folded_cell")).click();
     expect(".o_tl_col").toHaveCount(21);
     expect(group).not.toHaveClass("o_tl_collapsed");
+});
+
+test("A75: every column folded gives one full-width column", async () => {
+    timelineMock.expandGroups = [1, 2];
+    timelineMock.unavailability = {
+        x_contact: {
+            1: [{ start: at(-30, "00:00"), stop: at(30, "00:00") }],
+            2: [{ start: at(-30, "00:00"), stop: at(30, "00:00") }],
+        },
+    };
+    await mountTimeline({ domain: [["id", "in", []]] });
+    expect(".o_tl_col").toHaveCount(1);
+    expect(".o_tl_col").toHaveClass("o_tl_folded");
+    const grid = queryRect(".o_tl_grid");
+    const area = grid.width - queryRect(".o_tl_title_cell").width;
+    expect(near(queryRect(".o_tl_col").width, area, 1.5)).toBe(true);
+    expect(".o_tl_col_group").toHaveCount(1);
+    // a click opens the columns again
+    await contains(".o_tl_col").click();
+    expect(".o_tl_col").toHaveCount(21);
+});
+
+test("R40: the pointer over a group row or a total bar leaves folded cells alone", async () => {
+    unavailableOnWeekend();
+    await mountTimeline({ groupBy: ["parent_id", "x_contact"] });
+    const group = queryAll(".o_tl_group_row")[0];
+    const folded = group.querySelector(".o_tl_folded_cell");
+    const plain = group.querySelector(".o_tl_cell:not(.o_tl_folded_cell)");
+    for (const hovered of [group, queryAll(".o_tl_total_bar")[0]]) {
+        await hover(hovered);
+        expect(css(folded, "backgroundColor")).toBe(BORDER_GREY);
+        expect(css(folded, "backgroundImage")).toBe("none");
+    }
+    await hover(group);
+    // the other cells of the row do take the highlight
+    expect(css(plain, "backgroundImage")).toInclude("linear-gradient");
+    // a collapsed group row too
+    await contains(group.querySelector(".o_tl_row_header")).click();
+    expect(group).toHaveClass("o_tl_collapsed");
+    await hover(group);
+    expect(css(group.querySelector(".o_tl_folded_cell"), "backgroundColor")).toBe(BORDER_GREY);
+    expect(css(group.querySelector(".o_tl_folded_cell"), "backgroundImage")).toBe("none");
+});
+
+test("A75: folding is reset when the scale changes", async () => {
+    unavailableOnWeekend();
+    await mountTimeline();
+    await contains(".o_tl_col.o_tl_folded").click();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+    for (const label of ["Day", "Week"]) {
+        await contains(".o_tl_range_button").click();
+        const item = queryAll(".o_tl_range_item").find((el) => el.textContent.trim() === label);
+        await contains(item).click();
+        await settle();
+    }
+    expect(".o_tl_col").toHaveCount(20);
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+});
+
+test("A75: an open run is forgotten when a search removes it", async () => {
+    unavailableOnWeekend([1, 2, 3], [3, 5]);
+    await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: H12,
+        groupBy: GROUP_BY,
+        searchViewArch: `<search>
+            <filter name="quiet" string="Quiet" domain="[['id', 'in', [4, 5, 6, 9]]]"/>
+            <filter name="more" string="More" domain="[['id', '=', 7]]"/>
+        </search>`,
+        context: { search_default_quiet: 1 },
+    });
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    await contains(".o_tl_col.o_tl_folded").click();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+    // the Test pill (D+1 to D+4) touches both days: no run left
+    await toggleSearchBarMenu();
+    await toggleMenuItem("More");
+    await settle();
+    expect(".o_tl_col").toHaveCount(21);
+    expect(".o_tl_col.o_tl_folded, .o_tl_col.o_tl_foldable").toHaveCount(0);
+    // the run comes back folded, not open
+    await toggleMenuItem("More");
+    await settle();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+});
+
+test("A75: a run is cut at the boundary of two weeks", async () => {
+    // D+2 (Saturday 11-14) and D+3 (Sunday 11-15) lie in two different weeks
+    timelineMock.unavailability = {
+        x_contact: { 1: [{ start: at(2, "00:00"), stop: at(4, "00:00") }] },
+    };
+    await mountTimeline({ domain: [["id", "in", [4]]] });
+    expect(".o_tl_col.o_tl_folded").toHaveCount(2);
+    const groups = queryAll(".o_tl_col_group").map((el) => queryRect(el));
+    for (let i = 1; i < groups.length; i++) {
+        expect(groups[i].left >= groups[i - 1].right - 1).toBe(true);
+    }
 });
