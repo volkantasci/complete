@@ -32,6 +32,9 @@ $o-tl-pill-height: 23px !default;
 // with white into the colour of a pill. The light scheme needs none; see the dark file.
 $o-tl-pill-nudges: () !default;
 
+// The bottom line of the date fields in the custom line of the range menu (M73).
+$o-tl-date-line: $o-gray-200 !default;
+
 // The popover: the band behind the record name, and the room around the lines of its body.
 $o-tl-popover-header-bg: $o-gray-200 !default;
 $o-tl-popover-body-padding-x: 30px !default;

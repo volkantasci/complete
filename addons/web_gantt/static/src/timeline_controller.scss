@@ -16,9 +16,9 @@
                 column-gap: 4px;
             }
 
-            // the buttons keep the padding of a desktop button: the small-screen padding of the
-            // theme makes them taller than the measured Today button (M41)
-            .btn {
+            // Without touch the buttons keep the padding of a desktop button (M41). On a touch
+            // device the theme's own touch size applies (37 px tall, 7 px and 14 px padding).
+            body:not(.o_touch_device) & .btn {
                 padding: $btn-padding-y $btn-padding-x;
             }
 
@@ -26,12 +26,38 @@
                 margin: 7px 0;
                 border-top: 1px solid $o-border-color;
             }
+
+            // the buttons are 4 px higher each on a touch device: the separator is as much
+            // tighter, so the bar keeps its height (the grid starts at the same place)
+            body.o_touch_device & .o_tl_separator {
+                margin: 3px 0;
+            }
         }
     }
 }
 
+// the dates of the custom line are plain fields: a bottom line only, 4 px side padding (M73)
 .o_tl_range_menu .o_tl_custom_line .o_datetime_input {
     width: 6em;
+    height: 24px;
+    padding: 0 4px;
+    border-bottom-color: $o-tl-date-line;
+
+    body.o_touch_device & {
+        height: 26px;
+    }
+}
+
+// the custom line: 4 px above and below in the menu, 16 px in the bottom sheet of a phone (the
+// sheet is 424 px tall on the 844 px screen of the captures)
+.o_tl_range_menu .o_tl_custom_line {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.o_bottom_sheet .o_tl_range_menu .o_tl_custom_line {
+    padding-top: 16px;
+    padding-bottom: 16px;
 }
 
 // the current range is framed in the action colour in the bottom sheet of a phone (S9)
@@ -61,19 +87,30 @@
 .o_tl_range_menu .o_tl_custom_line .btn.o_tl_custom_stop_button {
     flex: 0 0 auto;
     width: 7.5em;
-    padding: 4px 4px;
+    // 24 px tall, 26 px with touch (M73)
+    height: 24px;
+    padding: 0 4px;
+    line-height: 23px;
+    font-size: 14px;
     text-align: left;
     white-space: nowrap;
     color: $o-main-text-color;
     background: transparent;
     border: 0;
-    border-bottom: 1px solid $o-border-color;
+    border-bottom: 1px solid $o-tl-date-line;
     border-radius: 0;
     box-shadow: none;
+
+    body.o_touch_device & {
+        height: 26px;
+        line-height: 25px;
+    }
 }
 
-.o_tl_range_menu .o_tl_custom_line > .oi[data-icon="arrow_forward"] {
-    font-size: 1.25em;
+// the arrow between the two dates is a 14 x 14 px icon, in the range menu (M72) and on the
+// range button (M71)
+.o_tl_range_menu .o_tl_custom_line > .o_tl_custom_arrow {
+    font-size: 14px;
 }
 
 // phone: the page scrolls (the view delegates scrolling to the action); the grid only scrolls
@@ -112,10 +149,18 @@
     }
 }
 
-// the caret of the range button is as large as the one of a Community dropdown toggle; its
-// negative margins keep the button as high as the others
-.o_timeline_view .o_tl_range_button > .oi {
-    font-size: 1.6em;
-    margin: -.4em -.15em;
-    vertical-align: middle;
+// the range button lays its content out in a row: the range name (or the dates and the arrow
+// between them) and the caret, 5 px apart (M69 to M71)
+.o_timeline_view .o_tl_range_button {
+    display: flex;
+    align-items: center;
+    column-gap: 5px;
+
+    > .oi {
+        font-size: 14px;
+        flex: none;
+        width: 14px;
+        margin: 0;
+        vertical-align: 3.4px;
+    }
 }

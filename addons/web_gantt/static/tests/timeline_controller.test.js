@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { press, queryAll, queryAllTexts, queryOne } from "@odoo/hoot-dom";
+import { click, press, queryAll, queryAllTexts, queryOne } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import {
     contains,
@@ -391,4 +391,20 @@ test("A103: archived records are drawn only with the Archived filter of the sear
     await toggleMenuItem("Archived");
     await settle();
     expect(names()).toEqual(["Overlap C"]);
+});
+
+test("P8: the picked date's text is not selected when its picker opens (A122)", async () => {
+    await mountTimeline();
+    await openRangeMenu();
+    for (const which of ["start", "stop"]) {
+        const input = queryOne(`.o_tl_custom_${which} input`);
+        await click(input);
+        await animationFrame();
+        await advanceTime(100);
+        await animationFrame();
+        expect(".o_datetime_picker").toHaveCount(1);
+        expect(document.activeElement).toBe(input);
+        expect(input.value.length).toBeGreaterThan(0);
+        expect(input.selectionStart).toBe(input.selectionEnd);
+    }
 });

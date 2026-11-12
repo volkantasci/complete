@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { after, beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { click, queryAll, queryAllTexts, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
@@ -195,4 +195,100 @@ test("F1: the box fills the page on the phone and takes the view background (M65
     await mountPhone();
     expect(".o_tl_box").toHaveStyle({ backgroundColor: "rgb(255, 255, 255)" });
     expect(".o_tl_box").toHaveStyle({ flexGrow: "1" });
+});
+
+// The Community marks a touch device with two classes (`o_web_client` on the body is the
+// client's; the touch class comes from the touch feature at start): the theme's touch size
+// selects on them, so the tests set them as the client does.
+function makeTouchDevice() {
+    const classes = ["o_web_client", "o_touch_device"];
+    const added = classes.filter((name) => !document.body.classList.contains(name));
+    document.body.classList.add(...classes);
+    after(() => document.body.classList.remove(...added));
+}
+
+test("F3: previous, next, range, Today and the gear take the touch size on a touch phone", async () => {
+    makeTouchDevice();
+    await mountPhone({ groupBy: ["parent_id"] });
+    for (const selector of [".o_tl_previous", ".o_tl_next", ".o_tl_range_button", ".o_tl_today", ".o_tl_gear"]) {
+        expect(selector).toHaveStyle({
+            paddingTop: "7px",
+            paddingBottom: "7px",
+            paddingLeft: "14px",
+            paddingRight: "14px",
+        });
+        expect(queryRect(selector).height).toBe(37);
+    }
+    expect(queryRect(".o_tl_previous").width).toBeWithin(43.9, 44.1);
+    expect(queryRect(".o_tl_next").width).toBeWithin(43.9, 44.1);
+    expect(queryRect(".o_tl_gear").width).toBeWithin(43.9, 44.1);
+    expect(queryRect(".o_tl_range_button").width).toBeWithin(84, 85);
+    expect(queryRect(".o_tl_today").width).toBeWithin(66.9, 67.9);
+    // 4 + 37 + separator (3 + 1 + 3) + 37 + 16: the bar keeps the height it has without touch
+    expect(queryRect(".o_tl_controls").height).toBe(101);
+});
+
+test("F3: without touch the buttons keep the measured size (M41, M42, M69)", async () => {
+    await mountPhone({ groupBy: ["parent_id"] });
+    for (const selector of [".o_tl_previous", ".o_tl_next", ".o_tl_range_button", ".o_tl_today", ".o_tl_gear"]) {
+        expect(selector).toHaveStyle({ paddingTop: "5px", paddingLeft: "10px" });
+        expect(queryRect(selector).height).toBe(33);
+    }
+    expect(queryRect(".o_tl_controls").height).toBe(101);
+});
+
+test("P5: the caret sits 5 px after the range name, 14 px glyph (M69, M70)", async () => {
+    await mountPhone();
+    expect(".o_tl_range_button").toHaveStyle({ display: "flex", columnGap: "5px" });
+    expect(".o_tl_range_caret").toHaveStyle({ fontSize: "14px", marginLeft: "0px" });
+    const name = document.createRange();
+    const text = [...queryOne(".o_tl_range_button").childNodes].find(
+        (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim()
+    );
+    name.selectNodeContents(text);
+    expect(queryRect(".o_tl_range_caret").left - name.getBoundingClientRect().right).toBeWithin(
+        4.5,
+        5.5
+    );
+});
+
+test("P5: the arrow between custom dates is 14 x 14 px (M71, M72)", async () => {
+    await mountPhone({ arch: HOST_ARCHS.H5 });
+    expect(".o_tl_range_arrow").toHaveStyle({ fontSize: "14px" });
+    expect(queryRect(".o_tl_range_arrow").height).toBe(14);
+    expect(queryRect(".o_tl_range_arrow").width).toBeWithin(13.5, 14.5);
+    await contains(".o_tl_range_button").click();
+    expect(".o_tl_custom_arrow").toHaveStyle({ fontSize: "14px" });
+    expect(queryRect(".o_tl_custom_arrow").height).toBe(14);
+    expect(queryRect(".o_tl_custom_arrow").width).toBeWithin(13.5, 14.5);
+});
+
+test("P6: the gear button shows the filled gear icon", async () => {
+    await mountPhone();
+    expect(".o_tl_gear .oi").toHaveClass("oi-filled");
+    expect(".o_tl_gear [data-icon='settings']").toHaveCount(1);
+});
+
+test("P7: the dates of the range sheet are plain fields, 24 px, 26 px with touch (M73)", async () => {
+    await mountPhone();
+    await contains(".o_tl_range_button").click();
+    for (const selector of [".o_tl_custom_start_button", ".o_tl_custom_stop_button"]) {
+        expect(selector).toHaveStyle({
+            backgroundColor: "rgba(0, 0, 0, 0)",
+            borderBottomWidth: "1px",
+            borderTopWidth: "0px",
+            paddingLeft: "4px",
+            paddingRight: "4px",
+            fontSize: "14px",
+        });
+        expect(queryRect(selector).height).toBe(24);
+    }
+});
+
+test("P7: the dates of the range sheet are 26 px tall with touch (M73)", async () => {
+    makeTouchDevice();
+    await mountPhone();
+    await contains(".o_tl_range_button").click();
+    expect(queryRect(".o_tl_custom_start_button").height).toBe(26);
+    expect(queryRect(".o_tl_custom_stop_button").height).toBe(26);
 });

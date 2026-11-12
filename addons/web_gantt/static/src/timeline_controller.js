@@ -3,6 +3,7 @@
 import { Component, onWillUnmount, proxy, signal, t, useProps } from "@odoo/owl";
 import { DateTimeInput } from "@web/core/datetime/datetime_input";
 import { DateTimePicker } from "@web/core/datetime/datetime_picker";
+import { browser } from "@web/core/browser/browser";
 import { Dialog } from "@web/core/dialog/dialog";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
@@ -238,6 +239,25 @@ export class TimelineController extends Component {
             value: this.custom[which],
             onPick: (value) => this.onCustomDate(which, value),
         });
+    }
+
+    /**
+     * The Community picker selects the text of a date input when it opens; the date of the
+     * custom line stays unselected (the caret goes to the end), once the picker has settled.
+     */
+    keepDateUnselected(ev) {
+        const input = ev.target;
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+        const collapse = () => {
+            const end = input.value.length;
+            // only the select-all of the opening is undone, not a selection of the user
+            if (end && input.selectionStart === 0 && input.selectionEnd === end) {
+                input.setSelectionRange(end, end);
+            }
+        };
+        browser.requestAnimationFrame(() => browser.requestAnimationFrame(collapse));
     }
 
     applyCustom() {

@@ -146,8 +146,8 @@ class TimelineProbes(TimelineProbeCase):
             with self.page('test_web_gantt.host_action_h3', scheme, viewport):
                 self._rows(scheme, viewport)
                 self._consolidated_and_total(scheme, viewport)
-                self._control_bar(scheme, viewport)
                 if viewport == 'desktop':
+                    self._control_bar(scheme, viewport)
                     self._total_bar_hover(scheme, viewport)
                 # sticky headers: the same reads after the grid was scrolled
                 self.scroll_grid(300)
@@ -198,6 +198,13 @@ class TimelineProbes(TimelineProbeCase):
                    'first total bar')
         self.check('M36', f"{total}.querySelector('.o_tl_total_count')", scheme, viewport,
                    'first total bar count')
+
+    def test_h3_control_bar_without_touch(self):
+        """M41 and M42 are measured without touch (the touch size is F3's own test)."""
+        for scheme, viewport in self.combos(['M41', 'M42']):
+            with self.page('test_web_gantt.host_action_h3', scheme, viewport,
+                           touch=False if viewport == 'phone' else None):
+                self._control_bar(scheme, viewport)
 
     def _control_bar(self, scheme, viewport):
         self.check('M41', "document.querySelector('.o_tl_today')", scheme, viewport,
@@ -270,6 +277,119 @@ class TimelineProbes(TimelineProbeCase):
             with self.page('test_web_gantt.host_action_h6', scheme, viewport):
                 self.check('M40', _header(self.row('Design')), scheme, viewport,
                            'sparse leaf row header Design')
+
+    # -- control bar: M69 to M73, F3 (touch size), P5 to P8 ----------------------------
+
+    def _button_edges(self, scheme, viewport, touch):
+        """Previous, next, range button, Today (and the gear on a phone): height, paddings and
+        widths. Without touch the table (M41, M69) holds; on a touch phone the theme's touch
+        size: 37 px tall, 7 px and 14 px padding, 44 px wide arrows, Today about 67.4 px."""
+        label = ' (touch)' if touch else ''
+        names = ['previous', 'next', 'range_button', 'today']
+        if viewport == 'phone':
+            names.append('gear')
+        want = {'previous': 44, 'next': 44, 'gear': 44, 'range_button': 84.5, 'today': 67.4}
+        for name in names:
+            element = f"document.querySelector('.o_tl_{name}')"
+            if touch:
+                expected = {'geometry.height': '37', 'geometry.width': str(want[name]),
+                            'padding-top': '7', 'padding-bottom': '7',
+                            'padding-left': '14', 'padding-right': '14'}
+                self.probe('F3', element, scheme, viewport, expected, name + label)
+            elif name == 'today':
+                self.check('M41', element, scheme, viewport, 'Today button')
+            elif name == 'range_button':
+                self.check('M69', element, scheme, viewport, 'range button')
+            else:
+                self.probe('F3', element, scheme, viewport,
+                           {'geometry.height': '33', 'padding-top': '5', 'padding-left': '10'},
+                           name + label)
+
+    def test_h1_range_button_and_touch_size(self):
+        """M69, M70 (P5: 5 px before the caret) and F3 (A81: touch size on a touch phone). The
+        phone is read without touch for the table and again with touch emulated."""
+        for scheme, viewport in self.combos(['M69', 'M70']):
+            for touch in ((False, True) if viewport == 'phone' else (None,)):
+                with self.page('test_web_gantt.host_action_h1', scheme, viewport, touch=touch):
+                    self._button_edges(scheme, viewport, bool(touch))
+                    if not touch:
+                        self.check('M70', "document.querySelector('.o_tl_range_button "
+                                   "> .o_tl_range_caret')", scheme, viewport, 'caret')
+                        # the caret sits 5 px after the range name
+                        gap = self.js("""(() => {
+                            const button = document.querySelector('.o_tl_range_button');
+                            const range = document.createRange();
+                            const text = [...button.childNodes].find(
+                                (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+                            range.selectNodeContents(text);
+                            return button.querySelector('.o_tl_range_caret')
+                                .getBoundingClientRect().left - range.getBoundingClientRect().right;
+                        })()""")
+                        self.assertLess(abs(gap - 5), 0.6, f'gap before the caret: {gap}')
+
+    def test_h3_touch_control_bar(self):
+        """F3: on a touch phone the bar is 101 px high (4 + 37 + 7 + 37 + 16), as without touch;
+        the gear shows the filled gear (P6)."""
+        for scheme in ('light', 'dark') if self.has_theme else ('light',):
+            with self.page('test_web_gantt.host_action_h3', scheme, 'phone', touch=True):
+                self.probe('F3', "document.querySelector('.o_tl_controls')", scheme, 'phone',
+                           {'geometry.height': '101', 'padding-top': '4'}, 'control bar (touch)')
+                self._button_edges(scheme, 'phone', True)
+                fill = self.js("getComputedStyle(document.querySelector("
+                               "'.o_tl_gear .oi')).fontVariationSettings")
+                self.assertIn('FILL', fill, 'the gear icon is not the filled one')
+                self.assertIn('1', fill)
+
+    def test_h5_custom_range_arrow_and_date_fields(self):
+        """M71 (arrow on the range button), M72 and M73 (range menu open), P8 (the date's text
+        is not selected when its picker opens). Phone: table without touch, then touch."""
+        for scheme, viewport in self.combos(['M71', 'M72', 'M73']):
+            for touch in ((False, True) if viewport == 'phone' else (None,)):
+                with self.page('test_web_gantt.host_action_h5', scheme, viewport, touch=touch):
+                    label = ' (touch)' if touch else ''
+                    self.check('M71', "document.querySelector('.o_tl_range_button "
+                               "> .o_tl_range_arrow')", scheme, viewport,
+                               'arrow of the range button' + label)
+                    self.click_js("document.querySelector('.o_tl_range_button')")
+                    self.wait("!!document.querySelector('.o_tl_custom_line')")
+                    self.settle()
+                    self.check('M72', "document.querySelector('.o_tl_custom_line "
+                               "> .o_tl_custom_arrow')", scheme, viewport,
+                               'arrow of the custom line' + label)
+                    field = ("document.querySelector('.o_tl_custom_start_button')"
+                             if viewport == 'phone'
+                             else "document.querySelector('.o_tl_custom_start input')")
+                    self.check('M73', field, scheme, viewport, 'start date field' + label,
+                               override={'geometry.height': '26'} if touch else None)
+                    if viewport == 'desktop':
+                        self._assert_date_unselected(field)
+
+    def _assert_date_unselected(self, field):
+        """P8: the click opens the picker; the text of the date is not selected."""
+        self.js(f"{field}.click()")
+        self.wait("!!document.querySelector('.o_datetime_picker')")
+        self.settle()
+        seen = self.js(f"""(() => {{
+            const input = {field};
+            return [document.activeElement === input, input.selectionStart,
+                    input.selectionEnd, input.value.length];
+        }})()""")
+        self.assertTrue(seen[0], f'the start date is not focused: {seen}')
+        self.assertEqual(seen[1], seen[2], f'the date text is selected: {seen}')
+
+    def test_h2_phone_range_sheet(self):
+        """P7 (A122): on a touch phone the range sheet is 424 px tall."""
+        with self.page('test_web_gantt.host_action_h2', 'light', 'phone', touch=True):
+            self.click_js("document.querySelector('.o_tl_range_button')")
+            self.wait("!!document.querySelector('.o_bottom_sheet .o_tl_custom_line')")
+            self.settle()
+            sheet = self.geometry("document.querySelector('.o_bottom_sheet_sheet')")
+            self.assertLess(abs(sheet['geometry.height'] - 424), 0.6, sheet)
+            for which in ('start', 'stop'):
+                self.probe('M73', f"document.querySelector('.o_tl_custom_{which}_button')",
+                           'light', 'phone', {'geometry.height': '26',
+                                              'border-bottom-width': '1', 'border-top-width': '0'},
+                           f'{which} date (touch)')
 
     # -- H5: A116 and M43 -------------------------------------------------------------
 

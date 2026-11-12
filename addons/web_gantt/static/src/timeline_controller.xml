@@ -39,7 +39,7 @@
                 <div class="o_tl_line d-flex align-items-center w-100">
                     <t t-call="web_gantt.TimelineTodayButton"/>
                     <Dropdown menuClass="'o_tl_gear_menu'">
-                        <button type="button" class="btn btn-secondary o_tl_gear ms-auto" title="Menu" aria-label="Menu"><i class="oi" data-icon="settings"/></button>
+                        <button type="button" class="btn btn-secondary o_tl_gear ms-auto" title="Menu" aria-label="Menu"><i class="oi oi-filled" data-icon="settings"/></button>
                         <t t-set-slot="content">
                             <DropdownItem class="'o_tl_gear_display'" onSelected="() => this.toggleDisplayMode()">
                                 <i class="oi oi-fw me-2" t-att-data-icon="this.displayModeIcon"/>
@@ -87,10 +87,10 @@
                 <t t-if="this.rangeLabel" t-out="this.rangeLabel"/>
                 <t t-else="">
                     <span class="o_tl_range_start" t-out="this.formatDay(this.shownRange.start)"/>
-                    <i class="oi mx-1" data-icon="arrow_forward"/>
+                    <i class="oi o_tl_range_arrow" data-icon="arrow_forward"/>
                     <span class="o_tl_range_stop" t-out="this.formatDay(this.shownRange.stop)"/>
                 </t>
-                <i class="oi" t-att-data-icon="this.rangeMenu.isOpen ? 'arrow_drop_up' : 'arrow_drop_down'"/>
+                <i class="oi o_tl_range_caret" t-att-data-icon="this.rangeMenu.isOpen ? 'arrow_drop_up' : 'arrow_drop_down'"/>
             </button>
             <t t-set-slot="content">
                 <DropdownItem t-foreach="this.offeredKinds" t-as="item" t-key="item.kind"
@@ -99,20 +99,20 @@
                     <span t-out="item.label"/>
                 </DropdownItem>
                 <div class="dropdown-divider" role="separator"/>
-                <div class="o_tl_custom_line d-flex align-items-center gap-2 px-3 py-1">
+                <div class="o_tl_custom_line d-flex align-items-center gap-2 px-3">
                     <t t-if="this.ui.isSmall">
                         <button type="button" class="btn btn-secondary o_tl_custom_start_button" t-on-click="() => this.openDateDialog('start')" t-out="this.formatDay(this.custom.start)"/>
-                        <i class="oi" data-icon="arrow_forward"/>
+                        <i class="oi o_tl_custom_arrow" data-icon="arrow_forward"/>
                         <button type="button" class="btn btn-secondary o_tl_custom_stop_button" t-on-click="() => this.openDateDialog('stop')" t-out="this.formatDay(this.custom.stop)"/>
                     </t>
                     <t t-else="">
-                        <span class="o_tl_custom_start">
+                        <span class="o_tl_custom_start" t-on-focusin="this.keepDateUnselected" t-on-click="this.keepDateUnselected">
                             <DateTimeInput type="'date'" value="this.custom.start"
                                 onChange="(value) => this.onCustomDate('start', value)"
                                 onApply="(value) => this.onCustomDate('start', value)"/>
                         </span>
-                        <i class="oi" data-icon="arrow_forward"/>
-                        <span class="o_tl_custom_stop">
+                        <i class="oi o_tl_custom_arrow" data-icon="arrow_forward"/>
+                        <span class="o_tl_custom_stop" t-on-focusin="this.keepDateUnselected" t-on-click="this.keepDateUnselected">
                             <DateTimeInput type="'date'" value="this.custom.stop"
                                 onChange="(value) => this.onCustomDate('stop', value)"
                                 onApply="(value) => this.onCustomDate('stop', value)"/>
