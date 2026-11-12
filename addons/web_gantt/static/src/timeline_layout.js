@@ -150,7 +150,7 @@ export function totalBars(segments, rowHeight) {
 }
 
 /** Hours as `H:MM`, the float-time look (`4:00`, `91:00`). */
-function formatHours(value) {
+export function formatHours(value) {
     const minutes = Math.round(Math.abs(value) * 60);
     const text = `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
     return value < 0 ? `-${text}` : text;

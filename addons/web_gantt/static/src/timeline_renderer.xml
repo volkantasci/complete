@@ -11,20 +11,32 @@
                         <div class="o_tl_col_group text-truncate" t-att-title="group.title" t-att-style="group.style" t-out="group.label"/>
                     </t>
                     <t t-foreach="layout.columns" t-as="column" t-key="column.key">
-                        <div class="o_tl_col text-center" t-att-class="{ o_tl_is_today: column.isToday }" t-att-title="column.title" t-att-data-date="column.date" t-att-style="column.style"><t t-out="column.label"/><small t-if="column.meridiem" class="o_tl_col_meridiem" t-out="column.meridiem"/></div>
+                        <div class="o_tl_col text-center" t-att-class="{ o_tl_is_today: column.isToday, o_tl_folded: column.folded, o_tl_foldable: column.run !== null and !column.folded }" t-att-title="column.title" t-att-data-tooltip="column.tooltip" t-att-data-date="column.date" t-att-data-run="column.run" t-att-style="column.style" t-on-click="() => this.onColumnClick(column)" t-on-mouseenter="(ev) => this.onColumnEnter(ev, column)" t-on-mouseleave="this.onColumnLeave">
+                            <t t-if="column.folded"><i class="fa fa-long-arrow-right"/><i class="fa fa-long-arrow-left"/></t>
+                            <t t-else=""><span class="o_tl_col_title"><t t-out="column.label"/><small t-if="column.meridiem" class="o_tl_col_meridiem" t-out="column.meridiem"/></span><span t-if="column.run !== null" class="o_tl_col_arrows"><i class="fa fa-long-arrow-left"/><i class="fa fa-long-arrow-right"/></span></t>
+                        </div>
                     </t>
                     <t t-foreach="layout.rows" t-as="row" t-key="row.key">
                         <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
                             <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-title="row.row.name">
                                 <i t-if="row.kind === 'group'" class="fa o_tl_caret" t-att-class="row.row.collapsed ? 'fa-caret-right' : 'fa-caret-down'"/>
                                 <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
-                                <span class="o_tl_row_name text-truncate" t-out="row.row.name"/>
-                                <!-- Task 12: the progress bar of a row header goes here -->
+                                <div class="o_tl_row_body">
+                                    <div class="o_tl_row_line">
+                                        <span class="o_tl_row_name text-truncate" t-out="row.row.name"/>
+                                        <t t-if="row.progress">
+                                            <span class="o_tl_progress_label" t-att-class="{ o_tl_over: row.progress.over }" t-att-data-tooltip="row.progress.tooltip" t-out="row.progress.label"/>
+                                            <i t-if="row.progress.warning" class="fa fa-exclamation-triangle o_tl_progress_warning" t-att-data-tooltip="row.progress.warning"/>
+                                        </t>
+                                    </div>
+                                    <div t-if="row.progress and row.progress.hasBar" class="o_tl_progress" t-att-data-tooltip="row.progress.tooltip">
+                                        <div t-if="row.progress.fill > 0" class="o_tl_progress_fill" t-att-class="{ o_tl_over: row.progress.over }" t-attf-style="width: {{row.progress.fill}}%"/>
+                                    </div>
+                                </div>
                             </div>
-                            <t t-foreach="this.data.columns" t-as="cell" t-key="cell_index">
-                                <div class="o_tl_cell" t-att-class="{ o_tl_is_today: cell.isToday }"/>
+                            <t t-foreach="row.cells" t-as="cell" t-key="cell.key">
+                                <div class="o_tl_cell" t-att-class="cell.className" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
                             </t>
-                            <!-- Task 12: capacity bars and folded column runs go beside the cells -->
                             <div t-if="row.kind === 'group'" class="o_tl_pills">
                                 <div t-foreach="row.counts" t-as="segment" t-key="segment.key" class="o_tl_group_pill" t-att-style="segment.style">
                                     <span class="o_tl_group_count" t-out="segment.count"/>
@@ -45,8 +57,8 @@
                         <div t-if="layout.hasRowHeaders" class="o_tl_row_header">
                             <span class="o_tl_row_name text-truncate">Total</span>
                         </div>
-                        <t t-foreach="this.data.columns" t-as="cell" t-key="cell_index">
-                            <div class="o_tl_cell" t-att-class="{ o_tl_is_today: cell.isToday }"/>
+                        <t t-foreach="layout.total.cells" t-as="cell" t-key="cell.key">
+                            <div class="o_tl_cell" t-att-class="cell.className" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
                         </t>
                         <div class="o_tl_pills">
                             <div t-foreach="layout.total.bars" t-as="bar" t-key="bar.key" class="o_tl_total_bar" t-att-style="bar.style" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">

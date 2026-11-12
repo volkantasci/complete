@@ -14,6 +14,9 @@ $o-tl-group-gradient-start: #F8F9FA !default;
 $o-tl-group-gradient-end: #E9ECEF !default;
 $o-tl-group-today-bg: #FCFAF3 !default;
 
+// Unavailable part of a cell (M44). The folded cells use the border colour (M46).
+$o-tl-unavailable-bg: #E9ECEF !default;
+
 // Size of the header rows and of a pill, in pixels.
 $o-tl-header-height: 25px !default;
 $o-tl-pill-height: 23px !default;

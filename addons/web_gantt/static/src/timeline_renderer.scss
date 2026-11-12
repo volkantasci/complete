@@ -26,6 +26,8 @@
     // the row header column (R20): a sixth of the content width when that is more than 768 px,
     // otherwise a third, in whole pixels; the content width is that of the box around the grid
     --o-tl-row-header-width: #{"round(calc(100cqw / 3), 1px)"};
+    // the grey of unavailable parts, for the gradient of a partly covered cell
+    --o-tl-unavailable-bg: #{$o-tl-unavailable-bg};
 
     display: grid;
     min-width: 100%;
@@ -129,6 +131,36 @@
         margin-left: 1px;
         font-size: 10px;
     }
+
+    // folded column (R29): two arrows pointing at each other; a click opens it
+    &.o_tl_folded {
+        cursor: pointer;
+    }
+
+    // the header of an open foldable column: a click folds its run again
+    &.o_tl_foldable {
+        cursor: pointer;
+    }
+
+    // arrows pointing outwards, shown instead of the title while the pointer is over the run
+    .o_tl_col_arrows {
+        display: none;
+    }
+
+    &.o_tl_run_hover {
+        .o_tl_col_title {
+            display: none;
+        }
+
+        .o_tl_col_arrows {
+            display: inline;
+        }
+    }
+}
+
+// while the pointer is over an open foldable header, the headers outside its run are dimmed
+.o_tl_run_hovering .o_tl_col:not(.o_tl_run_hover) {
+    opacity: .5;
 }
 
 // ----------------------------------------------------------------------------
@@ -164,6 +196,58 @@
     padding: 0 4px 0 0;
 }
 
+// the body of a header: the name and the capacity label on a line, the capacity bar under them
+.o_tl_row_body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.o_tl_row_line {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+// R27: remaining quantity, small and muted; red above 100 %
+.o_tl_progress_label {
+    flex: 0 0 auto;
+    padding-left: 4px;
+    margin-right: 4px;
+    font-size: 13px;
+    color: $o-main-color-muted;
+
+    &.o_tl_over {
+        color: $o-danger;
+    }
+}
+
+.o_tl_progress_warning {
+    flex: 0 0 auto;
+    margin-right: 4px;
+    color: $o-warning;
+}
+
+.o_tl_progress {
+    height: 5px;
+    margin: 0 8px 0 0;
+    border-radius: 3px;
+    overflow: hidden;
+    background-color: $o-border-color;
+}
+
+.o_tl_progress_fill {
+    height: 100%;
+    border-radius: 3px;
+    background-color: rgba($o-success, .75);
+
+    &.o_tl_over {
+        background-color: $o-danger;
+    }
+}
+
 .o_tl_caret {
     flex: 0 0 auto;
     width: 18px;
@@ -193,6 +277,18 @@
         background-color: $o-tl-today-bg;
         border-left-color: $o-tl-today-border;
     }
+}
+
+// unavailable (R28) and folded (R29, M46) cells; after the today rule, so they win over it
+.o_tl_cell.o_tl_unavailable {
+    background-color: $o-tl-unavailable-bg;
+}
+
+// a folded cell takes no part in the highlight of group rows (R40), hence the importance
+.o_tl_cell.o_tl_folded_cell {
+    cursor: pointer;
+    background-color: $o-border-color;
+    background-image: none !important;
 }
 
 // ----------------------------------------------------------------------------
