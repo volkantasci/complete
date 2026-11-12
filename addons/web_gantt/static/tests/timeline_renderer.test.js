@@ -118,7 +118,7 @@ test("A36: column headers per scale", async () => {
         "Tuesday 3",
     ]);
     expect(columns()).toHaveLength(21);
-    expect(columns()[11]).toHaveAttribute("title", "November 12, 2026");
+    expect(columns()[11]).toHaveAttribute("title", "Thursday, November 12, 2026");
     expect(groups()[1]).toHaveAttribute("title", "Week 46, Nov 8 - Nov 14");
 
     await chooseRange("Day");
@@ -127,10 +127,11 @@ test("A36: column headers per scale", async () => {
         "Thursday, November 12, 2026",
         "Friday, November 13, 2026",
     ]);
+    expect(groups()[1]).toHaveAttribute("title", "Thursday, November 12, 2026");
     expect(columns()).toHaveLength(72);
     expect(queryAllTexts(".o_tl_col").slice(0, 3)).toEqual(["0", "1", "2"]);
     expect(queryAllTexts(".o_tl_col").slice(21, 24)).toEqual(["21", "22", "23"]);
-    expect(columns()[21].getAttribute("title")).toMatch(/^November 11, 2026.*21:00$/);
+    expect(columns()[21].getAttribute("title")).toBe("Wednesday, November 11, 2026, 21:00");
 
     await chooseRange("Month");
     expect(groups().map((el) => el.textContent)).toEqual([
@@ -179,7 +180,7 @@ test("A36: hours with am and pm", async () => {
     expect(queryAllTexts(".o_tl_col").slice(0, 3)).toEqual(["12am", "1am", "2am"]);
     expect(queryAllTexts(".o_tl_col").slice(21, 24)).toEqual(["9pm", "10pm", "11pm"]);
     expect(".o_tl_col small").toHaveCount(72);
-    expect(columns()[21].getAttribute("title")).toMatch(/^November 11, 2026.*9:00 PM$/);
+    expect(columns()[21].getAttribute("title")).toBe("Wednesday, November 11, 2026, 9:00 PM");
 });
 
 test("A36: month names are abbreviated on a small screen", async () => {

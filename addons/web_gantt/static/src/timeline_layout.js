@@ -156,7 +156,8 @@ export function formatHours(value) {
     return value < 0 ? `-${text}` : text;
 }
 
-const shortDate = (date) => date.toLocaleString({ month: "short", day: "numeric" });
+/** The language's short numeric date without the year: "10/23" in US English (R13). */
+const shortDate = (date) => date.toLocaleString({ month: "numeric", day: "numeric" });
 const shortTime = (date) => date.toLocaleString(DateTime.TIME_SIMPLE);
 
 /**

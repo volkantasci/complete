@@ -46,8 +46,9 @@ const GROUP_ROW_HEIGHT = 40;
 /** Width of a folded column, in pixels (M45). */
 const FOLDED_WIDTH = 36;
 
+/** The date with its weekday, as the language writes it (P2: "Saturday, November 7, 2026"). */
 function textOfDate(date) {
-    return date.toLocaleString(DateTime.DATE_FULL);
+    return date.toLocaleString(DateTime.DATE_HUGE);
 }
 
 /**
@@ -599,14 +600,11 @@ export class TimelineRenderer extends Component {
                     label = start.toFormat("h");
                     meridiem = start.toFormat("a").toLowerCase();
                 }
-                title = start.toLocaleString({
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
+                title = `${textOfDate(start)}, ${start.toLocaleString({
                     hour: "numeric",
                     minute: "2-digit",
                     hourCycle: is24HourFormat() ? "h23" : "h12",
-                });
+                })}`;
                 break;
             case "week":
                 label = start.toFormat("cccc d");

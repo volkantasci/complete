@@ -309,10 +309,21 @@ test("A66: sparse without grouping", async () => {
     await contains(".o_tl_display_mode").click();
     expect(".o_tl_title_cell").toHaveCount(1);
     expect(".o_tl_title_cell").toHaveText("Pills");
-    const names = rowNames();
-    for (const name of ["Design", "Build", "Review", "Test", "Plan", "Long task"]) {
-        expect(names).toInclude(name);
-    }
+    // R23 and R18: by the sub-column where the pill starts, then by start (F4)
+    expect(rowNames()).toEqual([
+        "Long task",
+        "Color eleven",
+        "Design",
+        "Overlap A",
+        "Plan",
+        "Overlap B",
+        "Overlap C",
+        "Build",
+        "Review",
+        "Test",
+        "Color ten",
+        "Deploy",
+    ]);
     expect(rowOf("Build").querySelectorAll(".o_tl_pill")).toHaveCount(1);
     expect(".o_tl_group_row").toHaveCount(0);
     expect(".o_tl_total_row .o_tl_row_name").toHaveText("Total");

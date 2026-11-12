@@ -145,17 +145,22 @@ test("A30: Today after a step reloads and centres today", async () => {
 
 test("A32: Month chosen after scrolling keeps the date in the middle", async () => {
     await mountTimeline({ arch: timelineArch(`default_range="week"`), groupBy: ["parent_id"] });
-    // D+7 is too close to the end of the grid to reach the middle: D+4 does
-    await centre(headerOf("2026-11-16"));
-    expect(near(centreOf(headerOf("2026-11-16")), visibleCentre())).toBe(true);
+    // scrolled as far right as the grid goes, the middle of the visible part is on D+6 at
+    // 1600 px (F6; D+7 cannot reach it), a day or two later in the narrower test window
+    await scrollTo(renderer().scrollWidth);
+    const middle = queryAll(".o_tl_col[data-date]")
+        .map((header) => ({ header, away: Math.abs(centreOf(header) - visibleCentre()) }))
+        .sort((a, b) => a.away - b.away)[0].header;
+    const middleDate = middle.dataset.date;
+    expect(middleDate >= "2026-11-18" && middleDate <= "2026-11-20").toBe(true);
     await contains(".o_tl_range_button").click();
     await contains(".o_tl_range_month").click();
     await animationFrame();
-    // three months centred on the month of D+7: October to December (local), sent as UTC
+    // three months centred on the month of D+6: October to December (local), sent as UTC
     const kwargs = timelineMock.calls.at(-1);
     expect(kwargs.start_date).toBe("2026-09-30 21:00:00");
     expect(kwargs.stop_date).toBe("2026-12-31 21:00:00");
-    expect(near(startOf(headerOf("2026-11-16")), visibleCentre())).toBe(true);
+    expect(near(startOf(headerOf(middleDate)), visibleCentre())).toBe(true);
 });
 
 test("A32: the range is rebuilt around the date in the middle, not around today", async () => {

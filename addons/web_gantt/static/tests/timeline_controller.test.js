@@ -3,7 +3,15 @@
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { press, queryAll, queryAllTexts, queryOne } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
-import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
+import {
+    contains,
+    makeMockServer,
+    MockServer,
+    mountView,
+    patchWithCleanup,
+    toggleMenuItem,
+    toggleSearchBarMenu,
+} from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 import { TimelineModel } from "@web_gantt/timeline_model";
 
@@ -365,4 +373,21 @@ test("D-1: every icon of the bar and the rows renders a glyph of the Community i
         expect(width).toBeLessThan(parseFloat(getComputedStyle(icon).fontSize) * 1.6);
     }
     expect(".o_tl_range_menu [data-icon='arrow_forward']").toHaveCount(1);
+});
+
+test("A103: archived records are drawn only with the Archived filter of the search view", async () => {
+    await makeMockServer();
+    MockServer.current.env["pill"].find((record) => record.name === "Overlap C").active = false;
+    await mountTimeline({
+        searchViewArch: `<search>
+            <field name="name"/>
+            <filter name="inactive" string="Archived" domain="[('active', '=', false)]"/>
+        </search>`,
+    });
+    const names = () => queryAllTexts(".o_tl_pill .o_tl_pill_title");
+    expect(names()).not.toInclude("Overlap C");
+    await toggleSearchBarMenu();
+    await toggleMenuItem("Archived");
+    await settle();
+    expect(names()).toEqual(["Overlap C"]);
 });

@@ -170,6 +170,36 @@ class Pill2 extends models.Model {
 }
 
 /**
+ * The mixed-type host of A123: a date-only field and two date-time fields. The MIX records
+ * lie on the first displayed day (1 November), the last one (21 November) and the days
+ * around them, from 10:00 to 12:00 UTC, so they sit on the same days in every time zone
+ * tested (+3 and -5).
+ */
+class Mix extends models.Model {
+    _name = "mix";
+
+    name = fields.Char();
+    active = fields.Boolean({ default: true });
+    day = fields.Date({ string: "Day" });
+    date_start = fields.Datetime({ string: "Start Datetime" });
+    date_stop = fields.Datetime({ string: "Stop Datetime" });
+
+    _records = [
+        ["MIX first", "2026-11-01"],
+        ["MIX last", "2026-11-21"],
+        ["MIX before", "2026-10-31"],
+        ["MIX after", "2026-11-22"],
+    ].map(([name, day], i) => ({
+        id: i + 1,
+        name,
+        active: true,
+        day,
+        date_start: `${day} 10:00:00`,
+        date_stop: `${day} 12:00:00`,
+    }));
+}
+
+/**
  * State of the `get_gantt_data` mock, reset before each test.
  * - `calls`: the keyword arguments of every call, in order;
  * - `beforeReply(kwargs, index)`: may return a promise that delays the answer;
@@ -325,7 +355,7 @@ async function getGanttData({ model, kwargs }) {
 
 /** Define the mock models, their records and the server handlers used by timeline tests. */
 export function setupTimelineFixtures() {
-    defineModels([Partner, Tag, Pill, Pill2]);
+    defineModels([Partner, Tag, Pill, Pill2, Mix]);
     onRpc("get_gantt_data", getGanttData);
     onRpc("get_property_definition", ({ args }) =>
         args[0].endsWith("when_prop")
@@ -342,6 +372,12 @@ export function setupTimelineFixtures() {
 export function timelineArch(extraAttrs = "", children = "") {
     return `<gantt date_start="date_start" date_stop="date_stop" ${extraAttrs}>${children}</gantt>`;
 }
+
+/** Arches of the mixed-type views H14 (date-only start) and H15 (date-only stop). */
+export const MIX_ARCHS = {
+    H14: `<gantt date_start="day" date_stop="date_stop" default_range="week"/>`,
+    H15: `<gantt date_start="date_start" date_stop="day" default_range="week"/>`,
+};
 
 /** Arches of the scratch host views that do not need an action. */
 export const HOST_ARCHS = {

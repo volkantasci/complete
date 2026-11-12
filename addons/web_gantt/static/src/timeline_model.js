@@ -28,7 +28,7 @@ import {
     TIMELINE_SCALES,
     partsFor,
 } from "./timeline_dates";
-import { pillSpan } from "./timeline_layout";
+import { orderPills, pillSpan } from "./timeline_layout";
 
 const { DateTime } = luxon;
 
@@ -387,15 +387,16 @@ export class TimelineModel extends Model {
 
     _periodDomain(period) {
         const { startField, stopField, startIsDate, stopIsDate } = this.placement;
-        // R4, literally: a date-only stop field makes the first comparison a date one, a
-        // date-only start field makes the second one "on or after" the first day
-        // A day boundary compared with a datetime field is the local midnight in UTC
-        const first = stopIsDate && startIsDate ? serializeDate : serializeDateTime;
-        const second = startIsDate && stopIsDate ? serializeDate : serializeDateTime;
+        // R4 and D9: local days. A date-only field is compared with the local dates of the
+        // period, a date-time field with the UTC instants of its local midnights; a date-only
+        // start counts as the beginning of its day and a date-only stop as the end of its day.
+        // Each bound depends on its own field type only.
         return [
-            [startField, "<", first(period.stop)],
             startIsDate
-                ? [stopField, ">=", second(period.start)]
+                ? [startField, "<", serializeDate(period.stop)]
+                : [startField, "<", serializeDateTime(period.stop)],
+            stopIsDate
+                ? [stopField, ">=", serializeDate(period.start)]
                 : [stopField, ">", serializeDateTime(period.start)],
         ];
     }
@@ -705,12 +706,17 @@ export class TimelineModel extends Model {
         const byId = new Map(this._records.map((record) => [record.id, record]));
         const sparse = this.displayMode === "sparse";
         const groupBy = this.groupBy;
+        // R23: record rows follow the pill order of R18 (first sub-column, then start)
+        const inPillOrder = (ids) =>
+            orderPills(
+                ids.map((id) => ({ id, from: byId.get(id).span.from, start: byId.get(id).start }))
+            ).map((pill) => pill.id);
         if (!groupBy.length) {
             const ids = this._records.map((record) => record.id);
             if (!sparse || !ids.length) {
                 return [this._makeBlankRow(0, "all", ids)];
             }
-            return ids.map((id) => this._makeRecordRow(byId.get(id), 0, "all"));
+            return inPillOrder(ids).map((id) => this._makeRecordRow(byId.get(id), 0, "all"));
         }
         const roots = [];
         const index = new Map();
@@ -755,7 +761,7 @@ export class TimelineModel extends Model {
             const leaf = row.level === groupBy.length - 1;
             if (leaf && sparse) {
                 row.children = row.recordIds.length
-                    ? row.recordIds.map((id) =>
+                    ? inPillOrder(row.recordIds).map((id) =>
                           this._makeRecordRow(byId.get(id), row.level + 1, row.id)
                       )
                     : [this._makeBlankRow(row.level + 1, `${row.id}|blank`)];

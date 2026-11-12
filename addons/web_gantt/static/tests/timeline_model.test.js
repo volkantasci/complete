@@ -8,6 +8,7 @@ import { localization } from "@web/core/l10n/localization";
 
 import {
     HOST_ARCHS,
+    MIX_ARCHS,
     makeTimelineModel,
     setupTimelineFixtures,
     timelineArch,
@@ -254,6 +255,22 @@ test("A67 and A113: group paging keeps the empty-value row on every page", async
     expect(model.data.rows.every((row) => !row.isGroup)).toBe(true);
 });
 
+test("A65: record rows follow the pill order under each group (F4)", async () => {
+    const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H6 });
+    await model.load({ groupBy: ["parent_id"] });
+    const group = (name) => model.data.rows.find((row) => row.name === name);
+    expect(names(group("Alpha").children)).toEqual(["Design", "Build", "Review"]);
+    await model.setOffset(2);
+    expect(names(group("Gamma").children)).toEqual([
+        "Long task",
+        "Color eleven",
+        "Overlap A",
+        "Overlap B",
+        "Overlap C",
+        "Color ten",
+    ]);
+});
+
 test("A73: progress is asked only when the field is grouped", async () => {
     const { model } = await makeTimelineModel({ arch: HOST_ARCHS.H12 });
     await model.load({ groupBy: ["parent_id"] });
@@ -316,18 +333,75 @@ test("A56: a date property group-by is dropped", async () => {
     expect(lastCall().groupby).toEqual([]);
 });
 
-test("R4: mixed date and datetime fields follow the sentence of the spec", async () => {
-    // at UTC+3: the day boundary compared with a datetime field is the local midnight in UTC,
-    // the one compared with a date field stays a date string
+test("R4: each bound follows its own field type, in local days", async () => {
+    // at UTC+3: a date-only field is compared with the local dates of the period, a date-time
+    // field with the UTC instants of its local midnights, whatever the other field is
     const dateStop = { date_stop: { type: "date" } };
     let { model } = await makeTimelineModel({ fieldsOverride: dateStop });
     await model.load({});
     expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-21 21:00:00"])).toBe(true);
-    expect(hasLeaf(lastCall().domain, ["date_stop", ">", "2026-10-31 21:00:00"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_stop", ">=", "2026-11-01"])).toBe(true);
     ({ model } = await makeTimelineModel({ fieldsOverride: { date_start: { type: "date" } } }));
     await model.load({});
-    expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-21 21:00:00"])).toBe(true);
-    expect(hasLeaf(lastCall().domain, ["date_stop", ">=", "2026-10-31 21:00:00"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_start", "<", "2026-11-22"])).toBe(true);
+    expect(hasLeaf(lastCall().domain, ["date_stop", ">", "2026-10-31 21:00:00"])).toBe(true);
+});
+
+for (const [zone, label, bounds] of [
+    [3, "east of UTC", ["2026-11-21 21:00:00", "2026-10-31 21:00:00"]],
+    [-5, "west of UTC", ["2026-11-22 05:00:00", "2026-11-01 05:00:00"]],
+]) {
+    test(`A123: mixed date and date-time fields, ${label}`, async () => {
+        mockTimeZone(zone);
+        mockDate("2026-11-12 00:30:00");
+        const drawn = async (arch) => {
+            const { model } = await makeTimelineModel({ arch, resModel: "mix" });
+            await model.load({});
+            return model;
+        };
+        const spans = (model) =>
+            Object.fromEntries(
+                model.data.records.map((record) => [record.displayName, record.span])
+            );
+        // days 1 to 21 November: 21 columns of two parts; day n is column n - 1
+        const half = (day, part) => (day - 1) * 2 + part;
+
+        let model = await drawn(MIX_ARCHS.H14);
+        // the data call: local dates for the date-only field, UTC instants of local midnights
+        expect(hasLeaf(lastCall().domain, ["day", "<", "2026-11-22"])).toBe(true);
+        expect(hasLeaf(lastCall().domain, ["date_stop", ">", bounds[1]])).toBe(true);
+        let found = spans(model);
+        expect(Object.keys(found)).toEqual(["MIX first", "MIX last"]);
+        if (zone === 3) {
+            // 13:00 to 15:00 local: the whole day
+            expect(found["MIX first"]).toMatchObject({ from: half(1, 0), to: half(1, 2) });
+            expect(found["MIX last"]).toMatchObject({ from: half(21, 0), to: half(21, 2) });
+        } else {
+            // 05:00 to 07:00 local: the morning half
+            expect(found["MIX first"]).toMatchObject({ from: half(1, 0), to: half(1, 1) });
+            expect(found["MIX last"]).toMatchObject({ from: half(21, 0), to: half(21, 1) });
+        }
+
+        model = await drawn(MIX_ARCHS.H15);
+        expect(hasLeaf(lastCall().domain, ["date_start", "<", bounds[0]])).toBe(true);
+        expect(hasLeaf(lastCall().domain, ["day", ">=", "2026-11-01"])).toBe(true);
+        found = spans(model);
+        expect(Object.keys(found)).toEqual(["MIX first", "MIX last"]);
+        // from the half containing the start to the end of its day
+        const from = zone === 3 ? 1 : 0;
+        expect(found["MIX first"]).toMatchObject({ from: half(1, from), to: half(1, 2) });
+        expect(found["MIX last"]).toMatchObject({ from: half(21, from), to: half(21, 2) });
+        expect(model.data.period.start.toISODate()).toBe("2026-11-01");
+    });
+}
+
+test("A123: a date-only stop on the day of its date-time start is drawn", async () => {
+    const { model } = await makeTimelineModel({ arch: MIX_ARCHS.H15, resModel: "mix" });
+    await model.load({});
+    // 13:00 local on 1 November with the stop on that day: drawn to the end of the day;
+    // a stop on an earlier local day than the start would be left out (E3)
+    const record = model.data.records.find((r) => r.displayName === "MIX first");
+    expect(record.span.to - record.span.from).toBe(1);
 });
 
 test("R24: a range change on a later page without groups goes back to the first page", async () => {

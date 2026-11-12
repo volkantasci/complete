@@ -156,17 +156,17 @@ test("A43/A44: labels", () => {
     expect(pillLabel(find("Long task"), "Long task", { ...options, computed: false })).toBe("Long task");
     expect(pillLabel(find("Design"), "Design", options)).toBe("Design");
     expect(pillLabel(find("Review"), "Review", options)).toBe("Review");
-    expect(pillLabel(find("Long task"), "Long task", options)).toBe("Oct 23 - Dec 2 Long task");
+    expect(pillLabel(find("Long task"), "Long task", options)).toBe("10/23 - 12/2 Long task");
     // the stop runs past the end of the range
     // month scale: the displayed range is Oct 1 to Dec 31, so Long task lies inside it
     const month = { ...options, scaleId: "month", range: namedRange("month", DateTime.now().startOf("day")) };
     expect(pillLabel(find("Long task"), "Long task", month)).toBe("Long task");
     const early = { start: at(-60, "09:00"), stop: at(-50, "09:00") }; // Sep 13 to Sep 23
-    expect(pillLabel(early, "Early", month)).toBe("Sep 13 - Sep 23 Early");
+    expect(pillLabel(early, "Early", month)).toBe("9/13 - 9/23 Early");
     const year = { ...options, scaleId: "year" };
-    expect(pillLabel(find("Long task"), "Long task", year)).toBe("Oct 23 - Dec 2 Long task");
-    expect(pillLabel(find("Design"), "Design", year)).toBe("Nov 9 - Nov 11 Design");
-    expect(pillLabel(find("Review"), "Review", year)).toBe("Nov 12 Review");
+    expect(pillLabel(find("Long task"), "Long task", year)).toBe("10/23 - 12/2 Long task");
+    expect(pillLabel(find("Design"), "Design", year)).toBe("11/9 - 11/11 Design");
+    expect(pillLabel(find("Review"), "Review", year)).toBe("11/12 Review");
 });
 
 test("A44: allocated hours label", () => {
