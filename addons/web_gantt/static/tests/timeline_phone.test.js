@@ -164,12 +164,13 @@ test("A82: range sheet with the date dialog", async () => {
     expect(queryOne(".o_tl_range_stop").textContent.trim()).toBe("11/25/2026");
 });
 
-test("A82: the popover is a full-screen sheet on the phone", async () => {
+test("A82: the popover is a sheet on the phone", async () => {
     await mountPhone({ arch: HOST_ARCHS.H5 });
     await click(".o_tl_pill");
     await advanceTime(250);
     await animationFrame();
     const rect = queryRect(".o_popover:has(.o_tl_popover)");
-    expect(rect.width).toBe(390);
-    expect(rect.height).toBe(844);
+    // M43: a 388 x 698 sheet at the bottom of the 390 x 844 screen
+    expect(rect.width).toBe(388);
+    expect(rect.height).toBe(698);
 });

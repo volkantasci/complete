@@ -236,7 +236,7 @@ test("M43: the desktop frame is transparent and 272 px wide", async () => {
     expect(POPOVER).not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
 });
 
-test("S7 phone: the popover is a full-screen sheet with the same content", async () => {
+test("S7 phone: the popover is a sheet with the same content", async () => {
     await resize({ width: 390, height: 844 });
     await mountTimeline(timelineArch());
     await openPopover(BUILD);
@@ -244,10 +244,9 @@ test("S7 phone: the popover is a full-screen sheet with the same content", async
     expect(`${POPOVER} .o_tl_popover_line`).toHaveCount(2);
     expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
     const rect = queryRect(".o_popover:has(.o_tl_popover)");
-    // the sheet fills the 390 x 844 window (the capture measured 388 x 698 for the original,
-    // whose sheet leaves room for the browser bars; the probes compare the exact size)
-    expect(rect.width).toBe(390);
-    expect(rect.height).toBe(844);
+    // the sheet is 388 x 698 at the bottom of the 390 x 844 window (M43)
+    expect(rect.width).toBe(388);
+    expect(rect.height).toBe(698);
     expect(queryRect(POPOVER).height).toBeGreaterThan(rect.height - 4);
     expect(".o_popover:has(.o_tl_popover)").not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
     await click(`${POPOVER} .o_card_popover_close`);

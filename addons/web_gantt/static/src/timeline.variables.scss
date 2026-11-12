@@ -17,6 +17,15 @@ $o-tl-group-today-bg: #FCFAF3 !default;
 // Unavailable part of a cell (M44). The folded cells use the border colour (M46).
 $o-tl-unavailable-bg: #E9ECEF !default;
 
+// Track of a progress bar (M47) and the top edge of the full-height popover sheet of a phone (M43),
+// the distance from the top of the screen to the sheet, in pixels.
+$o-tl-progress-track: $o-border-color !default;
+$o-tl-popover-sheet-top: 146px !default;
+
 // Size of the header rows and of a pill, in pixels.
 $o-tl-header-height: 25px !default;
 $o-tl-pill-height: 23px !default;
+
+// Channel shifts (red, green, blue) applied to the palette colour of an index before it is mixed
+// with white into the colour of a pill. The light scheme needs none; see the dark file.
+$o-tl-pill-nudges: () !default;

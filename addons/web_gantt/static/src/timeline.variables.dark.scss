@@ -10,3 +10,9 @@ $o-tl-group-gradient-start: #1F1F23 !default;
 $o-tl-group-gradient-end: #131315 !default;
 $o-tl-group-today-bg: rgba(46, 40, 38, .576) !default;
 $o-tl-unavailable-bg: $o-gray-400 !default;
+$o-tl-progress-track: $o-gray-400 !default;
+
+// The measured pill colours of the dark scheme (M3, M6) are one step under what a plain mix of the
+// palette gives in one channel: green of index 2 and blue of index 5 (60 % of 156 over white is
+// 195.6 but reads 195; 60 % of 236 is 243.6 but reads 243).
+$o-tl-pill-nudges: (2: (0, -1, 0), 5: (0, 0, -1)) !default;

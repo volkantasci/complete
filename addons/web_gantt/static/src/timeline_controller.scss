@@ -16,6 +16,12 @@
                 column-gap: 4px;
             }
 
+            // the buttons keep the padding of a desktop button: the small-screen padding of the
+            // theme makes them taller than the measured Today button (M41)
+            .btn {
+                padding: $btn-padding-y $btn-padding-x;
+            }
+
             .o_tl_separator {
                 margin: 7px 0;
                 border-top: 1px solid $o-border-color;
@@ -30,7 +36,7 @@
 
 // the current range is framed in the action colour in the bottom sheet of a phone (S9)
 .o_bottom_sheet .o_tl_range_menu .o_tl_range_item.selected {
-    border: 1px solid $o-brand-primary;
+    border: 1px solid $o-action;
     border-radius: $border-radius;
 }
 
@@ -69,5 +75,10 @@
         flex: none;
         overflow-x: auto;
         overflow-y: hidden;
+
+        // the sample state: room for the help under the headers
+        &:has(> .o_view_nocontent) {
+            min-height: 60dvh;
+        }
     }
 }

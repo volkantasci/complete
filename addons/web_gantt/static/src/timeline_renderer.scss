@@ -20,6 +20,8 @@
     position: relative;
     color: $o-main-text-color;
     background-color: $o-view-background-color;
+    // the line above the headers: the grid starts one pixel under the control bar (M52)
+    border-top: 1px solid $o-border-color;
 }
 
 .o_tl_grid {
@@ -196,12 +198,15 @@
     padding: 0 4px 0 0;
 }
 
-// the body of a header: the name and the capacity label on a line, the capacity bar under them
+// The header wraps: the caret, the thumbnail and the body (the name and the capacity label on a
+// line) are the first line, the capacity bar the second one across the whole header (M47).
+.o_tl_row_header {
+    flex-wrap: wrap;
+    align-content: center;
+}
+
 .o_tl_row_body {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    flex: 1 1 0;
     min-width: 0;
 }
 
@@ -231,11 +236,12 @@
 }
 
 .o_tl_progress {
+    flex: 0 0 calc(100% - 8px);
     height: 5px;
     margin: 0 8px 0 0;
     border-radius: 3px;
     overflow: hidden;
-    background-color: $o-border-color;
+    background-color: $o-tl-progress-track;
 }
 
 .o_tl_progress_fill {
@@ -343,6 +349,8 @@
     position: absolute;
     top: 19px;
     height: 2px;
+    // no width, but the colour of the line is the brand colour (M32)
+    border: 0 solid $o-brand-primary;
     background-color: $o-brand-primary;
     // black in both schemes (M32)
     color: #000000;
@@ -536,11 +544,23 @@
     }
 }
 
+@function o-tl-pill-source($base, $index) {
+    $nudge: map-get($o-tl-pill-nudges, $index);
+    @if $nudge {
+        @return rgb(
+            red($base) + nth($nudge, 1),
+            green($base) + nth($nudge, 2),
+            blue($base) + nth($nudge, 3)
+        );
+    }
+    @return $base;
+}
+
 @for $-index from 0 through 11 {
     .o_tl_color_#{$-index} {
         @include o-tl-pill-color(
             nth($o-colors, $-index + 1),
-            mix(nth($o-colors, $-index + 1), #FFFFFF, 60%)
+            mix(o-tl-pill-source(nth($o-colors, $-index + 1), $-index), #FFFFFF, 60%)
         );
     }
 }

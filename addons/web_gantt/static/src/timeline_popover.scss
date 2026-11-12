@@ -45,12 +45,14 @@
     }
 }
 
-// small screens: the same content as a full-screen sheet; the frame takes the overlay background
+// small screens: the same content as a sheet that reaches the bottom of the screen and leaves the
+// top of the view in sight (M43: 388 x 698 on a 390 x 844 screen); the frame takes the overlay
+// background
 .o_popover:has(> .o_tl_popover_sheet) {
     background: $popover-bg;
-    inset: 0 !important;
-    width: 100%;
-    height: 100%;
+    inset: auto 1px 0 !important;
+    width: auto;
+    height: calc(100% - #{$o-tl-popover-sheet-top});
     max-width: none;
     border-radius: 0;
     transform: none !important;

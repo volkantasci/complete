@@ -20,7 +20,7 @@ function escapeText(text) {
 /**
  * The popover of a pill: the Community card popover, filled with the popover element of the view
  * (body, header and footer templates, card view) or with the default content (start and stop).
- * On a small screen the stylesheet makes the same popover a full-screen sheet.
+ * On a small screen the stylesheet makes the same popover a sheet.
  */
 export class TimelinePopover extends Component {
     static template = "web_gantt.TimelinePopover";
@@ -53,7 +53,7 @@ export class TimelinePopover extends Component {
             resId: record.resId,
             popoverNode: this.popoverNode,
             readonly: !this.canEdit,
-            // a small screen turns the popover into a full-screen sheet (see the stylesheet)
+            // a small screen turns the popover into a sheet (see the stylesheet)
             rootClass: this.ui.isSmall ? "o_tl_popover o_tl_popover_sheet" : "o_tl_popover",
             context: model.context,
             reloadOnClose: () => model.reload(),
@@ -102,7 +102,7 @@ export class TimelinePopover extends Component {
             line(_t("Start"), archInfo.startField, record.start),
             line(_t("Stop"), archInfo.stopField, record.stop),
         ];
-        return parseXML(`<t t-name="${CARD_ATTRIBUTE}" class="gap-3">${lines.join("")}</t>`);
+        return parseXML(`<t t-name="${CARD_ATTRIBUTE}">${lines.join("")}</t>`);
     }
 
     /** The button opens the record in a later slice; it does nothing here. */

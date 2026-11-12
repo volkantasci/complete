@@ -29,9 +29,9 @@
                                             <i t-if="row.progress.warning" class="fa fa-exclamation-triangle o_tl_progress_warning" t-att-data-tooltip="row.progress.warning"/>
                                         </t>
                                     </div>
-                                    <div t-if="row.progress and row.progress.hasBar" class="o_tl_progress" t-att-data-tooltip="row.progress.tooltip">
-                                        <div t-if="row.progress.fill > 0" class="o_tl_progress_fill" t-att-class="{ o_tl_over: row.progress.over }" t-attf-style="width: {{row.progress.fill}}%"/>
-                                    </div>
+                                </div>
+                                <div t-if="row.progress and row.progress.hasBar" class="o_tl_progress" t-att-data-tooltip="row.progress.tooltip">
+                                    <div t-if="row.progress.fill > 0" class="o_tl_progress_fill" t-att-class="{ o_tl_over: row.progress.over }" t-attf-style="width: {{row.progress.fill}}%"/>
                                 </div>
                             </div>
                             <t t-foreach="row.cells" t-as="cell" t-key="cell.key">

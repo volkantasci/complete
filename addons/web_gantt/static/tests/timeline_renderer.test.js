@@ -278,7 +278,8 @@ test("A38: whole days on date-only fields at the month scale", async () => {
     expect(near(three.right, days[first + 2].getBoundingClientRect().right)).toBe(true);
     const one = pillOf("Day one").getBoundingClientRect();
     expect(near(one.left, days[first + 1].getBoundingClientRect().left)).toBe(true);
-    expect(near(one.width, days[first + 1].getBoundingClientRect().width)).toBe(true);
+    // a pill sits one pixel inside its column on each side
+    expect(near(one.width, days[first + 1].getBoundingClientRect().width - 2)).toBe(true);
 });
 
 test("A41: no resize handle and no lock icon at rest, cut pills carry classes", async () => {
