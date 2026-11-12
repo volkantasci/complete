@@ -48,8 +48,8 @@ class TimelineScreens(TimelineProbeCase):
         A variant that fails is logged and the next one still runs; the test fails at the end.
         """
         errors = []
-        user = self.env.ref('base.user_admin')
-        settings = self.env['res.users.settings']._find_or_create_for_user(user)
+        admin = self.env['res.users'].search([('login', '=', 'admin')], limit=1)
+        settings = self.env['res.users.settings']._find_or_create_for_user(admin)
         for scheme in schemes:
             if scheme == 'dark' and not self.has_theme:
                 continue

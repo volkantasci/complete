@@ -15,13 +15,14 @@
         'web.assets_backend': [
             'web_gantt/static/src/**/*',
             # dark-only rules belong to the dark stylesheet
-            ('remove', 'web_gantt/static/src/**/*.dark.scss'),
+            ('remove', 'web_gantt/static/src/timeline_renderer.dark.scss'),
+            ('remove', 'web_gantt/static/src/timeline.variables.dark.scss'),
         ],
         'web.assets_web_dark': [
             # the dark values of our own variables come before the light defaults
             ('before', 'web_gantt/static/src/timeline.variables.scss',
              'web_gantt/static/src/timeline.variables.dark.scss'),
-            'web_gantt/static/src/**/*.dark.scss',
+            'web_gantt/static/src/timeline_renderer.dark.scss',
         ],
         'web.assets_unit_tests': [
             'web_gantt/static/tests/**/*.test.js',

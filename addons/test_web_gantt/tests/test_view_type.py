@@ -26,9 +26,9 @@ class TestViewType(TransactionCase):
         self.assertEqual(field.ondelete['gantt'], 'cascade')
 
     def test_view_type_is_qweb_based_and_has_icon(self):
-        views = self.env['ir.ui.view']
-        self.assertTrue(views._is_qweb_based_view('gantt'))
-        self.assertEqual(views._get_view_info()['gantt']['icon'], 'view_timeline')
+        view_model = self.env['ir.ui.view']
+        self.assertTrue(view_model._is_qweb_based_view('gantt'))
+        self.assertEqual(view_model._get_view_info()['gantt']['icon'], 'view_timeline')
 
     def test_test_models_shape(self):
         pill = self.env['test.web.gantt.pill']

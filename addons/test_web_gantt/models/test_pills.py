@@ -27,7 +27,7 @@ def _tl_solid_png(red, green, blue, size=32):
     )
 
 
-class TestWebGanttPill(models.Model):
+class TimelineHostPill(models.Model):
     _name = 'test.web.gantt.pill'
     _description = 'Test Web Gantt Pill'
 
@@ -56,18 +56,14 @@ class TestWebGanttPill(models.Model):
         return {key: value for key, value in per_field.items() if key in wanted}
 
     @api.model
-    def _gantt_unavailability(self, field, res_ids, start, stop, scale):
-        answer = self._tl_hook_answers('unavailability', field, res_ids)
-        if answer is None:
-            return super()._gantt_unavailability(field, res_ids, start, stop, scale)
-        return answer
+    def _gantt_unavailability(self, *hook_args):
+        answer = self._tl_hook_answers('unavailability', hook_args[0], hook_args[1])
+        return super()._gantt_unavailability(*hook_args) if answer is None else answer
 
     @api.model
-    def _gantt_progress_bar(self, field, res_ids, start, stop):
-        answer = self._tl_hook_answers('progress', field, res_ids)
-        if answer is None:
-            return super()._gantt_progress_bar(field, res_ids, start, stop)
-        return answer
+    def _gantt_progress_bar(self, *hook_args):
+        answer = self._tl_hook_answers('progress', hook_args[0], hook_args[1])
+        return super()._gantt_progress_bar(*hook_args) if answer is None else answer
 
     @api.model
     def _tl_build_host_records(self, today=None, tz_offset_hours=3):
@@ -137,7 +133,7 @@ class TestWebGanttPill(models.Model):
         return built
 
 
-class TestWebGanttPill2(models.Model):
+class TimelineHostDatedPill(models.Model):
     _name = 'test.web.gantt.pill2'
     _description = 'Test Web Gantt Pill 2'
 

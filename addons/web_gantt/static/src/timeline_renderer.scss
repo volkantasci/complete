@@ -436,9 +436,9 @@
     container-type: inline-size;
     color: $o-main-text-color;
     background-color: rgba($o-brand-primary, .5);
-    // a hairline between neighbouring bars, without changing their size
-    border-right: 1px solid transparent;
-    background-clip: padding-box;
+    // a hairline between neighbouring bars: the colour stops one pixel short of the right edge
+    padding-right: 1px;
+    background-clip: content-box;
     pointer-events: auto;
 
     &:hover,
@@ -449,7 +449,7 @@
         &::before {
             content: "";
             position: absolute;
-            right: 0;
+            right: 1px;
             bottom: 100%;
             left: 0;
             height: 10000px;

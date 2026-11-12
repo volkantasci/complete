@@ -501,7 +501,7 @@ export class TimelineRenderer extends Component {
         const gridColumn = [];
         const foldedBefore = [0]; // folded columns before each index (one more entry: all)
         const runsBefore = [0];
-        for (let index = 0; index < count; index++) {
+        data.columns.forEach((_column, index) => {
             const run = foldedRun(index);
             const isFirst = run && run.first === index;
             if (!run || isFirst) {
@@ -521,7 +521,7 @@ export class TimelineRenderer extends Component {
             }
             foldedBefore.push(foldedBefore[index] + (run ? 1 : 0));
             runsBefore.push(runsBefore[index] + (isFirst ? 1 : 0));
-        }
+        });
         const foldedRuns = foldedBefore[count] ? runsBefore[count] : 0;
         const cellOf = (index, map) => {
             const run = foldedRun(index);

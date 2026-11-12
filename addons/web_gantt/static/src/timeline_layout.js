@@ -21,8 +21,8 @@ export function colorIndexOf(value) {
         number = Math.round(value);
     } else if (Array.isArray(value)) {
         number = value[0];
-    } else if (value && typeof value === "object") {
-        number = value.id;
+    } else {
+        number = value?.id;
     }
     if (typeof number !== "number" || !Number.isFinite(number) || number <= 0) {
         return 0;
@@ -209,12 +209,11 @@ export function unavailableParts(periods, columns, parts) {
     columns.forEach((column, index) => {
         const begin = column.start.toMillis();
         const length = column.stop.toMillis() - begin;
-        const covered = [];
-        for (let part = 0; part < parts; part++) {
+        const covered = Array.from({ length: parts }, (_unused, part) => {
             const from = begin + Math.round((length * part) / parts);
             const to = begin + Math.round((length * (part + 1)) / parts);
-            covered.push(merged.some(([start, stop]) => start <= from && stop >= to));
-        }
+            return merged.some(([start, stop]) => start <= from && stop >= to);
+        });
         if (covered.some(Boolean)) {
             result.set(index, covered);
         }

@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach } from "@odoo/hoot";
+import * as hoot from "@odoo/hoot";
 import {
     allowTranslations,
     defineModels,
@@ -80,7 +80,7 @@ export class Pill extends models.Model {
 
     name = fields.Char();
     active = fields.Boolean({ default: true });
-    date_start = fields.Datetime();
+    date_start = fields.Datetime({ string: "Start Datetime" });
     date_stop = fields.Datetime();
     parent_id = fields.Many2one({ relation: "pill", string: "Parent" });
     x_color = fields.Integer({ string: "Color" });
@@ -332,7 +332,7 @@ export function setupTimelineFixtures() {
             ? { name: "when_prop", type: "date", string: "When" }
             : PROPERTY_DEFINITION
     );
-    beforeEach(() => {
+    hoot.beforeEach(() => {
         allowTranslations();
         resetMock();
     });

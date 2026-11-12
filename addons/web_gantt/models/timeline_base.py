@@ -102,11 +102,11 @@ class Base(models.AbstractModel):
         return sorted(found)
 
     @api.model
-    def _gantt_unavailability(self, field, res_ids, start, stop, scale):
-        """Unavailable periods per value of ``field``; hosts override this."""
+    def _gantt_unavailability(self, group_field, record_ids, period_start, period_stop, scale_name):
+        """Unavailable periods per value of ``group_field``; hosts override this."""
         return {}
 
     @api.model
-    def _gantt_progress_bar(self, field, res_ids, start, stop):
-        """Progress values per value of ``field``; hosts override this."""
+    def _gantt_progress_bar(self, group_field, record_ids, period_start, period_stop):
+        """Progress values per value of ``group_field``; hosts override this."""
         return {}

@@ -32,7 +32,9 @@ class IrUiView(models.Model):
         return super()._is_qweb_based_view(view_type) or view_type == 'gantt'
 
     def _get_view_info(self):
-        return {'gantt': {'icon': 'view_timeline'}} | super()._get_view_info()
+        info = super()._get_view_info()
+        info['gantt'] = {'icon': 'view_timeline'}
+        return info
 
     def _validate_tag_gantt(self, node, name_manager, node_info):
         if not node_info['validate']:

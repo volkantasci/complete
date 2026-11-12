@@ -76,7 +76,7 @@ test("A83: sample state then next ends it", async () => {
     const help = queryRect(".o_tl_box .o_view_nocontent");
     // just below the first header row (the column group headers), under the line above the grid
     expect(help.top - grid.top).toBe(queryRect(queryAll(".o_tl_col_group")[0]).height + 1);
-    expect(".o_view_sample_data").toHaveCount(1);
+    expect(queryAll(".o_view_sample_data")).toHaveLength(1);
     await contains(".o_tl_next").click();
     await advanceTime(500);
     await animationFrame();
