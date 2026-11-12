@@ -30,7 +30,7 @@ right:
 | Control | What it does | Key |
 |---|---|---|
 | Previous and next arrows | Move back or forward by one period of the current range (one day, week, month, quarter or year). A custom range moves by its own length. | `p`, `n` |
-| Range button | Shows the current range ("Day", "Week", "Month", "Quarter" or "Year"), or the two dates of a custom range. Opens the range menu. | `v` |
+| Range button | Shows the current range ("Day", "Week", "Month", "Quarter" or "Year"), or the two dates of a custom range, followed by a small caret. Opens the range menu. | `v` |
 | **Today** | Scrolls so that today is in the middle of the grid. If today is outside the displayed period, the range is rebuilt around it; a custom range keeps its length. | `t` |
 | Display mode | Switches between one shared row per group of records (dense) and one row per record (sparse). | |
 | Open or fold every group | Opens all group rows, or folds them all. Shown only when the first row is a group row; otherwise it keeps its place but is invisible. | |
@@ -43,9 +43,10 @@ later slice.
 ### The range menu
 
 The menu lists the ranges the view offers, with the current one checked, then
-a line for a **custom range**: two date fields with an arrow between them and
-an **Apply** button. Picking a date in either field opens a date picker; the
-menu stays open until you press Apply. If you pick a start after the stop (or
+a line for a **custom range**: two plain date fields (only a line under each)
+with an arrow between them and an **Apply** button. Picking a date in either
+field opens a date picker, and the date stays unselected so that you can type
+over it; the menu stays open until you press Apply. If you pick a start after the stop (or
 the reverse), the other date follows. A range can be at most ten years minus
 one day long. Choosing another range in the list rebuilds the grid around the
 date that is currently in the middle of the screen.
@@ -103,7 +104,12 @@ it is the current hour).
 ![The year scale, dark](../assets/gantt_view/13-year-dark.png)
 
 Records that have only a date, not a time, are shown for the whole days; the
-stop day is included.
+stop day is included. A view may mix the two kinds, for example a date-only
+start with a date-and-time stop. Each end is then read on its own terms and
+always in the days of your own time zone, wherever you are relative to UTC: a
+date-only start is the beginning of its day, a date-only stop the end of its
+day, and a record whose date-only stop falls on the day of its start is drawn
+for that day. One whose stop day lies before its start is left out.
 
 ![Date fields on the month scale, light](../assets/gantt_view/17-date-fields-month.png)
 
@@ -134,14 +140,15 @@ ignored.
 - Fields that list all their values even when empty (a stage, for example)
   give empty rows.
 - Row names are shown with the normal display of the field; a grouping field
-  can have a small image shown before the name of its row.
+  can have a small image shown before the name of its row. A name too long
+  for the header is cut with an ellipsis.
 
 A row that has sub-rows is a **group row**: a caret before its name shows
 whether it is open or folded, and clicking its header or its cells folds or
 opens it. Instead of pills, a group row shows for each stretch of time the
 number of records running there, as a thin line with the count at its left.
-Clicking the header of a row without sub-rows scrolls the grid to its first
-pill. Pointing at a group row highlights the whole row, header included.
+Clicking the header of a row without sub-rows scrolls the grid so that the
+start of the column in which its first pill begins is in the middle. Pointing at a group row highlights the whole row, header included.
 Changing the grouping opens every row again.
 
 ![Records grouped on two levels with a total row, light](../assets/gantt_view/02-grouped-two-levels.png)
@@ -161,7 +168,9 @@ Changing the grouping opens every row again.
 ### Sparse mode and paging
 
 In sparse mode every record gets a row of its own, named after the record,
-below its group. Group rows are then used for every level of grouping. Without
+below its group. The record rows follow the order of the pills: first the
+sub-column where the pill starts, then its start time; this holds under every
+group and when there is no grouping. Group rows are then used for every level of grouping. Without
 grouping, each record is a row. Switching between the two modes opens all
 folded rows.
 
@@ -186,7 +195,8 @@ finer.
 - **Label.** The pill shows the name of the record. If the view asks for
   dates in the label, a record that spans several days and sticks out of the
   displayed range also shows its start and stop dates before the name (on the
-  year scale, any record shows them). When the model has hours allocated to a
+  year scale, any record shows them). The dates are short numeric ones in the
+  order of your language, without the year, for example "10/23 - 12/2". When the model has hours allocated to a
   record, a one-day pill on the week and month scales can also show its times
   and allocated hours. Text is cut at the edge of the pill.
 - **Colour.** The view can colour pills by a number or relational field. There
@@ -231,8 +241,9 @@ full-screen sheet.
 When the view definition asks for it, a row named **Total** is added at the
 bottom. For every stretch of time in which records run it draws a vertical bar
 whose height follows the number of records, with the count at its foot. Bars
-too narrow for the count show a smaller figure. Pointing at a bar darkens it
-and draws a translucent band up to the top of the grid. Without row headers
+too narrow for the count show a smaller figure. Pointing at a bar turns it to
+the primary colour (80 percent opaque) and draws a translucent band up to the
+top of the grid. Without row headers
 the row has no title.
 
 ## Capacity bars, unavailable periods and folded columns
@@ -244,7 +255,7 @@ such as the employee, attendance, event track and time off applications of later
 
 - **Capacity bars.** For a grouping field named by the view definition, a row
   header can show how much of a quantity (typically hours) is used: a small
-  label with what remains, and a thin bar filled in green up to 100 percent
+  label with what remains at the right end of the name line, and a thin bar filled in green up to 100 percent
   and in red beyond it. Pointing at the bar or the label shows used and
   maximum with the percentage. If the host gives a warning instead of a
   maximum, a warning icon with that text replaces the bar. In sparse mode only
@@ -272,9 +283,13 @@ such as the employee, attendance, event track and time off applications of later
 
 If the view definition allows sample data and the first load finds no record,
 the view shows a faded, non-interactive grid with generated rows and no pills,
-and the help text of the action drawn over it. The sample state ends at the
+and the help text of the action drawn over it. Below its one faded row the sample state shows the page background, so
+the help text stands on the page; the help is centred in the free space (on a
+phone it starts at the top of the grid area). The sample state ends at the
 next load (any navigation or search). When sample data is not allowed, an empty
-result shows the normal grid with empty rows and no help.
+result shows the normal grid with empty rows and no help. Whenever the grid is
+shorter than the screen, the area under it takes the background of the view
+rather than the page's.
 
 ![The sample state, light](../assets/gantt_view/15-sample-data.png)
 
@@ -289,10 +304,17 @@ result shows the normal grid with empty rows and no help.
 On a small screen the control bar wraps: previous, next and the range button
 on the first line, then Today and a gear button on the second. The gear menu
 holds the display mode switch ("One row per record" or "Shared rows") and, below
-a separator, "Open every group" or "Fold every group". The range menu opens as
-a bottom sheet, dates are picked in a dialog, popovers open full screen and
-the row header column takes a third of the width. Month names in the headers
+a separator, "Open every group" or "Fold every group"; its icon is the filled
+gear. On a touch phone the buttons of the bar take the larger touch size (37 px
+tall; previous, next and the gear 44 px wide) while the bar keeps its height.
+The range menu opens as a bottom sheet (424 px tall, with the custom range
+line well spaced), dates are picked in a dialog, popovers open full screen and
+the row header column takes a third of the width, where a long name such as
+"Undefined Contact" is cut with an ellipsis. Month names in the headers
 are abbreviated, and the page itself scrolls.
+
+Hovering a column header gives a tooltip with the date including the weekday
+("Saturday, November 7, 2026"; on the day scale also the time).
 
 ![The week view on a phone, light](../assets/gantt_view/01-week-ungrouped.mobile.png)
 

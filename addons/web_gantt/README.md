@@ -29,9 +29,9 @@ prefix `o_tl_`, templates `web_gantt.Timeline...`.
 | `timeline_dates.js` | Pure date logic: ranges, scales, columns, navigation. |
 | `timeline_layout.js` | Pure layout: pills, stacking, segments, totals, colours, labels, unavailable parts, folding. |
 | `timeline_arch_parser.js`, `timeline_view.js` | Reads the definition; registers the view. |
-| `timeline_model.js` | Loads data, builds rows, remembers the range (`rangeOf-viewId-<id>` in the browser storage), sample state. |
-| `timeline_controller.*` | Control bar, range menu with the custom range, phone gear menu. |
-| `timeline_renderer.*`, `timeline_popover.*` | Grid, rows, pills, total row; the popover. |
+| `timeline_model.js` | Loads data, builds rows (record rows in sparse mode follow `orderPills`), remembers the range (`rangeOf-viewId-<id>` in the browser storage), sample state. The period domain takes each bound from the type of its own field (date-only bounds in local days, date-time bounds as the UTC instant of the local midnight), so a view may mix both types. |
+| `timeline_controller.*` | Control bar, range menu with the custom range (plain date fields, the picked date stays unselected), phone gear menu and range sheet. On a touch phone the theme's touch button size applies; the phone rules only fix the desktop size when `body` lacks `o_touch_device`. |
+| `timeline_renderer.*`, `timeline_popover.*` | Grid, rows (each name in an ellipsis label), pills, total row, column tooltips with the weekday; the popover. The box around the grid takes the view background; in the sample state it is transparent and the scroll area ends after the faded row. |
 | `timeline.variables.scss`, `timeline.variables.dark.scss` | Own `!default` variables for the values that match no theme role. Every other colour is a theme role, so the view compiles on Community alone and follows the dark scheme when `web_enterprise` is installed. |
 
 ## Configuration
