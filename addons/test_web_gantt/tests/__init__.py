@@ -5,6 +5,7 @@ from . import (
     test_access_rights,
     test_default_view,
     test_edit_host,
+    test_edit_probes,
     test_edit_tours,
     test_gantt_data,
     test_host,

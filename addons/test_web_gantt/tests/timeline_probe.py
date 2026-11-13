@@ -81,6 +81,11 @@ def compare_value(prop, expected, measured):
             return f'{measured} instead of {expected}'
         return None
     measured = str(measured).strip()
+    if prop == 'font-family':
+        # Chrome quotes the names that need it; the table lists them bare
+        if expected != measured.replace('"', ''):
+            return f'{measured} instead of {expected}'
+        return None
     if prop == 'transform':
         want, got = _numbers(expected), _numbers(measured)
         ok = len(want) == len(got) and all(

@@ -350,7 +350,7 @@
         <field name="name">H19 Read only</field>
         <field name="model">test.web.gantt.pill</field>
         <field name="arch" type="xml">
-            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" edit="0"><field name="x_done"/><popover><templates><t t-name="popover-body"><div><field name="name"/></div><div class="d-flex align-items-center gap-2"><span class="o_form_label">Done</span><field name="x_done" widget="boolean_toggle"/></div></t></templates></popover></gantt>
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" edit="0"><field name="x_done"/><popover><templates><t t-name="popover-body"><div><field name="name"/></div><div><span class="o_form_label">Done</span></div><div><field name="x_done" widget="boolean_toggle"/></div></t></templates></popover></gantt>
         </field>
     </record>
 
@@ -390,7 +390,7 @@
         <field name="name">H24 Editable popover</field>
         <field name="model">test.web.gantt.pill</field>
         <field name="arch" type="xml">
-            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" decoration-info="x_done"><field name="x_done"/><popover><templates><t t-name="popover-body"><div><field name="name"/></div><div class="d-flex align-items-center gap-2"><span class="o_form_label">Done</span><field name="x_done" widget="boolean_toggle"/></div><button type="object" name="action_archive" class="btn btn-sm btn-secondary">Archive</button></t></templates></popover></gantt>
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" decoration-info="x_done"><field name="x_done"/><popover><templates><t t-name="popover-body"><div><field name="name"/></div><div><span class="o_form_label">Done</span></div><div><field name="x_done" widget="boolean_toggle"/></div><button type="object" name="action_archive" class="btn btn-sm btn-secondary">Archive</button></t></templates></popover></gantt>
         </field>
     </record>
 
