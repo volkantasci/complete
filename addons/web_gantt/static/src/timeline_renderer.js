@@ -139,7 +139,10 @@ export class TimelineRenderer extends Component {
             partAt: (x, anchor) => this._partAt(x, anchor),
             edges: () => this._visibleBounds(),
             scrollBy: (dx) => {
-                this.rendererRef().scrollLeft += dx;
+                const renderer = this.rendererRef();
+                const before = renderer.scrollLeft;
+                renderer.scrollLeft += dx;
+                return { dx: renderer.scrollLeft - before, dy: 0 };
             },
             change: (selection) => this._setSelection(selection),
             commit: (selection) => this._commitSelection(selection),

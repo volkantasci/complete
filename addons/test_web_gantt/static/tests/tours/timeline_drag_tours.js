@@ -313,3 +313,50 @@ tours.add("timeline_002b2_a60_rtl_selection_badges", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// A65: the speed of the edge scroll of a selection (R20)
+// ---------------------------------------------------------------------------------------------
+
+tours.add("timeline_002b2_a65_selection_edge_speed", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_button_add",
+            async run() {
+                const area = renderer();
+                // the whole grid lies to the right: a second at 833 px needs room to scroll
+                area.scrollLeft = 0;
+                await frame();
+                const box = area.getBoundingClientRect();
+                const right = box.left + area.clientWidth;
+                const room = area.scrollWidth - area.clientWidth - area.scrollLeft;
+                assert(room > 1200, `the grid has only ${room} px to scroll to the right`);
+                const row = $(".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)");
+                const y = row.getBoundingClientRect().bottom - 12;
+                const x0 = visibleMiddle();
+                firePointer(document.elementFromPoint(x0, y), "pointerdown", x0, y);
+                // a first move far from both edges starts the selection
+                firePointer(document, "pointermove", x0 + 40, y);
+                await until(() => $(".o_tl_selection"), "the highlight");
+                const before = area.scrollLeft;
+                // 100 px from the right edge: about 833 px per second
+                firePointer(document, "pointermove", right - 100, y);
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                const moved = area.scrollLeft - before;
+                assert(moved > 700 && moved < 1000, `the grid scrolled ${moved} px in a second, expected about 833`);
+                // the highlight grew with the scroll
+                assert(
+                    $(".o_tl_selection").getBoundingClientRect().width > 600,
+                    "the highlight did not follow the scroll"
+                );
+                // Escape cancels the selection, then the release ends the gesture
+                document.dispatchEvent(
+                    new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })
+                );
+                firePointer(document, "pointerup", right - 100, y);
+                await until(() => !$(".o_tl_selection"), "the highlight to go");
+            },
+        },
+    ],
+});

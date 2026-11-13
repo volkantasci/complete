@@ -76,3 +76,10 @@ class TestTimelineDragTours(HttpCase):
         count = self.env[PILL].search_count([])
         self._tour('h1', 'timeline_002b2_a60_rtl_selection_badges', login='rtl')
         self.assertEqual(self.env[PILL].search_count([]), count)
+
+    # -- edge scrolling (R20) -------------------------------------------------------------------
+
+    def test_a65_tour_selection_edge_speed(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h1', 'timeline_002b2_a65_selection_edge_speed')
+        self.assertEqual(self.env[PILL].search_count([]), count)
