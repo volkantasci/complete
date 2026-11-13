@@ -307,16 +307,10 @@ describe("while a pill is held", () => {
         freezeTime();
         await review.move(areaRight() - 2, review.start.y);
         await advanceTime(600);
-        const gridRight = queryRect(".o_tl_grid").right;
-        const beyond = queryAll(".o_tl_grid *")
-            .filter((el) => queryRect(el).right > gridRight + 1 && queryRect(el).width)
-            .map((el) => `${el.className} ${queryRect(el).right - gridRight}`);
-        expect(beyond).toEqual([]);
-        // the end of the grid, give or take the rounding of a sub-pixel
-        expect(Math.abs(element.scrollLeft - max)).toBeLessThan(3);
-        const reached = element.scrollLeft;
-        await advanceTime(300);
-        expect(Math.abs(element.scrollLeft - reached)).toBeLessThan(2);
+        // the end the grid had before the drag drew its pill and badges, which stick out
+        expect(Math.abs(element.scrollLeft - max)).toBeLessThan(2);
+        await advanceTime(600);
+        expect(Math.abs(element.scrollLeft - max)).toBeLessThan(2);
         await review.cancel();
     });
 
@@ -327,7 +321,7 @@ describe("while a pill is held", () => {
         expect(element.scrollHeight).toBeGreaterThan(element.clientHeight);
         const review = await pressMove("Review");
         const before = element.scrollTop;
-        const height = element.scrollHeight;
+        const maxTop = element.scrollHeight - element.clientHeight;
         freezeTime();
         // 10 px from the bottom edge of the scrolling area, horizontally outside the zones
         await review.move(review.start.x, areaBottom() - 10);
@@ -337,19 +331,63 @@ describe("while a pill is held", () => {
         expect(scrolled).toBeLessThan(118);
         // held to the end: the pill's own row is long out of view, the moved pill is still drawn
         await advanceTime(2000);
-        expect(element.scrollTop).toBe(element.scrollHeight - element.clientHeight);
+        // the last row is the end: the badges below the pill do not make the grid longer to scroll
+        expect(Math.abs(element.scrollTop - maxTop)).toBeLessThan(2);
+        await advanceTime(500);
+        expect(Math.abs(element.scrollTop - maxTop)).toBeLessThan(2);
         const row = pillEl("Review").closest(".o_tl_row");
         expect(queryRect(row).bottom).toBeLessThan(queryRect(element).top + 200);
         expect(queryAll(".o_tl_pill_moved")).toHaveLength(1);
-        // the drag adds nothing to the rows' overflow: the end is the end of the rows
-        // (one pixel of rounding of the fractional rows at most)
-        expect(Math.abs(element.scrollHeight - height)).toBeLessThan(2);
-        const gridBottom = queryRect(".o_tl_grid").bottom;
-        const below = queryAll(".o_tl_grid *")
-            .filter((el) => queryRect(el).width && queryRect(el).bottom > gridBottom + 1)
-            .map((el) => `${el.className} ${queryRect(el).bottom - gridBottom}`);
-        expect(below).toEqual([]);
         await review.cancel();
+    });
+
+    /** A short window, the rows scrolled to their end: the last row ends the grid. */
+    async function mountAtLastRow() {
+        await resize({ width: 1600, height: 380 });
+        await mountTimeline({ groupBy: ["parent_id"] });
+        const element = renderer();
+        expect(element.scrollHeight).toBeGreaterThan(element.clientHeight);
+        element.scrollTop = element.scrollHeight;
+        await animationFrame();
+        return queryAll(RECORD_ROW).at(-1);
+    }
+
+    test("R6 a move to the last row: the badges stand right above and below the pill", async () => {
+        await mountTimeline({ groupBy: ["parent_id"] });
+        const review = await pressMove("Review");
+        const box = queryRect(queryAll(RECORD_ROW).at(-1));
+        await review.move(review.start.x + 15, box.top + box.height / 2);
+        const pill = queryRect(".o_tl_pill_moved");
+        const [first, second] = queryAll(".o_tl_selection_badge").map((badge) => queryRect(badge));
+        expect(Math.abs(first.bottom - pill.top)).toBeLessThan(1);
+        expect(Math.abs(second.top - pill.bottom)).toBeLessThan(1);
+        await review.cancel();
+    });
+
+    test("R6 a resize on the last row: the badges stand right above and below the pill", async () => {
+        const last = await mountAtLastRow();
+        let handle = null;
+        for (const pill of last.querySelectorAll(".o_tl_pill")) {
+            await hover(pill);
+            await animationFrame();
+            handle = pill.querySelector(".o_tl_handle_stop");
+            if (handle) {
+                break;
+            }
+        }
+        expect(handle).not.toBe(null);
+        const rect = queryRect(handle);
+        const start = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        const held = await drag(handle, { position: start });
+        await held.moveTo(document.elementFromPoint(start.x - 40, start.y) || renderer(), {
+            position: { x: start.x - 40, y: start.y },
+        });
+        await animationFrame();
+        const pill = queryRect(".o_tl_pill_resizing");
+        const [first, second] = queryAll(".o_tl_selection_badge").map((badge) => queryRect(badge));
+        expect(Math.abs(first.bottom - pill.top)).toBeLessThan(3);
+        expect(Math.abs(second.top - pill.bottom)).toBeLessThan(3);
+        await held.cancel();
     });
 
     test("A54 a resize held 100 px from the right edge scrolls about 208 px per 250 ms and the end grows", async () => {
@@ -447,6 +485,8 @@ describe("while a pill is held", () => {
         mockTouch(true);
         const rect = queryRect(handle);
         const x = Math.min(rect.left + rect.width / 2, areaRight() - 5);
+        // the press lies inside the move zone of the right edge
+        expect(x).toBeGreaterThan(areaRight() - 30);
         const y = rect.top + rect.height / 2;
         const before = renderer().scrollLeft;
         const helpers = await drag(handle, { position: { x, y } });

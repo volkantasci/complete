@@ -426,6 +426,8 @@ test("A35 a finger on the end handle moves the pill: no touch resizing (D5)", as
     const rect = queryRect(handle);
     const renderer = queryRect(".o_tl_renderer");
     const x = Math.min(rect.left + rect.width / 2, renderer.right - 5);
+    // the press lies inside the move zone of the right edge
+    expect(x).toBeGreaterThan(renderer.right - 30);
     const y = rect.top + rect.height / 2;
     const helpers = await drag(handle, { position: { x, y } });
     await advanceTime(600);

@@ -171,8 +171,12 @@ export class TimelineRenderer extends Component {
                 const renderer = this.rendererRef();
                 const vertical = this._verticalScroller();
                 const before = { left: renderer.scrollLeft, top: vertical.scrollTop };
-                renderer.scrollLeft += dx;
-                vertical.scrollTop += dy;
+                const { maxLeft = Infinity, maxTop = Infinity } = this._gesture || {};
+                // never past the end the grid had when the gesture began
+                const reach = Math.max(maxLeft, Math.abs(before.left));
+                const [low, high] = this._isRtl() ? [-reach, 0] : [0, reach];
+                renderer.scrollLeft = Math.min(Math.max(before.left + dx, low), high);
+                vertical.scrollTop = Math.min(before.top + dy, Math.max(maxTop, before.top));
                 return {
                     dx: renderer.scrollLeft - before.left,
                     dy: vertical.scrollTop - before.top,
@@ -285,10 +289,14 @@ export class TimelineRenderer extends Component {
         const scroller = this._verticalScroller();
         const area = scroller.getBoundingClientRect();
         let top = Math.max(area.top + scroller.clientTop, 0);
-        const headers =
-            this._gesture?.headers || element.querySelectorAll(".o_tl_col, .o_tl_col_group");
-        for (const header of headers) {
-            top = Math.max(top, header.getBoundingClientRect().bottom);
+        // one header of each row of headers is enough: they all end at the same place
+        for (const header of [
+            element.querySelector(".o_tl_col"),
+            element.querySelector(".o_tl_col_group"),
+        ]) {
+            if (header) {
+                top = Math.max(top, header.getBoundingClientRect().bottom);
+            }
         }
         // a page that scrolls the rows ends at the window, a grid's own area at its own edge
         const end = area.top + scroller.clientTop + scroller.clientHeight;
@@ -797,38 +805,16 @@ export class TimelineRenderer extends Component {
         if (drag && !rtl) {
             this._keepStopBadgeInside(grid, stopBadge, header);
         }
-        if (drag) {
-            // a badge past the grid's end would make the grid longer, and a pointer held in an
-            // edge zone would scroll without end (R14)
-            this._keepBadgeInGrid(grid, startBadge);
-            this._keepBadgeInGrid(grid, stopBadge);
-        }
-    }
-
-    _keepBadgeInGrid(grid, badge) {
-        const rect = badge.getBoundingClientRect();
-        const box = grid.getBoundingClientRect();
-        const shift = Math.max(rect.right - box.right, 0) - Math.max(box.left - rect.left, 0);
-        if (shift) {
-            badge.style.left = `${rect.left - shift - box.left}px`;
-        }
-        const lift = Math.max(rect.bottom - box.bottom, 0) - Math.max(box.top - rect.top, 0);
-        if (lift) {
-            badge.style.top = `${rect.top - lift - box.top}px`;
-        }
     }
 
     /**
-     * R6: the stop badge of a moved pill stays at least 1 px inside the window's right edge (and
-     * the grid's), and no further from that edge than the window's width minus the row header
-     * column's.
+     * R6: the stop badge of a moved pill stays at least 1 px inside the window's right edge, and
+     * no further from that edge than the window's width minus the row header column's.
      */
     _keepStopBadgeInside(grid, badge, header) {
         const rect = badge.getBoundingClientRect();
         const least = header ? header.getBoundingClientRect().width : 0;
-        // nor past the end of the grid, which would make it longer (R14)
-        const end = Math.min(window.innerWidth - 1, grid.getBoundingClientRect().right);
-        const right = Math.min(Math.max(rect.right, least), end);
+        const right = Math.min(Math.max(rect.right, least), window.innerWidth - 1);
         if (right !== rect.right) {
             badge.style.left = `${right - rect.width - grid.getBoundingClientRect().left}px`;
         }
@@ -966,9 +952,14 @@ export class TimelineRenderer extends Component {
         // what the edge scrolling needs is looked for once, not on every frame
         this._gesture = null;
         if (mode && this.rendererRef()) {
+            // the ends of the rows and columns, before the pill, the highlight and the badges are
+            // drawn: the drag's own drawing must not let the grid scroll further (R14)
+            const element = this.rendererRef();
+            const scroller = this._verticalScroller();
             this._gesture = {
-                scroller: this._verticalScroller(),
-                headers: [...this.rendererRef().querySelectorAll(".o_tl_col, .o_tl_col_group")],
+                scroller,
+                maxLeft: element.scrollWidth - element.clientWidth,
+                maxTop: scroller.scrollHeight - scroller.clientHeight,
             };
         }
         const root = this.rendererRef()?.closest(".o_timeline_view");
