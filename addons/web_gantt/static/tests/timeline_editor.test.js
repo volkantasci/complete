@@ -60,6 +60,10 @@ test("002b A2: New shown/hidden", async () => {
 test("002b A2: New hidden with create off, shown with edit off and delete off", async () => {
     await mountTimeline({ arch: timelineArch(`create="0"`) });
     expect(".o_tl_button_add").toHaveCount(0);
+    // no empty wrapper either: the control panel hides its empty button area, so the title
+    // stays at the left edge (screen S10)
+    expect(".o_tl_buttons").toHaveCount(0);
+    expect(".o_control_panel_main_buttons:visible").toHaveCount(0);
 });
 
 test("002b A2: New is shown when only edit or delete is off", async () => {

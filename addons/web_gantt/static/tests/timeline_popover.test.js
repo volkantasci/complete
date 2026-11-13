@@ -252,6 +252,21 @@ test("M43: the desktop frame is transparent and 272 px wide", async () => {
     expect(POPOVER).not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
 });
 
+test("002b S4: the lines of the popover body are 13 px, its header keeps the page size", async () => {
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    expect(`${POPOVER} .o_popover_body`).toHaveStyle({ fontSize: "13px", lineHeight: "21px" });
+    expect(`${POPOVER} .o_popover_header`).not.toHaveStyle({ fontSize: "13px" });
+});
+
+test("002b S4: the lines around the popover body have the colour of the popover's border", async () => {
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    const frame = getComputedStyle(queryOne(".o_popover:has(.o_tl_popover)")).borderTopColor;
+    expect(`${POPOVER} .o_popover_header`).toHaveStyle({ borderBottomColor: frame });
+    expect(`${POPOVER} .o_popover_footer`).toHaveStyle({ borderTopColor: frame });
+});
+
 test("S7 phone: the popover is a sheet with the same content", async () => {
     await resize({ width: 390, height: 844 });
     await mountTimeline(timelineArch());

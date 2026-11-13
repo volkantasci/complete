@@ -35,6 +35,9 @@
 
         .o_popover_body {
             min-height: 0;
+            // the lines of the body are a point smaller than the page text
+            font-size: $o-tl-popover-body-font-size;
+            line-height: $o-tl-popover-body-line-height;
             // the body is `p-3` (an important utility)
             padding: $o-tl-popover-body-padding-y $o-tl-popover-body-padding-x !important;
         }
@@ -49,6 +52,16 @@
     // the cross sits in the top right corner of the header
     .o_card_popover_close {
         z-index: 1;
+    }
+
+    // the lines between header, body and footer are the colour of the popover's own border (the
+    // page border colour of the dark scheme is the colour of the popover itself)
+    .o_popover_header {
+        border-bottom-color: $popover-border-color !important;
+    }
+
+    .o_popover_footer {
+        border-top-color: $popover-border-color !important;
     }
 
     // the record name on a light grey band

@@ -2,8 +2,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
     <t t-name="web_gantt.TimelineButtons">
-        <div class="d-flex o_tl_buttons">
-            <button t-if="this.canCreate" type="button" class="btn btn-primary o_tl_button_add" data-hotkey="c" t-on-click="this.onNew">New</button>
+        <div t-if="this.canCreate" class="d-flex o_tl_buttons">
+            <button type="button" class="btn btn-primary o_tl_button_add" data-hotkey="c" t-on-click="this.onNew">New</button>
         </div>
     </t>
 

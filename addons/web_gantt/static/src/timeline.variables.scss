@@ -47,6 +47,9 @@ $o-tl-custom-line-padding-x: 20.525px !default;
 $o-tl-popover-header-bg: $o-gray-200 !default;
 $o-tl-popover-body-padding-x: 30px !default;
 $o-tl-popover-body-padding-y: 23.5px !default;
+$o-tl-popover-body-font-size: 13px !default;
+// the height of a line stays the one of the page text, so the popover keeps its height
+$o-tl-popover-body-line-height: 21px !default;
 $o-tl-popover-footer-padding-start: 15px !default;
 $o-tl-popover-extra-gap: 2px !default;
 

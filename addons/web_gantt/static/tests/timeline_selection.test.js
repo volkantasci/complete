@@ -121,8 +121,9 @@ test("002b A8: drag draws highlight and badges, release opens Create, Discard cl
     expect(".o_dialog .modal-title").toHaveText("Create");
     expect(inputValue("date_start")).toBe("11/08/2026 12:00:00");
     expect(inputValue("date_stop")).toBe("11/10/2026 12:00:00");
-    // the highlight stays under the dialog
+    // the highlight stays under the dialog, the badges are gone (S2)
     expect(".o_tl_selection").toHaveCount(1);
+    expect(".o_tl_selection_badge").toHaveCount(0);
     expect(".o_dialog").toHaveCount(1);
 
     await contains(".o_dialog .o_form_button_cancel").click();

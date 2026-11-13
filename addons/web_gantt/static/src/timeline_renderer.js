@@ -527,6 +527,8 @@ export class TimelineRenderer extends Component {
     _commitSelection(selection) {
         this._setSelection(selection);
         const shown = this.state.selection;
+        // the badges belong to the drawing: once released, only the highlight stays (S2)
+        shown.released = true;
         const clear = () => {
             if (this.state.selection === shown) {
                 this.state.selection = null;
@@ -578,7 +580,7 @@ export class TimelineRenderer extends Component {
     /** The texts of the two badges: the bounds of the selection (R5). */
     get selectionBadges() {
         const selection = this.state.selection;
-        if (!selection) {
+        if (!selection || selection.released) {
             return null;
         }
         const data = this.data;
