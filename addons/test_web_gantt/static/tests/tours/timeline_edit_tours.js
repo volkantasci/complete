@@ -773,37 +773,108 @@ tours.add("timeline_002b_a44_control_admin_drag", {
     ],
 });
 
-// A1b: an explicit yes for a user without the right: the server refuses
-tours.add("timeline_002b_a1b_explicit_yes_refused", {
+/** Close the error dialog that is on top, then wait until it is gone. */
+async function closeError() {
+    const error = await until(() => $(".o_error_dialog"), "the error dialog");
+    const errorBox = error.closest(".o_dialog");
+    ($(".btn-close", errorBox) || buttonOf(errorBox, "Close") || buttonOf(errorBox, "Ok")).click();
+    await until(() => !errorBox.isConnected, "the error dialog to close");
+}
+
+// A1b: an explicit yes on the view only (H28): the record dialog is read-only, because the
+// default form's own edit is off for the restricted user
+tours.add("timeline_002b_a1b_explicit_yes_view_only", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                assert(!$(".o_tl_button_add"), "the New button is shown");
+                click(await until(() => pillNamed("Build"), "Build"));
+                const button = await until(() => $(".o_tl_popover_button"), "the popover button");
+                assert(button.textContent.trim() === "Edit", `button "${button.textContent}"`);
+                escape();
+                await sleep(1500);
+                doubleClick(await until(() => pillNamed("Build"), "Build"));
+                const dialog = await openDialog("Open");
+                await until(() => fieldBox(dialog, "name"), "the form");
+                assert(!$("input", fieldBox(dialog, "name")), "the name is editable");
+                // the buttons of the Community read-only dialog: no New, Remove or Discard
+                for (const label of ["New", "Remove", "Discard"]) {
+                    assert(!buttonOf(dialog, label), `${label} is shown`);
+                }
+                const closing = $(".modal-footer .o-default-button", dialog);
+                assert(closing, "no primary closing button");
+                const log = spyRequests();
+                closing.click();
+                await noDialogs();
+                await gridSettled();
+                assert(
+                    !callsOf(log, "web_save").length && !callsOf(log, "write").length,
+                    "a write was sent"
+                );
+                assert(dataCalls(log) >= 1, "the view did not reload");
+                await until(() => pillNamed("Build"), "Build to be shown");
+            },
+        },
+    ],
+});
+
+// A1c: an explicit yes on the view and on the form (H29): the editable dialog and the refusals
+tours.add("timeline_002b_a1c_explicit_yes_refused", {
     steps: () => [
         gridReady,
         {
             trigger: ".o_tl_pill",
             async run() {
                 doubleClick(await until(() => pillNamed("Build"), "Build"));
-                const dialog = await openDialog("Open");
-                await until(() => fieldBox(dialog, "name"), "the form");
+                let dialog = await openDialog("Open");
+                const input = await fieldOf(dialog, "name");
+                assert(input.tagName === "INPUT", "the name is not editable");
+                for (const label of ["Save", "Discard", "Remove"]) {
+                    assert(buttonOf(dialog, label), `no ${label}`);
+                }
+                // a refused save: the error over the dialog, which stays open with the typed value
+                await typeInto(input, "Build X");
+                buttonOf(dialog, "Save").click();
+                const error = await until(() => $(".o_error_dialog"), "the error dialog");
                 assert(
-                    buttonOf(dialog, "Remove"),
-                    `no Remove; buttons: ${$$("button", dialog).map((b) => b.textContent.trim())}`
+                    /not allowed|Access/i.test(error.textContent),
+                    `error text: ${error.textContent.slice(0, 200)}`
                 );
+                assert(dialogTitled("Open"), "the record dialog closed");
+                assert(
+                    fieldInput(dialogTitled("Open"), "name").value === "Build X",
+                    "the typed name is gone"
+                );
+                await closeError();
+                buttonOf(dialogTitled("Open"), "Discard").click();
+                await noDialogs();
+                await gridSettled();
+                await until(() => pillNamed("Build") && !pillNamed("Build X"), "Build to be shown");
+                await sleep(1200);
+                // a refused deletion: only the confirmation closes
+                doubleClick(pillNamed("Build"));
+                dialog = await openDialog("Open");
+                await fieldOf(dialog, "name");
                 buttonOf(dialog, "Remove").click();
                 const confirm = await until(
                     () => $$(".o_dialog").find((item) => buttonOf(item, "Delete")),
                     "the confirmation"
                 );
                 buttonOf(confirm, "Delete").click();
-                const error = await until(() => $(".o_error_dialog"), "the error dialog");
+                const refusal = await until(() => $(".o_error_dialog"), "the error dialog");
                 assert(
-                    /not allowed|Access Error|delete/i.test(error.textContent),
-                    `error text: ${error.textContent.slice(0, 200)}`
+                    /not allowed|Access/i.test(refusal.textContent),
+                    `error text: ${refusal.textContent.slice(0, 200)}`
                 );
-                // close the error dialog, then the record dialog: the view reloads and shows the record
-                const errorBox = error.closest(".o_dialog");
-                ($(".btn-close", errorBox) || buttonOf(errorBox, "Close") || buttonOf(errorBox, "Ok")).click();
-                await until(() => !errorBox.isConnected, "the error dialog to close");
-                const record = await until(() => dialogTitled("Open"), "the record dialog");
-                $(".btn-close", record).click();
+                await closeError();
+                assert(
+                    !$$(".o_dialog").some((item) => buttonOf(item, "No, keep it")),
+                    "the confirmation is still open"
+                );
+                assert(dialogTitled("Open"), "the record dialog closed");
+                buttonOf(dialogTitled("Open"), "Discard").click();
                 await noDialogs();
                 await gridSettled();
                 await until(() => pillNamed("Build"), "Build to be shown");
@@ -863,17 +934,86 @@ tours.add("timeline_002b_a45b_phone_tap_creates", {
     ],
 });
 
+/** The cell of the pill row under the viewport abscissa `x`. */
+const cellAtX = (x) =>
+    $$(".o_tl_cell", pillRow()).find((cell) => {
+        const rect = cell.getBoundingClientRect();
+        return rect.left <= x && x < rect.right;
+    });
+
+/** Press at the abscissa `x` on the empty bottom part of the pill row. Returns the point. */
+function pressAt(x, pointerType = "mouse") {
+    const cell = cellAtX(x);
+    assert(cell, `no cell at x ${x}`);
+    const point = { x, y: cell.getBoundingClientRect().bottom - 4 };
+    fire(cell, "pointerdown", point.x, point.y, pointerType);
+    return point;
+}
+
+const headerLeft = (iso) => headerOf(iso).getBoundingClientRect().left;
+
+/** The grid as opened (002a R39): today's column header at x 195 (M32, M33). */
+function assertOpenedPosition(today) {
+    const left = headerLeft(today);
+    assert(Math.abs(left - 195) <= 1, `the header of today is at x ${left}, expected 195`);
+}
+
+/** The phone gesture of the measurements: x 160 to x 230 in 8 steps, outside both edge zones. */
+async function middleGesture(pointerType, today) {
+    const from = pressAt(160, pointerType);
+    if (pointerType === "touch") {
+        await sleep(700);
+    }
+    const to = { x: 230, y: from.y };
+    await moveTo(from, to, pointerType, 8);
+    await until(() => $(".o_tl_selection"), "the highlight");
+    await sleep(300);
+    assertOpenedPosition(today);
+    const box = $(".o_tl_selection").getBoundingClientRect();
+    assert(
+        Math.abs(box.left - 99) <= 2 && Math.abs(box.right - 291) <= 2,
+        `the highlight runs from x ${box.left} to ${box.right}, expected 99 to 291`
+    );
+    const yesterday = addDays(today, -1);
+    assert(
+        $(".o_tl_selection_badge.o_tl_badge_start").textContent.trim() ===
+            badgeUs(yesterday, "12:00 PM"),
+        `start badge "${$(".o_tl_selection_badge.o_tl_badge_start").textContent}"`
+    );
+    assert(
+        $(".o_tl_selection_badge.o_tl_badge_stop").textContent.trim() === badgeUs(today, "12:00 PM"),
+        `stop badge "${$(".o_tl_selection_badge.o_tl_badge_stop").textContent}"`
+    );
+    return to;
+}
+
+/** The create dialog opened by a release holds the bounds of the highlight. */
+async function assertCreateBounds(today) {
+    const dialog = await openDialog("Create");
+    const start = (await fieldOf(dialog, "date_start")).value;
+    const stop = (await fieldOf(dialog, "date_stop")).value;
+    assert(start === usDateTime(addDays(today, -1), 12), `start ${start}`);
+    assert(stop === usDateTime(today, 12), `stop ${stop}`);
+    $(".o_form_button_cancel", dialog).click();
+    await noDialogs();
+}
+
 tours.add("timeline_002b_a46_phone_long_press", {
     steps: () => [
         gridReady,
         {
             trigger: ".o_tl_row",
             async run() {
-                const day = todayIso();
-                const row = pillRow();
-                const cell = cellOf(row, day);
+                const today = todayIso();
+                assertOpenedPosition(today);
+                // held for 700 ms at x 160, then moved to x 230: no scroll, the bounds of M9
+                const to = await middleGesture("touch", today);
+                release(to, "touch");
+                await assertCreateBounds(today);
                 // a finger that moves at once scrolls the grid: nothing is selected
-                let from = press(cell, 0.3, "touch");
+                const row = pillRow();
+                const cell = cellOf(row, today);
+                const from = press(cell, 0.3, "touch");
                 const hurried = { x: from.x + 30, y: from.y };
                 await moveTo(from, hurried, "touch", 3);
                 await sleep(500);
@@ -881,16 +1021,63 @@ tours.add("timeline_002b_a46_phone_long_press", {
                 release(hurried, "touch");
                 await sleep(300);
                 assert(!$(".o_dialog"), "a dialog opened after a quick move");
-                // held for 300 ms, then moved one day to the right
-                const next = cellOf(row, addDays(day, 1));
-                from = press(cell, 0.3, "touch");
-                await sleep(450);
-                await moveTo(from, pointIn(next, 0.3), "touch", 4);
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b_a12b_phone_edge_scroll", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row",
+            async run() {
+                const today = todayIso();
+                assertOpenedPosition(today);
+                // pressed at x 20, inside the left zone: the grid scrolls to the left
+                const from = pressAt(20);
+                const inside = { x: 100, y: from.y };
+                await moveTo(from, inside, "mouse", 4);
                 await until(() => $(".o_tl_selection"), "the highlight");
-                assert($(".o_tl_selection_badge.o_tl_badge_start"), "no start badge");
-                assert($(".o_tl_selection_badge.o_tl_badge_stop"), "no stop badge");
-                release(pointIn(next, 0.3), "touch");
-                await openDialog("Create");
+                const before = $(".o_tl_selection").getBoundingClientRect();
+                const first = headerLeft(today);
+                await sleep(600);
+                const later = headerLeft(today);
+                assert(later > first + 20, `the grid did not scroll: ${first} then ${later}`);
+                assert(later > 195, `the header of today is at x ${later}, it should move right`);
+                const grown = $(".o_tl_selection").getBoundingClientRect();
+                assert(
+                    grown.width > before.width + 20,
+                    `the highlight did not grow: ${before.width} then ${grown.width}`
+                );
+                // moved out of the zone, to x 180: the scroll stops
+                const out = { x: 180, y: from.y };
+                await moveTo(inside, out, "mouse", 4);
+                await sleep(300);
+                const stopped = headerLeft(today);
+                await sleep(500);
+                assert(
+                    Math.abs(headerLeft(today) - stopped) <= 1,
+                    "the grid kept scrolling outside the zone"
+                );
+                escape();
+                release(out);
+                await until(() => !$(".o_tl_selection"), "the highlight to disappear");
+                await sleep(300);
+                // x 160 to x 230 stays outside both zones: the grid does not move
+                const start = headerLeft(today);
+                const origin = pressAt(160);
+                const to = { x: 230, y: origin.y };
+                await moveTo(origin, to, "mouse", 8);
+                await until(() => $(".o_tl_selection"), "the highlight");
+                await sleep(500);
+                assert(
+                    Math.abs(headerLeft(today) - start) <= 1,
+                    `the grid scrolled between x 160 and x 230: ${start} then ${headerLeft(today)}`
+                );
+                escape();
+                release(to);
+                await until(() => !$(".o_tl_selection"), "the highlight to disappear");
             },
         },
     ],
@@ -936,14 +1123,24 @@ tours.add("timeline_002b_a47_phone_popover_dialog", {
                     "the confirmation"
                 );
                 const box = $(".modal-content", confirm).getBoundingClientRect();
-                // WAIVED here: the spec puts the box at the bottom of the phone screen (S6 phone),
-                // which is the look of the theme's dialogs (the stock dialog is centred). The
-                // position is measured by the probes M22/M25 of task 10; this tour only checks
-                // that the box is whole on screen with both buttons.
+                const width = window.innerWidth;
                 assert(
-                    box.top >= 0 && box.bottom <= height,
-                    `the confirmation is cut: ${box.top} to ${box.bottom} of ${height}`
+                    Math.abs(box.left - 16) <= 1 && Math.abs(box.width - (width - 32)) <= 1,
+                    `the confirmation is not 16 px from both sides: ${box.left}, ${box.width}`
                 );
+                assert(
+                    Math.abs((box.top + box.bottom) / 2 - height / 2) <= 2,
+                    `the confirmation is not centred vertically: ${box.top} to ${box.bottom} of ${height}`
+                );
+                const del = buttonOf(confirm, "Delete").getBoundingClientRect();
+                const keep = buttonOf(confirm, "No, keep it").getBoundingClientRect();
+                for (const item of [del, keep]) {
+                    assert(
+                        item.left >= box.left && item.right <= box.right && item.width >= box.width - 50,
+                        `a button does not span the box: ${item.left} to ${item.right}`
+                    );
+                }
+                assert(keep.top >= del.bottom - 1, "the confirmation buttons are not stacked");
                 assert(buttonOf(confirm, "No, keep it"), "the confirmation has no keep button");
             },
         },
@@ -956,15 +1153,12 @@ tours.add("timeline_002b_a48_phone_mouse_drag", {
         {
             trigger: ".o_tl_row",
             async run() {
-                const cell = cellOf(pillRow(), todayIso());
-                const from = press(cell, 0.2, "mouse");
-                const to = { x: from.x + 40, y: from.y };
-                await moveTo(from, to, "mouse", 4);
-                await until(() => $(".o_tl_selection"), "the highlight without a long press");
-                assert($(".o_tl_selection_badge.o_tl_badge_start"), "no start badge");
-                escape();
+                const today = todayIso();
+                assertOpenedPosition(today);
+                // drawn at once, without a long press, between x 160 and x 230: the grid stays
+                const to = await middleGesture("mouse", today);
                 release(to);
-                await until(() => !$(".o_tl_selection"), "the highlight to disappear");
+                await assertCreateBounds(today);
             },
         },
     ],

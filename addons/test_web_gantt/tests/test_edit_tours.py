@@ -144,38 +144,13 @@ class TestTimelineEditTours(HttpCase):
         self._tour('h1', 'timeline_002b_a44_control_admin_drag')
         self.assertEqual(self.env[PILL].search_count([]), count)
 
-    def test_002b_a1b_tour_explicit_yes_refused(self):
-        # a copy of H16's form that says edit and delete explicitly, so that the record dialog
-        # of the restricted user is editable and shows Remove (ruling O2b-6)
-        form = self.env['ir.ui.view'].create({
-            'name': 'H16 form copy with explicit yes',
-            'model': PILL,
-            'type': 'form',
-            'priority': 60,
-            'arch': (
-                '<form edit="1" delete="1"><sheet><group><field name="name"/>'
-                '<field name="date_start"/><field name="date_stop"/></group></sheet></form>'
-            ),
-        })
-        view = self.env['ir.ui.view'].create({
-            'name': 'H21 copy with explicit yes',
-            'model': PILL,
-            'type': 'gantt',
-            'arch': (
-                '<gantt string="Pills" date_start="date_start" date_stop="date_stop" '
-                f'default_range="week" color="x_color" delete="1" edit="1" plan="0" '
-                f'form_view_id="{form.id}"/>'
-            ),
-        })
-        action = self.env['ir.actions.act_window'].create({
-            'name': 'H21 copy with explicit yes',
-            'res_model': PILL,
-            'view_mode': 'gantt,list,form',
-            'view_id': view.id,
-            'search_view_id': self.env.ref('test_web_gantt.host_view_h13').id,
-        })
-        self._tour(f'/odoo/action-{action.id}', 'timeline_002b_a1b_explicit_yes_refused',
-                   login=RESTRICTED)
+    def test_002b_a1b_tour_explicit_yes_view_only(self):
+        self._tour('h28', 'timeline_002b_a1b_explicit_yes_view_only', login=RESTRICTED)
+        self.assertEqual(self._fresh(self.records['Build']).name, 'Build')
+
+    def test_002b_a1c_tour_explicit_yes_refused(self):
+        self._tour('h29', 'timeline_002b_a1c_explicit_yes_refused', login=RESTRICTED)
+        self.assertEqual(self._fresh(self.records['Build']).name, 'Build')
         self.assertTrue(self.records['Build'].exists(), 'the server deleted the record')
 
     # -- phone ----------------------------------------------------------------------------------
@@ -186,6 +161,11 @@ class TestTimelineEditTours(HttpCase):
         self.assertEqual(unscheduled.date_start, self._at(1))
         self.assertEqual(unscheduled.date_stop, self._at(2))
         self._tour('h18', 'timeline_002b_a45b_phone_tap_creates', size=PHONE, touch=True)
+
+    def test_002b_a12b_tour_phone_edge_scroll(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h1', 'timeline_002b_a12b_phone_edge_scroll', size=PHONE, touch=False)
+        self.assertEqual(self.env[PILL].search_count([]), count)
 
     def test_002b_a46_tour_phone_long_press(self):
         self._tour('h1', 'timeline_002b_a46_phone_long_press', size=PHONE, touch=True)
