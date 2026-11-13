@@ -47,7 +47,7 @@
                             </div>
                             <div t-if="row.kind === 'pills'" class="o_tl_pills">
                                 <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
-                                    <div class="o_tl_pill" t-att-class="pill.className" t-att-style="pill.style" t-att-data-pill-id="pill.id" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="this.onPillDoubleClick">
+                                    <div class="o_tl_pill" t-att-class="pill.className" t-att-style="pill.style" t-att-data-pill-id="pill.id" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
                                         <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
                                         <span class="o_tl_pill_title" t-out="pill.label"/>
                                         <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>

@@ -328,14 +328,16 @@ export class TimelineRenderer extends Component {
                 model: this.props.model,
                 archInfo: this.props.archInfo,
                 record: pill.record,
+                editor: this.props.editor,
             });
             // after `open`, which first closes (and so forgets) the previous popover
             this._popoverFor = pill.id;
         }, POPOVER_DELAY);
     }
 
-    onPillDoubleClick() {
+    onPillDoubleClick(ev, pill) {
         this._cancelPopover();
+        this.props.editor?.openRecord(pill.record.resId);
     }
 
     _cancelPopover() {

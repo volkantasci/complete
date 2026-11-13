@@ -84,16 +84,15 @@ test("A77: default popover", async () => {
     expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
     expect(`${POPOVER} .o_tl_popover_button`).toHaveClass("btn btn-primary btn-sm");
     expect(`${POPOVER} .o_card_popover_close`).toHaveCount(1);
-    // the button does nothing yet: the popover stays and no request is sent
-    const requests = rpcCount;
+    // the button closes the popover and opens the record dialog (002b R10)
     await click(`${POPOVER} .o_tl_popover_button`);
     await advanceTime(500);
     await animationFrame();
-    expect(POPOVER).toHaveCount(1);
-    expect(rpcCount).toBe(requests);
-    await click(`${POPOVER} .o_card_popover_close`);
-    await animationFrame();
     expect(POPOVER).toHaveCount(0);
+    await waitFor(".o_dialog .o_form_view");
+    await click(".o_dialog .o_form_button_cancel");
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(0);
     // a click outside closes it too
     await openPopover(BUILD);
     expect(POPOVER).toHaveCount(1);

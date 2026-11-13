@@ -2,9 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Domain } from "@web/core/domain";
 import { _t } from "@web/core/l10n/translation";
+import {
+    ConfirmationDialog,
+    deleteConfirmationMessage,
+} from "@web/core/confirmation_dialog/confirmation_dialog";
 import { FormViewDialog } from "@web/views/view_dialogs/form_view_dialog";
 import { SelectCreateDialog } from "@web/views/view_dialogs/select_create_dialog";
 import { creationContext, planWriteValues, rowValueChain } from "./timeline_editing";
+
+/**
+ * The record dialog. Community closes the dialog right after `removeRecord` resolves; here the
+ * dialog closes only when the record was really removed (`removeRecord` resolves `true`), so that
+ * "No, keep it" leaves it open (O2b-4).
+ */
+export class TimelineRecordDialog extends FormViewDialog {
+    setup() {
+        super.setup();
+        if (this.props.preventEdit) {
+            // the buttons of a read-only form: no Save, the form's own New when it allows creation
+            this.viewProps.buttonDialogTemplate = "web.FormView.DialogButtons";
+        }
+        if (this.props.removeRecord) {
+            this.viewProps.removeRecord = async () => {
+                if (await this.props.removeRecord()) {
+                    this.props.close();
+                }
+            };
+        }
+    }
+}
 
 /**
  * Owns the dialogs and the writes of the timeline view. Every method returns a promise that
@@ -160,6 +186,69 @@ export class TimelineEditor {
                     onCreateEdit: createEdit,
                 },
                 { onClose: closed }
+            );
+        });
+    }
+
+    /**
+     * R10: the record dialog of `resId`, once the writes the view still sends are done. Editable
+     * (with Remove, R12) by the permissions; read-only otherwise. Resolves after the dialog has
+     * closed and the view has reloaded.
+     * @param {number} resId
+     */
+    async openRecord(resId) {
+        const { model, archInfo, services } = this;
+        const { dialog, orm } = services;
+        await model.whenWritesDone();
+        const { canEdit, canDelete, formViewId } = archInfo;
+        const context = model.context;
+        const removeRecord = async () => {
+            let deleted = false;
+            await new Promise((resolve) => {
+                dialog.add(
+                    ConfirmationDialog,
+                    {
+                        title: _t("Remove this record?"),
+                        body: deleteConfirmationMessage,
+                        confirmLabel: _t("Delete"),
+                        confirmClass: "btn-danger",
+                        cancelLabel: _t("No, keep it"),
+                        cancel: () => {},
+                        confirm: async () => {
+                            await orm.unlink(model.resModel, [resId], { context });
+                            deleted = true;
+                        },
+                    },
+                    { onClose: resolve }
+                );
+            });
+            return deleted;
+        };
+        return new Promise((resolve, reject) => {
+            dialog.add(
+                TimelineRecordDialog,
+                {
+                    title: _t("Open"),
+                    resModel: model.resModel,
+                    resId,
+                    viewId: formViewId,
+                    context,
+                    readonly: !canEdit,
+                    preventEdit: !canEdit,
+                    removeRecord: canEdit && canDelete ? removeRecord : undefined,
+                },
+                {
+                    onClose: async () => {
+                        try {
+                            if (!model.disposed) {
+                                await model.reload();
+                            }
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    },
+                }
             );
         });
     }
