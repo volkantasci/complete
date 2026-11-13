@@ -284,7 +284,8 @@ test("A75: two days fold into 36 px and reopen", async () => {
     await contains(headerOf(D3)).click();
     expect(".o_tl_col").toHaveCount(20);
     expect(".o_tl_col.o_tl_folded").toHaveCount(1);
-    // a click on a folded cell opens them too
+    // a click on a folded cell opens them too (the unfolding click of the header locked clicks, R23)
+    await advanceTime(1050);
     await contains(".o_tl_row .o_tl_folded_cell").click();
     expect(".o_tl_col").toHaveCount(21);
 });
@@ -378,6 +379,7 @@ test("A107: hover arrows and total-row folded cell click", async () => {
     await contains(headerOf(D3)).click();
     expect(".o_tl_col.o_tl_folded").toHaveCount(1);
     expect(".o_tl_total_row .o_tl_folded_cell").toHaveCount(1);
+    await advanceTime(1050);
     await contains(".o_tl_total_row .o_tl_folded_cell").click();
     expect(".o_tl_col").toHaveCount(21);
     expect(".o_tl_folded_cell").toHaveCount(0);

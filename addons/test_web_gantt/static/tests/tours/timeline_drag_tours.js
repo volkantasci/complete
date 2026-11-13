@@ -360,3 +360,46 @@ tours.add("timeline_002b2_a65_selection_edge_speed", {
         },
     ],
 });
+
+// A68: which clicks start the click lock (R23)
+const rowOf = (name) =>
+    $$(".o_tl_row").find((row) => $(".o_tl_row_label", row)?.textContent === name);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const cellOf = (name) => {
+    const cells = $$(".o_tl_cell[data-column]", rowOf(name));
+    return cells[Math.min(cells.length - 1, 3)];
+};
+
+tours.add("timeline_002b2_a68_click_lock", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_group_row",
+            async run() {
+                assert(rowOf("Gamma"), "no Gamma group row");
+                $(".o_tl_cell", rowOf("Gamma")).click();
+                await until(() => rowOf("Gamma").classList.contains("o_tl_collapsed"), "Gamma to close");
+                await sleep(300);
+                const target = cellOf("Undefined Contact");
+                target.click();
+                await until(
+                    () => $(".o_dialog .modal-body"),
+                    "the plan dialog 0.3 s after a group row click"
+                );
+                $(".o_dialog .btn-close").click();
+                await until(() => !$(".o_dialog"), "the dialog to close");
+                // a cell of a record row starts the lock: a second click 0.4 s later does nothing
+                await sleep(1100);
+                const cell = cellOf("Undefined Contact");
+                cell.click();
+                await until(() => $(".o_dialog .modal-body"), "the plan dialog");
+                $(".o_dialog .btn-close").click();
+                await until(() => !$(".o_dialog"), "the dialog to close");
+                await sleep(400);
+                cell.click();
+                await sleep(400);
+                assert(!$(".o_dialog"), "a second click within one second opened a dialog");
+            },
+        },
+    ],
+});

@@ -427,7 +427,7 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * R7: a click on a body cell. Locked: nothing. A folded cell opens its run. A group row
+     * R7, R23: a click on a body cell. Locked: nothing. A folded cell opens its run. A group row
      * toggles (through the row's own click). A cell of a record row plans (plan on), creates
      * (cell create on) or does nothing, for the whole column. The total row and the sample
      * state do nothing.
@@ -453,8 +453,11 @@ export class TimelineRenderer extends Component {
             }
             return;
         }
-        // every real click on a body cell locks the next ones (a double click acts once)
-        this._lockClicks(CELL_CLICK_LOCK, true);
+        // R23: a click on a cell of a record row, or on a folded cell, locks the next ones (a
+        // double click acts once); a click on a group row cell only toggles the row
+        if (descriptor.kind !== "group" || cell.run !== undefined) {
+            this._lockClicks(CELL_CLICK_LOCK, true);
+        }
         if (cell.run !== undefined) {
             ev.stopPropagation();
             this._setRunOpen(cell.run, true);
@@ -674,6 +677,8 @@ export class TimelineRenderer extends Component {
     /** A click on a folded header opens its run, on the header of an open foldable one folds it. */
     onColumnClick(column) {
         if (column.folded) {
+            // R23: unfolding a column starts the click lock
+            this._lockClicks(CELL_CLICK_LOCK, true);
             this._setRunOpen(column.run, true);
         } else if (column.run !== null) {
             this._setRunOpen(column.run, false);
