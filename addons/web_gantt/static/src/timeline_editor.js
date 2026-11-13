@@ -123,6 +123,7 @@ export class TimelineEditor {
         ]).toList();
         let written = false;
         let started = null; // the create action run from the dialog
+        let createOpened = false; // the create dialog of Create New was used, saved or not
         const plan = async (ids) => {
             const values = planWriteValues({
                 period,
@@ -150,6 +151,7 @@ export class TimelineEditor {
                 return;
             }
             // the plan dialog closes only when the record is saved and planned
+            createOpened = true;
             return new Promise((resolve) => {
                 dialog.add(FormViewDialog, {
                     title: _t("Create"),
@@ -166,7 +168,7 @@ export class TimelineEditor {
         return new Promise((resolve, reject) => {
             const closed = async () => {
                 try {
-                    if (written && !model.disposed) {
+                    if ((written || createOpened) && !model.disposed) {
                         await model.reload();
                     }
                 } catch (error) {
@@ -240,32 +242,38 @@ export class TimelineEditor {
             return deleted;
         };
         return new Promise((resolve, reject) => {
-            dialog.add(
-                TimelineRecordDialog,
-                {
-                    title: _t("Open"),
-                    resModel: model.resModel,
-                    resId,
-                    viewId: formViewId,
-                    context,
-                    readonly: !canEdit,
-                    preventEdit: !canEdit,
-                    removeRecord: canEdit && canDelete ? removeRecord : undefined,
-                },
-                {
-                    onClose: async () => {
-                        this._recordOpen = false;
-                        try {
-                            if (!model.disposed) {
-                                await model.reload();
-                            }
-                            resolve();
-                        } catch (error) {
-                            reject(error);
-                        }
+            try {
+                dialog.add(
+                    TimelineRecordDialog,
+                    {
+                        title: _t("Open"),
+                        resModel: model.resModel,
+                        resId,
+                        viewId: formViewId,
+                        context,
+                        readonly: !canEdit,
+                        preventEdit: !canEdit,
+                        removeRecord: canEdit && canDelete ? removeRecord : undefined,
                     },
-                }
-            );
+                    {
+                        onClose: async () => {
+                            this._recordOpen = false;
+                            try {
+                                if (!model.disposed) {
+                                    await model.reload();
+                                }
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        },
+                    }
+                );
+            } catch (error) {
+                // a dialog that fails to open must not block the next ones
+                this._recordOpen = false;
+                reject(error);
+            }
         });
     }
 }

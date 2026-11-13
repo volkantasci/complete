@@ -52,6 +52,20 @@ async function clickNew() {
     await animationFrame();
 }
 
+test("002b A2b: a double click on New opens one Create dialog", async () => {
+    await mountTimeline();
+    queryOne(".o_tl_button_add").click();
+    queryOne(".o_tl_button_add").click();
+    await animationFrame();
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(1);
+    await contains(".o_dialog .o_form_button_cancel").click();
+    await animationFrame();
+    // once closed, New works again
+    await clickNew();
+    expect(".o_dialog").toHaveCount(1);
+});
+
 test("002b A2: New shown/hidden", async () => {
     await mountTimeline();
     expect(".o_tl_button_add").toHaveCount(1);

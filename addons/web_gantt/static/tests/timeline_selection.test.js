@@ -516,8 +516,10 @@ test("002b A46: touch long press selects; quick swipe does not", async () => {
     expect(".o_tl_selection").toHaveCount(0);
     await advanceTime(1);
     await animationFrame();
-    expect(".o_tl_selection").toHaveCount(1);
+    // the selection starts with the first move after the hold, not with the hold itself
+    expect(".o_tl_selection").toHaveCount(0);
     await drawing.to("2026-11-10", 0);
+    expect(".o_tl_selection").toHaveCount(1);
     expect(queryAllTexts(".o_tl_selection_badge")).toEqual([
         "11/8/2026, 12:00 PM",
         "11/10/2026, 12:00 PM",
@@ -539,6 +541,22 @@ test("002b A46: touch long press selects; quick swipe does not", async () => {
     await drawing.drop();
     await animationFrame();
     expect(".o_dialog").toHaveCount(0);
+});
+
+test("002b A46b: a slow tap (held, no move) is a tap, not a half-day selection", async () => {
+    freezeTime();
+    mockTouch(true);
+    await mountTimeline({ arch: ARCHS.H18 });
+    const drawing = await press("2026-11-14", 0);
+    await advanceTime(450);
+    await animationFrame();
+    expect(".o_tl_selection").toHaveCount(0);
+    await drawing.drop();
+    await animationFrame();
+    // the click of the release creates for the whole day
+    expect(".o_dialog").toHaveCount(1);
+    expect(inputValue("date_start")).toBe("11/14/2026 00:00:00");
+    expect(inputValue("date_stop")).toBe("11/15/2026 00:00:00");
 });
 
 test("002b A48: phone viewport with mouse selects", async () => {

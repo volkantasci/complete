@@ -339,3 +339,25 @@ test("002b E4: a second open while one is pending or open does nothing", async (
     await recordDialogReady();
     expect(".o_dialog").toHaveCount(1);
 });
+
+test("002b E4b: a dialog that fails to open does not block the later opens", async () => {
+    await mountTimeline();
+    const editor = controller.editor;
+    const { dialog } = editor.services;
+    const add = dialog.add;
+    dialog.add = () => {
+        throw new Error("no dialog");
+    };
+    let failure = null;
+    try {
+        await editor.openRecord(BUILD);
+    } catch (error) {
+        failure = error;
+    } finally {
+        dialog.add = add;
+    }
+    expect(failure?.message).toBe("no dialog");
+    editor.openRecord(BUILD);
+    await recordDialogReady();
+    expect(".o_dialog").toHaveCount(1);
+});

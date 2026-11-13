@@ -201,7 +201,20 @@ export class TimelineController extends Component {
     // ------------------------------------------------------------------------
 
     /** R2: create for the group unit around the focus date; works in the sample state too. */
-    onNew() {
+    async onNew() {
+        // a second click while the create dialog or action is pending or open does nothing
+        if (this._newPending) {
+            return;
+        }
+        this._newPending = true;
+        try {
+            await this._createForNew();
+        } finally {
+            this._newPending = false;
+        }
+    }
+
+    _createForNew() {
         const period = newButtonPeriod(
             this.data.scaleId,
             this.model.visibleMiddleDate(),

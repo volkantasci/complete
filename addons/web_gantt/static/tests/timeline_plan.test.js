@@ -253,6 +253,21 @@ test("002b A31: Create New with the default form, then one write", async () => {
     });
 });
 
+test("002b A31d: the view reloads when the plan dialog closes after a discarded Create New", async () => {
+    await mountTimeline();
+    const { done } = await openPlan(14);
+    await contains(".o_dialog .o_create_button").click();
+    await animationFrame();
+    await contains(".o_dialog:last .o_form_button_cancel").click();
+    await animationFrame();
+    expect(planWrites()).toHaveLength(0);
+    const before = timelineMock.calls.length;
+    await contains(".o_dialog .o_form_button_cancel").click();
+    await done;
+    expect(".o_dialog").toHaveCount(0);
+    expect(timelineMock.calls.length - before).toBe(1);
+});
+
 test("002b A31b: Create New uses form_view_id", async () => {
     await mountTimeline({ arch: timelineArch(`default_range="week" form_view_id="2"`) });
     const { done } = await openPlan(14);

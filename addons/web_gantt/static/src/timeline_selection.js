@@ -105,7 +105,8 @@ export class TimelineSelection {
             this._timer = browser.setTimeout(() => {
                 this._timer = null;
                 if (this.state === "pending") {
-                    this._begin();
+                    // the selection starts with the first move: a release without one is a tap
+                    this._press.armed = true;
                 }
             }, LONG_PRESS);
         }
@@ -145,7 +146,7 @@ export class TimelineSelection {
             if (!far) {
                 return;
             }
-            if (press.type === "touch") {
+            if (press.type === "touch" && !press.armed) {
                 // the finger moved before the press was long: the grid scrolls on its own
                 this._finish();
                 return;
@@ -158,7 +159,7 @@ export class TimelineSelection {
     }
 
     _onTouchMove(ev) {
-        if (this.state === "selecting" && ev.cancelable) {
+        if ((this.state === "selecting" || this._press?.armed) && ev.cancelable) {
             ev.preventDefault();
         }
     }
