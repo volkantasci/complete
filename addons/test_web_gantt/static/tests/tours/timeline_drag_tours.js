@@ -1476,7 +1476,10 @@ tours.add("timeline_002b2_a72_release_on_own_group_row", {
 // ----------------------------------------------------------------------------
 
 const addHours = (record, field, hours) =>
-    DateTime.fromSQL(record[field], { zone: "utc" }).plus({ hours }).toFormat("yyyy-MM-dd HH:mm:ss");
+    DateTime.fromSQL(record[field], { zone: "utc" })
+        .plus({ hours })
+        .reconfigure({ locale: "en", numberingSystem: "latn" })
+        .toFormat("yyyy-MM-dd HH:mm:ss");
 
 /** Rest the pointer on the pill `name` (its handles appear) and press the handle `edge` in its middle. */
 async function pressHandle(name, edge, { pointerType = "mouse" } = {}) {
@@ -2585,6 +2588,153 @@ tours.add("timeline_002b2_a71_date_only_copy", {
                 assert(datesOf(copy).join() === [iso, addDays(iso, 2)].join(), `copy ${datesOf(copy)}`);
                 await undoDated("Copy removed");
                 assert(!(await datedRecord("Three days (copy)")), "the copy stayed");
+            },
+        },
+    ],
+});
+
+// ---------------------------------------------------------------------------------------------
+// A62 and A71 (right-to-left part): moves and resizes in a right-to-left language (R6, R8, R19)
+// ---------------------------------------------------------------------------------------------
+
+/** The text with Arabic-Indic digits turned into ASCII digits, to read the numbers in it. */
+const asciiDigits = (text) => text.replace(/[٠-٩]/g, (digit) => digit.charCodeAt(0) - 0x660);
+
+/** Every badge shows its numbers in Arabic digits, from the user's locale, none in ASCII. */
+function assertArabicDigits() {
+    for (const text of badgesNow()) {
+        assert(/[٠-٩]/.test(text) && !/[0-9]/.test(text), `badge '${text}' is not in Arabic digits`);
+    }
+}
+
+/** Click the Undo button of the notification (its label is in Arabic) and wait for it to close. */
+async function undoInArabic() {
+    const button = await until(() => $(".o_notification button"), "the Undo button");
+    button.click();
+    await until(() => !$(".o_notification button"), "the result of Undo");
+    await gridSettled();
+    // leave no notification behind: the next step waits for the one of its own write
+    for (const close of $$(".o_notification .o_notification_close")) {
+        close.click();
+    }
+    await until(() => !$(".o_notification"), "the notifications to close");
+}
+
+const nearTo = (a, b, what) => assert(Math.abs(a - b) <= 1, `${what}: ${a}, expected about ${b}`);
+
+tours.add("timeline_002b2_a62_rtl_move_and_resize", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                assert(getComputedStyle(renderer()).direction === "rtl", "the view is not right to left");
+                // Review one day later, to the left
+                const pill = await until(() => pillNamed("Review"), "Review");
+                let gesture = await holdAndMove("Review", {
+                    to: { x: centreOf(pill).x - 2 * partWidthOf() },
+                });
+                const moved = $(".o_tl_pill_moved").getBoundingClientRect();
+                const start = $(".o_tl_badge_start").getBoundingClientRect();
+                const stop = $(".o_tl_badge_stop").getBoundingClientRect();
+                nearTo(start.top, moved.bottom, "start badge below the pill");
+                nearTo(start.right, moved.right, "start badge at the right end");
+                nearTo(stop.bottom, moved.top, "stop badge above the pill");
+                nearTo(stop.left, moved.left, "stop badge at the left end");
+                nearTo(stop.height, 20, "badge height");
+                assertArabicDigits();
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const record = await recordNamed("Review");
+                assert(reviewAt(record, addDays(todayIso(), 1)), `Review is ${record.date_start}`);
+                await undoInArabic();
+                assert(reviewAt(await recordNamed("Review"), todayIso()), "Undo did not restore Review");
+
+                // the handles of Build: start at the right end (east), stop at the left end (west)
+                const build = await until(() => pillNamed("Build"), "Build");
+                build.dispatchEvent(new MouseEvent("mouseenter"));
+                await until(() => $$(".o_tl_handle", build).length === 2, "two handles");
+                const body = build.getBoundingClientRect();
+                const startHandle = $(".o_tl_handle_start", build);
+                const stopHandle = $(".o_tl_handle_stop", build);
+                nearTo(startHandle.getBoundingClientRect().right, body.right, "start handle at the right end");
+                nearTo(stopHandle.getBoundingClientRect().left, body.left, "stop handle at the left end");
+                assert(getComputedStyle(startHandle).cursor === "e-resize", "start cursor");
+                assert(getComputedStyle(stopHandle).cursor === "w-resize", "stop cursor");
+                build.dispatchEvent(new MouseEvent("mouseleave"));
+                await until(() => !$(".o_tl_handle"), "the handles to go");
+
+                // the left handle one day further left: the stop one day later
+                const before = await recordNamed("Build");
+                // the grid shifted right a little: a day after Build's end then lies clear of the edge zone
+                await scrollGridLeft(-300);
+                gesture = await pressHandle("Build", "stop");
+                await dragHandleTo(gesture, gesture.from.x - 2 * partWidthOf());
+                assert($(".o_timeline_view").classList.contains("o_tl_drag_west"), "no west resize shape");
+                assert($$(".o_tl_selection_badge")[1].classList.contains("text-success"), "not success");
+                // the date of the moved bound is in Arabic digits (its difference in brackets is not a date)
+                assert(/[٠-٩]/.test(badgesNow()[1].split("(")[0]), `badge ${badgesNow()[1]}`);
+                assert(asciiDigits(badgesNow()[1]).includes("+24"), `badge ${badgesNow()[1]}`);
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const after = await recordNamed("Build");
+                assert(after.date_start === before.date_start, "the start changed");
+                assert(
+                    after.date_stop === addHours(before, "date_stop", 24),
+                    `stop ${after.date_stop} instead of ${addHours(before, "date_stop", 24)} (was ${before.date_stop})`
+                );
+                await undoInArabic();
+                assert((await recordNamed("Build")).date_stop === before.date_stop, "Undo did not restore Build");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a71_rtl_date_only_move", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                assert(getComputedStyle(renderer()).direction === "rtl", "the view is not right to left");
+                const iso = todayIso();
+                const today = DateTime.fromISO(iso);
+                // press near the right end (the start) of "Three days" and move one day later (left)
+                const gesture = await pressAtX("Three days", cellOfDate(iso).right - 13);
+                await moveHeld(gesture, cellOfDate(addDays(iso, 1)).right - 2);
+                const moved = $(".o_tl_pill_moved").getBoundingClientRect();
+                const start = $(".o_tl_badge_start").getBoundingClientRect();
+                const stop = $(".o_tl_badge_stop").getBoundingClientRect();
+                nearTo(start.top, moved.bottom, "start badge below the pill");
+                nearTo(start.right, moved.right, "start badge at the right end");
+                nearTo(stop.bottom, moved.top, "stop badge above the pill");
+                nearTo(stop.left, moved.left, "stop badge at the left end");
+                assertArabicDigits();
+                // the same two dates as in left-to-right, without time: the numbers, in any order
+                const numbers = badgesNow().map((text) =>
+                    asciiDigits(text).match(/\d+/g).map(Number).sort((a, b) => a - b).join()
+                );
+                [0, 2].forEach((shift, index) => {
+                    const date = today.plus({ days: shift });
+                    const wanted = [date.day, date.month, date.year].sort((a, b) => a - b).join();
+                    assert(numbers[index] === wanted, `badge ${index}: ${badgesNow()[index]}`);
+                });
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const record = await datedRecord("Three days");
+                assert(
+                    datesOf(record).join() === [iso, addDays(iso, 2)].join(),
+                    `Three days is ${datesOf(record)}`
+                );
+                await undoInArabic();
+                assert(
+                    datesOf(await datedRecord("Three days")).join() ===
+                        [addDays(iso, -1), addDays(iso, 1)].join(),
+                    "Undo did not restore Three days"
+                );
             },
         },
     ],

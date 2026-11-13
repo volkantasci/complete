@@ -333,3 +333,14 @@ class TestTimelineDragTours(HttpCase):
     def test_a71_tour_date_only_copy(self):
         self._tour('h25', 'timeline_002b2_a71_date_only_copy')
         self._three_days_unchanged()
+
+    # -- right-to-left moves and resizes (R6, R8, R19) --------------------------------------------
+
+    def test_a62_tour_rtl_move_and_resize(self):
+        self._tour('h1', 'timeline_002b2_a62_rtl_move_and_resize', login='rtl')
+        self._restored()
+        self._build_unchanged()
+
+    def test_a71_tour_rtl_date_only_move(self):
+        self._tour('h25', 'timeline_002b2_a71_rtl_date_only_move', login='rtl')
+        self._three_days_unchanged()

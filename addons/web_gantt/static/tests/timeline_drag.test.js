@@ -25,7 +25,7 @@ import { localization } from "@web/core/l10n/localization";
 import { drag } from "@odoo/hoot-dom";
 import { TimelineController } from "@web_gantt/timeline_controller";
 
-import { HOST_ARCHS, setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
+import { HOST_ARCHS, setupTimelineFixtures, timelineArch, timelineMock, useRtl } from "./timeline_test_helpers";
 
 describe.current.tags("desktop");
 
@@ -1162,6 +1162,70 @@ test("R17.5 a date-only pill moved against the first day of the grid stops there
             call: "write",
             ids: [PILL["Three days"]],
             values: { date_start: "2026-11-01", date_stop: "2026-11-03" },
+        },
+    ]);
+});
+
+// ----------------------------------------------------------------------------
+// Right to left (R6, R19)
+// ----------------------------------------------------------------------------
+
+test("A62 Review one day later (left): start badge below the moved pill's right end, stop badge 20 px above its left end", async () => {
+    useRtl();
+    await mountTimeline();
+    const review = await pressPill("Review");
+    // a day later lies on the left in this direction
+    await review.by(-2 * partWidth());
+    const pill = queryRect(moved()[0]);
+    expect(badgeTexts()).toEqual(["11/13/2026, 1:00 PM", "11/13/2026, 5:00 PM"]);
+    const start = queryRect(".o_tl_badge_start");
+    const stop = queryRect(".o_tl_badge_stop");
+    expect(near(start.top, pill.bottom)).toBe(true);
+    expect(near(start.right, pill.right)).toBe(true);
+    expect(near(stop.bottom, pill.top)).toBe(true);
+    expect(near(stop.top, pill.top - 20)).toBe(true);
+    expect(near(stop.left, pill.left)).toBe(true);
+    await review.drop();
+    await settle();
+    expect(writes()[0].values).toEqual({
+        date_start: "2026-11-13 10:00:00",
+        date_stop: "2026-11-13 14:00:00",
+    });
+});
+
+test("R6 R19 the stop badge of a pill moved to the window's left end stays 1 px inside it", async () => {
+    useRtl();
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.move(2, review.start.y);
+    const stop = queryRect(".o_tl_badge_stop");
+    expect(stop.left >= 1 - 0.01).toBe(true);
+    const title = document.querySelector(".o_tl_title_cell");
+    expect(stop.left <= window.innerWidth - (title ? queryRect(title).width : 0) + 0.01).toBe(true);
+    await review.drop();
+    await settle();
+});
+
+test("A71 RTL H25 Three days one day later: dates without time, start below the right end, stop above the left end", async () => {
+    useRtl();
+    await mountTimeline({ arch: H25, resModel: "pill2" });
+    const three = await pressThreeDays(leftOf("2026-11-11") + dayWidth() - 13);
+    await three.move(leftOf("2026-11-11") - 2, three.start.y);
+    expect(badgeTexts()).toEqual(["11/12/2026", "11/14/2026"]);
+    const pill = queryRect(moved()[0]);
+    const start = queryRect(".o_tl_badge_start");
+    const stop = queryRect(".o_tl_badge_stop");
+    expect(near(start.top, pill.bottom)).toBe(true);
+    expect(near(start.right, pill.right)).toBe(true);
+    expect(near(stop.top, pill.top - 20)).toBe(true);
+    expect(near(stop.left, pill.left)).toBe(true);
+    await three.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            call: "write",
+            ids: [PILL["Three days"]],
+            values: { date_start: "2026-11-12", date_stop: "2026-11-14" },
         },
     ]);
 });

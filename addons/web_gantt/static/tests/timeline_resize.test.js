@@ -25,7 +25,7 @@ import {
 import { localization } from "@web/core/l10n/localization";
 import { TimelineController } from "@web_gantt/timeline_controller";
 
-import { at, HOST_ARCHS, MIX_ARCHS, setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
+import { at, HOST_ARCHS, MIX_ARCHS, setupTimelineFixtures, timelineArch, timelineMock, useRtl } from "./timeline_test_helpers";
 
 describe.current.tags("desktop");
 
@@ -737,5 +737,46 @@ test("R17.5 mixed model (date-only start, date-time stop 10:00): the step falls 
     await settle();
     expect(writes()).toEqual([
         { call: "write", ids: [1], values: { date_stop: at(2, "10:00") } },
+    ]);
+});
+
+// ----------------------------------------------------------------------------
+// Right to left (R8, R19)
+// ----------------------------------------------------------------------------
+
+test("A62 Build handles: right end is start (e-resize), left end is stop (w-resize); the left handle one day further left lengthens the stop by one day", async () => {
+    useRtl();
+    await mountTimeline();
+    await hover(pillEl("Build"));
+    await animationFrame();
+    const body = queryRect(pillEl("Build"));
+    const start = queryOne(".o_tl_handle_start");
+    const stop = queryOne(".o_tl_handle_stop");
+    expect(near(queryRect(start).right, body.right, 0.5)).toBe(true);
+    expect(near(queryRect(stop).left, body.left, 0.5)).toBe(true);
+    expect(css(start, "cursor")).toBe("e-resize");
+    expect(css(stop, "cursor")).toBe("w-resize");
+    await hover(".o_tl_col");
+    await animationFrame();
+
+    const build = await pressHandle("Build", "stop");
+    await build.to(build.start.x - 2 * partWidth());
+    expect(root()).toHaveClass("o_tl_drag_west");
+    expect(css(queryOne(".o_tl_renderer"), "cursor")).toBe("w-resize");
+    expect(badgeTexts()[1]).toMatch(/\(\+24 hours\)$/);
+    expect(badgeRoles()[1]).toBe("success");
+    const rect = queryRect(pillEl("Build"));
+    const startBadge = queryRect(".o_tl_badge_start");
+    const stopBadge = queryRect(".o_tl_badge_stop");
+    expect(near(startBadge.top, rect.bottom + 1)).toBe(true);
+    expect(near(startBadge.right, rect.right + 1)).toBe(true);
+    expect(near(stopBadge.top, rect.top - 1 - 20)).toBe(true);
+    // the pill reaches past the window's left edge here: the badge is kept inside it (R6)
+    expect(rect.left < 0).toBe(true);
+    expect(stopBadge.left >= 1 - 0.01).toBe(true);
+    await build.drop();
+    await settle();
+    expect(writes()).toEqual([
+        { call: "write", ids: [PILL.Build], values: { date_stop: "2026-11-15 15:00:00" } },
     ]);
 });

@@ -804,18 +804,29 @@ export class TimelineRenderer extends Component {
             };
         }
         placeBoundBadges(grid, rect, header, rtl, startBadge, stopBadge);
-        if (drag && !rtl) {
-            this._keepStopBadgeInside(grid, stopBadge, header);
+        if (drag) {
+            this._keepStopBadgeInside(grid, stopBadge, header, rtl);
         }
     }
 
     /**
      * R6: the stop badge of a moved pill stays at least 1 px inside the window's right edge, and
-     * no further from that edge than the window's width minus the row header column's.
+     * no further from that edge than the window's width minus the row header column's. Right to
+     * left the rule is mirrored on the left edge.
      */
-    _keepStopBadgeInside(grid, badge, header) {
+    _keepStopBadgeInside(grid, badge, header, rtl = false) {
         const rect = badge.getBoundingClientRect();
         const least = header ? header.getBoundingClientRect().width : 0;
+        if (rtl) {
+            // mirrored (ruling R-T17-1): the stop badge stands on the left, so its left edge is
+            // kept at least 1 px inside the window's left edge and no further from it than the
+            // window's width minus the row header column's
+            const left = Math.min(Math.max(rect.left, 1), Math.max(window.innerWidth - least, 1));
+            if (left !== rect.left) {
+                badge.style.left = `${left - grid.getBoundingClientRect().left}px`;
+            }
+            return;
+        }
         const right = Math.min(Math.max(rect.right, least), window.innerWidth - 1);
         if (right !== rect.right) {
             badge.style.left = `${right - rect.width - grid.getBoundingClientRect().left}px`;
