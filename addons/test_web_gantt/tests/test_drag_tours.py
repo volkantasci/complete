@@ -9,6 +9,8 @@ is rolled back after it: every test starts from the records of `setUpClass`.
 """
 import os
 import time
+from datetime import datetime, timedelta
+from datetime import time as clock
 
 from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
@@ -197,3 +199,64 @@ class TestTimelineDragTours(HttpCase):
     def test_a72_tour_release_on_own_group_row(self):
         self._tour('h3', 'timeline_002b2_a72_release_on_own_group_row')
         self._restored()
+
+    # -- resizing with the handles (R8, R12, R15, R16) ------------------------------------------
+
+    def _prepare_review(self, start_days, start_clock, stop_days, stop_clock):
+        """'Review' over two sub-columns (the prepared states of the acceptance setup)."""
+        day = datetime.combine(self.today, clock())
+        self.records['Review'].write({
+            'date_start': day + timedelta(days=start_days, hours=start_clock),
+            'date_stop': day + timedelta(days=stop_days, hours=stop_clock),
+        })
+
+    def _build_unchanged(self):
+        build = self.records['Build']
+        build.invalidate_recordset()
+        self.assertEqual((build.date_start.hour, build.date_stop.hour), (9, 18))
+        self.assertEqual((build.date_stop.date() - self.today).days, 2)
+
+    def test_a25_tour_handles_on_hover(self):
+        self._tour('h1', 'timeline_002b2_a25_handles_on_hover')
+
+    def test_a27_tour_shorten_at_end(self):
+        self._tour('h1', 'timeline_002b2_a27_shorten_at_end')
+        self._build_unchanged()
+
+    def test_a28_tour_lengthen_at_start(self):
+        self._tour('h1', 'timeline_002b2_a28_lengthen_at_start')
+        self._build_unchanged()
+
+    def test_a31_tour_invalid_warning(self):
+        self._prepare_review(0, 10, 0, 14)
+        self._tour('h1', 'timeline_002b2_a31_invalid_warning')
+        review = self.records['Review']
+        review.invalidate_recordset()
+        self.assertEqual((review.date_start.hour, review.date_stop.hour), (10, 14))
+
+    def test_a33_tour_phone_mouse_invalid(self):
+        self._prepare_review(-1, 22, 0, 2)
+        self._tour('h1', 'timeline_002b2_a33_phone_mouse_invalid', size='390x844')
+
+    def test_a34_tour_phone_mouse_resize(self):
+        self._tour('h1', 'timeline_002b2_a34_phone_mouse_resize', size='390x844')
+        self._restored()
+
+    def test_a35_tour_touch_moves_not_resizes(self):
+        self._tour('h1', 'timeline_002b2_a35_touch_moves_not_resizes', size='390x844', touch=True)
+        self._restored()
+
+    def test_a37_tour_resize_without_drag_and_drop(self):
+        self._tour('h31', 'timeline_002b2_a37_resize_without_drag_and_drop')
+        self._build_unchanged()
+
+    def test_a56_tour_writes_wait_for_each_other(self):
+        self._tour('h1', 'timeline_002b2_a56_writes_wait_for_each_other')
+
+    def test_a57_tour_refused_resize(self):
+        self._tour('h28', 'timeline_002b2_a57_refused_resize', login=RESTRICTED)
+        self._build_unchanged()
+
+    def test_a74_tour_notification_after_the_answer(self):
+        self._tour('h1', 'timeline_002b2_a74_notification_after_the_answer')
+        self._build_unchanged()

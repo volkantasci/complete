@@ -441,12 +441,18 @@ function doubleClick(element) {
 function watchNetwork() {
     const open = XMLHttpRequest.prototype.open;
     const send = XMLHttpRequest.prototype.send;
-    const network = { down: false, log: [] };
+    const network = { down: false, delay: 0, log: [] };
     XMLHttpRequest.prototype.open = function (method, url, ...rest) {
         this.__url = String(url);
         return open.call(this, method, url, ...rest);
     };
     XMLHttpRequest.prototype.send = function (payload) {
+        if (network.delay && /\/write$/.test(this.__url) && !this.__late) {
+            // a slow server: the write leaves `delay` ms later (what a throttled network does)
+            this.__late = true;
+            setTimeout(() => XMLHttpRequest.prototype.send.call(this, payload), network.delay);
+            return;
+        }
         network.log.push({ url: this.__url, body: typeof payload === "string" ? payload : "" });
         if (network.down) {
             setTimeout(() => {
@@ -1455,6 +1461,431 @@ tours.add("timeline_002b2_a72_release_on_own_group_row", {
                     assert(!$(".o_tl_pill_moved") && !$(".o_tl_drop"), "the drag drawing stayed");
                     const record = await recordNamed("Review");
                     assert(record.parent_id[1] === "Alpha" && reviewAt(record, today), "Review changed");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
+
+// ----------------------------------------------------------------------------
+// Resizing with the handles (Task 13)
+// ----------------------------------------------------------------------------
+
+const addHours = (record, field, hours) =>
+    DateTime.fromSQL(record[field], { zone: "utc" }).plus({ hours }).toFormat("yyyy-MM-dd HH:mm:ss");
+
+/** Rest the pointer on the pill `name` (its handles appear) and press the handle `edge` in its middle. */
+async function pressHandle(name, edge, { pointerType = "mouse" } = {}) {
+    const pill = await until(() => pillNamed(name), `the pill ${name}`);
+    pill.dispatchEvent(new MouseEvent("mouseenter"));
+    const handle = await until(() => $(`.o_tl_handle_${edge}`, pill), `the ${edge} handle`);
+    const from = centreOf(handle);
+    pointer("pointerdown", from.x, from.y, { target: handle, pointerType });
+    return { from, end: from, pointerType, ctrl: false };
+}
+
+/** Move the held pointer to `x` on the line of the press, in `steps` moves. */
+async function dragHandleTo(gesture, x, steps = 6, wait = frame) {
+    const { from } = gesture;
+    const start = gesture.end.x;
+    for (let i = 1; i <= steps; i++) {
+        pointer("pointermove", start + ((x - start) * i) / steps, from.y, {
+            pointerType: gesture.pointerType,
+        });
+        await wait();
+    }
+    await frame();
+    gesture.end = { x, y: from.y };
+}
+
+const badgesNow = () => $$(".o_tl_selection_badge").map((badge) => badge.textContent.trim());
+const bodyRight = (name) => pillNamed(name).getBoundingClientRect().right;
+
+/** The grid scrolled left a little: a day after Build's end then lies clear of the edge zone. */
+async function scrollGridLeft(by = 300) {
+    renderer().scrollLeft += by;
+    await gridSettled();
+}
+
+tours.add("timeline_002b2_a25_handles_on_hover", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                assert(!$(".o_tl_handle"), "handles without a pointer");
+                const pill = await until(() => pillNamed("Build"), "Build");
+                pill.dispatchEvent(new MouseEvent("mouseenter"));
+                await until(() => $$(".o_tl_handle", pill).length === 2, "two handles");
+                const body = pill.getBoundingClientRect();
+                for (const [edge, cursor] of [["start", "w-resize"], ["stop", "e-resize"]]) {
+                    const handle = $(`.o_tl_handle_${edge}`, pill);
+                    const rect = handle.getBoundingClientRect();
+                    assert(rect.width === 8 && rect.height === 23, `size ${rect.width}x${rect.height}`);
+                    assert(Math.abs(rect.top - body.top) <= 0.5, "the handle is not as high as the body");
+                    assert(
+                        Math.abs((edge === "start" ? rect.left - body.left : body.right - rect.right)) <= 0.5,
+                        `the ${edge} handle is not at its end`
+                    );
+                    const style = getComputedStyle(handle);
+                    assert(style.cursor === cursor, `cursor ${style.cursor}`);
+                    assert(style.backgroundColor === "rgba(0, 0, 0, 0)", "the handle is not transparent");
+                }
+                pill.dispatchEvent(new MouseEvent("mouseleave"));
+                await until(() => !$(".o_tl_handle"), "the handles to go");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a27_shorten_at_end", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const build = await recordNamed("Build");
+                const network = watchNetwork();
+                try {
+                    const gesture = await pressHandle("Build", "stop");
+                    const end = bodyRight("Build") + 1;
+                    // 5 px before the border one day earlier than the end
+                    await dragHandleTo(gesture, end - 2 * partWidthOf() - 5);
+                    assert(Math.abs(bodyRight("Build") - (end - 2 * partWidthOf() - 1)) <= 1, "the pill does not follow");
+                    assert(
+                        badgesNow()[0] === usBadge(today, "9:00 AM") &&
+                            badgesNow()[1] === `${usBadge(addDays(today, 1), "6:00 PM")} (-24 hours)`,
+                        `badges ${badgesNow()}`
+                    );
+                    const classes = $$(".o_tl_selection_badge").map((badge) => badge.className);
+                    assert(classes[1].includes("text-danger") && !classes[0].includes("text-"), "badge colours");
+                    assert($(".o_timeline_view").classList.contains("o_tl_drag_east"), "no east resize shape");
+                    network.log.length = 0;
+                    release(gesture);
+                    await until(() => noticeText(), "the notification");
+                    await gridSettled();
+                    const writes = writesOf(network);
+                    assert(writes.length === 1, `${writes.length} writes`);
+                    const params = JSON.parse(writes[0].body).params;
+                    assert(
+                        Object.keys(params.args[1]).join() === "date_stop",
+                        `the write holds ${Object.keys(params.args[1])}`
+                    );
+                    const after = await recordNamed("Build");
+                    assert(after.date_start === build.date_start, "the start changed");
+                    assert(after.date_stop === addHours(build, "date_stop", -24), `stop ${after.date_stop}`);
+                    noticeButton("Undo").click();
+                    await until(() => noticeText() === "Change undone", "the result of Undo");
+                    assert((await recordNamed("Build")).date_stop === build.date_stop, "Undo did not restore");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a28_lengthen_at_start", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const build = await recordNamed("Build");
+                const gesture = await pressHandle("Build", "start");
+                const start = pillNamed("Build").getBoundingClientRect().left - 1;
+                await dragHandleTo(gesture, start - 2 * partWidthOf() + 4);
+                assert(
+                    badgesNow()[0] === `${usBadge(addDays(today, -1), "9:00 AM")} (+24 hours)`,
+                    `badges ${badgesNow()}`
+                );
+                assert($$(".o_tl_selection_badge")[0].classList.contains("text-success"), "not success");
+                assert($(".o_timeline_view").classList.contains("o_tl_drag_west"), "no west resize shape");
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const after = await recordNamed("Build");
+                assert(after.date_start === addHours(build, "date_start", -24), `start ${after.date_start}`);
+                assert(after.date_stop === build.date_stop, "the stop changed");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a31_invalid_warning", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const network = watchNetwork();
+                try {
+                    const gesture = await pressHandle("Review", "stop");
+                    const rect = pillNamed("Review").getBoundingClientRect();
+                    // one sub-column to the left: onto the middle border of the day
+                    await dragHandleTo(gesture, rect.left - 1 + partWidthOf());
+                    assert(
+                        Math.abs(pillNamed("Review").getBoundingClientRect().width - (partWidthOf() - 2)) <= 1,
+                        "the pill does not show one sub-column"
+                    );
+                    assert(
+                        badgesNow()[1] === `${usBadge(today, "2:00 AM")} (-12 hours)` &&
+                            $$(".o_tl_selection_badge")[1].classList.contains("text-danger"),
+                        `badges ${badgesNow()}`
+                    );
+                    network.log.length = 0;
+                    release(gesture);
+                    const warning = await until(() => $(".o_notification"), "the warning");
+                    assert(warning.textContent.includes("The end cannot come before the start."), warning.textContent);
+                    assert($(".o_notification_bar.bg-warning", warning), "not a warning");
+                    assert(!noticeButton("Undo"), "a warning with Undo");
+                    await sleep(500);
+                    assert(!writesOf(network).length, "a write was sent");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a33_phone_mouse_invalid", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const yesterday = addDays(todayIso(), -1);
+                const gesture = await pressHandle("Review", "stop");
+                await dragHandleTo(gesture, gesture.from.x - 88, 1);
+                assert(
+                    badgesNow()[1] === `${usBadge(yesterday, "2:00 PM")} (-12 hours)`,
+                    `badges ${badgesNow()}`
+                );
+                release(gesture);
+                const warning = await until(() => $(".o_notification"), "the warning");
+                assert(warning.textContent.includes("The end cannot come before the start."), "text");
+                const box = warning.getBoundingClientRect();
+                assert(box.bottom > window.innerHeight / 2, "the warning is not at the bottom");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a34_phone_mouse_resize", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const overlap = await pressHandle("Overlap B", "start");
+                const thursday = $(`.o_tl_col[data-date="${today}"]`).getBoundingClientRect().left;
+                await dragHandleTo(overlap, thursday + 2, 1);
+                assert(badgesNow()[0] === `${usBadge(today, "2:00 AM")} (-12 hours)`, `badges ${badgesNow()}`);
+                // the pointer shapes of the resting pill's handles (M26, M28) are checked on desktop
+                pointer("pointerup", overlap.end.x, overlap.end.y, {});
+                await sleep(300);
+                await gridSettled();
+                const review = await pressHandle("Review", "start");
+                const at = pillNamed("Review").getBoundingClientRect().left - 1;
+                await dragHandleTo(review, at - partWidthOf() + 3, 1);
+                assert(badgesNow()[0] === `${usBadge(today, "1:00 AM")} (+12 hours)`, `badges ${badgesNow()}`);
+                key("keydown", "Escape");
+                await until(() => !$(".o_tl_selection_badge"), "the badges to go after Escape");
+                pointer("pointerup", review.end.x, review.end.y, {});
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a35_touch_moves_not_resizes", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const review = await recordNamed("Review");
+                const gesture = await pressHandle("Review", "stop", { pointerType: "touch" });
+                await sleep(600);
+                await dragHandleTo(gesture, gesture.from.x - partWidthOf(), 5, () => sleep(120));
+                assert($(".o_tl_pill_moved"), "the pill was not moved");
+                assert(
+                    badgesNow()[0] === usBadge(today, "1:00 AM") && badgesNow()[1] === usBadge(today, "5:00 AM"),
+                    `badges ${badgesNow()}`
+                );
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const after = await recordNamed("Review");
+                assert(after.date_start === addHours(review, "date_start", -12), `start ${after.date_start}`);
+                assert(after.date_stop === addHours(review, "date_stop", -12), `stop ${after.date_stop}`);
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a37_resize_without_drag_and_drop", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                await scrollGridLeft();
+                const build = await recordNamed("Build");
+                const gesture = await pressHandle("Build", "stop");
+                await dragHandleTo(gesture, bodyRight("Build") + 1 + 2 * partWidthOf());
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const after = await recordNamed("Build");
+                assert(after.date_stop === addHours(build, "date_stop", 24), `stop ${after.date_stop}`);
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a56_writes_wait_for_each_other", {
+    steps: () => {
+        let network;
+        let build;
+        return [
+            gridReady,
+            {
+                trigger: ".o_tl_pill",
+                async run() {
+                    await scrollGridLeft();
+                    build = await recordNamed("Build");
+                    network = watchNetwork();
+                    // a slow server: each write leaves 1.2 s after the release
+                    network.delay = 1200;
+                    const stored = bodyRight("Build");
+                    for (let i = 0; i < 2; i++) {
+                        const gesture = await pressHandle("Build", "stop");
+                        await dragHandleTo(gesture, bodyRight("Build") + 1 + 2 * partWidthOf());
+                        release(gesture);
+                        await sleep(150);
+                        // the pill is drawn from the stored record, so the second gesture starts there
+                        assert(Math.abs(bodyRight("Build") - stored) <= 1, `the pill is not at its stored length (${i})`);
+                    }
+                    assert(!noticeText(), "a notification before the first answer");
+                    // the click of the release is over: a record dialog opened meanwhile waits for the writes
+                    await sleep(600);
+                    doubleClick(pillNamed("Build"));
+                },
+            },
+            {
+                trigger: ".o_dialog .o_form_view",
+                async run() {
+                    try {
+                        const wanted = addHours(build, "date_stop", 24);
+                        const expected = DateTime.fromSQL(wanted, { zone: "utc" });
+                        const field = await until(
+                            () =>
+                                $(
+                                    '.o_dialog .o_field_widget[name="date_stop"] input, .o_dialog .o_field_widget[name="date_stop"] button[data-field]'
+                                ),
+                            "the stop field"
+                        );
+                        // the dialog shows the saved stop: both writes had returned
+                        assert(
+                            field.value.includes(expected.toFormat("MM/dd/yyyy")),
+                            `the dialog shows ${field.value}, expected ${expected.toISODate()}`
+                        );
+                        assert(writesOf(network).length === 2, `${writesOf(network).length} writes`);
+                        $(".o_dialog .o_form_button_cancel")?.click();
+                        await until(() => !$(".o_dialog"), "the dialog to close");
+                        await gridSettled();
+                        const calls = network.log
+                            .map((entry) => entry.url.split("/").pop())
+                            .filter((name) => name === "write" || name === "get_gantt_data");
+                        assert(
+                            // closing the dialog may reload once more, after the two writes
+                            calls.slice(0, 4).join() === "write,get_gantt_data,write,get_gantt_data",
+                            `calls ${calls.join()}`
+                        );
+                        const sent = writesOf(network).map(
+                            (entry) => JSON.parse(entry.body).params.args[1].date_stop
+                        );
+                        assert(sent[0] === wanted && sent[1] === wanted, `sent ${sent}`);
+                        assert((await recordNamed("Build")).date_stop === wanted, "Build is not one day longer");
+                    } finally {
+                        network.stop();
+                    }
+                },
+            },
+        ];
+    },
+});
+
+tours.add("timeline_002b2_a57_refused_resize", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                await scrollGridLeft();
+                const build = await recordNamed("Build");
+                const network = watchNetwork();
+                network.delay = 700;
+                try {
+                    const stored = bodyRight("Build");
+                    const gesture = await pressHandle("Build", "stop");
+                    await dragHandleTo(gesture, stored + 1 + 2 * partWidthOf());
+                    release(gesture);
+                    await sleep(150);
+                    assert(Math.abs(bodyRight("Build") - stored) <= 1, "the pill is not at its stored length");
+                    assert(!$(".o_notification"), "a notification while the answer is pending");
+                    await until(() => $(".o_error_dialog"), "the access error");
+                    assert(!$(".o_notification"), "a success notification appeared");
+                    await gridSettled();
+                    assert((await recordNamed("Build")).date_stop === build.date_stop, "Build changed");
+                    assert(Math.abs(bodyRight("Build") - stored) <= 1, "Build is not at its stored length");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a74_notification_after_the_answer", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const build = await recordNamed("Build");
+                const network = watchNetwork();
+                network.delay = 1200;
+                try {
+                    const stored = bodyRight("Build");
+                    const gesture = await pressHandle("Build", "stop");
+                    await dragHandleTo(gesture, stored + 1 - 2 * partWidthOf());
+                    release(gesture);
+                    await sleep(300);
+                    assert(Math.abs(bodyRight("Build") - stored) <= 1, "the pill is not at its stored length");
+                    assert(!$(".o_notification"), "a notification while the answer is pending");
+                    await until(() => noticeText(), "the notification after the answer");
+                    assert(noticeText().includes("Dates changed"), noticeText());
+                    await gridSettled();
+                    assert(bodyRight("Build") < stored - 1, "Build was not shortened");
+                    network.delay = 0;
+                    noticeButton("Undo").click();
+                    await until(() => noticeText() === "Change undone", "the result of Undo");
+                    assert((await recordNamed("Build")).date_stop === build.date_stop, "Undo did not restore");
                 } finally {
                     network.stop();
                 }
