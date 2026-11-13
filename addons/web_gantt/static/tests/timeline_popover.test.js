@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import {
     click,
     dblclick,
@@ -62,6 +62,8 @@ beforeEach(() => {
 });
 
 test("A77: default popover", async () => {
+    // the 150 ms "not yet" check must not race real time: the clock moves with advanceTime only
+    freezeTime();
     await mountTimeline(timelineArch());
     await click(pillOf(BUILD));
     await advanceTime(150);
@@ -82,16 +84,15 @@ test("A77: default popover", async () => {
     expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
     expect(`${POPOVER} .o_tl_popover_button`).toHaveClass("btn btn-primary btn-sm");
     expect(`${POPOVER} .o_card_popover_close`).toHaveCount(1);
-    // the button does nothing yet: the popover stays and no request is sent
-    const requests = rpcCount;
+    // the button closes the popover and opens the record dialog (002b R10)
     await click(`${POPOVER} .o_tl_popover_button`);
     await advanceTime(500);
     await animationFrame();
-    expect(POPOVER).toHaveCount(1);
-    expect(rpcCount).toBe(requests);
-    await click(`${POPOVER} .o_card_popover_close`);
-    await animationFrame();
     expect(POPOVER).toHaveCount(0);
+    await waitFor(".modal-body .o_form_view");
+    await click(".o_dialog .o_form_button_cancel");
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(0);
     // a click outside closes it too
     await openPopover(BUILD);
     expect(POPOVER).toHaveCount(1);
@@ -249,6 +250,21 @@ test("M43: the desktop frame is transparent and 272 px wide", async () => {
     expect(".o_popover:has(.o_tl_popover)").toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
     expect(queryRect(".o_popover:has(.o_tl_popover)").width).toBe(272);
     expect(POPOVER).not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+});
+
+test("002b S4: the lines of the popover body are 13 px, its header keeps the page size", async () => {
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    expect(`${POPOVER} .o_popover_body`).toHaveStyle({ fontSize: "13px", lineHeight: "21px" });
+    expect(`${POPOVER} .o_popover_header`).not.toHaveStyle({ fontSize: "13px" });
+});
+
+test("002b S4: the lines around the popover body have the colour of the popover's border", async () => {
+    await mountTimeline(timelineArch());
+    await openPopover(BUILD);
+    const frame = getComputedStyle(queryOne(".o_popover:has(.o_tl_popover)")).borderTopColor;
+    expect(`${POPOVER} .o_popover_header`).toHaveStyle({ borderBottomColor: frame });
+    expect(`${POPOVER} .o_popover_footer`).toHaveStyle({ borderTopColor: frame });
 });
 
 test("S7 phone: the popover is a sheet with the same content", async () => {

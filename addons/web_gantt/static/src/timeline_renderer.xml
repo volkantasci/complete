@@ -4,7 +4,7 @@
     <t t-name="web_gantt.TimelineRenderer">
         <t t-set="layout" t-value="this.layout"/>
         <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
-            <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId">
+            <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId" t-on-scroll="this.onScroll" t-on-pointerdown="this.onGridPointerDown">
                 <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample }" t-attf-style="grid-template-columns: {{layout.template}}">
                     <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
                     <t t-foreach="layout.groups" t-as="group" t-key="group_index">
@@ -35,8 +35,11 @@
                                 </div>
                             </div>
                             <t t-foreach="row.cells" t-as="cell" t-key="cell.key">
-                                <div class="o_tl_cell" t-att-class="(cell.className || '') + (layout.isSample ? ' o_tl_sample' : '')" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
+                                <div class="o_tl_cell" t-att-class="(cell.className || '') + (layout.isSample ? ' o_tl_sample' : '')" t-att-style="cell.style" t-att-data-column="cell.column" t-att-data-run="cell.run" t-on-pointerdown="(ev) => this.onCellPointerDown(ev, cell, row)" t-on-click="(ev) => this.onCellClick(ev, cell, row)"/>
                             </t>
+                            <div t-if="row.kind === 'pills' and this.selectionStyleOf(row)" class="o_tl_selection_layer">
+                                <div class="o_tl_selection" t-att-style="this.selectionStyleOf(row)"/>
+                            </div>
                             <div t-if="row.kind === 'group'" class="o_tl_pills">
                                 <div t-foreach="row.counts" t-as="segment" t-key="segment.key" class="o_tl_group_pill" t-att-style="segment.style">
                                     <span class="o_tl_group_count" t-out="segment.count"/>
@@ -44,7 +47,7 @@
                             </div>
                             <div t-if="row.kind === 'pills'" class="o_tl_pills">
                                 <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
-                                    <div class="o_tl_pill" t-att-class="pill.className" t-att-style="pill.style" t-att-data-pill-id="pill.id" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="this.onPillDoubleClick">
+                                    <div class="o_tl_pill" t-att-class="pill.className" t-att-style="pill.style" t-att-data-pill-id="pill.id" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
                                         <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
                                         <span class="o_tl_pill_title" t-out="pill.label"/>
                                         <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>
@@ -52,6 +55,11 @@
                                 </t>
                             </div>
                         </div>
+                    </t>
+                    <t t-set="badges" t-value="this.selectionBadges"/>
+                    <t t-if="badges">
+                        <div class="o_tl_selection_badge o_tl_badge_start" t-out="badges.start"/>
+                        <div class="o_tl_selection_badge o_tl_badge_stop" t-out="badges.stop"/>
                     </t>
                     <div t-if="layout.total" class="o_tl_row o_tl_total_row" t-attf-style="height: {{layout.total.height}}px">
                         <div t-if="layout.hasRowHeaders" class="o_tl_row_header">

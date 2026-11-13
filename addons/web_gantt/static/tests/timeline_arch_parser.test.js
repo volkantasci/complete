@@ -110,3 +110,35 @@ test("a missing start or stop field is refused", () => {
         /stop field/
     );
 });
+
+test("002b A4: plan \"False\" and cell_create \"0\" read as off", () => {
+    const config = parse(`plan="False" cell_create="0"`);
+    expect(config.canPlan).toBe(false);
+    expect(config.canCellCreate).toBe(false);
+    const on = parse("");
+    expect(on.canPlan).toBe(true);
+    expect(on.canCellCreate).toBe(true);
+});
+
+test("002b R13: plan needs edit, cell create needs create", () => {
+    const noEdit = parse(`edit="0" plan="1"`);
+    expect([noEdit.canEdit, noEdit.canPlan, noEdit.canCellCreate]).toEqual([false, false, true]);
+    const noCreate = parse(`create="0" cell_create="1"`);
+    expect([noCreate.canCreate, noCreate.canCellCreate, noCreate.canPlan]).toEqual([
+        false,
+        false,
+        true,
+    ]);
+});
+
+test("002b R3: form_view_id and on_create parsed", () => {
+    const config = parse(`form_view_id="42" on_create="17"`);
+    expect(config.formViewId).toBe(42);
+    expect(config.onCreate).toBe(17);
+    const named = parse(`on_create="my_module.my_action"`);
+    expect(named.onCreate).toBe("my_module.my_action");
+    expect(named.formViewId).toBe(false);
+    const none = parse("");
+    expect(none.formViewId).toBe(false);
+    expect(none.onCreate).toBe(null);
+});

@@ -2,8 +2,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
     <t t-name="web_gantt.TimelineButtons">
-        <div class="d-flex o_tl_buttons">
-            <button t-if="this.canCreate" type="button" class="btn btn-primary o_tl_button_add" data-hotkey="c" t-on-click="this.onNew">New</button>
+        <div t-if="this.canCreate" class="d-flex o_tl_buttons">
+            <button type="button" class="btn btn-primary o_tl_button_add" data-hotkey="c" t-on-click="this.onNew">New</button>
         </div>
     </t>
 
@@ -23,7 +23,7 @@
                     <t t-component="this.searchBarToggler.component" t-props="this.searchBarToggler.props"/>
                 </t>
                 <t t-call="web_gantt.TimelineControls"/>
-                <t t-component="this.props.Renderer" model="this.model" archInfo="this.props.archInfo" noContentHelp="this.props.info.noContentHelp"/>
+                <t t-component="this.props.Renderer" model="this.model" archInfo="this.props.archInfo" editor="this.editor" noContentHelp="this.props.info.noContentHelp"/>
             </Layout>
         </div>
     </t>

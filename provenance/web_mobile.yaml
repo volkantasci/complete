@@ -31,6 +31,7 @@ approvals:
   - "owner: verifier's polish item P1 promoted into the first rework round (2026-11-11)"
   - "owner: verifier's polish item P2 promoted into the second rework round (2026-11-11)"
   - "owner: release approved at CP-release after verification round 3, with the verifier's polish item P3 left for a later batch (2026-11-11)"
+  - "test-only commit of slice 002b-gantt-editing froze the clock in the reader tests, by implementer session ec89089a-97db-4604-97ae-facea33b39ec, whose audit log the record of web_gantt names; product code unchanged since verification, and the verifier of that slice measured the same overlap (2026-11-13)"
 earlier_slices:
   - slice: 001c-mobile-bridge
     spec_sha256: 5fbc051c1f446bde91226a4bcb1c1997b7dcef253c14748848f6d8358e66b0b7

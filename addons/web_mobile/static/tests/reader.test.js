@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { afterEach, describe, expect, test } from "@odoo/hoot";
+import { afterEach, beforeEach, describe, expect, freezeTime, test } from "@odoo/hoot";
 import { advanceTime } from "@odoo/hoot-mock";
 import { installCwmHost } from "@web_mobile/../tests/helpers/fake_host";
 import { cwmDetectHost, cwmMakeBridge } from "@web_mobile/bridge/bridge_service";
@@ -12,6 +12,11 @@ const plugins = [
     { name: "enableReader", action: "reader_on" },
     { name: "getReaderData", action: "reader_get" },
 ];
+
+beforeEach(() => {
+    // the mock clock only moves with advanceTime: the "not yet" checks do not race real time
+    freezeTime();
+});
 
 afterEach(() => {
     delete session.time_between_reads_in_ms;
@@ -175,7 +180,7 @@ test("A67 no second poll before 1000 ms, then one interval later, late answer br
         r.bridge.bus.addEventListener("mobile_reader_scanned", r.listener);
         await run(110);
         expect(r.count("reader_get")).toBe(1);
-        // the mock clock follows the real one a little: keep a margin around the limits
+        // keep a margin around the limits all the same
         await run(980);
         expect(r.count("reader_get")).toBe(1);
         await run(20);

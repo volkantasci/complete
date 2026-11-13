@@ -1,3 +1,4 @@
 id,name,model_id,group_id/id,operation,domain
-access_web_gantt_pill_user,Gantt test pill: internal users,test.web.gantt.pill,base.group_user,crud,
+access_web_gantt_pill_user,Gantt test pill: internal users,test.web.gantt.pill,base.group_user,r,
+access_web_gantt_pill_system,Gantt test pill: settings administrators,test.web.gantt.pill,base.group_system,crud,
 access_web_gantt_pill2_user,Gantt test pill 2: internal users,test.web.gantt.pill2,base.group_user,crud,

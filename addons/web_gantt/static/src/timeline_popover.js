@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, t, useProps } from "@odoo/owl";
+import { Component, onWillUnmount, t, useProps } from "@odoo/owl";
 import { toLocaleDateString, toLocaleDateTimeString } from "@web/core/l10n/dates";
 import { _t } from "@web/core/l10n/translation";
 import { useService } from "@web/core/utils/hooks";
@@ -30,10 +30,21 @@ export class TimelinePopover extends Component {
         model: t.object(),
         archInfo: t.object(),
         record: t.object(),
+        editor: t.object().optional(),
     });
 
     setup() {
         this.ui = useService("ui");
+        this.changed = false;
+        // R11: after a change (a field saved, a button run) the view reloads when the popover closes
+        onWillUnmount(() => {
+            if (this.changed) {
+                this.changed = false;
+                if (!this.props.model.disposed) {
+                    this.props.model.reload();
+                }
+            }
+        });
     }
 
     get canEdit() {
@@ -56,7 +67,9 @@ export class TimelinePopover extends Component {
             // a small screen turns the popover into a sheet (see the stylesheet)
             rootClass: this.ui.isSmall ? "o_tl_popover o_tl_popover_sheet" : "o_tl_popover",
             context: model.context,
-            reloadOnClose: () => model.reload(),
+            reloadOnClose: () => {
+                this.changed = true;
+            },
             getDefaultPopoverBody: () => this.getDefaultPopoverBody(),
         };
     }
@@ -108,6 +121,9 @@ export class TimelinePopover extends Component {
         return parseXML(`<t t-name="${CARD_ATTRIBUTE}">${lines.join("")}</t>`);
     }
 
-    /** The button opens the record in a later slice; it does nothing here. */
-    onButtonClick() {}
+    /** R10: the popover closes and the record opens in the record dialog. */
+    onButtonClick() {
+        this.props.close();
+        this.props.editor?.openRecord(this.props.record.resId);
+    }
 }

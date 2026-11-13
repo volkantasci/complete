@@ -1,14 +1,14 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: web_gantt
-slice: 002a-gantt-display
-spec_sha256: 26f94a18be49e7b20a4631fd3cdcb57b22ed51999055a2e8e61c200acbefeed8
+slice: 002b-gantt-editing
+spec_sha256: 5eaf033432e4530b93a08e7dc31a99396f7acbb926eb6a3489078a0295e62575
 ee_build: "20261106"
 implementer_sessions:
-  - 13f0b69b-7bf6-4e69-85ad-c771d479ca22
-verifier_session: fd0f2dc7-b079-49c2-978e-f9cd91ac7a16
+  - ec89089a-97db-4604-97ae-facea33b39ec
+verifier_session: 78592296-44e9-4fe1-81b9-d1b453024daa
 overlap:
-  ratio: 0.0011
+  ratio: 0.0008
   longest_run: 1
   reviewed_matches:
     - file: addons/web_gantt/models/ir_ui_view.py
@@ -24,16 +24,53 @@ overlap:
       line: 3
       reason: framework interface
     - file: addons/web_gantt/static/tests/timeline_controller.test.js
-      line: 406
+      line: 404
       reason: generic one-line test idiom
-audit_log_sha256: 6ffc639eda6c91bc62823e6dd294d0e3969b734ff6d5e4624ce3bc9038cf1557
+audit_log_sha256: 3e57438d48ad46906563463f363865eb4357beb0ff421a098960a357cb5e0c6f
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-11"
-  implemented: "2026-11-12"
-  verified: "2026-11-12"
+  spec_approved: "2026-11-13"
+  implemented: "2026-11-13"
+  verified: "2026-11-13"
 approvals:
-  - "owner: spec approved at CP-spec with decisions D1-D8 (2026-11-11)"
-  - "owner: after verification round 1, had the package corrected, decided D9, and promoted the verifier's polish items P1-P9 into the rework round (2026-11-12)"
-  - "owner: after verification round 2, had the package corrected again, had the rework item F10 and the polish items P10-P12 fixed, and accepted the three new overlap matches of round 2 (2026-11-12)"
-  - "owner: release approved at CP-release, on the condition that verification round 3 pass with no new rework or polish item and no new overlap match since round 2 (2026-11-12)"
+  - "owner: split the slice into three parts at CP-scope, of which this is the first (2026-11-12)"
+  - "owner: spec approved at CP-spec with decisions D1-D3 (2026-11-13)"
+  - "before verification, the analyst answered the implementer's four spec questions in the package, which changed its hash, in a step the owner started (2026-11-13)"
+  - "owner: release approved at CP-release after verification round 1, which passed with no rework item, with the verifier's polish items P1-P5 and its note F1 on slice 002a left for a later batch (2026-11-13)"
+earlier_slices:
+  - slice: 002a-gantt-display
+    spec_sha256: 26f94a18be49e7b20a4631fd3cdcb57b22ed51999055a2e8e61c200acbefeed8
+    ee_build: "20261106"
+    implementer_sessions:
+      - 13f0b69b-7bf6-4e69-85ad-c771d479ca22
+    verifier_session: fd0f2dc7-b079-49c2-978e-f9cd91ac7a16
+    overlap:
+      ratio: 0.0011
+      longest_run: 1
+      reviewed_matches:
+        - file: addons/web_gantt/models/ir_ui_view.py
+          line: 39
+          reason: interface (the Community validator calls it by name and signature)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 28
+          reason: interface (model.md; the Community view loader calls it)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 57
+          reason: interface (model.md)
+        - file: addons/web_gantt/static/src/timeline_controller.js
+          line: 3
+          reason: framework interface
+        - file: addons/web_gantt/static/tests/timeline_controller.test.js
+          line: 406
+          reason: generic one-line test idiom
+    audit_log_sha256: 6ffc639eda6c91bc62823e6dd294d0e3969b734ff6d5e4624ce3bc9038cf1557
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-11"
+      implemented: "2026-11-12"
+      verified: "2026-11-12"
+    approvals:
+      - "owner: spec approved at CP-spec with decisions D1-D8 (2026-11-11)"
+      - "owner: after verification round 1, had the package corrected, decided D9, and promoted the verifier's polish items P1-P9 into the rework round (2026-11-12)"
+      - "owner: after verification round 2, had the package corrected again, had the rework item F10 and the polish items P10-P12 fixed, and accepted the three new overlap matches of round 2 (2026-11-12)"
+      - "owner: release approved at CP-release, on the condition that verification round 3 pass with no new rework or polish item and no new overlap match since round 2 (2026-11-12)"

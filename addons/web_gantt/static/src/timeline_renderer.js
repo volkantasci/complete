@@ -31,7 +31,9 @@ import {
     unavailableParts,
 } from "./timeline_layout";
 import { columnWidth } from "./timeline_dates";
+import { badgeText, columnPeriod, partPeriod } from "./timeline_editing";
 import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
+import { TimelineSelection } from "./timeline_selection";
 
 const { DateTime } = luxon;
 
@@ -43,8 +45,14 @@ const LINE_STEP = 25;
 const PILL_INSET = 1;
 const LINE_GAP = 2;
 const GROUP_ROW_HEIGHT = 40;
+/** Distance from the top of the selection to the top of its start badge (R5). */
+const BADGE_HEIGHT = 20;
 /** Width of a folded column, in pixels (M45). */
 const FOLDED_WIDTH = 36;
+/** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
+export const CELL_CLICK_LOCK = 1000;
+/** ... and this long after the popover closes, unless a lock already runs (R7). */
+export const POPOVER_CLOSE_LOCK = 250;
 
 /** The date with its weekday, as the language writes it (P2: "Saturday, November 7, 2026"). */
 function textOfDate(date) {
@@ -72,6 +80,7 @@ export class TimelineRenderer extends Component {
     props = useProps({
         model: t.object(),
         archInfo: t.object(),
+        editor: t.object().optional(),
         noContentHelp: t.string().optional(),
     });
 
@@ -82,18 +91,34 @@ export class TimelineRenderer extends Component {
         this._cache = { data: null, small: null, version: null, layout: null };
         // folded columns: the runs the user opened, by the index of their first column; reset when
         // the range or the scale changes. `state.version` makes a change redraw the grid.
-        this.state = proxy({ version: 0 });
+        this.state = proxy({ version: 0, selection: null });
         this._opened = new Set();
         this._openedKey = null;
         this._fold = null;
         this._popoverTimer = null;
         this._popoverFor = null;
+        this._clickLock = null;
         this._seenData = null;
+        this._rowEl = null;
+        this._selecting = new TimelineSelection({
+            partAt: (x, anchor) => this._partAt(x, anchor),
+            edges: () => this._visibleBounds(),
+            scrollBy: (dx) => {
+                this.rendererRef().scrollLeft += dx;
+            },
+            change: (selection) => this._setSelection(selection),
+            commit: (selection) => this._commitSelection(selection),
+            hold: (on) => this._hold(on),
+        });
         this.popover = usePopover(TimelinePopover, {
             position: "bottom",
             // a click on the pill the popover hangs from is handled by the pill (it toggles)
             closeOnClickAway: (target) => !this._isPopoverAnchor(target),
             onClose: () => {
+                // only a popover that was really open locks the cells (closing none does not)
+                if (this._popoverFor !== null) {
+                    this._lockClicks(POPOVER_CLOSE_LOCK, false);
+                }
                 this._popoverFor = null;
             },
         });
@@ -115,9 +140,14 @@ export class TimelineRenderer extends Component {
         };
         model.setViewAccess(access);
         onMounted(() => this._syncScroll());
-        onPatched(() => this._syncScroll());
+        onPatched(() => {
+            this._syncScroll();
+            this._placeBadges();
+        });
         onWillUnmount(() => {
+            this._selecting.destroy();
             browser.clearTimeout(this._popoverTimer);
+            browser.clearTimeout(this._clickLock);
             if (model._view === access) {
                 model.setViewAccess(null);
             }
@@ -298,14 +328,16 @@ export class TimelineRenderer extends Component {
                 model: this.props.model,
                 archInfo: this.props.archInfo,
                 record: pill.record,
+                editor: this.props.editor,
             });
             // after `open`, which first closes (and so forgets) the previous popover
             this._popoverFor = pill.id;
         }, POPOVER_DELAY);
     }
 
-    onPillDoubleClick() {
+    onPillDoubleClick(ev, pill) {
         this._cancelPopover();
+        this.props.editor?.openRecord(pill.record.resId);
     }
 
     _cancelPopover() {
@@ -331,12 +363,275 @@ export class TimelineRenderer extends Component {
         }
     }
 
-    /** A click on a folded cell (any row) opens its run; other cells leave the click to the row. */
-    onCellClick(ev, cell) {
+    /**
+     * Ignore the clicks on cells for `delay` ms. With `replace` false a running lock stays (the
+     * popover closing does not shorten or extend the lock of a cell click).
+     */
+    _lockClicks(delay, replace) {
+        if (this._clickLock !== null && !replace) {
+            return;
+        }
+        browser.clearTimeout(this._clickLock);
+        this._clickLock = browser.setTimeout(() => {
+            this._clickLock = null;
+        }, delay);
+    }
+
+    /**
+     * R7: a click on a body cell. Locked: nothing. A folded cell opens its run. A group row
+     * toggles (through the row's own click). A cell of a record row plans (plan on), creates
+     * (cell create on) or does nothing, for the whole column. The total row and the sample
+     * state do nothing.
+     */
+    onCellClick(ev, cell, descriptor = null) {
+        if (this._selecting.consumeClick()) {
+            // the release of a selection (or of a cancelled one) is no click
+            ev.stopPropagation();
+            return;
+        }
+        if (this._clickLock !== null) {
+            ev.stopPropagation();
+            return;
+        }
+        if (this.data.isSample) {
+            return;
+        }
+        if (!descriptor) {
+            // the total row starts no lock and plans nothing, but a folded cell still opens
+            if (cell.run !== undefined) {
+                ev.stopPropagation();
+                this._setRunOpen(cell.run, true);
+            }
+            return;
+        }
+        // every real click on a body cell locks the next ones (a double click acts once)
+        this._lockClicks(CELL_CLICK_LOCK, true);
         if (cell.run !== undefined) {
             ev.stopPropagation();
             this._setRunOpen(cell.run, true);
+            return;
         }
+        if (descriptor.kind !== "pills") {
+            return;
+        }
+        const { archInfo, editor } = this.props;
+        if (!editor || cell.column === undefined || !(archInfo.canPlan || archInfo.canCellCreate)) {
+            return;
+        }
+        const params = { period: columnPeriod(this.data, cell.column), row: descriptor.row };
+        if (archInfo.canPlan) {
+            editor.planFor(params);
+        } else {
+            editor.createFor(params);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Selection of sub-columns (R4, R5, R8)
+    // ------------------------------------------------------------------------
+
+    /** The press on a cell: a selection may follow (mouse: after 10 px, touch: after a long press). */
+    onGridPointerDown() {
+        // any press: the click of an earlier release had its chance
+        this._selecting.resetClick();
+    }
+
+    onCellPointerDown(ev, cell, descriptor) {
+        this._selecting.resetClick();
+        const { archInfo, editor } = this.props;
+        if (
+            ev.button !== 0 ||
+            !editor ||
+            !archInfo.canCellCreate ||
+            this.data.isSample ||
+            descriptor.kind !== "pills" ||
+            cell.column === undefined
+        ) {
+            return;
+        }
+        this._rowEl = ev.currentTarget.closest(".o_tl_row");
+        this._rowId = descriptor.row.id;
+        this._selecting.press(ev, descriptor);
+    }
+
+    /**
+     * The sub-column of the pressed row under the viewport coordinate `x`. Folded columns are
+     * skipped: the nearest open sub-column, away from the part `anchor` where the selection
+     * started. Beyond the first or last column the first or last sub-column.
+     */
+    _partAt(x, anchor) {
+        const rtl = this._isRtl();
+        const parts = this.data.parts;
+        if (!this._rowEl.isConnected) {
+            // a re-render replaced the row element: find it again by its id
+            this._rowEl =
+                [...this.rendererRef().querySelectorAll(".o_tl_row")].find(
+                    (element) => element.dataset.rowId === this._rowId
+                ) || this._rowEl;
+        }
+        const items = [...this._rowEl.querySelectorAll(".o_tl_cell")].map((element) => ({
+            rect: element.getBoundingClientRect(),
+            column: element.dataset.column === undefined ? null : Number(element.dataset.column),
+            run: element.dataset.run === undefined ? null : Number(element.dataset.run),
+        }));
+        const open = items.filter((item) => item.column !== null);
+        if (!open.length) {
+            return null;
+        }
+        const first = (item) => item.column * parts;
+        const last = (item) => item.column * parts + parts - 1;
+        const head = items[0].rect;
+        const tail = items.at(-1).rect;
+        if (rtl ? x >= head.right : x < head.left) {
+            return first(open[0]);
+        }
+        if (rtl ? x < tail.left : x >= tail.right) {
+            return last(open.at(-1));
+        }
+        const hit = items.find((item) => x >= item.rect.left && x < item.rect.right);
+        if (!hit) {
+            return null;
+        }
+        if (hit.column !== null) {
+            const width = hit.rect.width || 1;
+            const fraction = (rtl ? hit.rect.right - x : x - hit.rect.left) / width;
+            return first(hit) + Math.min(Math.max(Math.floor(fraction * parts), 0), parts - 1);
+        }
+        const forward = anchor === null || hit.run > Math.floor(anchor / parts);
+        const after = open.find((item) => item.column > hit.run);
+        const before = open.findLast((item) => item.column < hit.run);
+        const ahead = after ? first(after) : null;
+        const behind = before ? last(before) : null;
+        return forward ? (ahead ?? behind) : (behind ?? ahead);
+    }
+
+    _setSelection(selection) {
+        if (!selection) {
+            this.state.selection = null;
+            return;
+        }
+        const current = this.state.selection;
+        const rowId = selection.row.row.id;
+        if (
+            current &&
+            current.rowId === rowId &&
+            current.from === selection.from &&
+            current.to === selection.to
+        ) {
+            return;
+        }
+        this.state.selection = { rowId, row: selection.row.row, from: selection.from, to: selection.to };
+    }
+
+    /** The release: create for the period; the highlight stays until the dialog has closed (R4). */
+    _commitSelection(selection) {
+        this._setSelection(selection);
+        const shown = this.state.selection;
+        // the badges belong to the drawing: once released, only the highlight stays (S2)
+        shown.released = true;
+        const clear = () => {
+            if (this.state.selection === shown) {
+                this.state.selection = null;
+            }
+        };
+        const period = partPeriod(this.data, selection.from, selection.to);
+        const promise = this.props.editor.createFor({ period, row: selection.row.row });
+        promise.then(clear, (error) => {
+            clear();
+            throw error;
+        });
+    }
+
+    /** While a selection is held, the view root changes the pointer and shields the buttons (R8). */
+    _hold(on) {
+        const root = this.rendererRef()?.closest(".o_timeline_view");
+        if (root) {
+            root.classList.toggle("o_tl_selecting", on);
+        }
+    }
+
+    /** Style of the highlight in the row `descriptor`, or null when the selection is elsewhere. */
+    selectionStyleOf(descriptor) {
+        const selection = this.state.selection;
+        if (!selection || selection.rowId !== descriptor.row.id) {
+            return null;
+        }
+        const start = this._boundary(selection.from);
+        const stop = this._boundary(selection.to + 1);
+        return `inset-inline-start: calc(${start}); width: calc(${stop} - ${start})`;
+    }
+
+    /** Offset of the boundary before sub-column `part` along the pills layer (folded columns count). */
+    _boundary(part) {
+        const data = this.data;
+        const fold = this._fold;
+        const parts = data.parts;
+        const total = data.columns.length * parts;
+        const units = total - fold.foldedColumns * parts;
+        if (!fold.foldedColumns || units <= 0) {
+            return `${(part / total) * 100}%`;
+        }
+        const column = Math.min(Math.floor(part / parts), data.columns.length);
+        const before = part - fold.foldedBefore[column] * parts;
+        const rest = `(100% - ${fold.foldedWidth}px)`;
+        return `(${rest} * ${before / units} + ${fold.runsBefore[column] * FOLDED_WIDTH}px)`;
+    }
+
+    /** The texts of the two badges: the bounds of the selection (R5). */
+    get selectionBadges() {
+        const selection = this.state.selection;
+        if (!selection || selection.released) {
+            return null;
+        }
+        const data = this.data;
+        const { start, stop } = partPeriod(data, selection.from, selection.to);
+        return {
+            start: badgeText(start, data.scaleId, data.parts),
+            stop: badgeText(stop, data.scaleId, data.parts),
+        };
+    }
+
+    onScroll() {
+        this._placeBadges();
+    }
+
+    /**
+     * R5: the start badge ends at the top of the selection, its start edge at the one of the
+     * selection but never over the row header; the stop badge starts at the bottom of the
+     * selection, its end edge at the one of the selection; right-to-left swaps the sides.
+     */
+    _placeBadges() {
+        const element = this.state.selection && this.rendererRef()?.querySelector(".o_tl_selection");
+        if (!element) {
+            return;
+        }
+        const grid = element.closest(".o_tl_grid");
+        const startBadge = grid.querySelector(".o_tl_badge_start");
+        const stopBadge = grid.querySelector(".o_tl_badge_stop");
+        if (!startBadge || !stopBadge) {
+            return;
+        }
+        const box = grid.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const header = element.closest(".o_tl_row").querySelector(".o_tl_row_header");
+        const bounds = header?.getBoundingClientRect();
+        const rtl = this._isRtl();
+        const startWidth = startBadge.getBoundingClientRect().width;
+        const stopWidth = stopBadge.getBoundingClientRect().width;
+        let startLeft;
+        let stopLeft;
+        if (rtl) {
+            const right = bounds ? Math.min(rect.right, bounds.left) : rect.right;
+            startLeft = right - startWidth;
+            stopLeft = rect.left;
+        } else {
+            startLeft = bounds ? Math.max(rect.left, bounds.right) : rect.left;
+            stopLeft = rect.right - stopWidth;
+        }
+        startBadge.style.left = `${startLeft - box.left}px`;
+        startBadge.style.top = `${rect.top - box.top - BADGE_HEIGHT}px`;
+        stopBadge.style.left = `${stopLeft - box.left}px`;
+        stopBadge.style.top = `${rect.bottom - box.top}px`;
     }
 
     /** A click on a folded header opens its run, on the header of an open foldable one folds it. */
@@ -587,7 +882,7 @@ export class TimelineRenderer extends Component {
             const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
             style = `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
         }
-        return { key: index, className: classes.join(" "), style };
+        return { key: index, column: index, className: classes.join(" "), style };
     }
 
     _columnView(header) {

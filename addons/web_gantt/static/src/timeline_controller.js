@@ -9,6 +9,7 @@ import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
 import { useDropdownState } from "@web/core/dropdown/dropdown_hooks";
 import { formatDate } from "@web/core/l10n/dates";
+import { localization } from "@web/core/l10n/localization";
 import { _t } from "@web/core/l10n/translation";
 import { useService } from "@web/core/utils/hooks";
 import { useModel } from "@web/model/model";
@@ -20,6 +21,8 @@ import { SearchBar } from "@web/search/search_bar/search_bar";
 import { useSearchBarToggler } from "@web/search/search_bar/search_bar_toggler";
 import { standardViewProps } from "@web/views/standard_view_props";
 import { fixCustomDates } from "./timeline_dates";
+import { TimelineEditor } from "./timeline_editor";
+import { newButtonPeriod } from "./timeline_editing";
 
 const KIND_LABELS = {
     day: _t("Day"),
@@ -81,12 +84,24 @@ export class TimelineController extends Component {
     setup() {
         this.ui = useService("ui");
         this.dialog = useService("dialog");
+        const services = {
+            dialog: this.dialog,
+            action: useService("action"),
+            orm: useService("orm"),
+            notification: useService("notification"),
+        };
         this.model = useModel(this.props.Model, {
             resModel: this.props.resModel,
             fields: this.props.fields,
             config: this.props.archInfo,
             viewId: this.env.config.viewId,
             state: this.props.state?.modelState,
+        });
+        this.editor = new TimelineEditor({
+            env: this.env,
+            model: this.model,
+            archInfo: this.props.archInfo,
+            services,
         });
         // coming back from another view of the action restores range, display mode and scroll
         // position (R39); collapsed rows are not kept
@@ -185,8 +200,27 @@ export class TimelineController extends Component {
     // Actions
     // ------------------------------------------------------------------------
 
-    onNew() {
-        // Creation belongs to a later slice; the button only renders.
+    /** R2: create for the group unit around the focus date; works in the sample state too. */
+    async onNew() {
+        // a second click while the create dialog or action is pending or open does nothing
+        if (this._newPending) {
+            return;
+        }
+        this._newPending = true;
+        try {
+            await this._createForNew();
+        } finally {
+            this._newPending = false;
+        }
+    }
+
+    _createForNew() {
+        const period = newButtonPeriod(
+            this.data.scaleId,
+            this.model.visibleMiddleDate(),
+            localization.weekStart
+        );
+        return this.editor.createFor({ period });
     }
 
     step(direction) {

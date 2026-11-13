@@ -105,6 +105,12 @@ export class Pill extends models.Model {
     pill_properties_definition = fields.PropertiesDefinition();
 
     _views = {
+        "form,false": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/><field name="parent_id"/><field name="x_state"/><field name="x_progress"/></form>`,
+        "form,2": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/><field name="parent_id"/></form>`,
+        "form,3": `<form edit="0" create="0"><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,
+        "form,4": `<form edit="1" delete="0"><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,
+        "list,false": `<list><field name="name"/><field name="parent_id"/></list>`,
+        "search,false": `<search><field name="name"/><field name="parent_id"/></search>`,
         "card,1": `<card>
             <templates>
                 <t t-name="card"><div class="o_card_view_body"><field name="x_contact"/></div></t>
@@ -161,6 +167,12 @@ class Pill2 extends models.Model {
     active = fields.Boolean({ default: true });
     date_start = fields.Date();
     date_stop = fields.Date();
+
+    _views = {
+        "form,false": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,
+        "list,false": `<list><field name="name"/><field name="date_start"/></list>`,
+        "search,false": `<search><field name="name" filter_domain="[('name', 'ilike', self)]"/></search>`,
+    };
 
     _records = [
         { id: 1, name: "Day one", date_start: dayAt(0), date_stop: dayAt(0), active: true },

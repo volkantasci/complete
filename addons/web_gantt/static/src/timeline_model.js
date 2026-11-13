@@ -91,6 +91,7 @@ export class TimelineModel extends Model {
         this._requestedRange = null;
         this._timer = null;
         this._waiters = [];
+        this._writes = new Set();
         this._publish();
     }
 
@@ -180,9 +181,28 @@ export class TimelineModel extends Model {
 
     /** Stop the pending step: the view is left. */
     dispose() {
+        this.disposed = true;
         browser.clearTimeout(this._timer);
         this._timer = null;
         this._waiters = [];
+    }
+
+    /** R10: register a write in flight; returns the same promise. */
+    trackWrite(promise) {
+        const settled = Promise.resolve(promise).then(
+            () => {},
+            () => {}
+        );
+        this._writes.add(settled);
+        settled.then(() => this._writes.delete(settled));
+        return promise;
+    }
+
+    /** Resolves when every tracked write has settled (also those started meanwhile). */
+    async whenWritesDone() {
+        while (this._writes.size) {
+            await Promise.all([...this._writes]);
+        }
     }
 
     /** Load the current range again (after a button of the popover changed a record). */
