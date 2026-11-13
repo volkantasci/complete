@@ -105,6 +105,8 @@ export class Pill extends models.Model {
     pill_properties_definition = fields.PropertiesDefinition();
 
     _views = {
+        "form,false": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/><field name="parent_id"/><field name="x_state"/><field name="x_progress"/></form>`,
+        "form,2": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/><field name="parent_id"/></form>`,
         "card,1": `<card>
             <templates>
                 <t t-name="card"><div class="o_card_view_body"><field name="x_contact"/></div></t>

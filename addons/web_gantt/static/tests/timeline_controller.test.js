@@ -283,12 +283,10 @@ test("A80: no New button when create is off", async () => {
     expect(".o_tl_controls").toHaveCount(1);
 });
 
-test("A80: the New button renders with the c shortcut and does nothing", async () => {
+test("A80: the New button renders with the c shortcut", async () => {
     await mountTimeline();
     expect(".o_tl_button_add").toHaveCount(1);
     expect(".o_tl_button_add").toHaveAttribute("data-hotkey", "c");
-    await contains(".o_tl_button_add").click();
-    expect(".o_tl_controls").toHaveCount(1);
 });
 
 test("A110: access rights switch the buttons off", async () => {

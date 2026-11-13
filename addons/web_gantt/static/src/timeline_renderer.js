@@ -72,6 +72,7 @@ export class TimelineRenderer extends Component {
     props = useProps({
         model: t.object(),
         archInfo: t.object(),
+        editor: t.object().optional(),
         noContentHelp: t.string().optional(),
     });
 
