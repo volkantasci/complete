@@ -40,6 +40,19 @@ export class TimelineSelection {
         return this.state === "selecting";
     }
 
+    /** A new press: the click of the previous release has had its chance. */
+    resetClick() {
+        this._suppressClick = false;
+    }
+
+    /** Swallow the click of this release, and forget it once the click had its chance. */
+    _expectClick() {
+        this._suppressClick = true;
+        browser.setTimeout(() => {
+            this._suppressClick = false;
+        }, 0);
+    }
+
     /** The click that follows a release that ended a selection is not a click on a cell (R7). */
     consumeClick() {
         const suppressed = this._suppressClick;
@@ -77,6 +90,8 @@ export class TimelineSelection {
         this._listen(doc, "pointermove", (event) => this._onMove(event));
         this._listen(doc, "pointerup", (event) => this._onUp(event));
         this._listen(doc, "pointercancel", (event) => this._onCancel(event));
+        // the window loses the focus while the button is down: no release will come
+        this._listen(doc.defaultView, "blur", () => this._cancel());
         this._listen(doc, "keydown", (event) => this._onKey(event), { capture: true });
         if (ev.pointerType === "touch") {
             // a held finger would scroll the grid and open the context menu otherwise
@@ -157,7 +172,7 @@ export class TimelineSelection {
         this._finish();
         if (selecting) {
             // the click that follows is the end of the drawing, not a click on a cell
-            this._suppressClick = true;
+            this._expectClick();
             this.host.commit(selection);
         }
     }
@@ -175,7 +190,7 @@ export class TimelineSelection {
             ev.stopPropagation();
             this._cancel();
             // the button is still down: its release is no click on a cell either
-            this._suppressClick = true;
+            this._expectClick();
         }
     }
 

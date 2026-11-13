@@ -307,7 +307,60 @@ test("002b A12: edge scroll grows the selection", async () => {
         await advanceFrame();
     }
     expect(renderer.scrollLeft).toBe(rest);
+
+    // inside the header area: the zone is measured from its right edge, the step is the maximum
+    renderer.scrollLeft = 600;
+    await animationFrame();
+    const inside = header.right - 20;
+    await drawing.moveTo(rowAt().querySelector(".o_tl_row_header"), { position: { x: inside, y } });
+    const from = renderer.scrollLeft;
+    for (let i = 0; i < 3; i++) {
+        await advanceFrame();
+    }
+    expect(renderer.scrollLeft).toBeLessThan(from);
+    expect(from - renderer.scrollLeft).not.toBeGreaterThan(3 * 20 + 1);
     await drawing.cancel();
+});
+
+test("002b A12: a drag leaves no swallowed click behind (group row, folded cell)", async () => {
+    timelineMock.unavailability = {
+        x_contact: Object.fromEntries(
+            [1, 2, 3].map((id) => [id, [{ start: at(3, "00:00"), stop: at(5, "00:00") }]])
+        ),
+    };
+    await mountTimeline({
+        arch: HOST_ARCHS.H12,
+        groupBy: ["parent_id", "x_contact"],
+        domain: [["id", "in", [4, 5, 6, 9]]],
+    });
+    const renderer = queryOne(".o_tl_renderer");
+    const foldBox = queryRect(".o_tl_col.o_tl_folded");
+    renderer.scrollLeft += foldBox.left - (queryRect(renderer).left + queryRect(renderer).right) / 2;
+    await animationFrame();
+    const cells = [...rowAt(0).querySelectorAll(".o_tl_cell")];
+    const at0 = cells.findIndex((cell) => cell.classList.contains("o_tl_folded_cell"));
+    const y = queryRect(rowAt(0)).bottom - 4;
+    const a = queryRect(cells[at0 - 1]);
+    // a drag from one cell, released over another row: its click lands on a common ancestor
+    const drawing = await drag(cells[at0 - 1], { position: { x: a.left + 5, y } });
+    await drawing.moveTo(cells[at0 - 2], { position: { x: a.left - 30, y } });
+    await animationFrame();
+    await drawing.drop();
+    await animationFrame();
+    await contains(".o_dialog .o_form_button_cancel").click();
+    await animationFrame();
+    await advanceTime(1100);
+    // a click on a group row still toggles it
+    await click(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell"));
+    await animationFrame();
+    expect(queryAll(".o_tl_group_row")[0]).toHaveClass("o_tl_collapsed");
+    await click(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell"));
+    await animationFrame();
+    await advanceTime(1100);
+    // and a click on a folded cell unfolds it
+    await click(rowAt(0).querySelector(".o_tl_folded_cell"));
+    await animationFrame();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
 });
 
 test("002b A13: badges by scale (day)", async () => {

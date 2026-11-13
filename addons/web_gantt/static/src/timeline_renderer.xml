@@ -4,7 +4,7 @@
     <t t-name="web_gantt.TimelineRenderer">
         <t t-set="layout" t-value="this.layout"/>
         <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
-            <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId" t-on-scroll="this.onScroll">
+            <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId" t-on-scroll="this.onScroll" t-on-pointerdown="this.onGridPointerDown">
                 <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample }" t-attf-style="grid-template-columns: {{layout.template}}">
                     <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
                     <t t-foreach="layout.groups" t-as="group" t-key="group_index">

@@ -429,7 +429,13 @@ export class TimelineRenderer extends Component {
     // ------------------------------------------------------------------------
 
     /** The press on a cell: a selection may follow (mouse: after 10 px, touch: after a long press). */
+    onGridPointerDown() {
+        // any press: the click of an earlier release had its chance
+        this._selecting.resetClick();
+    }
+
     onCellPointerDown(ev, cell, descriptor) {
+        this._selecting.resetClick();
         const { archInfo, editor } = this.props;
         if (
             ev.button !== 0 ||
@@ -442,6 +448,7 @@ export class TimelineRenderer extends Component {
             return;
         }
         this._rowEl = ev.currentTarget.closest(".o_tl_row");
+        this._rowId = descriptor.row.id;
         this._selecting.press(ev, descriptor);
     }
 
@@ -453,6 +460,13 @@ export class TimelineRenderer extends Component {
     _partAt(x, anchor) {
         const rtl = this._isRtl();
         const parts = this.data.parts;
+        if (!this._rowEl.isConnected) {
+            // a re-render replaced the row element: find it again by its id
+            this._rowEl =
+                [...this.rendererRef().querySelectorAll(".o_tl_row")].find(
+                    (element) => element.dataset.rowId === this._rowId
+                ) || this._rowEl;
+        }
         const items = [...this._rowEl.querySelectorAll(".o_tl_cell")].map((element) => ({
             rect: element.getBoundingClientRect(),
             column: element.dataset.column === undefined ? null : Number(element.dataset.column),
