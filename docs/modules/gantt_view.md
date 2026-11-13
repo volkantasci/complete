@@ -2,9 +2,11 @@
 
 The Gantt view shows records as horizontal bars, called pills, on a time grid.
 Each pill runs from the start to the stop of its record, and the records can
-be arranged in rows by any field. The view is read-only in this release: you
-can look, navigate and open a summary of a record, but not change anything
-from the grid.
+be arranged in rows by any field. Besides looking and navigating, you can
+create records from the grid, plan records that have no dates yet, open a
+record, change it and delete it, as far as the view and your rights allow (see
+[Creating, planning, opening and deleting](#creating-planning-opening-and-deleting)).
+Moving and resizing pills with the pointer is not part of this release.
 
 The view has no menu of its own. It appears in any window action whose view
 modes include **Gantt**, next to the other views in the view switcher, or as
@@ -36,9 +38,10 @@ right:
 | Open or fold every group | Opens all group rows, or folds them all. Shown only when the first row is a group row; otherwise it keeps its place but is invisible. | |
 
 When several clicks on previous or next follow each other quickly, the data is
-loaded once, half a second after the last click. If the action offers a New
-button, it sits in the control panel (key `c`); what it does belongs to a
-later slice.
+loaded once, half a second after the last click. If the view lets you
+create records, the **New** button sits in the control panel (key `c`); what it
+opens is described under
+[Creating](#creating-planning-opening-and-deleting).
 
 ### The range menu
 
@@ -223,8 +226,9 @@ elsewhere, or a click on another pill closes it; the click on the other pill
 opens that pill's popover. Without any content in the view definition the
 popover shows the record name as its header and two lines, Start and Stop,
 with the dates, and a small primary button in its footer: **Edit** when the
-view allows editing, **View** otherwise (what the button opens is part of a
-later slice).
+view allows editing, **View** otherwise. The button closes the popover and
+opens the record in a dialog (see
+[Opening, editing and deleting](#opening-editing-and-deleting-a-record)).
 
 A view definition can supply its own content in the manner of a card: a body,
 a header and a footer, or the identifier of a card view to borrow its fields
@@ -283,6 +287,178 @@ such as the employee, attendance, event track and time off applications of later
 
 ![The tooltip of a capacity bar, light](../assets/gantt_view/22-progress-tooltip.png)
 
+## Creating, planning, opening and deleting
+
+Everything below uses ordinary Community dialogs (a form in a dialog, a list of
+records to pick from, a confirmation), coloured by the theme. Which of these
+you get depends on the view's options and on your rights; see
+[What you may do](#what-you-may-do).
+
+### Creating a record
+
+There are three ways to start a new record from the view, and each one opens
+the create dialog (titled "Create") with the dates already filled in:
+
+- **The New button.** It proposes one unit of the current scale around the date
+  in the middle of the visible grid: the day on the Day range, the week on the
+  Week range, the month on the Month and Quarter ranges, the year on the Year
+  range. The week is the one the grid shows, so it starts on the first day of
+  the week of your language (a Sunday in US English, a Monday in English (UK)),
+  not always on Monday. No row value is set. The button also works on the
+  sample data screen.
+- **A click on a cell** in a row without sub-rows, when the view does not plan
+  records (see below). The record gets the whole column you clicked: the day on
+  the Week and Month scales, the hour on the Day scale, the month on the Year
+  scale. A click on a cell of a group row folds or opens the row, and a click on
+  a folded column opens it, as before.
+- **A selection.** Press on an empty part of a cell and drag at least ten
+  pixels along the row. A translucent band covers the sub-columns you pass
+  over, and two small badges show where it starts and where it stops. The band
+  stays in the row where you started, whichever row the pointer crosses, and
+  follows the half days or hours of the scale. Near the left or right edge of
+  the grid the grid scrolls sideways while you hold, and the band grows with
+  it. Releasing opens the create dialog for the selected period. **Escape**
+  while the button is held drops the selection and opens nothing. You cannot
+  start a selection on a pill, on a group row or on the sample data screen.
+
+When you create from a cell or a selection in a grouped view, the new record
+also receives the values of the row, and of the rows above it, for the fields
+the view is grouped by. An "Undefined" row gives an empty value. Fields that
+are not part of the grouping are left alone.
+
+![A selection being drawn, light](../assets/gantt_view/20-selecting.png)
+
+![A selection being drawn, dark](../assets/gantt_view/20-selecting-dark.png)
+
+![The create dialog with the selected period, light](../assets/gantt_view/21-create-dialog.png)
+
+![The create dialog with the selected period, dark](../assets/gantt_view/21-create-dialog-dark.png)
+
+![The New button on the Week range, light](../assets/gantt_view/31-new-week.png)
+
+Saving creates the record and closes the dialog; Discard closes it without
+writing. Either way the view reloads. The search and the domain of the action
+still apply, so a new record that does not match them is saved but not shown.
+If the view names a **create action**, that action runs instead of the dialog,
+with the same values added to its context, and the view reloads when it closes.
+
+![A create action run instead of the dialog, light](../assets/gantt_view/30-create-action.png)
+
+### Dates of date-only records
+
+On a model whose start and stop are plain dates, the proposed stop is the last
+day that was clicked or selected, never the day after: a click on the 16th
+gives the 16th to the 16th, a selection that ends at midday of the 18th gives
+the 18th, and New on the Month range gives the first to the last day of the
+month. This matches the way the view draws such records (the stop day is
+included). When a model mixes a date start with a date-and-time stop, each
+field gets a value of its own type.
+
+![A click on a date-only model, light](../assets/gantt_view/32-date-only-click.png)
+
+### Planning records that have no dates
+
+With the view's planning option on (it is on unless the definition switches it
+off), a click on a cell of a row without sub-rows opens the **Plan** dialog
+instead of the create dialog. It lists the records of the action's domain that
+have no start or no stop, with check boxes, a search bar and a pager. Search
+filters of the view are not carried over, but the dialog starts with the values
+of the row you clicked when its search offers the matching field, for example a
+filter on the parent of that row.
+
+- **Select** gives every checked record the start and stop of the clicked
+  column, and the row's values for the grouping fields; the button stays
+  disabled until a record is checked. On a date-only model the clicked day is
+  both start and stop. Clicking a record's line (on a phone, tapping its card)
+  plans that single record at once.
+- **Create New** (offered when creating from cells is allowed) makes a new
+  record for the clicked column and row: through the create action if the view
+  has one, otherwise in the create dialog with the view's form (or the model's
+  default form). A record saved from that dialog is planned in the same way, and
+  both dialogs close; Discard returns to the plan dialog.
+- **Close** writes nothing.
+
+![The plan dialog, light](../assets/gantt_view/22-plan-dialog.png)
+
+![The plan dialog, dark](../assets/gantt_view/22-plan-dialog-dark.png)
+
+### Opening, editing and deleting a record
+
+A record opens in a dialog titled "Open", from the **Edit** or **View** button
+of the popover or by a double click on its pill (which opens no popover). The
+dialog shows the form given by the view's form option, or the model's default
+form. When the dialog closes, whatever button you used, the view reloads. If a
+write that the view itself started (planning, for example) is still running,
+the dialog waits for it so that it shows the saved values.
+
+The dialog is editable when both the view and the form itself allow editing;
+otherwise it is read-only and offers the usual read-only buttons of the web
+client. An editable dialog has Save, Discard and, when the view allows deleting,
+**Remove**. Remove asks for confirmation with the web client's own
+record-deletion box ("Bye-bye, record!", with **Delete** and **No, keep it**).
+Delete removes the record and closes both dialogs; "No, keep it" or the cross
+returns to the record. A new record's dialog has no Remove. If the server
+refuses a save or a deletion (a missing right, a constraint), the usual error
+dialog appears over the record dialog, nothing is changed, and a refused save
+keeps what you typed.
+
+![The popover with its Edit button, light](../assets/gantt_view/23-popover-edit.png)
+
+![The record dialog, light](../assets/gantt_view/24-record-dialog.png)
+
+![The record dialog, dark](../assets/gantt_view/24-record-dialog-dark.png)
+
+![Confirming a deletion, light](../assets/gantt_view/25-delete-confirm.png)
+
+![Confirming a deletion, dark](../assets/gantt_view/25-delete-confirm-dark.png)
+
+### Editing in the popover
+
+A custom popover (see above) can hold fields and buttons. Buttons run their
+method or action as in any card, then the popover closes and the view reloads.
+Fields whose card widget can change a value, such as a switch or a selection,
+are editable when the view allows editing and show faded and read-only
+otherwise. A change is saved at once, and when the popover closes the view
+reloads, so a pill whose row value changed moves to its new row.
+
+![A popover with an editable switch, light](../assets/gantt_view/28-editable-popover.png)
+
+![The same popover without edit rights, light](../assets/gantt_view/26-readonly-popover.png)
+
+### What you may do
+
+The view has three permissions, *create*, *edit* and *delete*, each on unless
+the definition switches it off. When the definition leaves one unset, the web
+client turns it off for a user who lacks the matching right on the model
+(create, write, delete); a definition that sets it to yes keeps the control
+visible and lets the server refuse the action. Two more switches refine them:
+creating from cells and planning (see the options below).
+
+| Control | Needs |
+|---|---|
+| New button | create |
+| Selection of cells | creating from cells |
+| A click opens the plan dialog | planning |
+| A click opens the create dialog | creating from cells, with planning off |
+| Create New in the plan dialog | creating from cells |
+| Popover button reads Edit (otherwise View) | edit |
+| Editable popover fields | edit |
+| Editable record dialog | edit, and the form's own edit |
+| Remove in the record dialog | delete, and an editable dialog |
+
+The record dialog has a second condition because it shows a form, which has
+permissions of its own: the web client switches a form's edit off for a user
+without the write right unless the form says otherwise. When the two differ the
+dialog follows both. A view that says `edit="1"` and `delete="1"` therefore
+shows the button **Edit** to a user who may only read, but the dialog it opens
+is read-only, without Remove and without New, and its closing button just
+closes it. A user who may only read sees no New button, cells that do nothing,
+the popover button **View** and a read-only dialog.
+
+![A user with read access only, light](../assets/gantt_view/29-restricted-user.png)
+
+![A read-only record dialog, light](../assets/gantt_view/27-readonly-dialog.png)
+
 ## Sample data and empty views
 
 If the view definition allows sample data and the first load finds no record,
@@ -320,6 +496,26 @@ line well spaced, its dates and Apply button sized for touch), dates are picked 
 the row header column takes a third of the width, where a long name such as
 "Undefined Contact" is cut with an ellipsis. Month names in the headers
 are abbreviated, and the page itself scrolls.
+
+Creating works as on a desktop: the New button, taps on cells, the plan dialog
+and the popover buttons behave the same, and every dialog opens full screen with
+its buttons stacked at the bottom, the plan dialog listing records as cards. The
+deletion confirmation is the exception: a box centred over the record dialog,
+with its buttons stacked. A selection starts with a **long press** of about a
+third of a second followed by a move; a swipe that starts without the long press
+scrolls the grid. Near the left or right edge the grid scrolls under the finger
+while you hold, so start from the middle of the screen to select without
+scrolling. With a mouse the selection works as on a desktop.
+
+![A selection on a phone, light](../assets/gantt_view/20-selecting.mobile.png)
+
+![The create dialog on a phone, light](../assets/gantt_view/21-create-dialog.mobile.png)
+
+![The plan dialog on a phone, light](../assets/gantt_view/22-plan-dialog.mobile.png)
+
+![The record dialog on a phone, light](../assets/gantt_view/24-record-dialog.mobile.png)
+
+![The deletion confirmation on a phone, light](../assets/gantt_view/25-delete-confirm.mobile.png)
 
 Hovering a column header gives a tooltip with the date including the weekday
 ("Saturday, November 7, 2026"; on the day scale also the time).
@@ -368,21 +564,42 @@ or date-and-time fields) are required. The other attributes:
 | `progress_bar` | relational grouping fields that show a capacity bar |
 | `display_unavailability` | grey out unavailable periods |
 | `groups_limit` | groups per page |
-| `default_group_by`, `sample`, `create`, `edit`, `delete`, `class`, `js_class` | the usual meaning in a Community view |
+| `create`, `edit`, `delete` | yes or no; the usual meaning in a Community view, with the effects listed under [What you may do](#what-you-may-do) |
+| `cell_create` | yes or no (default yes): allows creating from cells, by click when planning is off and by selection |
+| `plan` | yes or no (default yes): a click on a cell opens the plan dialog instead of the create dialog |
+| `form_view_id` | database identifier of a form view of the same model, used by the create and record dialogs (default: the model's default form) |
+| `on_create` | an action reference (an XML identifier such as `module.action_name`, or a database identifier) run instead of the create dialog |
+| `default_group_by`, `sample`, `class`, `js_class` | the usual meaning in a Community view |
 
 Children are `field` elements (extra fields to read, for decorations and the
 popover) and at most one `popover`. A `popover` takes `card_id` only, and may
 hold `field` elements and one `templates` element with `popover-body` (or
 `card`), `popover-header` and `popover-footer` (the last with `replace` set to
-a false value to keep the default button). The editing and dependency
-attributes (`form_view_id`, `on_create`, `cell_create`, `plan`,
+a false value to keep the default button). The attributes
 `multi_create_view`, `disable_drag_drop`, `dependency_field`,
-`dependency_inverted_field`, `buffer_start`, `buffer_stop`, `schedule`) and
-`collapse_first_level`, `dynamic_range`, `offset` are accepted and have no
+`dependency_inverted_field`, `buffer_start`, `buffer_stop`, `schedule`,
+`collapse_first_level`, `dynamic_range` and `offset` are accepted and have no
 effect yet. A view that breaks the rules is refused when saved, with a message
 that names the problem. An action can pass the context keys `default_range`,
 `default_scale`, `default_start_date`, `default_stop_date`, `initialDate` and
 `group_by`.
+
+#### Context given to dialogs and actions
+
+The create dialog, the create action and the plan dialog receive the context of
+the action combined with the search context, plus these keys from the view
+(its keys replace keys of the same name):
+
+| Key | Value |
+|---|---|
+| the start field's name (for example `date_start`) | start of the period: UTC date and time as `YYYY-MM-DD HH:MM:SS` for a date-and-time field, `YYYY-MM-DD` for a date-only field |
+| the stop field's name | stop of the period; for a date-only field, the last day the period covers (see above). Omitted when start and stop are the same field |
+| `default_<start field>`, `default_<stop field>` | the same values, as form defaults |
+| each grouping field's name | the row's value: an identifier for a relation to one record, a list with one identifier for a relation to many, the plain value otherwise, false for an "Undefined" row. Only for a click, selection or plan in a grouped view |
+| `default_<grouping field>`, `search_default_<grouping field>` | the same value; the second pre-applies a facet in the plan dialog when its search view offers the field |
+
+The plan dialog writes only the start, the stop and the grouping fields, never
+the other keys. The New button gives the period keys and no row keys.
 
 ```xml
 <gantt date_start="date_start" date_stop="date_stop" string="Work"
@@ -406,6 +623,7 @@ that names the problem. An action can pass the context keys `default_range`,
 
 ## Not included yet
 
-Creating, moving, copying and resizing pills, the dependency arrows and
-buffers, rescheduling, the dialog that plans records, and the Gantt views of employees,
-attendances, event tracks and time off are delivered in later slices.
+Moving, copying and resizing pills with the pointer, selecting several cells
+at once and the side panel of records to schedule, the dependency arrows and
+buffers, rescheduling, and the Gantt views of employees, attendances, event
+tracks and time off are delivered in later slices.
