@@ -231,7 +231,7 @@ test("002b R7: the lock after a cell click lasts one second", async () => {
 
 test("002b A19: sample cells do nothing", async () => {
     await mountTimeline({ arch: HOST_ARCHS.H8, domain: [["id", "=", 0]] });
-    expect(queryAll(".o_view_sample_data")).toHaveLength(1);
+    expect(queryAll("[class*=o_view_sample_data]")).toHaveLength(1);
     await click(queryAll(".o_tl_row:not(.o_tl_total_row) .o_tl_cell")[3]);
     await animationFrame();
     expect(".o_dialog").toHaveCount(0);

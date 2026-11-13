@@ -109,7 +109,7 @@ test("002b A6: New follows the visible middle date", async () => {
 
 test("002b A7: New in the sample state opens the create dialog", async () => {
     await mountTimeline({ arch: HOST_ARCHS.H8, domain: [["id", "=", 0]] });
-    expect(queryAll(".o_view_sample_data")).toHaveLength(1);
+    expect(queryAll("[class*=o_view_sample_data]")).toHaveLength(1);
     await clickNew();
     expect(".o_dialog .modal-title").toHaveText("Create");
 });

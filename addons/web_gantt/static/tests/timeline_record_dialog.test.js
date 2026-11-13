@@ -19,8 +19,11 @@ import { setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_te
 
 describe.current.tags("desktop");
 
-const DIALOG_FORM = ".o_dialog .o_form_view";
-const DIALOG_REMOVE = ".o_dialog .o_form_button_remove";
+const recordDialogReady = () => waitFor(".modal-body .o_form_view");
+const removeButtons = () => queryAll(".modal-footer .o_form_button_remove");
+async function openRemoveConfirm() {
+    await contains(removeButtons()[0]).click();
+}
 
 setupTimelineFixtures();
 defineWebModels();
@@ -71,7 +74,7 @@ async function openDialog(id) {
     }
     await contains(`${POPOVER} .o_tl_popover_button`).click();
     await animationFrame();
-    await waitFor(DIALOG_FORM);
+    await recordDialogReady();
 }
 
 const title = () => queryAllTexts(".o_dialog .modal-title");
@@ -84,7 +87,7 @@ test("002b A34: double click opens Open, no popover", async () => {
     await dblclick(pillOf(BUILD));
     await advanceTime(300);
     await animationFrame();
-    await waitFor(DIALOG_FORM);
+    await recordDialogReady();
     expect(POPOVER).toHaveCount(0);
     expect(".o_dialog").toHaveCount(1);
     expect(title()).toEqual(["Open"]);
@@ -101,7 +104,7 @@ test("002b A35: Edit opens editable dialog with Save, Discard, Remove", async ()
     expect(".o_dialog .o_field_widget[name='name'] input").toHaveCount(1);
     expect(".o_dialog .o_form_button_save").toHaveCount(1);
     expect(".o_dialog .o_form_button_cancel").toHaveCount(1);
-    expect(".o_dialog .o_form_button_remove").toHaveCount(1);
+    expect(removeButtons()).toHaveLength(1);
 });
 
 test("002b A36: View opens read-only without Remove", async () => {
@@ -111,7 +114,7 @@ test("002b A36: View opens read-only without Remove", async () => {
     await openDialog(BUILD);
     expect(".o_dialog .o_form_readonly").toHaveCount(1);
     expect(".o_dialog .o_field_widget[name='name'] input").toHaveCount(0);
-    expect(".o_dialog .o_form_button_remove").toHaveCount(0);
+    expect(removeButtons()).toHaveLength(0);
     // the Community buttons of a read-only form dialog, unchanged: its primary button and New
     expect(".o_dialog .modal-footer .o_form_button_save").toHaveCount(1);
     expect(".o_dialog .modal-footer .o_form_button_create").toHaveCount(1);
@@ -149,7 +152,7 @@ test("002b A38: dialog waits for the plan write", async () => {
     expect(".o_dialog").toHaveCount(0);
     expect(calls("web_read")).toHaveLength(0);
     release();
-    await waitFor(DIALOG_FORM);
+    await recordDialogReady();
     expect(calls("web_read")).toHaveLength(1);
 });
 
@@ -206,7 +209,7 @@ test("002b A40: switch read-only with edit off", async () => {
 test("002b A41: Remove only on existing records with delete", async () => {
     await mountTimeline(`delete="0"`);
     await openDialog(BUILD);
-    expect(".o_dialog .o_form_button_remove").toHaveCount(0);
+    expect(removeButtons()).toHaveLength(0);
     await contains(".o_dialog .o_form_button_cancel").click();
     await animationFrame();
 });
@@ -215,14 +218,14 @@ test("002b A41: a new record has no Remove", async () => {
     await mountTimeline();
     await contains(".o_tl_button_add").click();
     await animationFrame();
-    await waitFor(DIALOG_FORM);
-    expect(".o_dialog .o_form_button_remove").toHaveCount(0);
+    await recordDialogReady();
+    expect(removeButtons()).toHaveLength(0);
 });
 
 test("002b A42: Delete removes and closes both", async () => {
     await mountTimeline();
     await openDialog(BUILD);
-    await contains(DIALOG_REMOVE).click();
+    await openRemoveConfirm();
     await animationFrame();
     expect(".o_dialog").toHaveCount(2);
     expect(".o_dialog .modal-footer .btn-danger").toHaveText("Delete");
@@ -244,7 +247,7 @@ test("002b A42: Delete removes and closes both", async () => {
 test("002b A43: No, keep it keeps the record dialog", async () => {
     await mountTimeline();
     await openDialog(BUILD);
-    await contains(DIALOG_REMOVE).click();
+    await openRemoveConfirm();
     await animationFrame();
     await contains('.o_dialog .modal-footer button:contains("No, keep it")').click();
     await animationFrame();
@@ -260,7 +263,7 @@ test("002b A1c: refused unlink shows the error, the confirmation closes, the rec
     });
     await mountTimeline();
     await openDialog(BUILD);
-    await contains(DIALOG_REMOVE).click();
+    await openRemoveConfirm();
     await animationFrame();
     await contains(".o_dialog .modal-footer .btn-danger").click();
     await animationFrame();
@@ -292,7 +295,7 @@ test("002b A1b: the form's own edit off makes the dialog read-only, without Remo
     await openDialog(BUILD);
     expect(".o_dialog .o_form_readonly").toHaveCount(1);
     expect(".o_dialog .o_field_widget[name='name'] input").toHaveCount(0);
-    expect(".o_dialog .o_form_button_remove").toHaveCount(0);
+    expect(removeButtons()).toHaveLength(0);
     // the Community read-only buttons: one primary closing button, no New (the form allows no creation)
     expect(".o_dialog .o_form_button_create").toHaveCount(0);
     expect(".o_dialog .o_form_button_cancel").toHaveCount(0);
@@ -309,7 +312,7 @@ test("002b A1c: Remove follows the view's delete, not the form's own delete", as
     await openDialog(BUILD);
     expect(".o_dialog .o_form_button_save").toHaveCount(1);
     expect(".o_dialog .o_form_button_cancel").toHaveCount(1);
-    expect(".o_dialog .o_form_button_remove").toHaveCount(1);
+    expect(removeButtons()).toHaveLength(1);
 });
 
 test("002b E4: a second open while one is pending or open does nothing", async () => {
@@ -320,7 +323,7 @@ test("002b E4: a second open while one is pending or open does nothing", async (
     editor.openRecord(BUILD);
     await editor.openRecord(BUILD); // returns at once
     release();
-    await waitFor(DIALOG_FORM);
+    await recordDialogReady();
     await animationFrame();
     expect(".o_dialog").toHaveCount(1);
     // while the dialog is open, another call does nothing
@@ -331,6 +334,6 @@ test("002b E4: a second open while one is pending or open does nothing", async (
     await contains(".o_dialog .o_form_button_cancel").click();
     await animationFrame();
     editor.openRecord(DEPLOY);
-    await waitFor(DIALOG_FORM);
+    await recordDialogReady();
     expect(".o_dialog").toHaveCount(1);
 });
