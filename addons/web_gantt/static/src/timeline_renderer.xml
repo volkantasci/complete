@@ -6,7 +6,7 @@
             <div t-if="ghost.progress" class="o_tl_pill_progress" t-attf-style="width: {{ghost.progress}}%"/>
             <span class="o_tl_pill_title" t-out="ghost.label"/>
             <span t-if="ghost.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${ghost.mark}`"/>
-            <i t-if="ghost.locked" class="fa fa-lock o_tl_pill_lock"/>
+            <i t-if="ghost.locked" class="oi o_tl_pill_lock" data-icon="lock"/>
         </div>
     </t>
     <t t-name="web_gantt.TimelineRenderer">

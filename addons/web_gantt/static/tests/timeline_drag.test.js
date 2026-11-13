@@ -457,6 +457,18 @@ test("A47 Day: Design cut at start: lock state, icon at right end, not-allowed, 
     expect(near(iconRect.width, 14) && near(iconRect.height, 14)).toBe(true);
     expect(near(queryRect(body).right - iconRect.right, 8)).toBe(true);
     expect(css(icon, "color")).toBe("rgb(0, 0, 0)");
+    // M39: the Community's own icon font, 14 px, no box of its own
+    expect(icon.dataset.icon).toBe("lock");
+    expect(css(icon, "fontFamily")).toInclude("Material Symbols Outlined");
+    expect(css(icon, "fontSize")).toBe("14px");
+    expect(css(icon, "lineHeight")).toBe("14px");
+    expect(css(icon, "fontWeight")).toBe("400");
+    expect(css(icon, "fontStyle")).toBe("normal");
+    expect(css(icon, "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
+    expect(css(icon, "marginRight")).toBe("8px");
+    expect(css(icon, "paddingLeft")).toBe("0px");
+    expect(css(icon, "borderTopWidth")).toBe("0px");
+    expect(css(icon, "boxShadow")).toBe("none");
     expect(root()).toHaveClass("o_tl_drag_lock");
     expect(css(root(), "cursor")).toBe("not-allowed");
     // no highlight, no badge, no faded copy
