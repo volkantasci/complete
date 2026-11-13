@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { queryOne } from "@odoo/hoot-dom";
+import { queryAll, queryOne } from "@odoo/hoot-dom";
 import { animationFrame } from "@odoo/hoot-mock";
 import {
     contains,
@@ -109,7 +109,7 @@ test("002b A6: New follows the visible middle date", async () => {
 
 test("002b A7: New in the sample state opens the create dialog", async () => {
     await mountTimeline({ arch: HOST_ARCHS.H8, domain: [["id", "=", 0]] });
-    expect(".o_view_sample_data").toHaveCount(1);
+    expect(queryAll(".o_view_sample_data")).toHaveLength(1);
     await clickNew();
     expect(".o_dialog .modal-title").toHaveText("Create");
 });

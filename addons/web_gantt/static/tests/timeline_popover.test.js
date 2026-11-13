@@ -89,7 +89,7 @@ test("A77: default popover", async () => {
     await advanceTime(500);
     await animationFrame();
     expect(POPOVER).toHaveCount(0);
-    await waitFor(".o_dialog .o_form_view");
+    await waitFor(".o_dialog div.o_form_view");
     await click(".o_dialog .o_form_button_cancel");
     await animationFrame();
     expect(".o_dialog").toHaveCount(0);

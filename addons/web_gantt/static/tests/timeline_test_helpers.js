@@ -168,8 +168,12 @@ class Pill2 extends models.Model {
 
     _views = {
         "form,false": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,
-        "list,false": `<list><field name="name"/></list>`,
-        "search,false": `<search><field name="name"/></search>`,
+        "list,false": `<list>
+            <field name="name"/>
+        </list>`,
+        "search,false": `<search>
+            <field name="name"/>
+        </search>`,
     };
 
     _records = [

@@ -18,6 +18,9 @@ import { setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_te
 
 describe.current.tags("desktop");
 
+const DIALOG_FORM = ".o_dialog .o_form_view";
+const DIALOG_REMOVE = ".o_dialog .o_form_button_remove";
+
 setupTimelineFixtures();
 defineWebModels();
 
@@ -67,7 +70,7 @@ async function openDialog(id) {
     }
     await contains(`${POPOVER} .o_tl_popover_button`).click();
     await animationFrame();
-    await waitFor(".o_dialog .o_form_view");
+    await waitFor(DIALOG_FORM);
 }
 
 const title = () => queryAllTexts(".o_dialog .modal-title");
@@ -80,7 +83,7 @@ test("002b A34: double click opens Open, no popover", async () => {
     await dblclick(pillOf(BUILD));
     await advanceTime(300);
     await animationFrame();
-    await waitFor(".o_dialog .o_form_view");
+    await waitFor(DIALOG_FORM);
     expect(POPOVER).toHaveCount(0);
     expect(".o_dialog").toHaveCount(1);
     expect(title()).toEqual(["Open"]);
@@ -145,7 +148,7 @@ test("002b A38: dialog waits for the plan write", async () => {
     expect(".o_dialog").toHaveCount(0);
     expect(calls("web_read")).toHaveLength(0);
     release();
-    await waitFor(".o_dialog .o_form_view");
+    await waitFor(DIALOG_FORM);
     expect(calls("web_read")).toHaveLength(1);
 });
 
@@ -211,14 +214,14 @@ test("002b A41: a new record has no Remove", async () => {
     await mountTimeline();
     await contains(".o_tl_button_add").click();
     await animationFrame();
-    await waitFor(".o_dialog .o_form_view");
+    await waitFor(DIALOG_FORM);
     expect(".o_dialog .o_form_button_remove").toHaveCount(0);
 });
 
 test("002b A42: Delete removes and closes both", async () => {
     await mountTimeline();
     await openDialog(BUILD);
-    await contains(".o_dialog .o_form_button_remove").click();
+    await contains(DIALOG_REMOVE).click();
     await animationFrame();
     expect(".o_dialog").toHaveCount(2);
     expect(".o_dialog .modal-footer .btn-danger").toHaveText("Delete");
@@ -239,7 +242,7 @@ test("002b A42: Delete removes and closes both", async () => {
 test("002b A43: No, keep it keeps the record dialog", async () => {
     await mountTimeline();
     await openDialog(BUILD);
-    await contains(".o_dialog .o_form_button_remove").click();
+    await contains(DIALOG_REMOVE).click();
     await animationFrame();
     await contains('.o_dialog .modal-footer button:contains("No, keep it")').click();
     await animationFrame();
@@ -255,7 +258,7 @@ test("002b A1b: refused unlink shows the error and reloads", async () => {
     });
     await mountTimeline();
     await openDialog(BUILD);
-    await contains(".o_dialog .o_form_button_remove").click();
+    await contains(DIALOG_REMOVE).click();
     await animationFrame();
     await contains(".o_dialog .modal-footer .btn-danger").click();
     await animationFrame();
@@ -288,7 +291,7 @@ test("002b E4: a second open while one is pending or open does nothing", async (
     editor.openRecord(BUILD);
     await editor.openRecord(BUILD); // returns at once
     release();
-    await waitFor(".o_dialog .o_form_view");
+    await waitFor(DIALOG_FORM);
     await animationFrame();
     expect(".o_dialog").toHaveCount(1);
     // while the dialog is open, another call does nothing
@@ -299,6 +302,6 @@ test("002b E4: a second open while one is pending or open does nothing", async (
     await contains(".o_dialog .o_form_button_cancel").click();
     await animationFrame();
     editor.openRecord(DEPLOY);
-    await waitFor(".o_dialog .o_form_view");
+    await waitFor(DIALOG_FORM);
     expect(".o_dialog").toHaveCount(1);
 });
