@@ -244,6 +244,23 @@ test("002b A42: Delete removes and closes both", async () => {
     expect(timelineMock.calls.length - before).toBe(1);
 });
 
+test("002b2 A66: Delete calls the model's plain unlink, once, with no other write", async () => {
+    let unlinkArgs = null;
+    onRpc("pill", "unlink", ({ args }) => {
+        unlinkArgs = args;
+    });
+    await mountTimeline();
+    await openDialog(BUILD);
+    await openRemoveConfirm();
+    await animationFrame();
+    await contains(".o_dialog .modal-footer .btn-danger").click();
+    await animationFrame();
+    expect(calls("unlink")).toHaveLength(1);
+    expect(unlinkArgs).toEqual([[BUILD]]);
+    expect(calls("write")).toHaveLength(0);
+    expect(calls("web_save")).toHaveLength(0);
+});
+
 test("002b A43: No, keep it keeps the record dialog", async () => {
     await mountTimeline();
     await openDialog(BUILD);

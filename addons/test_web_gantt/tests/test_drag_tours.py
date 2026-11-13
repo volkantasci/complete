@@ -90,3 +90,9 @@ class TestTimelineDragTours(HttpCase):
         count = self.env[PILL].search_count([])
         self._tour('h3', 'timeline_002b2_a68_click_lock')
         self.assertEqual(self.env[PILL].search_count([]), count)
+
+    # -- the record dialog (R21) ----------------------------------------------------------------
+
+    def test_a66_tour_delete_offline(self):
+        self._tour('h1', 'timeline_002b2_a66_delete_offline')
+        self.assertTrue(self.records['Build'].exists(), 'Build was deleted')

@@ -392,3 +392,143 @@ tours.add("timeline_002b2_a68_click_lock", {
         },
     ],
 });
+
+// A66 and A69: the record dialog of H1 and of H28 (R21, R24)
+const buttonOf = (root, text) =>
+    $$("button", root).find((button) => button.textContent.trim() === text);
+const dialogTitled = (title) =>
+    $$(".o_dialog").find((dialog) => $(".modal-title", dialog)?.textContent.trim() === title);
+const pillNamed = (name) =>
+    $$(".o_tl_pill").find((pill) => $(".o_tl_pill_title", pill).textContent.trim() === name);
+
+function doubleClick(element) {
+    const rect = element.getBoundingClientRect();
+    const x = (rect.left + rect.right) / 2;
+    const y = (rect.top + rect.bottom) / 2;
+    const fire = (type) =>
+        element.dispatchEvent(
+            new PointerEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                pointerId: 1,
+                pointerType: "mouse",
+                isPrimary: true,
+                button: 0,
+                buttons: type === "pointerup" ? 0 : 1,
+                clientX: x,
+                clientY: y,
+            })
+        );
+    for (const detail of [1, 2]) {
+        fire("pointerdown");
+        fire("pointerup");
+        element.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true, clientX: x, clientY: y, detail })
+        );
+    }
+    element.dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true, cancelable: true, clientX: x, clientY: y, detail: 2 })
+    );
+}
+
+/**
+ * Log the requests the page sends; while `network.down` is true they fail the way a lost
+ * connection does (the request's error event, which the Community turns into a connection-lost
+ * error), without reaching the server.
+ */
+function watchNetwork() {
+    const open = XMLHttpRequest.prototype.open;
+    const send = XMLHttpRequest.prototype.send;
+    const network = { down: false, log: [] };
+    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+        this.__url = String(url);
+        return open.call(this, method, url, ...rest);
+    };
+    XMLHttpRequest.prototype.send = function (payload) {
+        network.log.push({ url: this.__url, body: typeof payload === "string" ? payload : "" });
+        if (network.down) {
+            setTimeout(() => {
+                this.dispatchEvent(new ProgressEvent("error"));
+                this.dispatchEvent(new ProgressEvent("loadend"));
+            }, 0);
+            return;
+        }
+        return send.call(this, payload);
+    };
+    network.stop = () => {
+        XMLHttpRequest.prototype.open = open;
+        XMLHttpRequest.prototype.send = send;
+    };
+    return network;
+}
+
+const unlinksOf = (network) => network.log.filter((entry) => entry.url.endsWith("/unlink"));
+const writesOf = (network) => network.log.filter((entry) => /web_save|\/write/.test(entry.url));
+
+tours.add("timeline_002b2_a66_delete_offline", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                doubleClick(await until(() => pillNamed("Build"), "Build"));
+                const dialog = await until(() => dialogTitled("Open"), "the record dialog");
+                const remove = await until(() => buttonOf(dialog, "Remove"), "Remove");
+                const network = watchNetwork();
+                try {
+                    remove.click();
+                    const confirm = await until(
+                        () => $$(".o_dialog").find((item) => buttonOf(item, "Delete")),
+                        "the confirmation"
+                    );
+                    network.down = true;
+                    buttonOf(confirm, "Delete").click();
+                    await until(() => $(".o_offline_systray"), "the offline indicator");
+                    await until(() => $$(".o_dialog").length === 1, "the confirmation to close");
+                    const open = dialogTitled("Open");
+                    assert(open, "the record dialog is gone");
+                    // (the Community keeps its own default footer button hidden and enabled)
+                    const buttons = $$(".modal-footer button", open).filter(
+                        (button) => button.getClientRects().length
+                    );
+                    assert(buttons.length, "the record dialog has no buttons");
+                    for (const button of buttons) {
+                        assert(
+                            button.disabled,
+                            `button "${button.textContent.trim()}" is enabled while offline`
+                        );
+                    }
+                    // the plain deletion of the model, sent once and never queued
+                    const unlinks = unlinksOf(network);
+                    assert(unlinks.length === 1, `${unlinks.length} unlink calls`);
+                    assert(
+                        unlinks[0].url.includes("/web/dataset/call_kw/test.web.gantt.pill/unlink"),
+                        `the deletion went to ${unlinks[0].url}`
+                    );
+                    assert(!writesOf(network).length, "a write was sent");
+                    // the connection comes back
+                    network.down = false;
+                    window.dispatchEvent(new Event("online"));
+                    await until(() => !$(".o_offline_systray"), "the offline indicator to go");
+                    await until(
+                        () =>
+                            $$(".modal-footer button", dialogTitled("Open"))
+                                .filter((b) => b.getClientRects().length)
+                                .every((b) => !b.disabled),
+                        "the buttons to be enabled again"
+                    );
+                    assert(buttonOf(dialogTitled("Open"), "Remove"), "Remove is gone");
+                    await sleep(2500);
+                    assert(unlinksOf(network).length === 1, "a deletion was sent again");
+                    buttonOf(dialogTitled("Open"), "Discard").click();
+                    await until(() => !$(".o_dialog"), "the dialog to close");
+                    await gridSettled();
+                    assert(pillNamed("Build"), "Build is gone from the view");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
