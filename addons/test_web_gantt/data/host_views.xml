@@ -7,6 +7,7 @@
         <field name="arch" type="xml">
             <search>
                 <field name="name"/>
+                <field name="parent_id"/>
                 <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
                 <group>
                     <filter name="group_parent" string="Parent" context="{'group_by': 'parent_id'}"/>
@@ -262,6 +263,243 @@
         <field name="domain">[('name', '=like', 'MIX%')]</field>
     </record>
 
+    <record id="host_view_h16_form" model="ir.ui.view">
+        <field name="name">H16 Default form</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="priority">1</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="parent_id"/>
+                        <field name="x_contact"/>
+                        <field name="x_tags" widget="many2many_tags"/>
+                        <field name="date_start"/>
+                        <field name="date_stop"/>
+                        <field name="x_color"/>
+                        <field name="x_progress"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="host_view_h16_list" model="ir.ui.view">
+        <field name="name">H16 Default list</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="priority">1</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="parent_id"/>
+                <field name="date_start"/>
+                <field name="date_stop"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="host_view_short_form" model="ir.ui.view">
+        <field name="name">Short form</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="priority">50</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="name"/>
+                    <field name="date_start"/>
+                    <field name="date_stop"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <record id="host_action_h16" model="ir.actions.act_window">
+        <field name="name">H16 Default views</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_quick_create" model="ir.actions.act_window">
+        <field name="name">Host quick create</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="host_view_short_form"/>
+        <field name="target">new</field>
+    </record>
+
+    <record id="host_view_h17" model="ir.ui.view">
+        <field name="name">H17 Short form</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" plan="0" form_view_id="%(host_view_short_form)d"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h18" model="ir.ui.view">
+        <field name="name">H18 No plan</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" plan="0"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h19" model="ir.ui.view">
+        <field name="name">H19 Read only</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" edit="0"><field name="x_done"/><popover><templates><t t-name="popover-body"><div><field name="name"/></div><div class="d-flex align-items-center gap-2"><span class="o_form_label">Done</span><field name="x_done" widget="boolean_toggle"/></div></t></templates></popover></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h20" model="ir.ui.view">
+        <field name="name">H20 No create</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" create="0"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h21" model="ir.ui.view">
+        <field name="name">H21 No delete</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" delete="0" plan="0"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h22" model="ir.ui.view">
+        <field name="name">H22 Create action</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" on_create="test_web_gantt.host_quick_create"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h23" model="ir.ui.view">
+        <field name="name">H23 No cell create</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" cell_create="0" plan="0"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h24" model="ir.ui.view">
+        <field name="name">H24 Editable popover</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" decoration-info="x_done"><field name="x_done"/><popover><templates><t t-name="popover-body"><div><field name="name"/></div><div class="d-flex align-items-center gap-2"><span class="o_form_label">Done</span><field name="x_done" widget="boolean_toggle"/></div><button type="object" name="action_archive" class="btn btn-sm btn-secondary">Archive</button></t></templates></popover></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h25" model="ir.ui.view">
+        <field name="name">H25 Dated no plan</field>
+        <field name="model">test.web.gantt.pill2</field>
+        <field name="arch" type="xml">
+            <gantt string="Dated pills" default_range="month" scales="day,week,month" date_start="date_start" date_stop="date_stop" plan="0"></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h17" model="ir.actions.act_window">
+        <field name="name">H17 Short form</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h17"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h18" model="ir.actions.act_window">
+        <field name="name">H18 No plan</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h18"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h19" model="ir.actions.act_window">
+        <field name="name">H19 Read only</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h19"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h20" model="ir.actions.act_window">
+        <field name="name">H20 No create</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h20"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h21" model="ir.actions.act_window">
+        <field name="name">H21 No delete</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h21"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h22" model="ir.actions.act_window">
+        <field name="name">H22 Create action</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h22"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h23" model="ir.actions.act_window">
+        <field name="name">H23 No cell create</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h23"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h24" model="ir.actions.act_window">
+        <field name="name">H24 Editable popover</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h24"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h25" model="ir.actions.act_window">
+        <field name="name">H25 Dated no plan</field>
+        <field name="res_model">test.web.gantt.pill2</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h25"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h26" model="ir.actions.act_window">
+        <field name="name">H26 No plan by parent</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h18"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h27" model="ir.actions.act_window">
+        <field name="name">H27 No plan by tags</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h18"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['x_tags']}</field>
+    </record>
+
     <menuitem id="host_menu_root" name="Gantt Host" sequence="900" groups="base.group_user"/>
     <menuitem id="host_menu_h1" name="H1 Main" parent="host_menu_root" action="host_action_h1" sequence="1"/>
     <menuitem id="host_menu_h2" name="H2 Main by parent" parent="host_menu_root" action="host_action_h2" sequence="2"/>
@@ -277,4 +515,16 @@
     <menuitem id="host_menu_h12" name="H12 Unavailability" parent="host_menu_root" action="host_action_h12" sequence="12"/>
     <menuitem id="host_menu_h14" name="H14 Mix A" parent="host_menu_root" action="host_action_h14" sequence="14"/>
     <menuitem id="host_menu_h15" name="H15 Mix B" parent="host_menu_root" action="host_action_h15" sequence="15"/>
+    <menuitem id="host_menu_h16" name="H16 Default views" parent="host_menu_root" action="host_action_h16" sequence="16"/>
+    <menuitem id="host_menu_h17" name="H17 Short form" parent="host_menu_root" action="host_action_h17" sequence="17"/>
+    <menuitem id="host_menu_h18" name="H18 No plan" parent="host_menu_root" action="host_action_h18" sequence="18"/>
+    <menuitem id="host_menu_h19" name="H19 Read only" parent="host_menu_root" action="host_action_h19" sequence="19"/>
+    <menuitem id="host_menu_h20" name="H20 No create" parent="host_menu_root" action="host_action_h20" sequence="20"/>
+    <menuitem id="host_menu_h21" name="H21 No delete" parent="host_menu_root" action="host_action_h21" sequence="21"/>
+    <menuitem id="host_menu_h22" name="H22 Create action" parent="host_menu_root" action="host_action_h22" sequence="22"/>
+    <menuitem id="host_menu_h23" name="H23 No cell create" parent="host_menu_root" action="host_action_h23" sequence="23"/>
+    <menuitem id="host_menu_h24" name="H24 Editable popover" parent="host_menu_root" action="host_action_h24" sequence="24"/>
+    <menuitem id="host_menu_h25" name="H25 Dated no plan" parent="host_menu_root" action="host_action_h25" sequence="25"/>
+    <menuitem id="host_menu_h26" name="H26 No plan by parent" parent="host_menu_root" action="host_action_h26" sequence="26"/>
+    <menuitem id="host_menu_h27" name="H27 No plan by tags" parent="host_menu_root" action="host_action_h27" sequence="27"/>
 </odoo>

@@ -136,6 +136,11 @@ class TimelineHostPill(models.Model):
                 'date_start': datetime.combine(day, time(10, 0)),
                 'date_stop': datetime.combine(day, time(12, 0)),
             })
+        # H26 gives Gamma as the default Parent of the records created from its view
+        action = self.env.ref('test_web_gantt.host_action_h26', raise_if_not_found=False)
+        if action:
+            action.sudo().context = str(
+                {'group_by': ['parent_id'], 'default_parent_id': built['Gamma'].id})
         pill2 = self.env['test.web.gantt.pill2']
         for name, first, last in (
             ('Day one', 0, 0), ('Three days', -1, 1), ('Next month', 25, 40),
