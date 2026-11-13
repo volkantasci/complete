@@ -206,7 +206,9 @@ test("A41 Undo of a copy deletes the copy: kind copy on the new id", async () =>
     expect(copy.default).toEqual(COPY_VALUES);
     expect(sequence()).toEqual(["copy", "reload"]);
     expect(noticeText()).toEqual(["Record copied"]);
-    const copies = MockServer.current.env.pill.filter((record) => record.id !== resId && record.name.startsWith("Review"));
+    const copies = MockServer.current.env.pill.filter(
+        (record) => record.id !== resId && record.name.startsWith("Review")
+    );
     expect(copies).toHaveLength(1);
     log.length = 0;
     await contains(".o_notification .o_notification_buttons button").click();
@@ -453,4 +455,62 @@ test("Review Focus 3: the model disposed before the answer does not throw", asyn
     // an undo after the view was left is not shown either
     expect(await editor().undoChange({ kind: "move", resId: 6, values: { a: 1 } })).toBe(true);
     expect(notices()).toHaveCount(0);
+});
+
+test("R-T10-1 leaving the view closes its change notification", async () => {
+    await mountTimeline();
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    expect(notices()).toHaveCount(1);
+    // what the controller does when it unmounts
+    controller.model.dispose();
+    await animationFrame();
+    expect(notices()).toHaveCount(0);
+});
+
+test("R-T10-2 an undo that fails with an error closes the notification of the change", async () => {
+    await mountTimeline();
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    onRpc("gantt_undo_drag_drop", () => {
+        throw new Error("Access denied");
+    });
+    const source = editor()._current;
+    const failure = await settled(
+        editor().undoChange({ kind: "move", resId: 6, values: {}, source })
+    );
+    await animationFrame();
+    expect(failure).not.toBe(null);
+    expect(notices()).toHaveCount(0);
+});
+
+test("R-T10-6 the result of an older Undo does not close a newer change's notification", async () => {
+    await mountTimeline();
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    const release = holdWrites();
+    // a second change whose write is pending, then Undo of the first one
+    const second = editor().applyChange({
+        kind: "resize",
+        resId: pill("Build").id,
+        values: { date_stop: "2026-11-14 15:00:00" },
+        undo: { values: { date_stop: "2026-11-13 15:00:00" } },
+    });
+    await animationFrame();
+    await contains(".o_notification .o_notification_buttons button").click();
+    await animationFrame();
+    // the used Undo went, nothing else is shown while both wait
+    expect(notices()).toHaveCount(0);
+    release();
+    await second;
+    await animationFrame();
+    await animationFrame();
+    // the undo ran after the write; its result sits beside the newer change's notification
+    expect(noticeText().sort()).toEqual(["Change undone", "Dates changed"]);
+    expect(".o_notification:contains(Dates changed) .o_notification_buttons button").toHaveCount(1);
+    // the newer notification is still the one the next change closes
+    writeGate = null;
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    expect(noticeText().sort()).toEqual(["Change undone", "Dates changed"]);
 });

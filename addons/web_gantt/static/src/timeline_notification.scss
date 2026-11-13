@@ -4,18 +4,36 @@
 // The Community notification shows a coloured bar and no icon: the notifications of a change
 // and of its Undo (success and danger alike) carry a check icon before the message (R10).
 .o_notification.o_tl_notification {
-    .o_notification_body {
-        justify-content: flex-start !important;
+    .o_notification_body::before {
+        content: "check";
+        flex: 0 0 auto;
+        margin-inline-end: map-get($spacers, 2);
+        // what the Community's icon font needs to draw a ligature reliably
+        display: inline-block;
+        font-family: "Material Symbols Outlined";
+        font-style: normal;
+        font-weight: 400;
+        font-size: 1.25em;
+        line-height: 1.2;
+        letter-spacing: normal;
+        text-transform: none;
+        white-space: nowrap;
+        word-wrap: normal;
+        word-break: keep-all;
+        /*rtl:ignore*/
+        direction: ltr;
+        text-rendering: geometricPrecision;
+        font-feature-settings: "liga";
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
 
-        &::before {
-            content: "check";
-            flex: 0 0 auto;
-            margin-inline-end: map-get($spacers, 2);
-            font-family: "Material Symbols Outlined";
-            font-size: 1.25em;
-            line-height: 1.2;
-            font-feature-settings: "liga";
-            -webkit-font-smoothing: antialiased;
+    // below the medium size the Community spreads message and buttons; with the icon as a third
+    // item the message would drift to the middle: icon and message stay at the start, the
+    // buttons (already pushed by an automatic margin) at the end, as on the phone screenshot
+    @include media-breakpoint-down(md) {
+        .o_notification_body {
+            justify-content: flex-start !important;
         }
     }
 }

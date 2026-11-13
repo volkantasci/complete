@@ -45,6 +45,8 @@ export class TimelineEditor {
         this.model = model;
         this.archInfo = archInfo;
         this.services = services;
+        // the Community notifications are global: this view's go when the view is left
+        model.onDispose(() => this.closeNotification());
     }
 
     /** R6: the context of a creation for `period`, in `row` when given. */
@@ -218,10 +220,11 @@ export class TimelineEditor {
         const { model, services } = this;
         const { orm } = services;
         const context = model.context;
-        return model.queueWrite(async () => {
-            let newId = resId;
-            try {
-                if (kind === "copy") {
+        const isCopy = kind === "copy";
+        let newId = resId;
+        return this._queueChange({
+            send: async () => {
+                if (isCopy) {
                     const copied = await orm.call(model.resModel, "copy", [[resId]], {
                         default: values,
                         context,
@@ -230,86 +233,111 @@ export class TimelineEditor {
                 } else {
                     await orm.write(model.resModel, [resId], values, { context });
                 }
-            } catch (error) {
-                if (kind !== "copy" && !model.disposed) {
-                    // only to draw the pill again from its stored values
-                    await model.reload().catch(() => {});
-                }
-                throw error;
-            }
-            try {
-                if (!model.disposed) {
-                    await model.reload();
-                }
-            } finally {
+                return true;
+            },
+            // only to draw the pill again from its stored values
+            reloadOnRefusal: !isCopy,
+            announce: () =>
                 this._notifyChange({
-                    message: kind === "copy" ? _t("Record copied") : _t("Dates changed"),
-                    undo: { kind, resId: newId, values: kind === "copy" ? {} : undo?.values || {} },
-                });
-            }
-            return true;
+                    message: isCopy ? _t("Record copied") : _t("Dates changed"),
+                    undo: { kind, resId: newId, values: isCopy ? {} : undo?.values || {} },
+                }),
         });
     }
 
     /**
      * R10: take a change back on the server and tell the user. `undo` is the descriptor of the
      * notification: `{kind: "move"|"resize"|"copy", resId, values}`, `resId` being the copy for
-     * a copy. The view reloads whatever the answer. Resolves `true` when it was undone.
+     * a copy. The view reloads whatever the answer. Resolves `true` when it was undone. When the
+     * call itself fails, the notification of the change is closed and the error is passed on.
      * @returns {Promise<boolean>}
      */
-    undoChange({ kind, resId, values }) {
+    undoChange(undo) {
         const { model, services } = this;
+        const { kind, resId, values, source } = undo;
         const isCopy = kind === "copy";
-        return model.queueWrite(async () => {
-            let done;
-            try {
-                done = await services.orm.call(model.resModel, "gantt_undo_drag_drop", [[resId]], {
+        return this._queueChange({
+            send: () =>
+                services.orm.call(model.resModel, "gantt_undo_drag_drop", [[resId]], {
                     drag_kind: isCopy ? "copy" : "reschedule",
                     values: isCopy ? {} : values,
                     context: model.context,
-                });
+                }),
+            reloadOnRefusal: true,
+            refused: () => this._closeIfCurrent(source),
+            announce: (done) =>
+                this._notifyChange({
+                    message: done
+                        ? isCopy
+                            ? _t("Copy removed")
+                            : _t("Change undone")
+                        : isCopy
+                        ? _t("This copy could not be removed")
+                        : _t("This change could not be undone"),
+                    failed: !done,
+                    replaces: source,
+                }),
+        }).then(Boolean);
+    }
+
+    /**
+     * The one pattern of a write of this view (R15): `send` after the writes queued before, then
+     * reload and `announce(result)`; when `send` rejects, `refused` runs, the view reloads when
+     * `reloadOnRefusal` (errors of that reload ignored) and the rejection is passed on. Nothing
+     * is reloaded or announced once the view is left.
+     */
+    _queueChange({ send, reloadOnRefusal, refused, announce }) {
+        const { model } = this;
+        const reload = () => (model.disposed ? undefined : model.reload());
+        return model.queueWrite(async () => {
+            let result;
+            try {
+                result = await send();
             } catch (error) {
-                if (!model.disposed) {
-                    await model.reload().catch(() => {});
+                refused?.();
+                if (reloadOnRefusal) {
+                    await reload()?.catch(() => {});
                 }
                 throw error;
             }
             try {
-                if (!model.disposed) {
-                    await model.reload();
-                }
+                await reload();
             } finally {
-                const message = done
-                    ? isCopy
-                        ? _t("Copy removed")
-                        : _t("Change undone")
-                    : isCopy
-                    ? _t("This copy could not be removed")
-                    : _t("This change could not be undone");
-                this._notifyChange({ message, failed: !done });
+                announce(result);
             }
-            return !!done;
+            return result;
         });
     }
 
     /** Close the notification of the last change, if it is still shown. */
     closeNotification() {
-        this._closeNotification?.();
-        this._closeNotification = null;
+        this._current?.close();
+        this._current = null;
+    }
+
+    _closeIfCurrent(source) {
+        if (this._current && this._current === source) {
+            this.closeNotification();
+        }
     }
 
     /**
      * R10: one notification of this view at a time; it replaces the previous one. Without an
      * `undo` it is a result (no Undo button); `failed` makes it a danger one. Nothing is shown
-     * once the view is left.
+     * once the view is left. A result of an Undo (`replaces`: the notification it came from)
+     * does not close a notification of a newer change: it is shown beside it (R-T10-6).
      */
-    _notifyChange({ message, undo, failed = false }) {
-        this.closeNotification();
+    _notifyChange({ message, undo, failed = false, replaces }) {
+        const newer = replaces && this._current && this._current !== replaces;
+        if (!newer) {
+            this.closeNotification();
+        }
         if (this.model.disposed) {
             return;
         }
         const type = failed ? "danger" : "success";
         const options = { type, className: `o_tl_notification o_tl_notification_${type}` };
+        const handle = {};
         if (undo) {
             let used = false;
             options.buttons = [
@@ -317,16 +345,20 @@ export class TimelineEditor {
                     name: _t("Undo"),
                     icon: "undo",
                     onClick: () => {
-                        // a second click while the undo runs does nothing
+                        // a second click while the undo runs does nothing; the used Undo goes
                         if (!used) {
                             used = true;
-                            this.undoChange(undo);
+                            this._closeIfCurrent(handle);
+                            this.undoChange({ ...undo, source: handle });
                         }
                     },
                 },
             ];
         }
-        this._closeNotification = this.services.notification.add(message, options);
+        handle.close = this.services.notification.add(message, options);
+        if (!newer) {
+            this._current = handle;
+        }
     }
 
     /**

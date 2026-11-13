@@ -93,6 +93,7 @@ export class TimelineModel extends Model {
         this._waiters = [];
         this._writes = new Set();
         this._writeTail = Promise.resolve();
+        this._onDispose = [];
         this._publish();
     }
 
@@ -183,9 +184,17 @@ export class TimelineModel extends Model {
     /** Stop the pending step: the view is left. */
     dispose() {
         this.disposed = true;
+        for (const callback of this._onDispose) {
+            callback();
+        }
         browser.clearTimeout(this._timer);
         this._timer = null;
         this._waiters = [];
+    }
+
+    /** Run `callback` when the view is left (the model is disposed). */
+    onDispose(callback) {
+        this._onDispose.push(callback);
     }
 
     /** R10: register a write in flight; returns the same promise. */
@@ -202,6 +211,7 @@ export class TimelineModel extends Model {
     /**
      * R15: run `fn` once every write queued before it has settled (refused or not), one at a
      * time. The write is tracked like any other (`whenWritesDone`). Returns the promise of `fn`.
+     * `fn` must not await `whenWritesDone` or `queueWrite` itself: it would wait for itself.
      * @param {() => any} fn
      */
     queueWrite(fn) {
