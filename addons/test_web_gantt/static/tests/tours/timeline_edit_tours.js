@@ -237,18 +237,18 @@ function spyRequests({ hold = null, onResponse = null, onSend = null } = {}) {
         }
         return open.call(this, method, url, ...rest);
     };
-    XMLHttpRequest.prototype.send = function (body) {
+    XMLHttpRequest.prototype.send = function sendThroughGate(payload) {
         const url = this.__tlUrl || "";
-        const entry = { url, body: typeof body === "string" ? body : "" };
+        const entry = { url, body: typeof payload === "string" ? payload : "" };
         log.push(entry);
         if (onSend) {
             onSend(url);
         }
         if (hold && hold(url)) {
-            gate.then(() => send.call(this, body));
+            gate.then(() => send.call(this, payload));
             return;
         }
-        return send.call(this, body);
+        return send.call(this, payload);
     };
     return log;
 }

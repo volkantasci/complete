@@ -32,11 +32,13 @@ class TestEditHost(TransactionCase):
 
     def _restricted_user(self):
         login = f'restricted_{uuid.uuid4().hex[:8]}'
-        return self.env['res.users'].create({
+        internal_group = self.env.ref('base.group_user')
+        values = {
             'name': 'Restricted editor',
             'login': login,
-            'group_ids': [Command.set([self.env.ref('base.group_user').id])],
-        })
+            'group_ids': [Command.set(internal_group.ids)],
+        }
+        return self.env['res.users'].create(values)
 
     def test_002b_host_views_load(self):
         for xmlid, attrs in EDIT_VIEWS.items():
