@@ -7,6 +7,12 @@
     background: transparent;
 }
 
+// On a desktop screen the popover hangs two pixels lower than the arrow gap alone puts it (M15,
+// M28): the margin is part of the position the popover service computes.
+.o_popover:has(> .o_tl_popover:not(.o_tl_popover_sheet)) {
+    margin-top: $o-tl-popover-extra-gap;
+}
+
 .o_tl_popover {
     position: relative;
     display: flex;
@@ -32,6 +38,12 @@
             // the body is `p-3` (an important utility)
             padding: $o-tl-popover-body-padding-y $o-tl-popover-body-padding-x !important;
         }
+    }
+
+    // the button of the footer sits one pixel nearer to the start edge than the `p-3` padding
+    // would put it (M15, M16, M28, M31)
+    .o_popover_footer {
+        padding-inline-start: $o-tl-popover-footer-padding-start !important;
     }
 
     // the cross sits in the top right corner of the header

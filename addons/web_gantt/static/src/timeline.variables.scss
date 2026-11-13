@@ -47,6 +47,8 @@ $o-tl-custom-line-padding-x: 20.525px !default;
 $o-tl-popover-header-bg: $o-gray-200 !default;
 $o-tl-popover-body-padding-x: 30px !default;
 $o-tl-popover-body-padding-y: 23.5px !default;
+$o-tl-popover-footer-padding-start: 15px !default;
+$o-tl-popover-extra-gap: 2px !default;
 
 // The highlight of a selection being drawn (M1): the view's own teal, the same in both schemes.
 $o-tl-selection-bg: rgba(0, 160, 157, .3) !default;
