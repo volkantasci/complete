@@ -225,7 +225,7 @@ test("002b A42: Delete removes and closes both", async () => {
     expect('.o_dialog .modal-footer button:contains("No, keep it")').toHaveCount(1);
     // the dialog's own wording, in the paragraphs the screen S6 has (not Community's default text)
     expect(".o_dialog .modal-title:last").toHaveText("Remove this record?");
-    expect(".o_dialog .modal-body:last").not.toHaveText(/thin air/);
+    expect(".o_dialog .modal-body:last").not.toHaveText(/gone forever|Think twice|thin air|Bye-bye/);
     expect(".o_dialog .modal-body:last").toHaveText(/removed for good/);
     const before = timelineMock.calls.length;
     await contains(".o_dialog .modal-footer .btn-danger").click();

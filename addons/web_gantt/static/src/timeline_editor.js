@@ -213,7 +213,7 @@ export class TimelineEditor {
                     {
                         title: _t("Remove this record?"),
                         body: _t(
-                            "This record will be removed for good.\nNo one can bring it back afterwards.\n\nChoose Delete only if you are certain."
+                            "This record will be removed for good.\nNo one can bring it back afterwards.\n\nDeleting is permanent."
                         ),
                         confirmLabel: _t("Delete"),
                         confirmClass: "btn-danger",

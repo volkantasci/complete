@@ -47,6 +47,9 @@
     // would put it (M15, M16, M28, M31)
     .o_popover_footer {
         padding-inline-start: $o-tl-popover-footer-padding-start !important;
+        // the lines between header, body and footer are the colour of the popover's own border
+        // (the page border colour of the dark scheme is the colour of the popover itself)
+        border-top-color: $popover-border-color !important;
     }
 
     // the cross sits in the top right corner of the header
@@ -54,19 +57,10 @@
         z-index: 1;
     }
 
-    // the lines between header, body and footer are the colour of the popover's own border (the
-    // page border colour of the dark scheme is the colour of the popover itself)
-    .o_popover_header {
-        border-bottom-color: $popover-border-color !important;
-    }
-
-    .o_popover_footer {
-        border-top-color: $popover-border-color !important;
-    }
-
     // the record name on a light grey band
     .o_popover_header {
         background-color: $o-tl-popover-header-bg;
+        border-bottom-color: $popover-border-color !important;
         // leave room for the cross
         &::after {
             content: "";
