@@ -18,6 +18,8 @@ EDIT_VIEWS = {
     'host_view_h22': {'on_create': 'test_web_gantt.host_quick_create'},
     'host_view_h23': {'cell_create': '0', 'plan': '0'},
     'host_view_h24': {'decoration-info': 'x_done'},
+    'host_view_h28': {'plan': '0', 'edit': '1', 'delete': '1'},
+    'host_view_h29': {'plan': '0', 'edit': '1', 'delete': '1', 'form_view_id': None},
 }
 
 
@@ -85,11 +87,26 @@ class TestEditHost(TransactionCase):
         default_form = self.env[PILL].get_views([(False, 'form')])['views']['form']
         self.assertEqual(default_form['id'], self.env.ref(XML + 'host_view_h16_form').id)
         # actions and menus
-        for number in range(17, 28):
+        for number in range(17, 30):
             action = self.env.ref(f'{XML}host_action_h{number}')
             self.assertEqual(action.view_mode, 'gantt,list,form')
-        for number in range(16, 28):
+        for number in range(16, 30):
             self.assertTrue(self.env.ref(f'{XML}host_menu_h{number}'))
+        # H28 names no form view; H29 names its own form, which sets edit, create and delete
+        self.assertIsNone(self._arch('host_view_h28').get('form_view_id'))
+        self.assertEqual(
+            int(self._arch('host_view_h29').get('form_view_id')),
+            self.env.ref(XML + 'host_view_h29_form').id)
+        h29_form = self._arch('host_view_h29_form', 'form')
+        self.assertEqual(
+            [f.get('name') for f in h29_form.iter('field')], ['name', 'date_start', 'date_stop'])
+        for key in ('edit', 'create', 'delete'):
+            self.assertEqual(h29_form.get(key), '1', key)
+        # H16's form (the default one) names no permission, and H29's form does not replace it
+        h16_form = self._arch('host_view_h16_form', 'form')
+        for key in ('edit', 'create', 'delete'):
+            self.assertIsNone(h16_form.get(key), key)
+        self.assertGreater(self.env.ref(XML + 'host_view_h29_form').priority, 1)
         quick = self.env.ref(XML + 'host_quick_create')
         self.assertEqual((quick.res_model, quick.target), (PILL, 'new'))
         self.assertEqual(quick.name, 'Host quick create')
@@ -112,6 +129,18 @@ class TestEditHost(TransactionCase):
         })
         views = self.env[PILL].with_user(user).get_views([(view.id, 'gantt')])['views']
         self.assertEqual(etree.fromstring(views['gantt']['arch']).get('delete'), '1')
+        # H28 and H29 set edit and delete to yes: the restricted user keeps both, create is off
+        for xmlid in ('host_view_h28', 'host_view_h29'):
+            arch = self._arch(xmlid, user=user)
+            self.assertEqual((arch.get('edit'), arch.get('delete')), ('1', '1'), xmlid)
+            self.assertEqual(arch.get('create'), 'False', xmlid)
+        # the default form switches its own edit off for the user; H29's form says yes
+        h16_form = self._arch('host_view_h16_form', 'form', user=user)
+        self.assertEqual(h16_form.get('edit'), 'False')
+        h29_form = self._arch('host_view_h29_form', 'form', user=user)
+        self.assertEqual(
+            (h29_form.get('edit'), h29_form.get('create'), h29_form.get('delete')),
+            ('1', '1', '1'))
 
     def test_002b_h26_default_parent(self):
         built = self.env[PILL]._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)

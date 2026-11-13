@@ -402,6 +402,37 @@
         </field>
     </record>
 
+    <record id="host_view_h28" model="ir.ui.view">
+        <field name="name">H28 Explicit yes</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" plan="0" edit="1" delete="1"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h29_form" model="ir.ui.view">
+        <field name="name">H29 Form with explicit yes</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="priority">60</field>
+        <field name="arch" type="xml">
+            <form edit="1" create="1" delete="1">
+                <group>
+                    <field name="name"/>
+                    <field name="date_start"/>
+                    <field name="date_stop"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <record id="host_view_h29" model="ir.ui.view">
+        <field name="name">H29 Explicit yes with form</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" plan="0" edit="1" delete="1" form_view_id="%(host_view_h29_form)d"></gantt>
+        </field>
+    </record>
+
     <record id="host_action_h17" model="ir.actions.act_window">
         <field name="name">H17 Short form</field>
         <field name="res_model">test.web.gantt.pill</field>
@@ -500,6 +531,24 @@
         <field name="context">{'group_by': ['x_tags']}</field>
     </record>
 
+    <record id="host_action_h28" model="ir.actions.act_window">
+        <field name="name">H28 Explicit yes</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h28"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h29" model="ir.actions.act_window">
+        <field name="name">H29 Explicit yes with form</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h29"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
     <menuitem id="host_menu_root" name="Gantt Host" sequence="900" groups="base.group_user"/>
     <menuitem id="host_menu_h1" name="H1 Main" parent="host_menu_root" action="host_action_h1" sequence="1"/>
     <menuitem id="host_menu_h2" name="H2 Main by parent" parent="host_menu_root" action="host_action_h2" sequence="2"/>
@@ -527,4 +576,6 @@
     <menuitem id="host_menu_h25" name="H25 Dated no plan" parent="host_menu_root" action="host_action_h25" sequence="25"/>
     <menuitem id="host_menu_h26" name="H26 No plan by parent" parent="host_menu_root" action="host_action_h26" sequence="26"/>
     <menuitem id="host_menu_h27" name="H27 No plan by tags" parent="host_menu_root" action="host_action_h27" sequence="27"/>
+    <menuitem id="host_menu_h28" name="H28 Explicit yes" parent="host_menu_root" action="host_action_h28" sequence="28"/>
+    <menuitem id="host_menu_h29" name="H29 Explicit yes with form" parent="host_menu_root" action="host_action_h29" sequence="29"/>
 </odoo>
