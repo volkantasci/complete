@@ -128,3 +128,38 @@ class TimelineDragProbes(TimelineProbeCase):
                                  'left')
                 self.touch_event('touchEnd', [])
                 self.settle(500)
+
+    # -- M59 to M61: the search bar of the plan dialog (R22) ---------------------------
+
+    def open_plan_dialog(self):
+        """Click an empty cell of the Beta row of H2 and wait for the plan dialog's list."""
+        cell = f"{self.row('Beta')}.querySelector('.o_tl_cell[data-column=\"10\"]')"
+        self.js(f"{cell}.scrollIntoView({{block: 'nearest', inline: 'nearest'}})")
+        self.settle()
+        box = self.geometry(cell)
+        x = box['geometry.x'] + box['geometry.width'] / 2
+        y = box['geometry.y'] + box['geometry.height'] / 2
+        self.mouse('mouseMoved', x, y)
+        self.mouse('mousePressed', x, y, button='left', buttons=1, clickCount=1)
+        self.mouse('mouseReleased', x, y, button='left', buttons=0, clickCount=1)
+        self.wait("!!document.querySelector('.o_dialog .o_select_button')")
+        self.settle(500)
+
+    def test_002b2_a67_m59_m60_plan_search_bar_desktop(self):
+        bar = "document.querySelector('.o_dialog .o_searchview')"
+        field = "document.querySelector('.o_dialog .o_searchview_input')"
+        for scheme, viewport in self.combos(['M59', 'M60'], ('desktop',)):
+            with self.page(HOST.format('h2'), scheme, viewport, touch=False):
+                self.open_plan_dialog()
+                self.check('M59', bar, scheme, viewport, 'search bar of the plan dialog')
+                self.check('M60', field, scheme, viewport, 'text field of the search bar')
+
+    def test_002b2_a67_m61_plan_search_button_phone(self):
+        button = ("document.querySelector('.o_dialog .o_control_panel button:has("
+                  "[data-icon=\"search\"])')")
+        for scheme, viewport in self.combos(['M61'], ('phone',)):
+            with self.page(HOST.format('h2'), scheme, viewport, touch=False):
+                self.open_plan_dialog()
+                self.assertFalse(self.js("!!document.querySelector('.o_dialog .o_searchview')"),
+                                 'the bar is hidden until the button is pressed')
+                self.check('M61', button, scheme, viewport, 'search button next to the pager')
