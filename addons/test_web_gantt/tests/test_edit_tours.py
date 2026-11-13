@@ -10,7 +10,6 @@ is rolled back after it: every test starts from the records of `setUpClass`.
 import os
 import time
 from datetime import datetime, timedelta
-from unittest import skip
 
 from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
@@ -139,20 +138,33 @@ class TestTimelineEditTours(HttpCase):
     # -- restricted user ------------------------------------------------------------------------
 
     def test_002b_a44_tour_restricted_user(self):
+        count = self.env[PILL].search_count([])
         self._tour('h1', 'timeline_002b_a44_restricted_user', login=RESTRICTED)
+        # the positive control: the administrator's identical drag does select
+        self._tour('h1', 'timeline_002b_a44_control_admin_drag')
+        self.assertEqual(self.env[PILL].search_count([]), count)
 
-    @skip(
-        'blocked: for a user without write access the form of the record dialog is read-only '
-        '(its own view loses edit), so the dialog shows no Remove and the refusal of the server '
-        'cannot be reached from the interface; see the report of task 9')
     def test_002b_a1b_tour_explicit_yes_refused(self):
+        # a copy of H16's form that says edit and delete explicitly, so that the record dialog
+        # of the restricted user is editable and shows Remove (ruling O2b-6)
+        form = self.env['ir.ui.view'].create({
+            'name': 'H16 form copy with explicit yes',
+            'model': PILL,
+            'type': 'form',
+            'priority': 60,
+            'arch': (
+                '<form edit="1" delete="1"><sheet><group><field name="name"/>'
+                '<field name="date_start"/><field name="date_stop"/></group></sheet></form>'
+            ),
+        })
         view = self.env['ir.ui.view'].create({
             'name': 'H21 copy with explicit yes',
             'model': PILL,
             'type': 'gantt',
             'arch': (
                 '<gantt string="Pills" date_start="date_start" date_stop="date_stop" '
-                'default_range="week" color="x_color" delete="1" edit="1" plan="0"/>'
+                f'default_range="week" color="x_color" delete="1" edit="1" plan="0" '
+                f'form_view_id="{form.id}"/>'
             ),
         })
         action = self.env['ir.actions.act_window'].create({
@@ -192,7 +204,9 @@ class TestTimelineEditTours(HttpCase):
         admin = self.env.ref('base.user_admin')
         admin.lang = 'en_GB'
         self.addCleanup(lambda: setattr(admin, 'lang', 'en_US'))
+        count = self.env[PILL].search_count([])
         self._tour('h1', 'timeline_002b_a5b_new_week_monday')
+        self.assertEqual(self.env[PILL].search_count([]), count, 'a record was created')
 
     def test_002b_a27_tour_create_and_search(self):
         self._tour('h18', 'timeline_002b_a27_create_zeta')
@@ -200,7 +214,9 @@ class TestTimelineEditTours(HttpCase):
         self.assertEqual(zeta.date_start, self._at(3))
         self.assertEqual(zeta.date_stop, self._at(4))
         self._tour('h1', 'timeline_002b_a27_create_hidden_by_search')
-        self.assertTrue(self.env[PILL].search([('name', '=', 'Zeta 2')]))
+        zeta2 = self._pill('Zeta 2')
+        self.assertEqual(zeta2.date_start, self._at(3))
+        self.assertEqual(zeta2.date_stop, self._at(4))
 
     def test_002b_a39_tour_popover_switch(self):
         self.assertFalse(self.records['Build'].x_done)
