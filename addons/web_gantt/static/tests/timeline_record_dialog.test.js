@@ -11,6 +11,7 @@ import {
     onRpc,
     patchWithCleanup,
 } from "@web/../tests/web_test_helpers";
+import { deleteConfirmationMessage } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { localization } from "@web/core/l10n/localization";
 import { TimelineController } from "@web_gantt/timeline_controller";
 
@@ -226,10 +227,11 @@ test("002b A42: Delete removes and closes both", async () => {
     expect(".o_dialog").toHaveCount(2);
     expect(".o_dialog .modal-footer .btn-danger").toHaveText("Delete");
     expect('.o_dialog .modal-footer button:contains("No, keep it")').toHaveCount(1);
-    // the dialog's own wording, in the paragraphs the screen S6 has (not Community's default text)
-    expect(".o_dialog .modal-title:last").toHaveText("Remove this record?");
-    expect(".o_dialog .modal-body:last").not.toHaveText(/gone forever|Think twice|thin air|Bye-bye/);
-    expect(".o_dialog .modal-body:last").toHaveText(/removed for good/);
+    // the Community's own record-deletion texts
+    expect(".o_dialog .modal-title:last").toHaveText("Bye-bye, record!");
+    expect(queryAllTexts(".o_dialog .modal-body:last").map((text) => text.replace(/\s+/g, " "))).toEqual([
+        deleteConfirmationMessage.toString().replace(/\s+/g, " "),
+    ]);
     const before = timelineMock.calls.length;
     await contains(".o_dialog .modal-footer .btn-danger").click();
     await animationFrame();
@@ -251,7 +253,7 @@ test("002b A43: No, keep it keeps the record dialog", async () => {
     expect(calls("unlink")).toHaveLength(0);
 });
 
-test("002b A1b: refused unlink shows the error and reloads", async () => {
+test("002b A1c: refused unlink shows the error, the confirmation closes, the record dialog stays", async () => {
     expect.errors(1);
     onRpc("pill", "unlink", () => {
         throw new Error("Access denied");
@@ -281,6 +283,33 @@ test("002b A26: record dialog uses form_view_id", async () => {
     await openDialog(BUILD);
     expect(".o_dialog .o_field_widget[name='name']").toHaveCount(1);
     expect(".o_dialog .o_field_widget[name='x_progress']").toHaveCount(0);
+});
+
+test("002b A1b: the form's own edit off makes the dialog read-only, without Remove", async () => {
+    await mountTimeline(`edit="1" delete="1" form_view_id="3"`);
+    await openPopover(BUILD);
+    expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
+    await openDialog(BUILD);
+    expect(".o_dialog .o_form_readonly").toHaveCount(1);
+    expect(".o_dialog .o_field_widget[name='name'] input").toHaveCount(0);
+    expect(".o_dialog .o_form_button_remove").toHaveCount(0);
+    // the Community read-only buttons: one primary closing button, no New (the form allows no creation)
+    expect(".o_dialog .o_form_button_create").toHaveCount(0);
+    expect(".o_dialog .o_form_button_cancel").toHaveCount(0);
+    expect(footer()).toEqual(["Save", "Ok"]);
+    const before = calls("web_save").length + calls("write").length;
+    await contains(".o_dialog .modal-footer .btn-primary").click();
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(0);
+    expect(calls("web_save").length + calls("write").length).toBe(before);
+});
+
+test("002b A1c: Remove follows the view's delete, not the form's own delete", async () => {
+    await mountTimeline(`edit="1" delete="1" form_view_id="4"`);
+    await openDialog(BUILD);
+    expect(".o_dialog .o_form_button_save").toHaveCount(1);
+    expect(".o_dialog .o_form_button_cancel").toHaveCount(1);
+    expect(".o_dialog .o_form_button_remove").toHaveCount(1);
 });
 
 test("002b E4: a second open while one is pending or open does nothing", async () => {

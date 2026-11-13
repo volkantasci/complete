@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Domain } from "@web/core/domain";
 import { _t } from "@web/core/l10n/translation";
-import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import {
+    ConfirmationDialog,
+    deleteConfirmationMessage,
+} from "@web/core/confirmation_dialog/confirmation_dialog";
 import { FormViewDialog } from "@web/views/view_dialogs/form_view_dialog";
 import { SelectCreateDialog } from "@web/views/view_dialogs/select_create_dialog";
 import { creationContext, planWriteValues, rowValueChain } from "./timeline_editing";
@@ -211,10 +214,11 @@ export class TimelineEditor {
                 dialog.add(
                     ConfirmationDialog,
                     {
-                        title: _t("Remove this record?"),
-                        body: _t(
-                            "This record will be removed for good.\nNo one can bring it back afterwards.\n\nDeleting is permanent."
-                        ),
+                        // the Community's own record-deletion texts (what `useDeleteRecords` gives);
+                        // the title is not exported, so its source string is repeated to share the
+                        // Community translation
+                        title: _t("Bye-bye, record!"),
+                        body: deleteConfirmationMessage,
                         confirmLabel: _t("Delete"),
                         confirmClass: "btn-danger",
                         cancelLabel: _t("No, keep it"),
