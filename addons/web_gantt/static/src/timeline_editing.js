@@ -149,7 +149,7 @@ export function creationContext({ baseContext, period, placement, fields, rowVal
     return context;
 }
 
-function heldValue(record, name, fields) {
+export function heldValue(record, name, fields) {
     const raw = record?.raw?.[name];
     const type = fields[name]?.type;
     if (type === "many2many") {
