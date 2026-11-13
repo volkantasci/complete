@@ -776,6 +776,40 @@ test("R9 a click on another pill right after a release opens its popover", async
     expect(".o_tl_popover .o_popover_header").toHaveText("Build");
 });
 
+test("R9 a fast double click on another pill right after a release opens the record dialog", async () => {
+    freezeTime();
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    await review.drop();
+    await animationFrame();
+    await advanceTime(20);
+    // the pair of clicks begins on a pill that was not part of the gesture: it is a double click
+    await dblclick(pillEl("Build"));
+    await advanceTime(250);
+    await animationFrame();
+    expect(".o_dialog .o_form_view").toHaveCount(1);
+});
+
+test("R9 a double click that begins with the release click opens neither popover nor dialog", async () => {
+    freezeTime();
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    await review.drop();
+    // the click that follows the release is swallowed
+    pillEl("Review").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    await animationFrame();
+    await advanceTime(20);
+    // the click after it, within the guard, is the second click of the pair
+    pillEl("Review").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 2 }));
+    pillEl("Review").dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }));
+    await advanceTime(250);
+    await animationFrame();
+    expect(".o_tl_popover").toHaveCount(0);
+    expect(".o_dialog").toHaveCount(0);
+});
+
 test("Focus 1 unmounting during a held move leaves no hold class and writes nothing", async () => {
     const view = await mountView({
         type: "gantt",

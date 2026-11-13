@@ -397,7 +397,7 @@ export class TimelineRenderer extends Component {
      * the new one opens, so another pill swaps the popovers.
      */
     onPillClick(ev, pill) {
-        if (this._drag.consumeClick() || (this._drag.justReleased && ev.detail > 1)) {
+        if (this._drag.consumeClick(ev.detail) || (this._drag.justReleased && ev.detail > 1)) {
             // the release of a move or a copy (or of a cancelled one) is no click, and nor is the
             // second click of a double click that began with it (R9, R-T11-1)
             ev.stopPropagation();

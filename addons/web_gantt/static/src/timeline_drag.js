@@ -60,15 +60,20 @@ export class TimelinePillDrag {
         this._held = null;
         this._recent = false;
         this._recentTimer = null;
+        this._pairSwallowed = false;
     }
 
     get isActive() {
         return this.state === "dragging";
     }
 
-    /** A gesture ended a moment ago: a double click that began with its release is not one (R9). */
+    /**
+     * A gesture ended a moment ago and the first click of the current click pair was the swallowed
+     * click of its release: the pair is no double click (R9). A pair that began with a click on
+     * another pill is one.
+     */
     get justReleased() {
-        return this._recent;
+        return this._recent && this._pairSwallowed;
     }
 
     /** The grid scrolled under a held pointer: work the target out again. */
@@ -85,9 +90,14 @@ export class TimelinePillDrag {
     }
 
     /** R9: the click that follows the release of a gesture is not a click on a pill or a cell. */
-    consumeClick() {
+    consumeClick(detail = 1) {
         const suppressed = this._suppressClick;
         this._suppressClick = false;
+        if (suppressed) {
+            this._pairSwallowed = true;
+        } else if (detail <= 1) {
+            this._pairSwallowed = false;
+        }
         return suppressed;
     }
 
