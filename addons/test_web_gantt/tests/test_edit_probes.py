@@ -6,6 +6,7 @@ Run only these: ``--test-tags timeline_probes/test_web_gantt:TimelineEditProbes`
 needs ``web_enterprise``; without it the dark probes are skipped. The phone is measured without
 touch, except where a probe says "touch phone" (M9, M12 and the note on 002a's M75).
 """
+import json
 import logging
 import time
 
@@ -19,10 +20,6 @@ _logger = logging.getLogger(__name__ + '.diag')
 
 HOST = 'test_web_gantt.host_action_{}'
 SIZES = {'desktop': (1600, 900), 'phone': (390, 844)}
-# The phone's x of a selection depends on the scroll position the grid happens to have when the
-# gesture is made (a part boundary of the original at 71 or 174 px is not one of ours at 3 + 96 n,
-# the position of the grid after the focus scroll of R39); the other values are compared.
-PHONE_SKIP = ('geometry.x',)
 MODAL = "[...document.querySelectorAll('.o_dialog .modal-dialog')].at(-1)"
 
 
@@ -188,34 +185,40 @@ class TimelineEditProbes(TimelineProbeCase):
 
     # -- M7 to M9: the phone ---------------------------------------------------------
 
-    def phone_points(self):
-        """Scroll the grid so that Wednesday 11 is away from the edge zones of the selection, and
-        return the points that cover the first and second part of Wednesday 11 (a day wide)."""
-        cell = _first_cell("document.querySelector('.o_tl_row')", 10)
-        shift = 100 - self.box(cell)['geometry.x']
-        self.js(f"document.querySelector('.o_tl_renderer').scrollLeft -= {shift}")
-        self.settle()
-        box = self.box(cell)
-        y = box['geometry.y'] + box['geometry.height'] - 12
-        return (box['geometry.x'] + box['geometry.width'] * 0.25, y,
-                box['geometry.x'] + box['geometry.width'] * 0.75)
+    THURSDAY_HEADER = "document.querySelector('.o_tl_col[data-date=\"2026-11-12\"]')"
+
+    def check_phone_start(self, probe, scheme, viewport, label):
+        """The grid as opened (R39 scroll): the column header of Thursday 12 at x 195."""
+        self.check(probe, self.THURSDAY_HEADER, scheme, viewport, label)
+
+    def test_002b_m32_m33_phone_start_position(self):
+        for scheme, viewport in self.combos(['M32', 'M33'], ('phone',)):
+            with self.page(HOST.format('h1'), scheme, viewport, touch=False):
+                self.check_phone_start('M32', scheme, viewport, 'Thursday 12 header (phone)')
+            with self.page(HOST.format('h1'), scheme, viewport, touch=True):
+                self.check_phone_start('M33', scheme, viewport,
+                                       'Thursday 12 header (touch phone)')
+
+    def badge_named(self, text):
+        return ("[...document.querySelectorAll('.o_tl_badge_start, .o_tl_badge_stop')]"
+                f".find((b) => b.textContent.trim() === {json.dumps(text)})")
 
     def test_002b_m7_m8_selection_phone_mouse(self):
+        # the gesture stays between x 150 and x 240, outside both edge zones: nothing scrolls
         for scheme, viewport in self.combos(['M7', 'M8'], ('phone',)):
             with self.page(HOST.format('h1'), scheme, viewport, touch=False):
-                x0, y, x1 = self.phone_points()
-                self.hold_mouse(x0, y, x1)
+                self.hold_mouse(160, 401, 230)
                 self.check('M7', "document.querySelector('.o_tl_selection')", scheme,
-                           viewport, 'selection highlight (phone)', skip=PHONE_SKIP)
-                self.check('M8', "document.querySelector('.o_tl_badge_start')", scheme,
-                           viewport, 'start badge (phone)', skip=PHONE_SKIP)
-                self.release_mouse(x1, y)
+                           viewport, 'selection highlight (phone)')
+                self.check('M8', self.badge_named('11/11/2026, 12:00 PM'), scheme,
+                           viewport, 'start badge (phone)')
+                self.release_mouse(230, 401)
                 self.close_dialogs()
 
     def test_002b_m9_selection_touch_phone(self):
         for scheme, viewport in self.combos(['M9'], ('phone',)):
             with self.page(HOST.format('h1'), scheme, viewport, touch=True):
-                x0, y, x1 = self.phone_points()
+                x0, y, x1 = 160, 405, 230
                 self.touch_event('touchStart', [(x0, y)])
                 time.sleep(.7)
                 for i in range(1, 9):
@@ -224,7 +227,7 @@ class TimelineEditProbes(TimelineProbeCase):
                 self.wait("!!document.querySelector('.o_tl_selection')")
                 self.settle()
                 self.check('M9', "document.querySelector('.o_tl_selection')", scheme,
-                           viewport, 'selection highlight (touch phone)', skip=PHONE_SKIP)
+                           viewport, 'selection highlight (touch phone)')
                 self.touch_event('touchEnd', [])
                 self.settle(500)
                 self.close_dialogs()
@@ -290,6 +293,32 @@ class TimelineEditProbes(TimelineProbeCase):
                 self.check('M24' if desktop else 'M25', MODAL, scheme, viewport,
                            'confirmation frame')
                 self.close_dialogs()
+
+    def open_confirmation(self):
+        self.open_edit('Build')
+        self.click_at("document.querySelector('.o_tl_popover_button')")
+        self.wait_for("document.querySelector('.o_dialog .o_form_button_remove')")
+        self.click_at("document.querySelector('.o_dialog .o_form_button_remove')")
+        self.wait("document.querySelectorAll('.o_dialog').length === 2")
+        self.settle(500)
+
+    def test_002b_m34_m37_confirmation_box(self):
+        """The visible box of the confirmation is its ``.modal-content``, centred vertically."""
+        box = f"{MODAL}.querySelector('.modal-content')"
+        for scheme, viewport in self.combos(['M34', 'M35', 'M36', 'M37']):
+            desktop = viewport == 'desktop'
+            with self.page(HOST.format('h1'), scheme, viewport, touch=False):
+                self.open_confirmation()
+                self.check('M34' if desktop else 'M35', box, scheme, viewport,
+                           'confirmation box')
+                self.close_dialogs()
+            if not desktop:
+                with self.page(HOST.format('h1'), scheme, viewport, touch=True):
+                    self.open_confirmation()
+                    self.check('M36', box, scheme, viewport, 'confirmation box (touch)')
+                    self.check('M37', f"{MODAL}.querySelector('.btn-danger')", scheme,
+                               viewport, 'Delete button (touch)')
+                    self.close_dialogs()
 
     def test_002b_m26_m27_plan_dialog(self):
         for scheme, viewport in self.combos(['M26', 'M27'], ('desktop',)):

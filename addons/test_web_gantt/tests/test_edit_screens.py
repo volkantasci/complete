@@ -39,7 +39,6 @@ class TimelineEditScreens(TimelineProbeCase):
     hold_mouse = Edit.hold_mouse
     release_mouse = Edit.release_mouse
     click_at = Edit.click_at
-    phone_points = Edit.phone_points
     open_edit = Edit.open_edit
     open_range_menu = screens.TimelineScreens.open_range_menu
     choose_range = screens.TimelineScreens.choose_range
@@ -81,8 +80,9 @@ class TimelineEditScreens(TimelineProbeCase):
         self.assertFalse(errors, '\n'.join(errors))
 
     def touch_hold(self, release=False):
-        """Long press on Wednesday 11's empty bottom, then move half a day; optionally lift."""
-        x0, y, x1 = self.phone_points()
+        """Long press at x 160 on the empty bottom of the row, then move to x 230, where nothing
+        scrolls (M9); optionally lift."""
+        x0, y, x1 = 160, 405, 230
         self.touch_event('touchStart', [(x0, y)])
         time.sleep(.7)
         for i in range(1, 9):

@@ -1,6 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Measured values of the original for slice 002b (spec.md, "Measured values"), probes M1 to M31.
+"""Measured values of the original for slice 002b (spec.md, "Measured values"), probes M1 to M37.
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
@@ -215,14 +215,14 @@ MEASURED = {
     'M7': {
         ('light', 'phone'): {
             'background-color': 'rgba(0, 160, 157, 0.3)',
-            'geometry.x': '71',
+            'geometry.x': '99',
             'geometry.y': '255',
             'geometry.width': '192',
             'geometry.height': '166',
         },
         ('dark', 'phone'): {
             'background-color': 'rgba(0, 160, 157, 0.3)',
-            'geometry.x': '71',
+            'geometry.x': '99',
             'geometry.y': '255',
             'geometry.width': '192',
             'geometry.height': '166',
@@ -233,32 +233,32 @@ MEASURED = {
             'color': 'rgba(0, 0, 0, 1)',
             'background-color': 'rgba(255, 255, 255, 1)',
             'font-size': '12',
-            'geometry.x': '71',
+            'geometry.x': '99',
             'geometry.y': '235',
-            'geometry.width': '135.156',
+            'geometry.width': '135.828',
             'geometry.height': '19.953',
         },
         ('dark', 'phone'): {
             'color': 'rgba(255, 255, 255, 1)',
             'background-color': 'rgba(44, 46, 53, 1)',
             'font-size': '12',
-            'geometry.x': '71',
+            'geometry.x': '99',
             'geometry.y': '235',
-            'geometry.width': '135.156',
+            'geometry.width': '135.828',
             'geometry.height': '19.953',
         },
     },
     'M9': {
         ('light', 'phone'): {
             'background-color': 'rgba(0, 160, 157, 0.3)',
-            'geometry.x': '174',
+            'geometry.x': '99',
             'geometry.y': '259',
             'geometry.width': '192',
             'geometry.height': '166',
         },
         ('dark', 'phone'): {
             'background-color': 'rgba(0, 160, 157, 0.3)',
-            'geometry.x': '174',
+            'geometry.x': '99',
             'geometry.y': '259',
             'geometry.width': '192',
             'geometry.height': '166',
@@ -1082,6 +1082,90 @@ MEASURED = {
             'geometry.y': '799.5',
             'geometry.width': '45.953',
             'geometry.height': '27.5',
+        },
+    },
+    'M32': {
+        ('light', 'phone'): {
+            'geometry.x': '195',
+            'geometry.y': '230',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+        ('dark', 'phone'): {
+            'geometry.x': '195',
+            'geometry.y': '230',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+    },
+    'M33': {
+        ('light', 'phone'): {
+            'geometry.x': '195',
+            'geometry.y': '234',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+        ('dark', 'phone'): {
+            'geometry.x': '195',
+            'geometry.y': '234',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+    },
+    'M34': {
+        ('light', 'desktop'): {
+            'geometry.x': '570',
+            'geometry.y': '323.344',
+            'geometry.width': '460',
+            'geometry.height': '253.297',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '570',
+            'geometry.y': '323.344',
+            'geometry.width': '460',
+            'geometry.height': '253.297',
+        },
+    },
+    'M35': {
+        ('light', 'phone'): {
+            'geometry.x': '16',
+            'geometry.y': '292.844',
+            'geometry.width': '358',
+            'geometry.height': '258.297',
+        },
+        ('dark', 'phone'): {
+            'geometry.x': '16',
+            'geometry.y': '292.844',
+            'geometry.width': '358',
+            'geometry.height': '258.297',
+        },
+    },
+    'M36': {
+        ('light', 'phone'): {
+            'geometry.x': '16',
+            'geometry.y': '288.844',
+            'geometry.width': '358',
+            'geometry.height': '266.297',
+        },
+        ('dark', 'phone'): {
+            'geometry.x': '16',
+            'geometry.y': '288.844',
+            'geometry.width': '358',
+            'geometry.height': '266.297',
+        },
+    },
+    'M37': {
+        ('light', 'phone'): {
+            'geometry.x': '32.5',
+            'geometry.y': '456.641',
+            'geometry.width': '325',
+            'geometry.height': '37',
+        },
+        ('dark', 'phone'): {
+            'geometry.x': '32.5',
+            'geometry.y': '456.641',
+            'geometry.width': '325',
+            'geometry.height': '37',
         },
     },
 }
