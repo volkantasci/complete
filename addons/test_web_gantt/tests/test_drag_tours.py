@@ -42,6 +42,7 @@ class TestTimelineDragTours(HttpCase):
         cls.env['test.web.gantt.pill2'].with_context(active_test=False).search([]).unlink()
         cls.today = fields.Date.today()
         cls.records = pill._tl_build_host_records(today=cls.today, tz_offset_hours=0)
+        cls.rtl_user = pill._tl_rtl_user()
 
     def setUp(self):
         super().setUp()
@@ -67,4 +68,11 @@ class TestTimelineDragTours(HttpCase):
     def test_a64_tour_scroll_moves_focus(self):
         count = self.env[PILL].search_count([])
         self._tour('h1', 'timeline_002b2_a64_scroll_moves_focus')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
+    # -- right-to-left badges (R19) -------------------------------------------------------------
+
+    def test_a60_tour_rtl_selection_badges(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h1', 'timeline_002b2_a60_rtl_selection_badges', login='rtl')
         self.assertEqual(self.env[PILL].search_count([]), count)

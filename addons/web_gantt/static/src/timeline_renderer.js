@@ -47,6 +47,41 @@ const LINE_GAP = 2;
 const GROUP_ROW_HEIGHT = 40;
 /** Distance from the top of the selection to the top of its start badge (R5). */
 const BADGE_HEIGHT = 20;
+
+/**
+ * R5/R19: place the two time badges of a highlight (or a moved pill) `rect` inside `grid`.
+ * Left to right: the start badge stands 20 px above the rectangle, its left edge at the
+ * rectangle's, but never left of the row header; the stop badge stands right below it, its right
+ * edge at the rectangle's. Right to left the two swap sides and vertical places: the start badge
+ * stands below the rectangle, its right edge at the rectangle's (not past the row header, which
+ * is then on the right), the stop badge 20 px above it, its left edge at the rectangle's.
+ */
+export function placeBoundBadges(grid, rect, header, rtl, startBadge, stopBadge) {
+    const box = grid.getBoundingClientRect();
+    const bounds = header?.getBoundingClientRect();
+    const startWidth = startBadge.getBoundingClientRect().width;
+    const stopWidth = stopBadge.getBoundingClientRect().width;
+    let startLeft;
+    let startTop;
+    let stopLeft;
+    let stopTop;
+    if (rtl) {
+        const right = bounds ? Math.min(rect.right, bounds.left) : rect.right;
+        startLeft = right - startWidth;
+        startTop = rect.bottom;
+        stopLeft = rect.left;
+        stopTop = rect.top - BADGE_HEIGHT;
+    } else {
+        startLeft = bounds ? Math.max(rect.left, bounds.right) : rect.left;
+        startTop = rect.top - BADGE_HEIGHT;
+        stopLeft = rect.right - stopWidth;
+        stopTop = rect.bottom;
+    }
+    startBadge.style.left = `${startLeft - box.left}px`;
+    startBadge.style.top = `${startTop - box.top}px`;
+    stopBadge.style.left = `${stopLeft - box.left}px`;
+    stopBadge.style.top = `${stopTop - box.top}px`;
+}
 /** Width of a folded column, in pixels (M45). */
 const FOLDED_WIDTH = 36;
 /** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
@@ -622,27 +657,15 @@ export class TimelineRenderer extends Component {
         if (!startBadge || !stopBadge) {
             return;
         }
-        const box = grid.getBoundingClientRect();
-        const rect = element.getBoundingClientRect();
         const header = element.closest(".o_tl_row").querySelector(".o_tl_row_header");
-        const bounds = header?.getBoundingClientRect();
-        const rtl = this._isRtl();
-        const startWidth = startBadge.getBoundingClientRect().width;
-        const stopWidth = stopBadge.getBoundingClientRect().width;
-        let startLeft;
-        let stopLeft;
-        if (rtl) {
-            const right = bounds ? Math.min(rect.right, bounds.left) : rect.right;
-            startLeft = right - startWidth;
-            stopLeft = rect.left;
-        } else {
-            startLeft = bounds ? Math.max(rect.left, bounds.right) : rect.left;
-            stopLeft = rect.right - stopWidth;
-        }
-        startBadge.style.left = `${startLeft - box.left}px`;
-        startBadge.style.top = `${rect.top - box.top - BADGE_HEIGHT}px`;
-        stopBadge.style.left = `${stopLeft - box.left}px`;
-        stopBadge.style.top = `${rect.bottom - box.top}px`;
+        placeBoundBadges(
+            grid,
+            element.getBoundingClientRect(),
+            header,
+            this._isRtl(),
+            startBadge,
+            stopBadge
+        );
     }
 
     /** A click on a folded header opens its run, on the header of an open foldable one folds it. */

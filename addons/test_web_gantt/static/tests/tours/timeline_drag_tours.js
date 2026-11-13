@@ -248,3 +248,68 @@ tours.add("timeline_002b2_a64_scroll_moves_focus", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// A60: the badges of a right-to-left selection (R19)
+// ---------------------------------------------------------------------------------------------
+
+function firePointer(target, type, x, y) {
+    target.dispatchEvent(
+        new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+            button: 0,
+            buttons: type === "pointerup" ? 0 : 1,
+            clientX: x,
+            clientY: y,
+        })
+    );
+}
+
+tours.add("timeline_002b2_a60_rtl_selection_badges", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_button_add",
+            async run() {
+                assert(getComputedStyle(renderer()).direction === "rtl", "the view is not right to left");
+                // pressed at x 1330 on the bottom part of the first row, moved to x 1030
+                const row = $(".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)");
+                const y = row.getBoundingClientRect().bottom - 12;
+                const from = { x: 1330, y };
+                firePointer(document.elementFromPoint(from.x, from.y), "pointerdown", from.x, from.y);
+                for (let i = 1; i <= 6; i++) {
+                    firePointer(document, "pointermove", from.x - (300 * i) / 6, y);
+                    await frame();
+                }
+                await until(() => $(".o_tl_selection"), "the highlight");
+                await frame();
+                const near = (a, b, what) =>
+                    assert(Math.abs(a - b) <= 1, `${what}: ${a}, expected about ${b}`);
+                const box = $(".o_tl_selection").getBoundingClientRect();
+                const start = $(".o_tl_badge_start").getBoundingClientRect();
+                const stop = $(".o_tl_badge_stop").getBoundingClientRect();
+                // M53: the highlight
+                near(box.left, 992, "highlight x");
+                near(box.width, 384, "highlight width");
+                near(box.top, 207, "highlight y");
+                near(box.height, 166, "highlight height");
+                // M55: the start badge below the right end
+                near(start.right, 1376, "start badge right edge");
+                near(start.top, 373, "start badge y");
+                // M57: the stop badge 20 px above the left end
+                near(stop.left, 992, "stop badge x");
+                near(stop.top, 187, "stop badge y");
+                assert(start.top > box.bottom - 1 && stop.bottom < box.top + 1, "the badges did not swap");
+                firePointer(document, "pointerup", 1030, y);
+                await until(() => $(".o_dialog .o_form_view"), "the Create dialog");
+                $(".o_dialog .o_form_button_cancel").click();
+                await until(() => !$(".o_dialog"), "the dialog to close");
+            },
+        },
+    ],
+});

@@ -452,8 +452,42 @@ test("002b A14: RTL swaps badges", async () => {
         const [start, stop] = queryAll(".o_tl_selection_badge").map((badge) => queryRect(badge));
         expect(near(start.right, selection.right)).toBe(true);
         expect(near(stop.left, selection.left)).toBe(true);
-        expect(near(start.bottom, selection.top)).toBe(true);
-        expect(near(stop.top, selection.bottom)).toBe(true);
+        // R19 (002b2): right to left the sides swap vertically too
+        expect(near(start.top, selection.bottom)).toBe(true);
+        expect(near(stop.bottom, selection.top)).toBe(true);
+        await drawing.cancel();
+    } finally {
+        style.remove();
+        document.documentElement.removeAttribute("dir");
+    }
+});
+
+test("A60 rtl start badge below the highlight's right end, stop badge 20 px above its left end, not past the row header", async () => {
+    patchWithCleanup(localization, { direction: "rtl" });
+    document.documentElement.setAttribute("dir", "rtl");
+    const style = document.createElement("style");
+    style.textContent = "* { direction: rtl !important; }";
+    document.head.appendChild(style);
+    try {
+        await mountTimeline();
+        queryOne(".o_tl_renderer").scrollLeft = 0;
+        await animationFrame();
+        // the first half of a day lies on the right in this direction
+        const drawing = await press("2026-11-12", 0);
+        await drawing.to("2026-11-11", 0);
+        await drawing.to("2026-11-10", 1);
+        const selection = selectionRect();
+        const start = queryRect(".o_tl_badge_start");
+        const stop = queryRect(".o_tl_badge_stop");
+        expect(near(start.top, selection.bottom)).toBe(true);
+        expect(near(start.right, selection.right)).toBe(true);
+        expect(near(stop.top, selection.top - 20)).toBe(true);
+        expect(near(stop.left, selection.left)).toBe(true);
+        // with a row header (on the right in this direction) the start badge never goes past it
+        const header = rowAt().querySelector(".o_tl_row_header");
+        if (header) {
+            expect(start.right <= queryRect(header).left + 1).toBe(true);
+        }
         await drawing.cancel();
     } finally {
         style.remove();
