@@ -1921,3 +1921,113 @@ tours.add("timeline_002b2_a74_notification_after_the_answer", {
         },
     ],
 });
+
+// ----------------------------------------------------------------------------
+// Locked pills (R11, S5)
+// ----------------------------------------------------------------------------
+
+/** What the user sees of the pill `name` held without moving: the lock and the raised copy. */
+function assertLocked(name, { visibleIcon = true } = {}) {
+    const raised = $(".o_tl_pill_moved");
+    assert(raised, `${name} is not raised`);
+    assert(getComputedStyle(raised).opacity === "0.8", `opacity ${getComputedStyle(raised).opacity}`);
+    assert(getComputedStyle(raised).boxShadow !== "none", "no shadow");
+    const icon = $(".o_tl_pill_lock", raised);
+    assert(icon, "no lock icon");
+    const iconRect = icon.getBoundingClientRect();
+    const bodyRect = $(".o_tl_pill", raised).getBoundingClientRect();
+    assert(Math.abs(iconRect.width - 14) <= 1 && Math.abs(iconRect.height - 14) <= 1, "icon size");
+    assert(Math.abs(bodyRect.right - iconRect.right - 8) <= 1, "icon is not 8 px from the right edge");
+    assert(getComputedStyle(icon).color === "rgb(0, 0, 0)", `icon colour ${getComputedStyle(icon).color}`);
+    const gridRight = renderer().getBoundingClientRect().right;
+    assert((iconRect.left < gridRight) === visibleIcon, "icon visibility");
+    assert(getComputedStyle($(".o_timeline_view")).cursor === "not-allowed", "cursor");
+    assert(!$(".o_tl_drop") && !$(".o_tl_selection_badge"), "a highlight or badge is drawn");
+}
+
+async function holdLocked(name, options = {}, pointerOptions = {}) {
+    const pill = await until(() => pillNamed(name), name);
+    const from = centreOf(pill);
+    const gesture = await holdAndMove(name, {
+        to: { x: from.x + 3 * partWidthOf(), y: from.y + 30 },
+        ...pointerOptions,
+    });
+    assertLocked(name, options);
+    return gesture;
+}
+
+async function releaseLocked(gesture, names) {
+    release(gesture);
+    await sleep(600);
+    assert(!$(".o_tl_pill_lock") && !$(".o_tl_pill_moved"), "the lock stays after the release");
+    assert(!$(".o_timeline_view").classList.contains("o_tl_dragging"), "the hold stays");
+    assert(!$(".o_notification") && !$(".o_popover"), "something opened after the release");
+    for (const [name, iso] of Object.entries(names)) {
+        const record = await recordNamed(name);
+        assert(record.date_start.startsWith(iso), `${name} changed: ${record.date_start}`);
+    }
+}
+
+tours.add("timeline_002b2_a47_lock_on_cut_pill", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                await switchRange("day");
+                const design = await recordNamed("Design");
+                assert(!$(".o_tl_pill_lock"), "an icon at rest");
+                const gesture = await holdLocked("Design");
+                await releaseLocked(gesture, { Design: design.date_start.slice(0, 10) });
+                assert((await recordNamed("Design")).date_stop === design.date_stop, "Design changed");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a48_lock_drag_and_drop_off", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const review = await recordNamed("Review");
+                const gesture = await holdLocked("Review");
+                await releaseLocked(gesture, { Review: review.date_start.slice(0, 10) });
+                assert((await recordNamed("Review")).date_start === review.date_start, "Review changed");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a48_lock_read_only", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const pill = await until(() => pillNamed("Review"), "Review");
+                pill.dispatchEvent(new MouseEvent("mouseenter"));
+                await frame();
+                assert(!$(".o_tl_handle"), "a handle on a read-only view");
+                const review = await recordNamed("Review");
+                const gesture = await holdLocked("Review");
+                await releaseLocked(gesture, { Review: review.date_start.slice(0, 10) });
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a49_lock_on_long_pill", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const gesture = await holdLocked("Long task", { visibleIcon: false });
+                const record = await recordNamed("Long task");
+                await releaseLocked(gesture, { "Long task": record.date_start.slice(0, 10) });
+            },
+        },
+    ],
+});

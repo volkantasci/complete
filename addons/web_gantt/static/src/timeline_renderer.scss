@@ -651,6 +651,19 @@
     opacity: .5;
 }
 
+// R11, M39, M40: the lock of a held pill that cannot move, at the right end of its body
+.o_tl_pill_lock {
+    position: relative;
+    flex: none;
+    align-self: center;
+    width: 14px;
+    height: 14px;
+    margin: 0 8px 0 0;
+    font-size: 14px;
+    line-height: 14px;
+    color: #000000;
+}
+
 .o_tl_pill_moved {
     z-index: 4;
     opacity: .8;

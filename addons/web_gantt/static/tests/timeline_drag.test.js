@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test 
 import {
     click,
     dblclick,
+    hover,
     keyDown,
     keyUp,
     queryAll,
@@ -408,8 +409,8 @@ for (const [label, attrs] of [
         await mountTimeline({ arch: timelineArch(`${BASE_ATTRS} ${attrs}`) });
         const review = await pressPill("Review");
         await review.by(2 * partWidth());
-        expect(moved()).toHaveCount(0);
-        expect(root()).not.toHaveClass("o_tl_dragging");
+        expect(root()).toHaveClass("o_tl_drag_lock");
+        expect(".o_tl_drop").toHaveCount(0);
         await review.drop();
         await settle();
         expect(log).toHaveLength(0);
@@ -420,10 +421,97 @@ test("R1 a cut pill does not move: Long task starts before the range and ends af
     await mountTimeline();
     const longTask = await pressPill("Long task");
     await longTask.by(2 * partWidth());
-    expect(moved()).toHaveCount(0);
+    // it does not follow the pointer: it is only held (R11)
+    expect(root()).toHaveClass("o_tl_drag_lock");
+    expect(".o_tl_drop").toHaveCount(0);
     await longTask.drop();
     await settle();
     expect(log).toHaveLength(0);
+});
+
+const DAY = HOST_ARCHS.H1.replace('default_range="week"', 'default_range="day"');
+
+/** The locked pill held: its raised copy, its lock icon and where the pill is. */
+function lockState(name) {
+    const raised = queryOne(".o_tl_pill_moved");
+    const body = raised.querySelector(".o_tl_pill");
+    return { raised, body, icon: raised.querySelector(".o_tl_pill_lock"), origin: pillEl(name) };
+}
+
+test("A47 Day: Design cut at start: lock state, icon at right end, not-allowed, nothing written, no icon at rest", async () => {
+    await mountTimeline({ arch: DAY });
+    expect(".o_tl_pill_lock").toHaveCount(0);
+    const design = await pressPill("Design", 0.8);
+    await design.by(0);
+    await design.by(60, 40);
+    const { raised, body, icon, origin } = lockState("Design");
+    expect(icon).not.toBe(null);
+    // raised in place: 80 % opacity, the shadow, the box of the pill (M41)
+    expect(css(raised, "opacity")).toBe("0.8");
+    expect(css(raised, "boxShadow")).not.toBe("none");
+    const box = queryRect(raised);
+    const at = queryRect(origin);
+    expect(near(box.left, at.left - 1) && near(box.top, at.top - 1)).toBe(true);
+    // the icon: 14 x 14, black, 8 px from the body's right edge (M39)
+    const iconRect = queryRect(icon);
+    expect(near(iconRect.width, 14) && near(iconRect.height, 14)).toBe(true);
+    expect(near(queryRect(body).right - iconRect.right, 8)).toBe(true);
+    expect(css(icon, "color")).toBe("rgb(0, 0, 0)");
+    expect(root()).toHaveClass("o_tl_drag_lock");
+    expect(css(root(), "cursor")).toBe("not-allowed");
+    // no highlight, no badge, no faded copy
+    expect(".o_tl_drop").toHaveCount(0);
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    expect(".o_tl_pill_faded").toHaveCount(0);
+    await design.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+    expect(".o_tl_pill_lock").toHaveCount(0);
+    expect(".o_tl_pill_moved").toHaveCount(0);
+    expect(root()).not.toHaveClass("o_tl_dragging");
+    // no click follows the release (R9)
+    expect(".o_popover").toHaveCount(0);
+});
+
+for (const [label, arch, edit] of [
+    ["H31 Review lock", timelineArch(`${BASE_ATTRS} disable_drag_drop="1"`), true],
+    ["H19 lock and no handle", timelineArch(`${BASE_ATTRS} edit="0"`), false],
+]) {
+    test(`A48 ${label}`, async () => {
+        await mountTimeline({ arch });
+        const element = pillEl("Review");
+        await hover(element);
+        await animationFrame();
+        // H19 shows no handle; H31 keeps them (resizing stays possible)
+        expect(".o_tl_handle").toHaveCount(edit ? 2 : 0);
+        const review = await pressPill("Review");
+        await review.by(2 * partWidth());
+        const { icon, body } = lockState("Review");
+        expect(icon).not.toBe(null);
+        expect(".o_tl_handle").toHaveCount(0);
+        expect(near(queryRect(body).right - queryRect(icon).right, 8)).toBe(true);
+        expect(css(icon, "color")).toBe("rgb(0, 0, 0)");
+        await review.drop();
+        await settle();
+        expect(log).toHaveLength(0);
+        expect(".o_tl_pill_lock").toHaveCount(0);
+    });
+}
+
+test("A49 Long task: icon at the pill's right end, outside the visible grid", async () => {
+    await mountTimeline();
+    const longTask = await pressPill("Long task");
+    await longTask.by(partWidth());
+    const { raised, icon } = lockState("Long task");
+    expect(icon).not.toBe(null);
+    const grid = queryRect(".o_tl_renderer");
+    const iconRect = queryRect(icon);
+    expect(iconRect.left).toBeGreaterThan(grid.right);
+    expect(near(queryRect(raised).right - iconRect.right, 8 + 1)).toBe(true);
+    await longTask.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+    expect(".o_tl_pill_lock").toHaveCount(0);
 });
 
 test("A13 a press on a group pill reaches the cell: a click there toggles the row, nothing moves", async () => {

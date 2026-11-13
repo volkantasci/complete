@@ -21,12 +21,14 @@ const HARMLESS_KEYS = ["Alt", "Control", "Meta", "Shift"];
  * `copy` is `move` with Ctrl held (R7): the mode switches while the gesture runs.
  * - `resize-start`, `resize-stop`: a handle of the pill is held; the moved edge goes to the
  * sub-column border nearest to the pointer (R8). Only a mouse holds a handle (D5, R16).
+ * - `lock`: a pill that cannot be moved (R1) is held; it follows nothing and has no target (R11).
  */
 const MODES = {
     move: { follows: true },
     copy: { follows: true },
     "resize-start": { edge: "start" },
     "resize-stop": { edge: "stop" },
+    lock: {},
 };
 
 /**
@@ -111,7 +113,7 @@ export class TimelinePillDrag {
 
     /**
      * A press on a pill. Nothing starts before the pointer has moved (R2); a release before is a
-     * plain click. The mode that cannot start yet (a handle, a locked pill) is ignored.
+     * plain click. A handle that cannot resize is ignored.
      * @param {PointerEvent} ev
      * @param {Object} pill pill descriptor
      * @param {{handle?: string|null, rowId?: string|null}} [options]
@@ -205,7 +207,7 @@ export class TimelinePillDrag {
             return state.resizable[handle] ? `resize-${handle}` : null;
         }
         // a finger on a handle holds the pill itself (D5)
-        return state.movable ? "move" : null;
+        return state.movable ? "move" : "lock";
     }
 
     _listen(target, type, handler, options) {

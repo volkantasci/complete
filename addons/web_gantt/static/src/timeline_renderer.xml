@@ -6,6 +6,7 @@
             <div t-if="ghost.progress" class="o_tl_pill_progress" t-attf-style="width: {{ghost.progress}}%"/>
             <span class="o_tl_pill_title" t-out="ghost.label"/>
             <span t-if="ghost.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${ghost.mark}`"/>
+            <i t-if="ghost.locked" class="fa fa-lock o_tl_pill_lock"/>
         </div>
     </t>
     <t t-name="web_gantt.TimelineRenderer">
@@ -69,7 +70,7 @@
                     </t>
                     <t t-set="ghost" t-value="this.dragGhost"/>
                     <t t-if="ghost">
-                        <div class="o_tl_pill_faded" t-att-style="ghost.originStyle">
+                        <div t-if="!ghost.locked" class="o_tl_pill_faded" t-att-style="ghost.originStyle">
                             <t t-call="web_gantt.TimelineGhostBody"/>
                         </div>
                         <div class="o_tl_pill_moved" t-att-style="ghost.movedStyle">

@@ -260,3 +260,17 @@ class TestTimelineDragTours(HttpCase):
     def test_a74_tour_notification_after_the_answer(self):
         self._tour('h1', 'timeline_002b2_a74_notification_after_the_answer')
         self._build_unchanged()
+
+    # -- locked pills (R11) ---------------------------------------------------------------------
+
+    def test_a47_tour_lock_on_cut_pill(self):
+        self._tour('h1', 'timeline_002b2_a47_lock_on_cut_pill')
+
+    def test_a48_tour_lock_drag_and_drop_off(self):
+        self._tour('h31', 'timeline_002b2_a48_lock_drag_and_drop_off', size='390x844')
+
+    def test_a48_tour_lock_read_only(self):
+        self._tour('h19', 'timeline_002b2_a48_lock_read_only')
+
+    def test_a49_tour_lock_on_long_pill(self):
+        self._tour('h1', 'timeline_002b2_a49_lock_on_long_pill')

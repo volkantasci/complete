@@ -1049,6 +1049,25 @@ export class TimelineRenderer extends Component {
             this._setResize(drawing);
             return;
         }
+        if (drawing.mode === "lock") {
+            // R11: raised in place with the lock icon; no target, badge or highlight
+            const { pill, rowId } = drawing;
+            const { span } = pill.record;
+            this.state.drag = {
+                pillId: pill.id,
+                mode: "lock",
+                rowId: null,
+                startRowId: rowId,
+                fromPart: span.from,
+                toPart: null,
+                length: span.to - span.from,
+                badges: null,
+                offset: { x: 0, y: 0 },
+                ghost: this._pressed.ghost,
+                lock: true,
+            };
+            return;
+        }
         const { pill, mode, target, rowId, offset } = drawing;
         const data = this.data;
         const record = pill.record;
@@ -1154,6 +1173,7 @@ export class TimelineRenderer extends Component {
             ` width: ${ghost.width + 2 * PILL_INSET}px; height: ${ghost.height + 2 * PILL_INSET}px`;
         return {
             ...ghost,
+            locked: Boolean(drag.lock),
             movedStyle: box(ghost.left + offset.x, ghost.top + offset.y),
             originStyle: box(ghost.left, ghost.top),
         };
