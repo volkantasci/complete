@@ -110,3 +110,20 @@ class Base(models.AbstractModel):
     def _gantt_progress_bar(self, group_field, record_ids, period_start, period_stop):
         """Progress values per value of ``group_field``; hosts override this."""
         return {}
+
+    def gantt_undo_drag_drop(self, drag_kind, values=None):
+        """Take back a move, a resize or a copy made in a Gantt view.
+
+        ``drag_kind`` is ``'copy'`` (the copy is deleted) or ``'reschedule'``
+        (``values`` holds the earlier field values and is written back).
+        Returns ``False`` when the record is gone, the kind is unknown, or a
+        reschedule has nothing to write; otherwise the result of the unlink or write.
+        """
+        if not self.exists():
+            return False
+        self.ensure_one()
+        if drag_kind == 'copy':
+            return self.unlink()
+        if drag_kind == 'reschedule' and values:
+            return self.write(values)
+        return False

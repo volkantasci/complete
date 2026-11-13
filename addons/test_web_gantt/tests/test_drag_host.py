@@ -3,6 +3,8 @@
 import ast
 
 from lxml import etree
+from odoo import Command
+from odoo.exceptions import AccessError
 from odoo.tests.common import TransactionCase, tagged
 
 PILL = 'test.web.gantt.pill'
@@ -70,3 +72,62 @@ class TestTimelineDragHost(TransactionCase):
         self.assertEqual(user.tz, admin.tz)
         # asking again returns the same user
         self.assertEqual(self.env[PILL]._tl_rtl_user(self.env), user)
+
+
+@tagged('post_install', '-at_install')
+class TestTimelineUndoMethod(TransactionCase):
+    def _pill(self, **values):
+        values.setdefault('name', 'Undo pill')
+        values.setdefault('date_start', '2026-03-02 08:00:00')
+        values.setdefault('date_stop', '2026-03-02 10:00:00')
+        return self.env[PILL].create(values)
+
+    def test_a46_reschedule_writes(self):
+        pill = self._pill()
+        result = pill.gantt_undo_drag_drop('reschedule', {
+            'date_start': '2026-03-01 06:00:00',
+            'date_stop': '2026-03-01 07:30:00',
+        })
+        self.assertTrue(result)
+        self.assertEqual(str(pill.date_start), '2026-03-01 06:00:00')
+        self.assertEqual(str(pill.date_stop), '2026-03-01 07:30:00')
+
+    def test_a46_copy_deletes(self):
+        pill = self._pill()
+        pill_id = pill.id
+        self.assertTrue(pill.gantt_undo_drag_drop('copy', {}))
+        self.assertFalse(self.env[PILL].browse(pill_id).exists())
+
+    def test_a46_gone_record_false(self):
+        pill = self._pill()
+        pill.unlink()
+        self.assertIs(pill.gantt_undo_drag_drop('copy', {}), False)
+        self.assertIs(pill.gantt_undo_drag_drop('reschedule', {'name': 'x'}), False)
+
+    def test_a46_empty_mapping_false(self):
+        pill = self._pill()
+        self.assertIs(pill.gantt_undo_drag_drop('reschedule', {}), False)
+        self.assertIs(pill.gantt_undo_drag_drop('reschedule'), False)
+        self.assertEqual(pill.name, 'Undo pill')
+
+    def test_a46_other_kind_false(self):
+        pill = self._pill()
+        self.assertIs(pill.gantt_undo_drag_drop('resize', {'name': 'x'}), False)
+        self.assertIs(pill.gantt_undo_drag_drop('', {'name': 'x'}), False)
+        self.assertEqual(pill.name, 'Undo pill')
+        self.assertTrue(pill.exists())
+
+    def test_a46_no_write_right_access_error(self):
+        pill = self._pill()
+        # internal users may only read the test pills (security/ir.access.csv)
+        user = self.env['res.users'].create({
+            'name': 'Undo reader',
+            'login': 'undo_reader_a46',
+            'group_ids': [Command.set(self.env.ref('base.group_user').ids)],
+        })
+        as_user = pill.with_user(user)
+        with self.assertRaises(AccessError):
+            as_user.gantt_undo_drag_drop('reschedule', {'name': 'changed'})
+        with self.assertRaises(AccessError):
+            as_user.gantt_undo_drag_drop('copy', {})
+        self.assertEqual(pill.name, 'Undo pill')
