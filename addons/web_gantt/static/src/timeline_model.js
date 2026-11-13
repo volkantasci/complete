@@ -92,6 +92,7 @@ export class TimelineModel extends Model {
         this._timer = null;
         this._waiters = [];
         this._writes = new Set();
+        this._writeTail = Promise.resolve();
         this._publish();
     }
 
@@ -196,6 +197,20 @@ export class TimelineModel extends Model {
         this._writes.add(settled);
         settled.then(() => this._writes.delete(settled));
         return promise;
+    }
+
+    /**
+     * R15: run `fn` once every write queued before it has settled (refused or not), one at a
+     * time. The write is tracked like any other (`whenWritesDone`). Returns the promise of `fn`.
+     * @param {() => any} fn
+     */
+    queueWrite(fn) {
+        const run = this._writeTail.then(() => fn());
+        this._writeTail = run.then(
+            () => {},
+            () => {}
+        );
+        return this.trackWrite(run);
     }
 
     /** Resolves when every tracked write has settled (also those started meanwhile). */

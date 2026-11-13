@@ -137,7 +137,8 @@ export class TimelineEditor {
                 return;
             }
             written = true;
-            await model.trackWrite(
+            // R15: after the writes sent before
+            await model.queueWrite(() =>
                 orm.write(model.resModel, ids, values, {
                     // R9.4: the write runs with the context of the action and the search, not
                     // with the creation defaults
@@ -192,6 +193,140 @@ export class TimelineEditor {
                 { onClose: closed }
             );
         });
+    }
+
+    /**
+     * R5, R7, R8, R10, R15: send a move, a resize or a copy whose values are computed, then
+     * reload and tell the user. The write waits for the writes sent before.
+     * - `values` empty: nothing is sent, shown or reloaded, resolves `false` (D3).
+     * - accepted: the view reloads, then the success notification with Undo shows (D6); a copy
+     *   that was accepted reloads too. Resolves `true`.
+     * - refused (the call rejects): move and resize reload (the pill is drawn from its stored
+     *   values), a copy reloads nothing; the rejection is passed on, so that the Community error
+     *   shows when the caller does not catch it.
+     * @param {Object} change
+     * @param {"move"|"copy"|"resize"} change.kind
+     * @param {number} change.resId the moved or resized record, the duplicated one for a copy
+     * @param {Object} change.values written values; defaults of the duplicate for a copy
+     * @param {{values: Object}} [change.undo] what Undo gives back (`undoValues`)
+     * @returns {Promise<boolean>}
+     */
+    async applyChange({ kind, resId, values, undo }) {
+        if (!values || !Object.keys(values).length) {
+            return false;
+        }
+        const { model, services } = this;
+        const { orm } = services;
+        const context = model.context;
+        return model.queueWrite(async () => {
+            let newId = resId;
+            try {
+                if (kind === "copy") {
+                    const copied = await orm.call(model.resModel, "copy", [[resId]], {
+                        default: values,
+                        context,
+                    });
+                    newId = Array.isArray(copied) ? copied[0] : copied;
+                } else {
+                    await orm.write(model.resModel, [resId], values, { context });
+                }
+            } catch (error) {
+                if (kind !== "copy" && !model.disposed) {
+                    // only to draw the pill again from its stored values
+                    await model.reload().catch(() => {});
+                }
+                throw error;
+            }
+            try {
+                if (!model.disposed) {
+                    await model.reload();
+                }
+            } finally {
+                this._notifyChange({
+                    message: kind === "copy" ? _t("Record copied") : _t("Dates changed"),
+                    undo: { kind, resId: newId, values: kind === "copy" ? {} : undo?.values || {} },
+                });
+            }
+            return true;
+        });
+    }
+
+    /**
+     * R10: take a change back on the server and tell the user. `undo` is the descriptor of the
+     * notification: `{kind: "move"|"resize"|"copy", resId, values}`, `resId` being the copy for
+     * a copy. The view reloads whatever the answer. Resolves `true` when it was undone.
+     * @returns {Promise<boolean>}
+     */
+    undoChange({ kind, resId, values }) {
+        const { model, services } = this;
+        const isCopy = kind === "copy";
+        return model.queueWrite(async () => {
+            let done;
+            try {
+                done = await services.orm.call(model.resModel, "gantt_undo_drag_drop", [[resId]], {
+                    drag_kind: isCopy ? "copy" : "reschedule",
+                    values: isCopy ? {} : values,
+                    context: model.context,
+                });
+            } catch (error) {
+                if (!model.disposed) {
+                    await model.reload().catch(() => {});
+                }
+                throw error;
+            }
+            try {
+                if (!model.disposed) {
+                    await model.reload();
+                }
+            } finally {
+                const message = done
+                    ? isCopy
+                        ? _t("Copy removed")
+                        : _t("Change undone")
+                    : isCopy
+                    ? _t("This copy could not be removed")
+                    : _t("This change could not be undone");
+                this._notifyChange({ message, failed: !done });
+            }
+            return !!done;
+        });
+    }
+
+    /** Close the notification of the last change, if it is still shown. */
+    closeNotification() {
+        this._closeNotification?.();
+        this._closeNotification = null;
+    }
+
+    /**
+     * R10: one notification of this view at a time; it replaces the previous one. Without an
+     * `undo` it is a result (no Undo button); `failed` makes it a danger one. Nothing is shown
+     * once the view is left.
+     */
+    _notifyChange({ message, undo, failed = false }) {
+        this.closeNotification();
+        if (this.model.disposed) {
+            return;
+        }
+        const type = failed ? "danger" : "success";
+        const options = { type, className: `o_tl_notification o_tl_notification_${type}` };
+        if (undo) {
+            let used = false;
+            options.buttons = [
+                {
+                    name: _t("Undo"),
+                    icon: "undo",
+                    onClick: () => {
+                        // a second click while the undo runs does nothing
+                        if (!used) {
+                            used = true;
+                            this.undoChange(undo);
+                        }
+                    },
+                },
+            ];
+        }
+        this._closeNotification = this.services.notification.add(message, options);
     }
 
     /**

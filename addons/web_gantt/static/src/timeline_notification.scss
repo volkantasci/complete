@@ -1,0 +1,21 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The Community notification shows a coloured bar and no icon: the notifications of a change
+// and of its Undo (success and danger alike) carry a check icon before the message (R10).
+.o_notification.o_tl_notification {
+    .o_notification_body {
+        justify-content: flex-start !important;
+
+        &::before {
+            content: "check";
+            flex: 0 0 auto;
+            margin-inline-end: map-get($spacers, 2);
+            font-family: "Material Symbols Outlined";
+            font-size: 1.25em;
+            line-height: 1.2;
+            font-feature-settings: "liga";
+            -webkit-font-smoothing: antialiased;
+        }
+    }
+}
