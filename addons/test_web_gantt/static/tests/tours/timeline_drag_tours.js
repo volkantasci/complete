@@ -1173,3 +1173,292 @@ tours.add("timeline_002b2_a57_refused_move_and_copy", {
         },
     ],
 });
+
+// ----------------------------------------------------------------------------
+// Moves to other rows, group rows and rows of a read-only grouping (Task 12)
+// ----------------------------------------------------------------------------
+
+async function valuesOf(name, names) {
+    const rows = await rpc(`/web/dataset/call_kw/${PILL_MODEL}/search_read`, {
+        model: PILL_MODEL,
+        method: "search_read",
+        args: [[["name", "=", name]], names],
+        kwargs: {},
+    });
+    return rows[0];
+}
+const idOf = (value) => (Array.isArray(value) ? value[0] : value);
+const labelOf = (row) => $(".o_tl_row_label", row)?.textContent.trim();
+const TOP_GROUPS = ["Alpha", "Beta", "Gamma"];
+
+/** The rows below the group row `name` and above the next group row of the first level. */
+function rowsOfGroup(name) {
+    const rows = $$(".o_tl_row:not(.o_tl_total_row)");
+    const from = rows.findIndex((row) => row.classList.contains("o_tl_group_row") && labelOf(row) === name);
+    assert(from >= 0, `no group row ${name}`);
+    const rest = rows.slice(from + 1);
+    const end = rest.findIndex(
+        (row) => row.classList.contains("o_tl_group_row") && TOP_GROUPS.includes(labelOf(row))
+    );
+    return end < 0 ? rest : rest.slice(0, end);
+}
+const groupRowNamed = (name) =>
+    $$(".o_tl_group_row").find((row) => labelOf(row) === name);
+const middleOfElement = (element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.top + rect.height / 2;
+};
+
+/** Move the held pointer of `gesture` over `row`, at the press column. */
+async function hoverRow(gesture, row, dx = 0) {
+    gesture.end = { x: gesture.from.x + dx, y: middleOfElement(row) };
+    pointer("pointermove", gesture.end.x, gesture.end.y, {
+        pointerType: gesture.pointerType,
+        ctrl: gesture.ctrl,
+    });
+    await frame();
+    await frame();
+}
+const highlights = () => $$(".o_tl_drop");
+const badgeCount = () => $$(".o_tl_selection_badge").length;
+
+function assertRefused(row, label) {
+    assert(!highlights().length, `${label}: the refusing row is highlighted`);
+    assert(badgeCount() === 0, `${label}: the refusing row shows badges`);
+    assert(row, label);
+}
+function assertAccepted(row, height, label) {
+    const [drop] = highlights();
+    assert(drop && drop.closest(".o_tl_row") === row, `${label}: no highlight in the row`);
+    assert(badgeCount() === 2, `${label}: no badges`);
+    const rect = drop.getBoundingClientRect();
+    assert(Math.abs(rect.height - height) <= 1.5, `${label}: the highlight is ${rect.height} px tall`);
+}
+
+async function releaseAndWait(gesture) {
+    release(gesture);
+    await until(() => noticeText(), "the notification");
+    await gridSettled();
+}
+
+tours.add("timeline_002b2_a9_move_to_beta", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const before = await valuesOf("Review", ["parent_id", "x_contact"]);
+                const gesture = await holdAndMove("Review", {
+                    to: { y: middleOfElement(rowNamed("Beta")) },
+                });
+                const beta = rowNamed("Beta");
+                assertAccepted(beta, beta.getBoundingClientRect().height, "Beta");
+                assert(
+                    $$(".o_tl_selection_badge.text-success, .o_tl_selection_badge.text-danger").length === 0,
+                    "the badges are not black on the same days"
+                );
+                await releaseAndWait(gesture);
+                const record = await recordNamed("Review");
+                assert(record.parent_id && record.parent_id[1] === "Beta", "Parent is not Beta");
+                assert(reviewAt(record, today), "the dates changed");
+                const after = await valuesOf("Review", ["x_contact"]);
+                assert(idOf(after.x_contact) === idOf(before.x_contact), "the Contact changed");
+                assert(pillNamed("Review"), "the pill is gone");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                const back = await recordNamed("Review");
+                assert(back.parent_id && back.parent_id[1] === "Alpha", "Undo did not give Alpha back");
+            },
+        },
+    ],
+});
+
+async function closeGroupRow(name) {
+    const row = groupRowNamed(name);
+    $(".o_tl_row_header", row).click();
+    await until(() => groupRowNamed(name).classList.contains("o_tl_collapsed"), `${name} to close`);
+    await sleep(1100);
+    await gridSettled();
+}
+
+for (const copy of [false, true]) {
+    tours.add(`timeline_002b2_a11_closed_group_row_${copy ? "copy" : "move"}`, {
+        steps: () => [
+            gridReady,
+            {
+                trigger: ".o_tl_pill",
+                async run() {
+                    const today = todayIso();
+                    const before = await valuesOf("Review", ["x_contact"]);
+                    await closeGroupRow("Beta");
+                    if (copy) {
+                        key("keydown", "Control");
+                    }
+                    const gesture = await holdAndMove("Review", {
+                        to: { y: middleOfElement(groupRowNamed("Beta")) },
+                        ctrl: copy,
+                    });
+                    assertAccepted(groupRowNamed("Beta"), 40, "the closed Beta group row");
+                    release(gesture);
+                    if (copy) {
+                        key("keyup", "Control");
+                    }
+                    await until(() => noticeText(), "the notification");
+                    await gridSettled();
+                    await until(
+                        () => !groupRowNamed("Beta").classList.contains("o_tl_collapsed"),
+                        "the group to open"
+                    );
+                    const record = await recordNamed(copy ? "Review (copy)" : "Review");
+                    assert(record.parent_id && record.parent_id[1] === "Beta", "Parent is not Beta");
+                    assert(reviewAt(record, today), "the dates changed");
+                    const held = await valuesOf(copy ? "Review (copy)" : "Review", ["x_contact"]);
+                    assert(idOf(held.x_contact) === idOf(before.x_contact), "the Contact changed");
+                    noticeButton("Undo").click();
+                    await until(() => noticeText(), "the result of Undo");
+                },
+            },
+        ],
+    });
+}
+
+tours.add("timeline_002b2_a50_readonly_creator_rows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const gesture = await holdAndMove("Review", { to: {} });
+                // the creator row of Beta refuses: no highlight, no badge, a release does nothing
+                const creatorOfBeta = rowsOfGroup("Beta")[0];
+                await hoverRow(gesture, creatorOfBeta);
+                assertRefused(creatorOfBeta, "the creator row of Beta");
+                release(gesture);
+                await sleep(600);
+                await gridSettled();
+                assert(!noticeText(), "a refused release gave a notification");
+                assert(!$(".o_tl_pill_moved"), "the moved pill stayed");
+                const record = await recordNamed("Review");
+                assert(record.parent_id[1] === "Alpha" && reviewAt(record, today), "Review changed");
+                // the Beta group row accepts: Parent only
+                const second = await holdAndMove("Review", { to: {} });
+                await hoverRow(second, groupRowNamed("Beta"));
+                assertAccepted(groupRowNamed("Beta"), 40, "the Beta group row");
+                await releaseAndWait(second);
+                const moved = await recordNamed("Review");
+                assert(moved.parent_id[1] === "Beta" && reviewAt(moved, today), "not under Beta");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a51_readonly_siblings", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const before = await valuesOf("Review", ["parent_id", "x_contact"]);
+                const gesture = await holdAndMove("Review", { to: {} });
+                const alpha = rowsOfGroup("Alpha");
+                const refused = [
+                    ["the Alpha creator row", alpha[0]],
+                    ["a Contact row under Beta", rowsOfGroup("Beta")[1]],
+                    ["a Contact row under Gamma", rowsOfGroup("Gamma")[1]],
+                ];
+                for (const [label, row] of refused) {
+                    await hoverRow(gesture, row);
+                    assertRefused(row, label);
+                }
+                // a sibling Contact row under the same Alpha / creator row accepts
+                const sibling = alpha.find((row) => labelOf(row) === "Host Contact 1");
+                await hoverRow(gesture, sibling);
+                assertAccepted(sibling, sibling.getBoundingClientRect().height, "the sibling Contact row");
+                await releaseAndWait(gesture);
+                const moved = await valuesOf("Review", ["parent_id", "x_contact", "date_start"]);
+                assert(moved.x_contact[1] === "Host Contact 1", "the Contact did not change");
+                assert(idOf(moved.parent_id) === idOf(before.parent_id), "Parent changed");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                await gridSettled();
+                // the Beta group row accepts too
+                const second = await holdAndMove("Review", { to: {} });
+                await hoverRow(second, groupRowNamed("Beta"));
+                assertAccepted(groupRowNamed("Beta"), 40, "the Beta group row");
+                await releaseAndWait(second);
+                const last = await valuesOf("Review", ["parent_id", "x_contact"]);
+                assert(last.parent_id[1] === "Beta", "not under Beta");
+                assert(idOf(last.x_contact) === idOf(before.x_contact), "the Contact changed");
+                assert(reviewAt(await recordNamed("Review"), today), "the dates changed");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a52_phone_readonly_rows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const pill = await until(() => pillNamed("Plan"), "Plan");
+                const bounds = renderer().getBoundingClientRect();
+                const rect = pill.getBoundingClientRect();
+                const x = Math.min(Math.max(rect.left + rect.width / 2, bounds.left + 5), bounds.right - 5);
+                const y = rect.top + rect.height / 2;
+                pointer("pointerdown", x, y, { target: pill });
+                const gesture = { from: { x, y }, end: { x, y }, pointerType: "mouse", ctrl: false };
+                for (let i = 1; i <= 4; i++) {
+                    pointer("pointermove", x, y + 4 * i);
+                    await frame();
+                }
+                const creator = rowsOfGroup("Alpha")[0];
+                await hoverRow(gesture, creator);
+                assertRefused(creator, "Alpha's creator row");
+                await hoverRow(gesture, groupRowNamed("Alpha"));
+                assertAccepted(groupRowNamed("Alpha"), 40, "the Alpha group row");
+                await releaseAndWait(gesture);
+                const record = await recordNamed("Plan");
+                assert(record.parent_id && record.parent_id[1] === "Alpha", "Plan is not under Alpha");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a72_release_on_own_group_row", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const network = watchNetwork();
+                try {
+                    const gesture = await holdAndMove("Review", { to: {} });
+                    await hoverRow(gesture, groupRowNamed("Alpha"));
+                    assertAccepted(groupRowNamed("Alpha"), 40, "the Alpha group row");
+                    network.log.length = 0;
+                    release(gesture);
+                    await sleep(700);
+                    await gridSettled();
+                    assert(!noticeText(), "a release that changes nothing gave a notification");
+                    assert(!writesOf(network).length, "a write was sent");
+                    assert(!$(".o_tl_pill_moved") && !$(".o_tl_drop"), "the drag drawing stayed");
+                    const record = await recordNamed("Review");
+                    assert(record.parent_id[1] === "Alpha" && reviewAt(record, today), "Review changed");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});

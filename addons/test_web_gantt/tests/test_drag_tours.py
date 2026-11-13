@@ -170,3 +170,30 @@ class TestTimelineDragTours(HttpCase):
     def test_a57_tour_refused_move_and_copy(self):
         self._tour('h28', 'timeline_002b2_a57_refused_move_and_copy', login=RESTRICTED)
         self.assertFalse(self.env[PILL].search([('name', 'like', '(copy)')]))
+
+    def test_a9_tour_move_to_beta(self):
+        self._tour('h2', 'timeline_002b2_a9_move_to_beta')
+        self._restored()
+
+    def test_a11_tour_closed_group_row_move(self):
+        self._tour('h3', 'timeline_002b2_a11_closed_group_row_move')
+        self._restored()
+
+    def test_a11_tour_closed_group_row_copy(self):
+        self._tour('h3', 'timeline_002b2_a11_closed_group_row_copy')
+        self.assertFalse(self.env[PILL].search([('name', 'like', '(copy)')]))
+
+    def test_a50_tour_readonly_creator_rows(self):
+        self._tour('h30', 'timeline_002b2_a50_readonly_creator_rows')
+        self._restored()
+
+    def test_a51_tour_readonly_siblings(self):
+        self._tour('h32', 'timeline_002b2_a51_readonly_siblings')
+        self._restored()
+
+    def test_a52_tour_phone_readonly_rows(self):
+        self._tour('h30', 'timeline_002b2_a52_phone_readonly_rows', size='390x844')
+
+    def test_a72_tour_release_on_own_group_row(self):
+        self._tour('h3', 'timeline_002b2_a72_release_on_own_group_row')
+        self._restored()

@@ -104,7 +104,8 @@ function groupValue(fields, name, value) {
     }
     const type = fields[name]?.type;
     if (type === "many2one" || type === "many2many") {
-        const id = Array.isArray(value) ? value[0] : value;
+        // a pair [id, name], a record read by `web_read` ({id, display_name}) or a bare id
+        const id = Array.isArray(value) ? value[0] : (value?.id ?? value);
         return type === "many2many" ? [id] : id;
     }
     return value;
