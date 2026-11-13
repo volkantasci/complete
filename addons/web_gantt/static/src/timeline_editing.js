@@ -96,10 +96,13 @@ export function rowValueChain(rows, rowId, fields) {
 }
 
 function groupValue(fields, name, value) {
+    if (!fields) {
+        throw new Error("timeline_editing: the model fields are required");
+    }
     if (value === false || value === null || value === undefined) {
         return false;
     }
-    const type = fields?.[name]?.type;
+    const type = fields[name]?.type;
     if (type === "many2one" || type === "many2many") {
         const id = Array.isArray(value) ? value[0] : value;
         return type === "many2many" ? [id] : id;
@@ -130,6 +133,7 @@ function periodValues(period, placement) {
  * @param {Object} params.placement
  * @param {Object} params.fields field definitions of the model
  * @param {Object} [params.rowValues] result of `rowValueChain`
+ * (`fields` is not read here; callers pass it for symmetry with `planWriteValues`)
  */
 export function creationContext({ baseContext, period, placement, fields, rowValues }) {
     const context = { ...baseContext };
@@ -147,6 +151,11 @@ export function creationContext({ baseContext, period, placement, fields, rowVal
 
 function heldValue(record, name, fields) {
     const raw = record?.raw?.[name];
+    const type = fields[name]?.type;
+    if (type === "many2many") {
+        // the whole list of ids counts: it is replaced by the row's one record
+        return Array.isArray(raw) && raw.length ? raw : false;
+    }
     return groupValue(fields, name, raw);
 }
 
@@ -164,9 +173,8 @@ function sameValue(a, b) {
 export function planWriteValues({ period, placement, fields, rowValues, records, shownById }) {
     const wanted = periodValues(period, placement);
     const planned = {};
-    for (const [name, raw] of Object.entries(rowValues || {})) {
-        const value = raw;
-        const isMany = fields?.[name]?.type === "many2many" || Array.isArray(value);
+    for (const [name, value] of Object.entries(rowValues || {})) {
+        const isMany = fields[name]?.type === "many2many";
         wanted[name] = value;
         planned[name] = isMany ? (value ? [[6, 0, value]] : false) : value;
     }

@@ -253,6 +253,11 @@ test("002b R9: plan values leave out what shown records hold (O2b-1)", () => {
     // one record holds another parent: the value stays for everybody
     args.shownById.set(2, record(2, [8, "Beta"]));
     expect(planWriteValues(args).parent_id).toBe(7);
+    // a record holding two tags: its list is replaced by the row's one tag
+    args.shownById.set(2, { id: 2, raw: { ...record(2, [7, "Alpha"]).raw, tag_ids: [3, 4] } });
+    expect(planWriteValues(args).tag_ids).toEqual([[6, 0, [3]]]);
+    expect(planWriteValues(args).parent_id).toBe(undefined);
+    args.shownById.set(2, record(2, [8, "Beta"]));
     // one checked record is not shown in the view: nothing is left out
     args.shownById.delete(2);
     expect(Object.keys(planWriteValues(args))).toHaveLength(4);
