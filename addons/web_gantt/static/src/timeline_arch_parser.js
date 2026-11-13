@@ -56,6 +56,15 @@ function defaultKindOf(node) {
     return OLD_SCALE_KINDS.includes(scale) ? scale : null;
 }
 
+/** The `on_create` text: a number when it is all digits (an action id), else the text itself. */
+function onCreateOf(text) {
+    const value = (text || "").trim();
+    if (!value) {
+        return null;
+    }
+    return /^\d+$/.test(value) ? parseInt(value, 10) : value;
+}
+
 function parsePopover(node, extraNames) {
     const popover = { fields: [], templates: {}, cardId: node.getAttribute("card_id") || null };
     const addField = (name) => {
@@ -153,11 +162,14 @@ export function parseTimelineArch(xmlDoc, fields = {}) {
         canCreate: activeActions.create,
         canEdit: activeActions.edit,
         canDelete: activeActions.delete,
+        canCellCreate: activeActions.create && exprToBoolean(attr("cell_create"), true),
+        canPlan: activeActions.edit && exprToBoolean(attr("plan"), true),
         popover,
         extraFieldNames: [...extraNames],
         // read by the controller and the model
         sample: exprToBoolean(attr("sample"), false),
         defaultGroupBy: splitNames(attr("default_group_by")),
-        formViewId: attr("form_view_id") || null,
+        formViewId: parseInt(attr("form_view_id"), 10) || false,
+        onCreate: onCreateOf(attr("on_create")),
     };
 }
