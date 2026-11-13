@@ -65,7 +65,7 @@ beforeEach(async () => {
 });
 
 const RECORD_ROW = ".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)";
-const PILL = { Design: 4, Build: 5, Review: 6, Plan: 9, "Long task": 10, "Color ten": 14 };
+const PILL = { Design: 4, Build: 5, Review: 6, Plan: 9, "Long task": 10, "Color ten": 14, "Three days": 2, "Next month": 3 };
 
 async function mountTimeline({ arch = HOST_ARCHS.H1, groupBy, ...rest } = {}) {
     await mountView({ type: "gantt", resModel: "pill", arch, groupBy, ...rest });
@@ -996,4 +996,149 @@ test("R7 R15 a refused copy leaves the closed group row closed", async () => {
     expect(copies()).toHaveLength(1);
     expect(groupRow("Beta")).toHaveClass("o_tl_collapsed");
     expect.verifyErrors(["RPC_ERROR: Access denied"]);
+});
+
+// ----------------------------------------------------------------------------
+// Date-only fields (R17)
+// ----------------------------------------------------------------------------
+
+/** H25: the second model on Month, half-day precision (each day column 52 px wide at this size). */
+const H25 = timelineArch(`string="Dated pills" default_range="month" scales="day,week,month" plan="0"`);
+const dayWidth = () => queryRect(cellAt("2026-11-12")).width;
+const leftOf = (date) => queryRect(cellAt(date)).left;
+const badgeRolesOf = () =>
+    queryAll(".o_tl_selection_badge").map((badge) =>
+        badge.classList.contains("text-danger")
+            ? "danger"
+            : badge.classList.contains("text-success")
+              ? "success"
+              : "black"
+    );
+
+/** Press "Three days" at the abscissa `x` (on its line) and give the drag helpers. */
+async function pressThreeDays(x) {
+    const rect = queryRect(pillEl("Three days"));
+    return pressPill("Three days", (x - rect.left) / rect.width);
+}
+
+test("A58 H10 Three days one day to the left: whole days, dates without time, two dates written", async () => {
+    await mountTimeline({ arch: HOST_ARCHS.H10, resModel: "pill2" });
+    const day = dayWidth();
+    const three = await pressPill("Three days");
+    await three.by(-day);
+    expect(badgeTexts()).toEqual(["11/10/2026", "11/12/2026"]);
+    expect(badgeRolesOf()).toEqual(["danger", "danger"]);
+    expect(near(queryRect(".o_tl_drop").left, leftOf("2026-11-10"))).toBe(true);
+    expect(near(queryRect(".o_tl_drop").width, 3 * day)).toBe(true);
+    await three.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            call: "write",
+            ids: [PILL["Three days"]],
+            values: { date_start: "2026-11-10", date_stop: "2026-11-12" },
+        },
+    ]);
+    // the pill covers the written days (002a D9)
+    expect(near(queryRect(pillEl("Three days")).left, leftOf("2026-11-10") + 1)).toBe(true);
+    expect(near(queryRect(pillEl("Three days")).width, 3 * day - 2)).toBe(true);
+});
+
+test("A59.1 half-day precision: no jump inside Nov 12, the midnight into Nov 13 moves a whole day", async () => {
+    await mountTimeline({ arch: H25, resModel: "pill2" });
+    const day = dayWidth();
+    const origin = queryRect(pillEl("Three days"));
+    const three = await pressThreeDays(leftOf("2026-11-12") + 13);
+    // past the middle of Nov 12, still inside it
+    await three.move(leftOf("2026-11-12") + 45, three.start.y);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    expect(near(queryRect(".o_tl_drop").left, leftOf("2026-11-11"))).toBe(true);
+    expect(near(queryRect(".o_tl_pill_moved").left, origin.left - 1)).toBe(true);
+    // the midnight into Nov 13
+    await three.move(leftOf("2026-11-13") + 2, three.start.y);
+    expect(badgeTexts()).toEqual(["11/12/2026", "11/14/2026"]);
+    expect(near(queryRect(".o_tl_drop").left, leftOf("2026-11-12"))).toBe(true);
+    expect(near(queryRect(".o_tl_pill_moved").left, origin.left - 1 + day)).toBe(true);
+    await three.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            call: "write",
+            ids: [PILL["Three days"]],
+            values: { date_start: "2026-11-12", date_stop: "2026-11-14" },
+        },
+    ]);
+});
+
+test("A59.2 back across the same midnight writes nothing; on to the left it jumps a day earlier", async () => {
+    await mountTimeline({ arch: H25, resModel: "pill2" });
+    const first = await pressThreeDays(leftOf("2026-11-12") + 13);
+    await first.move(leftOf("2026-11-13") + 2, first.start.y);
+    expect(badgeTexts()).toEqual(["11/12/2026", "11/14/2026"]);
+    await first.move(leftOf("2026-11-13") - 2, first.start.y);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    await first.drop();
+    await settle();
+    expect(writes()).toHaveLength(0);
+    expect(".o_notification").toHaveCount(0);
+
+    const second = await pressThreeDays(leftOf("2026-11-12") + 13);
+    // the half day to the left of the press stays inside Nov 12; the midnight before moves
+    await second.move(leftOf("2026-11-12") + 2, second.start.y);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    await second.move(leftOf("2026-11-12") - 2, second.start.y);
+    expect(badgeTexts()).toEqual(["11/10/2026", "11/12/2026"]);
+    await second.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            call: "write",
+            ids: [PILL["Three days"]],
+            values: { date_start: "2026-11-10", date_stop: "2026-11-12" },
+        },
+    ]);
+});
+
+test("A71 Ctrl copy one day later on a date-only model: badges without time, the copy gets Nov 12 to Nov 14", async () => {
+    await mountTimeline({ arch: H25, resModel: "pill2" });
+    await keyDown("ctrl");
+    const three = await pressThreeDays(leftOf("2026-11-12") + 13);
+    await three.move(leftOf("2026-11-13") + 2, three.start.y);
+    expect(root()).toHaveClass("o_tl_drag_copy");
+    expect(badgeTexts()).toEqual(["11/12/2026", "11/14/2026"]);
+    await three.drop();
+    await keyUp("ctrl");
+    await settle();
+    expect(writes()).toHaveLength(0);
+    expect(copies()).toEqual([
+        {
+            call: "copy",
+            ids: [PILL["Three days"]],
+            default: { date_start: "2026-11-12", date_stop: "2026-11-14" },
+        },
+    ]);
+});
+
+test("A59.5 Year copy of H25: Next month crossing a month border becomes Jan 7 to Jan 22, 2027", async () => {
+    const year = timelineArch(
+        `string="Dated pills" default_range="year" scales="day,week,month,year" plan="0"`
+    );
+    await mountTimeline({ arch: year, resModel: "pill2" });
+    const month = queryRect(cellAt("2026-12-01")).width;
+    const next = await pressPill("Next month");
+    // inside the same month: nothing moves
+    await next.by(month / 4);
+    expect(badgeTexts()).toEqual(["12/7/2026", "12/22/2026"]);
+    await next.by(month);
+    expect(badgeTexts()).toEqual(["1/7/2027", "1/22/2027"]);
+    expect(near(queryRect(".o_tl_drop").left, leftOf("2027-01-01"))).toBe(true);
+    await next.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            call: "write",
+            ids: [PILL["Next month"]],
+            values: { date_start: "2027-01-07", date_stop: "2027-01-22" },
+        },
+    ]);
 });

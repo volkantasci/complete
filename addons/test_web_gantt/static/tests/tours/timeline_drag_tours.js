@@ -2276,3 +2276,313 @@ tours.add("timeline_002b2_a55_row_header_edge", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Date-only fields (R17): A58, A59, A71 (left to right)
+// ---------------------------------------------------------------------------------------------
+
+const DATED_MODEL = "test.web.gantt.pill2";
+const shortDate = (date) => `${date.month}/${date.day}/${date.year}`;
+
+async function datedRecord(name) {
+    const rows = await rpc(`/web/dataset/call_kw/${DATED_MODEL}/search_read`, {
+        model: DATED_MODEL,
+        method: "search_read",
+        args: [[["name", "=", name]], ["name", "date_start", "date_stop"]],
+        kwargs: {},
+    });
+    return rows[0];
+}
+
+/** The box of the cell of the date `iso` (a day, or a month on the year scale) in the first row. */
+function cellOfDate(iso) {
+    const index = Number($(`.o_tl_col[data-date="${iso}"]`).dataset.index);
+    return $$(".o_tl_cell", $(".o_tl_row[data-row-id]"))[index].getBoundingClientRect();
+}
+
+/** Press the pill `name` at the abscissa `x` on its middle line. */
+async function pressAtX(name, x, { ctrl = false } = {}) {
+    const pill = await until(() => pillNamed(name), `the pill ${name}`);
+    const y = centreOf(pill).y;
+    if (ctrl) {
+        key("keydown", "Control");
+    }
+    pointer("pointerdown", x, y, { target: pill, ctrl });
+    return { from: { x, y }, end: { x, y }, pointerType: "mouse", ctrl };
+}
+
+/** Move the held pointer to `x` on its line, in `steps` moves. */
+async function moveHeld(gesture, x, steps = 6) {
+    const start = gesture.end.x;
+    for (let i = 1; i <= steps; i++) {
+        pointer("pointermove", start + ((x - start) * i) / steps, gesture.from.y, {
+            ctrl: gesture.ctrl,
+        });
+        await frame();
+    }
+    await frame();
+    gesture.end = { x, y: gesture.from.y };
+}
+
+async function undoDated(text = "Change undone") {
+    noticeButton("Undo").click();
+    await until(() => noticeText() === text, "the result of Undo");
+    await gridSettled();
+}
+
+const datesOf = (record) => [record.date_start, record.date_stop];
+
+tours.add("timeline_002b2_a58_date_only_full_precision", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = DateTime.fromISO(todayIso());
+                const day = cellOfDate(todayIso()).width;
+                // the move: one day to the left
+                let gesture = await holdAndMove("Three days", {
+                    to: { x: centreOf(pillNamed("Three days")).x - day },
+                });
+                assert(
+                    badgesNow().join("|") ===
+                        [shortDate(today.minus({ days: 2 })), shortDate(today)].join("|"),
+                    `badges ${badgesNow()}`
+                );
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                let record = await datedRecord("Three days");
+                assert(
+                    datesOf(record).join() === [addDays(todayIso(), -2), todayIso()].join(),
+                    `Three days is ${datesOf(record)}`
+                );
+                // the pill covers the written days (002a D9)
+                const covers = pillNamed("Three days").getBoundingClientRect();
+                assert(Math.abs(covers.left - cellOfDate(addDays(todayIso(), -2)).left - 1) <= 1, "left");
+                assert(Math.abs(covers.width - (3 * day - 2)) <= 1, "width");
+                await undoDated();
+                // the resize: the end one day to the left
+                gesture = await pressHandle("Three days", "stop");
+                await dragHandleTo(gesture, gesture.from.x - day);
+                assert(
+                    badgesNow().join("|") ===
+                        [shortDate(today.minus({ days: 1 })), `${shortDate(today)} (-1 days)`].join("|"),
+                    `badges ${badgesNow()}`
+                );
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                record = await datedRecord("Three days");
+                assert(
+                    datesOf(record).join() === [addDays(todayIso(), -1), todayIso()].join(),
+                    `Three days is ${datesOf(record)}`
+                );
+                await undoDated();
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a59_half_day_precision", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const iso = todayIso();
+                const today = DateTime.fromISO(iso);
+                const original = [addDays(iso, -1), addDays(iso, 1)];
+                const shown = (start, stop) => [
+                    shortDate(today.plus({ days: start })),
+                    shortDate(today.plus({ days: stop })),
+                ];
+                const badgesAre = (start, stop, message) =>
+                    assert(
+                        badgesNow().join("|") === shown(start, stop).join("|"),
+                        `${message}: ${badgesNow()}`
+                    );
+                const here = () => cellOfDate(iso);
+                const next = () => cellOfDate(addDays(iso, 1));
+
+                // 1. move later: nothing inside today, a whole day at midnight
+                let gesture = await pressAtX("Three days", here().left + 13);
+                await moveHeld(gesture, here().left + 45);
+                badgesAre(-1, 1, "inside the day");
+                await moveHeld(gesture, next().left + 2);
+                badgesAre(0, 2, "past midnight");
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                let record = await datedRecord("Three days");
+                assert(datesOf(record).join() === [iso, addDays(iso, 2)].join(), `1: ${datesOf(record)}`);
+                await undoDated();
+
+                // 2. back across the same midnight: no write; on to the left: a day earlier
+                gesture = await pressAtX("Three days", here().left + 13);
+                await moveHeld(gesture, next().left + 2);
+                badgesAre(0, 2, "into the next day");
+                await moveHeld(gesture, next().left - 2);
+                badgesAre(-1, 1, "back");
+                release(gesture);
+                await sleep(400);
+                assert(noticeText() !== "Dates changed", "a notification after a release that changes nothing");
+                assert(
+                    datesOf(await datedRecord("Three days")).join() === original.join(),
+                    "the record changed"
+                );
+                gesture = await pressAtX("Three days", here().left + 13);
+                await moveHeld(gesture, here().left - 2);
+                badgesAre(-2, 0, "the midnight before");
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                record = await datedRecord("Three days");
+                assert(
+                    datesOf(record).join() === [addDays(iso, -2), iso].join(),
+                    `2: ${datesOf(record)}`
+                );
+                await undoDated();
+
+                // 3. the stop: the middle of the day after the end, then back and left
+                const end = () => cellOfDate(addDays(iso, 2)).left;
+                gesture = await pressHandle("Three days", "stop");
+                await dragHandleTo(gesture, end() + 10);
+                badgesAre(-1, 1, "before the middle");
+                await dragHandleTo(gesture, end() + 30);
+                assert(
+                    badgesNow()[1] === `${shortDate(today.plus({ days: 2 }))} (+1 days)`,
+                    `past the middle: ${badgesNow()}`
+                );
+                await dragHandleTo(gesture, end() + 10);
+                badgesAre(-1, 1, "back");
+                await dragHandleTo(gesture, end() - 30);
+                assert(
+                    badgesNow()[1] === `${shortDate(today)} (-1 days)`,
+                    `past the middle to the left: ${badgesNow()}`
+                );
+                await dragHandleTo(gesture, cellOfDate(addDays(iso, -6)).left);
+                assert(
+                    badgesNow()[1] === `${shortDate(today.minus({ days: 1 }))} (-2 days)`,
+                    `never before the start day: ${badgesNow()}`
+                );
+                await dragHandleTo(gesture, end() - 30);
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                record = await datedRecord("Three days");
+                assert(datesOf(record).join() === [original[0], iso].join(), `3: ${datesOf(record)}`);
+                await undoDated();
+
+                // 4. the start: the middle of the day before it
+                const begin = () => cellOfDate(addDays(iso, -1)).left;
+                gesture = await pressHandle("Three days", "start");
+                await dragHandleTo(gesture, begin() - 20);
+                badgesAre(-1, 1, "before the middle");
+                await dragHandleTo(gesture, begin() - 30);
+                assert(
+                    badgesNow()[0] === `${shortDate(today.minus({ days: 2 }))} (+1 days)`,
+                    `past the middle: ${badgesNow()}`
+                );
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                record = await datedRecord("Three days");
+                assert(
+                    datesOf(record).join() === [addDays(iso, -2), original[1]].join(),
+                    `4: ${datesOf(record)}`
+                );
+                await undoDated();
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a59_year_scale", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const before = await datedRecord("Next month");
+                const start = DateTime.fromISO(before.date_start);
+                const stop = DateTime.fromISO(before.date_stop);
+                const column = cellOfDate(start.startOf("month").toISODate()).width;
+                // move: inside the month nothing, one month border later one month
+                const gesture = await holdAndMove("Next month", {
+                    to: { x: centreOf(pillNamed("Next month")).x + column / 4 },
+                });
+                assert(
+                    badgesNow().join("|") === [shortDate(start), shortDate(stop)].join("|"),
+                    `inside the month: ${badgesNow()}`
+                );
+                await moveHeld(gesture, gesture.end.x + column);
+                assert(
+                    badgesNow().join("|") ===
+                        [shortDate(start.plus({ months: 1 })), shortDate(stop.plus({ months: 1 }))].join("|"),
+                    `a month later: ${badgesNow()}`
+                );
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                let record = await datedRecord("Next month");
+                assert(
+                    datesOf(record).join() ===
+                        [start.plus({ months: 1 }).toISODate(), stop.plus({ months: 1 }).toISODate()].join(),
+                    `moved: ${datesOf(record)}`
+                );
+                await undoDated();
+                // resize: the end past the middle of the next month
+                const resize = await pressHandle("Next month", "stop");
+                const edge = bodyRight("Next month") + 1;
+                await dragHandleTo(resize, edge + column * 0.3);
+                assert(badgesNow()[1] === shortDate(stop), `before the middle: ${badgesNow()}`);
+                await dragHandleTo(resize, edge + column * 0.7);
+                assert(
+                    badgesNow()[1] === `${shortDate(stop.plus({ months: 1 }))} (+1 months)`,
+                    `past the middle: ${badgesNow()}`
+                );
+                release(resize);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                record = await datedRecord("Next month");
+                assert(
+                    datesOf(record).join() ===
+                        [before.date_start, stop.plus({ months: 1 }).toISODate()].join(),
+                    `resized: ${datesOf(record)}`
+                );
+                await undoDated();
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a71_date_only_copy", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const iso = todayIso();
+                const today = DateTime.fromISO(iso);
+                const gesture = await pressAtX("Three days", cellOfDate(iso).left + 13, { ctrl: true });
+                await moveHeld(gesture, cellOfDate(addDays(iso, 1)).left + 2);
+                assert($(".o_timeline_view").classList.contains("o_tl_drag_copy"), "no copy class");
+                assert(
+                    badgesNow().join("|") ===
+                        [shortDate(today), shortDate(today.plus({ days: 2 }))].join("|"),
+                    `badges ${badgesNow()}`
+                );
+                release(gesture);
+                key("keyup", "Control");
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const copy = await datedRecord("Three days (copy)");
+                assert(copy, "no copy");
+                assert(datesOf(copy).join() === [iso, addDays(iso, 2)].join(), `copy ${datesOf(copy)}`);
+                await undoDated("Copy removed");
+                assert(!(await datedRecord("Three days (copy)")), "the copy stayed");
+            },
+        },
+    ],
+});

@@ -31,7 +31,7 @@ export function colorIndexOf(value) {
 }
 
 /** Sub-column position of an instant; `ceil` rounds up to the end of the sub-column. */
-function positionOf(time, columns, parts, ceil) {
+export function positionOf(time, columns, parts, ceil) {
     const millis = time.toMillis();
     if (millis <= columns[0].start.toMillis()) {
         return 0;

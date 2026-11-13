@@ -24,6 +24,8 @@ import {
     foldableRuns,
     formatHours,
     pillLabel,
+    pillSpan,
+    positionOf,
     rowHeightFor,
     segmentCounts,
     stackPills,
@@ -1016,6 +1018,9 @@ export class TimelineRenderer extends Component {
         }
         const fraction = (rtl ? hit.rect.right - x : x - hit.rect.left) / (hit.rect.width || 1);
         if (nearest) {
+            if (this._dateOnly) {
+                return { part: this._dayBorder(hit.column, fraction) };
+            }
             // the border nearest to the pointer: 0 to `parts` within the column
             return { part: hit.column * parts + Math.min(Math.max(Math.round(fraction * parts), 0), parts) };
         }
@@ -1070,9 +1075,130 @@ export class TimelineRenderer extends Component {
         if (!accepts) {
             return null;
         }
+        if (this._dateOnly && grab.pill) {
+            // R17.1: the day (month) borders crossed since the press; the target moves by whole
+            // days, kept inside the grid in whole days
+            const record = grab.pill.record;
+            const from = grab.press ?? record.span.from + grab.offset;
+            const range = this._moveRange(record);
+            const n = Math.min(
+                Math.max(this._unitOf(hit.part) - this._unitOf(from), range.min),
+                range.max
+            );
+            const span = this._movedSpan(record, n);
+            return { rowId, part: span.from, length: span.to - span.from, n };
+        }
         const total = data.columns.length * data.parts;
         const part = Math.min(Math.max(hit.part - grab.offset, 0), Math.max(total - grab.length, 0));
         return { rowId, part };
+    }
+
+    /** The bounds are held in whole days (months on the year scale), R17. */
+    get _dateOnly() {
+        return hasDateOnlyBound(this.data.placement);
+    }
+
+    /** The instant at the start of sub-column `part` (the end of the grid for the last border). */
+    _partTime(part) {
+        const { columns, parts } = this.data;
+        if (part >= columns.length * parts) {
+            return columns.at(-1).stop;
+        }
+        const index = Math.max(Math.floor(part / parts), 0);
+        const column = columns[index];
+        const share = Math.max(part - index * parts, 0) / parts;
+        return column.start.plus({ milliseconds: (column.stop.toMillis() - column.start.toMillis()) * share });
+    }
+
+    /** The number of the day (month on the year scale) that holds `date`, from the grid's first. */
+    _boundUnit(date) {
+        const first = this.data.columns[0].start;
+        if (this.data.scaleId === "year") {
+            return (date.year - first.year) * 12 + date.month - first.month;
+        }
+        return Math.round(date.startOf("day").diff(first.startOf("day"), "days").days);
+    }
+
+    /** The day (month) number of the border or sub-column `part`. */
+    _unitOf(part) {
+        return this._boundUnit(this._partTime(part));
+    }
+
+    /** How many days (months) a pill may move either way and stay inside the grid: {min, max}. */
+    _moveRange(record) {
+        const { columns, placement } = this.data;
+        const last = columns.at(-1).stop.minus({ milliseconds: 1 });
+        const stop = placement.stopIsDate ? record.stop : record.stop.minus({ milliseconds: 1 });
+        return {
+            min: Math.min(-this._boundUnit(record.start), 0),
+            max: Math.max(this._boundUnit(last) - this._boundUnit(stop), 0),
+        };
+    }
+
+    /** The span `record` would cover moved by `n` days (months). */
+    _movedSpan(record, n) {
+        const { placement, columns, parts } = this.data;
+        const bounds = movedBounds(
+            { start: record.start, stop: record.stop },
+            n,
+            dragStep(this.data, { dateOnly: true }),
+            placement
+        );
+        return (
+            pillSpan(
+                { [placement.startField]: bounds.start, [placement.stopField]: bounds.stop },
+                placement,
+                columns,
+                parts
+            ) || record.span
+        );
+    }
+
+    /** R17.2: the day (month) border nearest to a pointer at `fraction` of column `column`. */
+    _dayBorder(column, fraction) {
+        const { columns, parts, scaleId } = this.data;
+        if (scaleId === "year") {
+            return column * parts + (fraction >= 0.5 ? parts : 0);
+        }
+        const item = columns[column];
+        const time = item.start.plus({
+            milliseconds: (item.stop.toMillis() - item.start.toMillis()) * fraction,
+        });
+        const day = time.startOf("day");
+        const border = time < day.plus({ hours: 12 }) ? day : day.plus({ days: 1 });
+        return positionOf(border, columns, parts, false);
+    }
+
+    /** How far the part border `to` is from the border `from` on screen, or null (R17.1). */
+    _partShift(from, to) {
+        const rowEl = this.rendererRef().querySelector(".o_tl_row[data-row-id]");
+        const { columns, parts } = this.data;
+        if (!rowEl) {
+            return null;
+        }
+        const rtl = this._isRtl();
+        const x = (part) => {
+            const index = Math.min(Math.floor(part / parts), columns.length - 1);
+            const cell = rowEl.querySelector(`.o_tl_cell[data-column="${index}"]`);
+            if (!cell) {
+                return null;
+            }
+            const rect = cell.getBoundingClientRect();
+            const share = (part - index * parts) / parts;
+            return rtl ? rect.right - share * rect.width : rect.left + share * rect.width;
+        };
+        const [a, b] = [x(from), x(to)];
+        return a === null || b === null ? null : b - a;
+    }
+
+    /** The number of days (months) the edge `edge` of `pill` moves to the border `border`. */
+    _resizeSteps(pill, edge, border) {
+        const { from, to } = pill.record.span;
+        if (!this._dateOnly) {
+            return border - (edge === "stop" ? to : from);
+        }
+        const base = edge === "stop" ? this._unitOf(to) : this._boundUnit(pill.record.start);
+        return this._unitOf(border) - base;
     }
 
     /**
@@ -1091,6 +1217,25 @@ export class TimelineRenderer extends Component {
         }
         const total = this.data.columns.length * this.data.parts;
         const { from, to } = pill.record.span;
+        if (this._dateOnly && this.data.scaleId !== "year") {
+            // never shorter than one day (R17.2)
+            const { columns, parts } = this.data;
+            const least = positionOf(
+                this._partTime(from).startOf("day").plus({ days: 1 }),
+                columns,
+                parts,
+                false
+            );
+            const most = positionOf(
+                this._partTime(to).minus({ milliseconds: 1 }).startOf("day"),
+                columns,
+                parts,
+                false
+            );
+            return edge === "stop"
+                ? Math.min(Math.max(hit.part, least), total)
+                : Math.max(Math.min(hit.part, most), 0);
+        }
         return edge === "stop"
             ? Math.min(Math.max(hit.part, from + 1), total)
             : Math.max(Math.min(hit.part, to - 1), 0);
@@ -1129,10 +1274,10 @@ export class TimelineRenderer extends Component {
         const { pill, mode, target, rowId, offset } = drawing;
         const data = this.data;
         const record = pill.record;
-        const length = record.span.to - record.span.from;
+        const length = target?.length ?? record.span.to - record.span.from;
         let badges = null;
         if (target) {
-            const n = target.part - record.span.from;
+            const n = target.n ?? target.part - record.span.from;
             const { placement } = data;
             const bounds = movedBounds(
                 { start: record.start, stop: record.stop },
@@ -1152,6 +1297,8 @@ export class TimelineRenderer extends Component {
         }
         const renderer = this.rendererRef();
         const pressed = this._pressed;
+        // on a date-only model the pill goes by whole days: it sits on the target's border
+        const shift = target?.n === undefined ? null : this._partShift(record.span.from, target.part);
         this.state.drag = {
             pillId: pill.id,
             mode,
@@ -1164,7 +1311,7 @@ export class TimelineRenderer extends Component {
             // the pointer's way plus what the grid scrolled since the press: the pill is anchored
             // to the grid, the pointer to the window
             offset: {
-                x: offset.x + renderer.scrollLeft - pressed.scroll.left,
+                x: shift ?? offset.x + renderer.scrollLeft - pressed.scroll.left,
                 y: offset.y + this._verticalScroller().scrollTop - pressed.scroll.top,
             },
             ghost: pressed.ghost,
@@ -1183,7 +1330,7 @@ export class TimelineRenderer extends Component {
         const record = pill.record;
         const { from, to } = record.span;
         const border = target ? target.part : edge === "stop" ? to : from;
-        const n = border - (edge === "stop" ? to : from);
+        const n = target ? this._resizeSteps(pill, edge, border) : 0;
         const step = dragStep(data, { dateOnly: hasDateOnlyBound(placement) });
         const bounds = {
             start: record.start,
@@ -1291,7 +1438,7 @@ export class TimelineRenderer extends Component {
         const { placement } = data;
         const fields = model.fields;
         const record = pill.record;
-        const n = target.part - record.span.from;
+        const n = target.n ?? target.part - record.span.from;
         const bounds = movedBounds(
             { start: record.start, stop: record.stop },
             n,
@@ -1343,7 +1490,7 @@ export class TimelineRenderer extends Component {
         const data = this.data;
         const { placement } = data;
         const record = pill.record;
-        const n = target.part - (edge === "stop" ? record.span.to : record.span.from);
+        const n = this._resizeSteps(pill, edge, target.part);
         if (!n) {
             return undefined;
         }

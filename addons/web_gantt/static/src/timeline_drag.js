@@ -156,6 +156,9 @@ export class TimelinePillDrag {
                 offset,
                 length: pill.record.span.to - pill.record.span.from,
                 rowId,
+                // where it was grabbed and which pill: date-only steps count from there (R17)
+                press: pressed ? pressed.part : null,
+                pill,
             },
             target: null,
         };

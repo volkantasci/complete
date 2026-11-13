@@ -58,7 +58,7 @@ beforeEach(async () => {
 });
 
 const RECORD_ROW = ".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)";
-const PILL = { Design: 4, Build: 5, Review: 6, "Overlap B": 12 };
+const PILL = { Design: 4, Build: 5, Review: 6, "Overlap B": 12, "Three days": 2, "Next month": 3 };
 
 async function mountTimeline({ arch = HOST_ARCHS.H1, ...rest } = {}) {
     await mountView({ type: "gantt", resModel: "pill", arch, ...rest });
@@ -624,4 +624,93 @@ test("R-C-5 a short pill keeps its middle third for moving: handles never exceed
     expect(root()).toHaveClass("o_tl_drag_resize");
     await end.drop();
     await settle();
+});
+
+// ----------------------------------------------------------------------------
+// Date-only fields (R17)
+// ----------------------------------------------------------------------------
+
+const H25 = timelineArch(`string="Dated pills" default_range="month" scales="day,week,month" plan="0"`);
+const leftOf = (date) => queryRect(cellAt(date)).left;
+const dayWidth = () => queryRect(cellAt("2026-11-12")).width;
+
+test("A58 H10 the end of Three days one day to the left: stop 2026-11-12, '11/12/2026 (-1 days)'", async () => {
+    await mountTimeline({ arch: HOST_ARCHS.H10, resModel: "pill2" });
+    const three = await pressHandle("Three days", "stop");
+    await three.to(three.start.x - dayWidth());
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/12/2026 (-1 days)"]);
+    expect(badgeRoles()).toEqual(["black", "danger"]);
+    await three.drop();
+    await settle();
+    expect(writes()).toEqual([
+        { call: "write", ids: [PILL["Three days"]], values: { date_stop: "2026-11-12" } },
+    ]);
+    expect(near(queryRect(pillEl("Three days")).right, leftOf("2026-11-13") - 1)).toBe(true);
+});
+
+test("A59.3 half-day precision, the stop: steps at the middle of Nov 14 and of Nov 13, never before the start day", async () => {
+    await mountTimeline({ arch: H25, resModel: "pill2" });
+    const end = leftOf("2026-11-14");
+    const day = dayWidth();
+    const three = await pressHandle("Three days", "stop");
+    await three.to(end + 10);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    await three.to(end + 30);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/14/2026 (+1 days)"]);
+    expect(near(queryRect(pillEl("Three days")).right, end + day - 1)).toBe(true);
+    // back: the step falls at the same place
+    await three.to(end + 10);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    await three.to(end - 20);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    await three.to(end - 30);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/12/2026 (-1 days)"]);
+    // never before the end of the start day
+    await three.to(leftOf("2026-11-05"));
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/11/2026 (-2 days)"]);
+    expect(near(queryRect(pillEl("Three days")).width, day - 2)).toBe(true);
+    await three.to(end - 30);
+    await three.drop();
+    await settle();
+    expect(writes()).toEqual([
+        { call: "write", ids: [PILL["Three days"]], values: { date_stop: "2026-11-12" } },
+    ]);
+});
+
+test("A59.4 half-day precision, the start: Nov 10 at the middle of Nov 10 and back at the same place", async () => {
+    await mountTimeline({ arch: H25, resModel: "pill2" });
+    const begin = leftOf("2026-11-11");
+    const three = await pressHandle("Three days", "start");
+    await three.to(begin - 20);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    await three.to(begin - 30);
+    expect(badgeTexts()).toEqual(["11/10/2026 (+1 days)", "11/13/2026"]);
+    expect(badgeRoles()[0]).toBe("success");
+    await three.to(begin - 20);
+    expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
+    await three.to(begin - 30);
+    await three.drop();
+    await settle();
+    expect(writes()).toEqual([
+        { call: "write", ids: [PILL["Three days"]], values: { date_start: "2026-11-10" } },
+    ]);
+});
+
+test("A59.5 Year copy of H25: the end of Next month past the middle of January writes 2027-01-22", async () => {
+    const year = timelineArch(
+        `string="Dated pills" default_range="year" scales="day,week,month,year" plan="0"`
+    );
+    await mountTimeline({ arch: year, resModel: "pill2" });
+    const end = leftOf("2027-01-01");
+    const month = queryRect(cellAt("2027-01-01")).width;
+    const next = await pressHandle("Next month", "stop");
+    await next.to(end + month * 0.3);
+    expect(badgeTexts()).toEqual(["12/7/2026", "12/22/2026"]);
+    await next.to(end + month * 0.7);
+    expect(badgeTexts()).toEqual(["12/7/2026", "1/22/2027 (+1 months)"]);
+    await next.drop();
+    await settle();
+    expect(writes()).toEqual([
+        { call: "write", ids: [PILL["Next month"]], values: { date_stop: "2027-01-22" } },
+    ]);
 });

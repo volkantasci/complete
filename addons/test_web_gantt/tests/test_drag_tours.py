@@ -294,3 +294,36 @@ class TestTimelineDragTours(HttpCase):
 
     def test_a49_tour_lock_on_long_pill(self):
         self._tour('h1', 'timeline_002b2_a49_lock_on_long_pill')
+
+    # -- date-only fields (R17) -----------------------------------------------------------------
+
+    def _three_days_unchanged(self):
+        three = self.records['Three days']
+        three.invalidate_recordset()
+        self.assertEqual((three.date_start - self.today).days, -1)
+        self.assertEqual((three.date_stop - self.today).days, 1)
+        self.assertFalse(self.env['test.web.gantt.pill2'].search([('name', 'like', '(copy)')]))
+
+    def test_a58_tour_date_only_full_precision(self):
+        self._tour('h10', 'timeline_002b2_a58_date_only_full_precision')
+        self._three_days_unchanged()
+
+    def test_a59_tour_half_day_precision(self):
+        self._tour('h25', 'timeline_002b2_a59_half_day_precision')
+        self._three_days_unchanged()
+
+    def test_a59_tour_year_scale(self):
+        # a copy of H25 that offers Year: the arch is changed here, not in the host data
+        view = self.env.ref('test_web_gantt.host_view_h25')
+        view.arch = view.arch.replace(
+            'default_range="month" scales="day,week,month"',
+            'default_range="year" scales="day,week,month,year"')
+        self._tour('h25', 'timeline_002b2_a59_year_scale')
+        next_month = self.records['Next month']
+        next_month.invalidate_recordset()
+        self.assertEqual((next_month.date_start - self.today).days, 25)
+        self.assertEqual((next_month.date_stop - self.today).days, 40)
+
+    def test_a71_tour_date_only_copy(self):
+        self._tour('h25', 'timeline_002b2_a71_date_only_copy')
+        self._three_days_unchanged()
