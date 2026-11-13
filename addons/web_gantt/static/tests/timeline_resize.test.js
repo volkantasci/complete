@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import {
+    click,
     drag,
     hover,
     keyDown,
@@ -510,7 +511,7 @@ test("A73 the sign of the start badge follows the length: earlier +24 success, l
     await settle();
 });
 
-test("R8 the other keys, Ctrl included, cancel as for a move: Ctrl alone does not", async () => {
+test("R8 another key cancels a resize, Ctrl does not", async () => {
     await mountTimeline();
     const build = await pressHandle("Build", "stop");
     await build.to(borderOf("2026-11-14") - 5);
@@ -519,7 +520,101 @@ test("R8 the other keys, Ctrl included, cancel as for a move: Ctrl alone does no
     await animationFrame();
     expect(root()).toHaveClass("o_tl_drag_resize");
     expect(root()).not.toHaveClass("o_tl_drag_copy");
+    await keyDown("a");
+    await keyUp("a");
+    await animationFrame();
+    expect(root()).not.toHaveClass("o_tl_dragging");
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    await build.drop().catch(() => {});
+    await settle();
+    expect(writes()).toHaveLength(0);
+    expect(".o_notification").toHaveCount(0);
+});
+
+test("R8 Ctrl alone leaves the resize running and it writes", async () => {
+    await mountTimeline();
+    const build = await pressHandle("Build", "stop");
+    await build.to(borderOf("2026-11-14") - 5);
+    await keyDown("ctrl");
+    await keyUp("ctrl");
+    await animationFrame();
+    expect(root()).toHaveClass("o_tl_drag_resize");
     await build.drop();
     await settle();
     expect(writes()).toHaveLength(1);
+});
+
+test("R2 pointercancel and a hidden tab cancel a resize", async () => {
+    await mountTimeline();
+    for (const ending of ["pointercancel", "hidden"]) {
+        let pointerId = 1;
+        document.addEventListener("pointerdown", (ev) => (pointerId = ev.pointerId), { once: true });
+        const build = await pressHandle("Build", "stop");
+        await build.to(borderOf("2026-11-14") - 5);
+        expect(root()).toHaveClass("o_tl_drag_resize", { message: ending });
+        if (ending === "pointercancel") {
+            document.dispatchEvent(new PointerEvent("pointercancel", { pointerId, bubbles: true }));
+        } else {
+            Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+            document.dispatchEvent(new Event("visibilitychange"));
+            delete document.visibilityState;
+        }
+        await animationFrame();
+        expect(root()).not.toHaveClass("o_tl_dragging", { message: ending });
+        expect(".o_tl_selection_badge").toHaveCount(0, { message: ending });
+        await build.drop().catch(() => {});
+        await settle();
+        expect(writes()).toHaveLength(0, { message: ending });
+    }
+});
+
+test("R9 a press and release on a handle without movement is a click: the popover opens", async () => {
+    freezeTime();
+    await mountTimeline();
+    await hover(pillEl("Build"));
+    await animationFrame();
+    await click(queryOne(".o_tl_handle_stop"));
+    await advanceTime(300);
+    await animationFrame();
+    expect(".o_tl_popover").toHaveCount(1);
+    expect(writes()).toHaveLength(0);
+});
+
+test("R-C-5 a short pill keeps its middle third for moving: handles never exceed a third", async () => {
+    // a 15-minute sub-column of the Day scale is about 10 px wide
+    await prepareReview(at(0, "13:00"), at(0, "13:15"));
+    const arch = HOST_ARCHS.H1.replace(
+        'default_range="week"',
+        `default_range="day" precision="{'day': 'hour:quarter'}"`
+    );
+    await mountTimeline({ arch });
+    const body = queryRect(pillEl("Review"));
+    expect(body.width).toBeLessThan(16);
+    await hover(pillEl("Review"));
+    await animationFrame();
+    for (const handle of handles("Review")) {
+        expect(queryRect(handle).width).toBeLessThan(body.width / 2);
+        expect(queryRect(handle).width).toBeLessThan(body.width / 3 + 0.5);
+    }
+    // a press in the middle moves the pill
+    const middle = { x: body.left + body.width / 2, y: body.top + body.height / 2 };
+    expect(document.elementFromPoint(middle.x, middle.y)).not.toHaveClass("o_tl_handle");
+    const helpers = await drag(pillEl("Review"), { position: middle });
+    await helpers.moveTo(queryOne(".o_tl_renderer"), { position: { x: middle.x + 30, y: middle.y } });
+    await animationFrame();
+    expect(root()).toHaveClass("o_tl_drag_move");
+    await helpers.drop();
+    await settle();
+    // a press at the very end resizes
+    await hover(pillEl("Review"));
+    await animationFrame();
+    const stop = queryOne(".o_tl_handle_stop");
+    const rect = queryRect(stop);
+    const point = { x: rect.right - 0.5, y: rect.top + rect.height / 2 };
+    const end = await drag(stop, { position: point });
+    await end.moveTo(queryOne(".o_tl_renderer"), { position: { x: point.x + 30, y: point.y } });
+    await animationFrame();
+    expect(root()).toHaveClass("o_tl_drag_resize");
+    await end.drop();
+    await settle();
 });

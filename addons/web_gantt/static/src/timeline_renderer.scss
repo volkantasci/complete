@@ -595,7 +595,9 @@
     position: absolute;
     top: 0;
     bottom: 0;
+    // 8 px, but never more than a third of a short pill: its middle third always moves it (R-C-5)
     width: 8px;
+    max-width: 33.333%;
     z-index: 1;
     margin: 0;
     padding: 0;

@@ -380,7 +380,7 @@ export class TimelinePillDrag {
         } else if (mode.edge) {
             const border = this.host.borderAt(press.x, press.pill, mode.edge);
             if (border !== undefined) {
-                press.target = { part: border };
+                press.target = border === null ? null : { part: border };
             }
         }
         this.host.change({

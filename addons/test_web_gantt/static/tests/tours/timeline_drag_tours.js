@@ -441,16 +441,18 @@ function doubleClick(element) {
 function watchNetwork() {
     const open = XMLHttpRequest.prototype.open;
     const send = XMLHttpRequest.prototype.send;
-    const network = { down: false, delay: 0, log: [] };
+    const network = { down: false, hold: false, held: [], log: [] };
+    // send the writes held so far (later ones stay held while `hold` is on)
+    network.release = () => network.held.splice(0).forEach((send) => send());
     XMLHttpRequest.prototype.open = function (method, url, ...rest) {
         this.__url = String(url);
         return open.call(this, method, url, ...rest);
     };
     XMLHttpRequest.prototype.send = function (payload) {
-        if (network.delay && /\/write$/.test(this.__url) && !this.__late) {
-            // a slow server: the write leaves `delay` ms later (what a throttled network does)
+        if (network.hold && /\/write$/.test(this.__url) && !this.__late) {
+            // a held server: the write waits until the tour releases it
             this.__late = true;
-            setTimeout(() => XMLHttpRequest.prototype.send.call(this, payload), network.delay);
+            network.held.push(() => XMLHttpRequest.prototype.send.call(this, payload));
             return;
         }
         network.log.push({ url: this.__url, body: typeof payload === "string" ? payload : "" });
@@ -1769,21 +1771,38 @@ tours.add("timeline_002b2_a56_writes_wait_for_each_other", {
                     await scrollGridLeft();
                     build = await recordNamed("Build");
                     network = watchNetwork();
-                    // a slow server: each write leaves 1.2 s after the release
-                    network.delay = 1200;
+                    // the server holds every write until this tour lets it go
+                    network.hold = true;
                     const stored = bodyRight("Build");
                     for (let i = 0; i < 2; i++) {
                         const gesture = await pressHandle("Build", "stop");
                         await dragHandleTo(gesture, bodyRight("Build") + 1 + 2 * partWidthOf());
                         release(gesture);
-                        await sleep(150);
                         // the pill is drawn from the stored record, so the second gesture starts there
-                        assert(Math.abs(bodyRight("Build") - stored) <= 1, `the pill is not at its stored length (${i})`);
+                        await until(
+                            () => Math.abs(bodyRight("Build") - stored) <= 1 && !$(".o_tl_pill_resizing"),
+                            `the pill at its stored length (${i})`
+                        );
+                        if (i === 0) {
+                            await until(() => network.held.length === 1, "the first write to be sent");
+                        }
                     }
+                    for (let i = 0; i < 10; i++) {
+                        await frame();
+                    }
+                    // the second write waits for the first: only one is on its way
+                    assert(network.held.length === 1, `${network.held.length} writes held`);
                     assert(!noticeText(), "a notification before the first answer");
                     // the click of the release is over: a record dialog opened meanwhile waits for the writes
                     await sleep(600);
                     doubleClick(pillNamed("Build"));
+                    await sleep(300);
+                    assert(!$(".o_dialog .o_form_view"), "the dialog opened before the writes returned");
+                    network.release();
+                    // the first answer comes, the view reloads, then the second write is sent
+                    await until(() => network.held.length === 1, "the second write to be sent");
+                    assert(!$(".o_dialog .o_form_view"), "the dialog opened before the second write returned");
+                    network.release();
                 },
             },
             {
@@ -1839,15 +1858,20 @@ tours.add("timeline_002b2_a57_refused_resize", {
                 await scrollGridLeft();
                 const build = await recordNamed("Build");
                 const network = watchNetwork();
-                network.delay = 700;
+                network.hold = true;
                 try {
                     const stored = bodyRight("Build");
                     const gesture = await pressHandle("Build", "stop");
                     await dragHandleTo(gesture, stored + 1 + 2 * partWidthOf());
                     release(gesture);
-                    await sleep(150);
-                    assert(Math.abs(bodyRight("Build") - stored) <= 1, "the pill is not at its stored length");
-                    assert(!$(".o_notification"), "a notification while the answer is pending");
+                    await until(() => network.held.length === 1, "the write to be sent");
+                    await until(
+                        () => Math.abs(bodyRight("Build") - stored) <= 1 && !$(".o_tl_pill_resizing"),
+                        "the pill at its stored length"
+                    );
+                    assert(!$(".o_notification") && !$(".o_error_dialog"), "an answer while the write is held");
+                    network.hold = false;
+                    network.release();
                     await until(() => $(".o_error_dialog"), "the access error");
                     assert(!$(".o_notification"), "a success notification appeared");
                     await gridSettled();
@@ -1869,20 +1893,24 @@ tours.add("timeline_002b2_a74_notification_after_the_answer", {
             async run() {
                 const build = await recordNamed("Build");
                 const network = watchNetwork();
-                network.delay = 1200;
+                network.hold = true;
                 try {
                     const stored = bodyRight("Build");
                     const gesture = await pressHandle("Build", "stop");
                     await dragHandleTo(gesture, stored + 1 - 2 * partWidthOf());
                     release(gesture);
-                    await sleep(300);
-                    assert(Math.abs(bodyRight("Build") - stored) <= 1, "the pill is not at its stored length");
+                    await until(() => network.held.length === 1, "the write to be sent");
+                    await until(
+                        () => Math.abs(bodyRight("Build") - stored) <= 1 && !$(".o_tl_pill_resizing"),
+                        "the pill at its stored length"
+                    );
                     assert(!$(".o_notification"), "a notification while the answer is pending");
+                    network.hold = false;
+                    network.release();
                     await until(() => noticeText(), "the notification after the answer");
                     assert(noticeText().includes("Dates changed"), noticeText());
                     await gridSettled();
                     assert(bodyRight("Build") < stored - 1, "Build was not shortened");
-                    network.delay = 0;
                     noticeButton("Undo").click();
                     await until(() => noticeText() === "Change undone", "the result of Undo");
                     assert((await recordNamed("Build")).date_stop === build.date_stop, "Undo did not restore");
