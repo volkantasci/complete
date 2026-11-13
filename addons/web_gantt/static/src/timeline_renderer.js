@@ -187,6 +187,7 @@ export class TimelineRenderer extends Component {
         this._pressed = null;
         this._drawing = null;
         this._dragMode = null;
+        this._gesture = null;
         this.popover = usePopover(TimelinePopover, {
             position: "bottom",
             // a click on the pill the popover hangs from is handled by the pill (it toggles)
@@ -284,7 +285,9 @@ export class TimelineRenderer extends Component {
         const scroller = this._verticalScroller();
         const area = scroller.getBoundingClientRect();
         let top = Math.max(area.top + scroller.clientTop, 0);
-        for (const header of element.querySelectorAll(".o_tl_col, .o_tl_col_group")) {
+        const headers =
+            this._gesture?.headers || element.querySelectorAll(".o_tl_col, .o_tl_col_group");
+        for (const header of headers) {
             top = Math.max(top, header.getBoundingClientRect().bottom);
         }
         // a page that scrolls the rows ends at the window, a grid's own area at its own edge
@@ -294,12 +297,20 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * The element that scrolls the rows: the grid's area, or on the phone, where the grid only
-     * scrolls sideways, the nearest ancestor that scrolls the page (R14, R32 of 002a).
+     * The element that scrolls the rows: the grid's area when its rows overflow it; on the
+     * small-screen layout, where the grid only scrolls sideways, the nearest ancestor that
+     * scrolls the page (R14, R32 of 002a). On a desktop an ancestor is never scrolled. Found
+     * once per gesture.
      */
     _verticalScroller() {
+        if (this._gesture) {
+            return this._gesture.scroller;
+        }
         const element = this.rendererRef();
-        for (let node = element; node; node = node.parentElement) {
+        if (element.scrollHeight > element.clientHeight || !this.ui.isSmall) {
+            return element;
+        }
+        for (let node = element.parentElement; node; node = node.parentElement) {
             const overflow = getComputedStyle(node).overflowY;
             if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight) {
                 return node;
@@ -801,6 +812,10 @@ export class TimelineRenderer extends Component {
         if (shift) {
             badge.style.left = `${rect.left - shift - box.left}px`;
         }
+        const lift = Math.max(rect.bottom - box.bottom, 0) - Math.max(box.top - rect.top, 0);
+        if (lift) {
+            badge.style.top = `${rect.top - lift - box.top}px`;
+        }
     }
 
     /**
@@ -948,6 +963,14 @@ export class TimelineRenderer extends Component {
 
     /** The view root takes the pointer shape of the gesture and shields the buttons (R2, M13). */
     _holdDrag(mode) {
+        // what the edge scrolling needs is looked for once, not on every frame
+        this._gesture = null;
+        if (mode && this.rendererRef()) {
+            this._gesture = {
+                scroller: this._verticalScroller(),
+                headers: [...this.rendererRef().querySelectorAll(".o_tl_col, .o_tl_col_group")],
+            };
+        }
         const root = this.rendererRef()?.closest(".o_timeline_view");
         if (root) {
             for (const name of [...root.classList]) {

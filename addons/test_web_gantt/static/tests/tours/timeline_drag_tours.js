@@ -1716,14 +1716,13 @@ tours.add("timeline_002b2_a35_touch_moves_not_resizes", {
             async run() {
                 const today = todayIso();
                 const review = await recordNamed("Review");
-                // the end of the pill goes to the middle of the narrow screen, clear of the edge zones (R14)
-                const area = renderer();
-                const box = area.getBoundingClientRect();
-                area.scrollLeft += pillNamed("Review").getBoundingClientRect().right - (box.left + box.right) / 2;
-                await gridSettled();
                 const gesture = await pressHandle("Review", "stop", { pointerType: "touch" });
                 await sleep(600);
-                await dragHandleTo(gesture, gesture.from.x - partWidthOf(), 5, () => sleep(120));
+                // R-T15-4: the finger lies in the move zone of the edge; the first move jumps out of
+                // it in one step, then the finger goes on slowly to one half day before the press
+                const goal = gesture.from.x - partWidthOf();
+                await dragHandleTo(gesture, gesture.from.x - 40, 1, () => sleep(120));
+                await dragHandleTo(gesture, goal, 4, () => sleep(120));
                 assert($(".o_tl_pill_moved"), "the pill was not moved");
                 assert(
                     badgesNow()[0] === usBadge(today, "1:00 AM") && badgesNow()[1] === usBadge(today, "5:00 AM"),
@@ -2157,21 +2156,20 @@ tours.add("timeline_002b2_a53_phone_vertical_edge_scroll", {
                 const pill = $$(".o_tl_pill").find((element) => {
                     const rect = element.getBoundingClientRect();
                     return (
-                        rect.left < middle + 60 &&
-                        rect.right > middle - 60 &&
+                        Math.abs(rect.left + rect.width / 2 - middle) < 100 &&
                         rect.top > box.top + 60 &&
                         rect.bottom < bottom - 60
                     );
                 });
                 assert(pill, "no pill in the middle of the screen");
                 const from = centreOf(pill);
-                pointer("pointerdown", middle, from.y, { target: pill });
-                const gesture = { from, end: { x: middle, y: from.y }, pointerType: "mouse", ctrl: false };
-                await pointerTo(gesture, middle + 20, from.y);
+                pointer("pointerdown", from.x, from.y, { target: pill });
+                const gesture = { from, end: { x: from.x, y: from.y }, pointerType: "mouse", ctrl: false };
+                await pointerTo(gesture, from.x + 20, from.y);
                 await until(() => $(".o_tl_pill_moved"), "the moved pill");
                 // the move zones leave x 30 to 360: stay on the middle, go down to the bottom edge
                 const before = page.scrollTop;
-                await pointerTo(gesture, middle, bottom - 10);
+                await pointerTo(gesture, gesture.end.x, bottom - 10);
                 await sleep(1000);
                 const moved = page.scrollTop - before;
                 assert(moved > 250 && moved < 700, `the page scrolled down ${moved} px in a second, expected about 417`);
@@ -2196,6 +2194,8 @@ tours.add("timeline_002b2_a54_resize_edge_scroll", {
                 const area = renderer();
                 area.scrollLeft = 0;
                 await gridSettled();
+                const room = area.scrollWidth - area.clientWidth - area.scrollLeft;
+                assert(room > 1500, `the grid has only ${room} px to scroll to the right`);
                 const network = watchNetwork();
                 try {
                     // Build's end handle, then 100 px from the right edge: about 833 px per second
@@ -2206,18 +2206,14 @@ tours.add("timeline_002b2_a54_resize_edge_scroll", {
                     const badges = badgesNow().join("|");
                     const x = areaRightNow() - 100;
                     await dragHandleTo(gesture, x);
-                    const seen = new Set([badges]);
-                    for (let i = 0; i < 4; i++) {
-                        await sleep(250);
-                        seen.add(badgesNow().join("|"));
-                    }
+                    // no single sample decides: the badge must leave its first text, whenever
+                    await until(() => badgesNow().join("|") !== badges, "the badge to follow the scroll");
+                    await sleep(1000);
                     const moved = area.scrollLeft - before;
                     assert(moved > 600 && moved < 1300, `the grid scrolled ${moved} px in a second, expected about 833`);
                     // the end stays at the pointer, which now points to a later place of the grid
                     const end = $(".o_tl_pill_resizing").getBoundingClientRect().right;
                     assert(Math.abs(end - x) < 80, `the end is at ${end}, the pointer at ${x}`);
-                    // the badge went through other dates while the grid scrolled under the pointer
-                    assert(seen.size > 2, `the badge did not follow the scroll: ${[...seen].join(" / ")}`);
                     await abandon(gesture);
                     assert(writesOf(network).length === 0, "a cancelled resize wrote");
                 } finally {

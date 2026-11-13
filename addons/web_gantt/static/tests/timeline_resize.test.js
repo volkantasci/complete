@@ -418,11 +418,6 @@ test("A35 a finger on the end handle moves the pill: no touch resizing (D5)", as
     freezeTime();
     await resize({ width: 390, height: 844 });
     await mountTimeline();
-    // the end of the pill goes to the middle of the narrow screen, clear of the edge zones (R14)
-    const area = queryOne(".o_tl_renderer");
-    const box = queryRect(area);
-    area.scrollLeft += queryRect(pillEl("Review")).right - (box.left + box.right) / 2;
-    await animationFrame();
     // the pointer rests on the pill first, so that its handles exist when the finger comes
     await hover(pillEl("Review"));
     await animationFrame();
@@ -434,9 +429,14 @@ test("A35 a finger on the end handle moves the pill: no touch resizing (D5)", as
     const y = rect.top + rect.height / 2;
     const helpers = await drag(handle, { position: { x, y } });
     await advanceTime(600);
+    // R-T15-4: the finger lies in the move zone of the right edge (30 px), where the grid leaves
+    // the pill's last 8 px; the first move jumps out of the zone in one step, then it goes on
+    // slowly to the place one half day (96 px) before the press
     let pointer = x;
-    for (let i = 0; i < 5; i++) {
-        pointer -= partWidth() / 5;
+    const rest = (partWidth() - 40) / 4;
+    const steps = [40, rest, rest, rest, rest];
+    for (const step of steps) {
+        pointer -= step;
         const target = document.elementFromPoint(pointer, y) || queryOne(".o_tl_renderer");
         await helpers.moveTo(target, { position: { x: pointer, y } });
         await advanceTime(120);

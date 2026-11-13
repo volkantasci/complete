@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { drag, hover, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
-import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import {
     defineWebModels,
     mountView,
@@ -327,6 +327,7 @@ describe("while a pill is held", () => {
         expect(element.scrollHeight).toBeGreaterThan(element.clientHeight);
         const review = await pressMove("Review");
         const before = element.scrollTop;
+        const height = element.scrollHeight;
         freezeTime();
         // 10 px from the bottom edge of the scrolling area, horizontally outside the zones
         await review.move(review.start.x, areaBottom() - 10);
@@ -340,6 +341,14 @@ describe("while a pill is held", () => {
         const row = pillEl("Review").closest(".o_tl_row");
         expect(queryRect(row).bottom).toBeLessThan(queryRect(element).top + 200);
         expect(queryAll(".o_tl_pill_moved")).toHaveLength(1);
+        // the drag adds nothing to the rows' overflow: the end is the end of the rows
+        // (one pixel of rounding of the fractional rows at most)
+        expect(Math.abs(element.scrollHeight - height)).toBeLessThan(2);
+        const gridBottom = queryRect(".o_tl_grid").bottom;
+        const below = queryAll(".o_tl_grid *")
+            .filter((el) => queryRect(el).width && queryRect(el).bottom > gridBottom + 1)
+            .map((el) => `${el.className} ${queryRect(el).bottom - gridBottom}`);
+        expect(below).toEqual([]);
         await review.cancel();
     });
 
@@ -348,11 +357,15 @@ describe("while a pill is held", () => {
         const build = await pressResize("Build", "stop");
         freezeTime();
         await build.move(areaRight() - 100);
+        const stopBadge = badges()[1];
         const before = {
             scroll: renderer().scrollLeft,
             width: queryRect(".o_tl_pill_resizing").width,
         };
         await advanceTime(250);
+        await animationFrame();
+        // the stop badge follows the grid scrolling under the pointer
+        expect(badges()[1]).not.toBe(stopBadge);
         const scrolled = renderer().scrollLeft - before.scroll;
         expect(scrolled).toBeGreaterThan(190);
         expect(scrolled).toBeLessThan(225);
@@ -424,4 +437,66 @@ describe("while a pill is held", () => {
         await advanceTime(500);
         expect(renderer().scrollLeft).toBe(after);
     });
+    test("R16 a touch press held inside an edge zone without moving does not scroll", async () => {
+        freezeTime();
+        await resize({ width: 390, height: 844 });
+        await mountTimeline();
+        await hover(pillEl("Review"));
+        await animationFrame();
+        const handle = queryOne(".o_tl_pill .o_tl_handle_stop");
+        mockTouch(true);
+        const rect = queryRect(handle);
+        const x = Math.min(rect.left + rect.width / 2, areaRight() - 5);
+        const y = rect.top + rect.height / 2;
+        const before = renderer().scrollLeft;
+        const helpers = await drag(handle, { position: { x, y } });
+        await advanceTime(1500);
+        await animationFrame();
+        expect(renderer().scrollLeft).toBe(before);
+        await helpers.cancel();
+    });
+
+    /** Whether the held pointer at the abscissa `x` scrolls the grid in half a second. */
+    async function scrollsAt(holder, x) {
+        const before = renderer().scrollLeft;
+        await holder.move(x, holder.start.y);
+        await advanceTime(500);
+        await animationFrame();
+        return renderer().scrollLeft !== before;
+    }
+
+    test("R16 phone: a move scrolls inside x 0 to 30 and 360 to 390 only", async () => {
+        await resize({ width: 390, height: 844 });
+        await mountTimeline();
+        const left = queryRect(renderer()).left + renderer().clientLeft;
+        const right = areaRight();
+        expect(right - left).toBe(390);
+        const review = await pressMove("Review");
+        freezeTime();
+        expect(await scrollsAt(review, right - 35)).toBe(false);
+        expect(await scrollsAt(review, right - 25)).toBe(true);
+        expect(await scrollsAt(review, left + 35)).toBe(false);
+        expect(await scrollsAt(review, left + 25)).toBe(true);
+        await review.cancel();
+    });
+
+    test("R16 phone: a resize scrolls inside x 0 to 150 and 240 to 390 only", async () => {
+        await resize({ width: 390, height: 844 });
+        await mountTimeline();
+        const element = renderer();
+        const box = queryRect(element);
+        const pill = queryRect(pillEl("Build"));
+        element.scrollLeft += pill.left + pill.width / 2 - (box.left + box.right) / 2;
+        await animationFrame();
+        const left = box.left + element.clientLeft;
+        const right = areaRight();
+        const build = await pressResize("Build", "stop");
+        freezeTime();
+        expect(await scrollsAt(build, right - 160)).toBe(false);
+        expect(await scrollsAt(build, right - 140)).toBe(true);
+        expect(await scrollsAt(build, left + 160)).toBe(false);
+        expect(await scrollsAt(build, left + 140)).toBe(true);
+        await build.cancel();
+    });
+
 });
