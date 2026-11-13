@@ -1,6 +1,13 @@
 <!-- Copyright 2026 Complete contributors -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineGhostBody">
+        <div class="o_tl_pill" t-att-class="ghost.className">
+            <div t-if="ghost.progress" class="o_tl_pill_progress" t-attf-style="width: {{ghost.progress}}%"/>
+            <span class="o_tl_pill_title" t-out="ghost.label"/>
+            <span t-if="ghost.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${ghost.mark}`"/>
+        </div>
+    </t>
     <t t-name="web_gantt.TimelineRenderer">
         <t t-set="layout" t-value="this.layout"/>
         <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
@@ -60,11 +67,14 @@
                         </div>
                     </t>
                     <t t-set="ghost" t-value="this.dragGhost"/>
-                    <div t-if="ghost" class="o_tl_pill" t-att-class="ghost.className" t-att-style="ghost.style">
-                        <div t-if="ghost.progress" class="o_tl_pill_progress" t-attf-style="width: {{ghost.progress}}%"/>
-                        <span class="o_tl_pill_title" t-out="ghost.label"/>
-                        <span t-if="ghost.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${ghost.mark}`"/>
-                    </div>
+                    <t t-if="ghost">
+                        <div class="o_tl_pill_faded" t-att-style="ghost.originStyle">
+                            <t t-call="web_gantt.TimelineGhostBody"/>
+                        </div>
+                        <div class="o_tl_pill_moved" t-att-style="ghost.movedStyle">
+                            <t t-call="web_gantt.TimelineGhostBody"/>
+                        </div>
+                    </t>
                     <t t-set="badges" t-value="this.shownBadges"/>
                     <t t-if="badges">
                         <div class="o_tl_selection_badge o_tl_badge_start" t-att-class="badges.start.className" t-out="badges.start.text"/>

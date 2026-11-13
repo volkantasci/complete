@@ -544,6 +544,13 @@
 
 // While a selection is held (R8): the closed hand over the content, and the buttons of the view
 // ignore the pointer so that a release over one does not press it.
+@mixin o-tl-shield {
+    .o_control_panel,
+    .o_tl_controls {
+        pointer-events: none;
+    }
+}
+
 .o_timeline_view.o_tl_selecting {
     user-select: none;
 
@@ -552,10 +559,7 @@
         cursor: grabbing !important; // stylelint-disable-line declaration-no-important
     }
 
-    .o_control_panel,
-    .o_tl_controls {
-        pointer-events: none;
-    }
+    @include o-tl-shield;
 }
 
 .o_tl_pill {
@@ -586,6 +590,27 @@
 // Moving and copying (S1, S3): the pill that was pressed stays where it was, half faded (M5); the
 // one that follows the pointer is drawn over the grid, above the cells and the row headers, under
 // the badges (M1 to M4). It takes no pointer event, so the cells under it answer.
+// The origin of the pill held stays drawn by the box below, so the pill itself only keeps its
+// place for the pointer.
+.o_tl_pill_origin {
+    opacity: 0;
+}
+
+.o_tl_pill_faded,
+.o_tl_pill_moved {
+    position: absolute;
+    box-sizing: border-box;
+    padding: 1px;
+    pointer-events: none;
+
+    // the body, one pixel inside its box, as wide as the span less two pixels
+    > .o_tl_pill {
+        position: relative;
+        width: 100%;
+        pointer-events: none;
+    }
+}
+
 .o_tl_pill_faded {
     opacity: .5;
 }
@@ -594,7 +619,10 @@
     z-index: 4;
     opacity: .8;
     box-shadow: 0 5px 25px -10px #000000;
-    pointer-events: none;
+
+    > .o_tl_pill {
+        box-shadow: 0 5px 25px -10px #000000;
+    }
 }
 
 // While a pill is held (R2, R11): the pointer shape of the gesture over the whole view (M13, M22,
@@ -623,10 +651,7 @@
         cursor: e-resize !important; // stylelint-disable-line declaration-no-important
     }
 
-    .o_control_panel,
-    .o_tl_controls {
-        pointer-events: none;
-    }
+    @include o-tl-shield;
 
     // a row under the pointer keeps the look it has without it
     .o_tl_group_row:not(.o_tl_hover):hover {

@@ -32,6 +32,8 @@ setupTimelineFixtures();
 defineWebModels();
 
 let controller;
+/** Makes the writes and copies wait for the test, or null. */
+let gate = null;
 /** The write and copy calls the server saw, in order. */
 let log;
 
@@ -46,11 +48,17 @@ beforeEach(async () => {
         },
     });
     log = [];
-    onRpc("write", ({ args }) => {
+    gate = null;
+    onRpc("write", async ({ args }) => {
         log.push({ call: "write", ids: args[0], values: args[1] });
+        await gate;
     });
-    onRpc("copy", ({ args, kwargs }) => {
+    onRpc("copy", async ({ args, kwargs }) => {
         log.push({ call: "copy", ids: args[0], default: kwargs.default });
+        await gate;
+        if (gate?.refuse) {
+            throw new Error("Access denied");
+        }
     });
     await resize({ width: 1600, height: 900 });
 });
@@ -124,15 +132,36 @@ test("A1 move one day: the moved pill follows, faded copy, highlight, badges, on
 
     // the moved pill follows the pointer (M1 to M4), the pressed pill stays, faded (M5)
     expect(moved()).toHaveCount(1);
+    // M1: the box that carries opacity and shadow is the span's box, one pixel around the body
     const ghost = queryRect(moved()[0]);
-    expect(near(ghost.left, origin.left + 2 * partWidth())).toBe(true);
-    expect(near(ghost.top, origin.top)).toBe(true);
-    expect(near(ghost.width, origin.width)).toBe(true);
+    expect(near(ghost.left, origin.left - 1 + 2 * partWidth())).toBe(true);
+    expect(near(ghost.top, origin.top - 1)).toBe(true);
+    expect(near(ghost.width, origin.width + 2)).toBe(true);
+    expect(near(ghost.height, origin.height + 2)).toBe(true);
     expect(css(moved()[0], "opacity")).toBe("0.8");
     expect(css(moved()[0], "boxShadow")).toBe("rgb(0, 0, 0) 0px 5px 25px -10px");
-    expect(pillEl("Review")).toHaveClass("o_tl_pill_faded");
-    expect(css(pillEl("Review"), "opacity")).toBe("0.5");
+    // M3: the body, one pixel inside, with its shadow
+    const body = queryRect(".o_tl_pill_moved > .o_tl_pill");
+    expect(near(body.left, ghost.left + 1)).toBe(true);
+    expect(near(body.top, ghost.top + 1)).toBe(true);
+    expect(near(body.width, ghost.width - 2)).toBe(true);
+    expect(near(body.height, 23)).toBe(true);
+    expect(css(queryOne(".o_tl_pill_moved > .o_tl_pill"), "boxShadow")).toBe(
+        "rgb(0, 0, 0) 0px 5px 25px -10px"
+    );
+    // M5: the copy left at the starting place, half faded, in the same kind of box
+    expect(".o_tl_pill_faded").toHaveCount(1);
+    const faded = queryRect(".o_tl_pill_faded");
+    expect(css(queryOne(".o_tl_pill_faded"), "opacity")).toBe("0.5");
+    expect(near(faded.left, origin.left - 1)).toBe(true);
+    expect(near(faded.width, origin.width + 2)).toBe(true);
+    expect(near(faded.height, origin.height + 2)).toBe(true);
+    const fadedBody = queryRect(".o_tl_pill_faded > .o_tl_pill");
+    expect(near(fadedBody.left, origin.left)).toBe(true);
+    expect(near(fadedBody.width, origin.width)).toBe(true);
+    // the pressed pill itself keeps its place but is not drawn twice
     expect(near(queryRect(pillEl("Review")).left, origin.left)).toBe(true);
+    expect(css(pillEl("Review"), "opacity")).toBe("0");
 
     // the highlight: Friday 13's second half over the row's height, under the pills (M7)
     expect(".o_tl_drop").toHaveCount(1);
@@ -214,7 +243,7 @@ test("A4 Escape, a letter and an arrow key cancel; Shift, Alt and Meta do not, M
         expect(".o_tl_drop").toHaveCount(0);
         expect(".o_tl_selection_badge").toHaveCount(0);
         expect(root()).not.toHaveClass("o_tl_dragging");
-        expect(pillEl("Review")).not.toHaveClass("o_tl_pill_faded");
+        expect(".o_tl_pill_faded").toHaveCount(0);
         // the button comes up later: nothing is written
         await review.drop().catch(() => {});
         await settle();
@@ -307,7 +336,7 @@ test("A6 a release that changes nothing: no write, no notification, no reload", 
     expect(".o_notification").toHaveCount(0);
     expect(".o_tl_drop").toHaveCount(0);
     expect(".o_tl_selection_badge").toHaveCount(0);
-    expect(pillEl("Review")).not.toHaveClass("o_tl_pill_faded");
+    expect(".o_tl_pill_faded").toHaveCount(0);
 
     // one day right, then back to the starting sub-column
     review = await pressPill("Review");
@@ -494,9 +523,10 @@ test("A17 touch: a 600 ms hold then five steps; a quick swipe scrolls", async ()
     const y = rect.top + rect.height / 2;
     const helpers = await drag(pillEl("Review"), { position: { x, y } });
     await advanceTime(600);
+    // five equal steps, 120 ms apart, ending one sub-column to the left (R-C-4)
     let at = x;
-    for (const step of [20, 20, 20, 20, partWidth() - 80]) {
-        at -= step;
+    for (let i = 0; i < 5; i++) {
+        at -= partWidth() / 5;
         const target = document.elementFromPoint(at, y) || queryOne(".o_tl_renderer");
         await helpers.moveTo(target, { position: { x: at, y } });
         await advanceTime(120);
@@ -539,7 +569,7 @@ test("A21 Ctrl copy into Gamma: the copy shape, the original stays faded, the du
     await review.move(review.start.x + 2 * partWidth(), rowMiddle(gamma));
     expect(root()).toHaveClass("o_tl_drag_copy");
     expect(css(root(), "cursor")).toBe("copy");
-    expect(pillEl("Review")).toHaveClass("o_tl_pill_faded");
+    expect(".o_tl_pill_faded").toHaveCount(1);
     // the highlight is in the Gamma row only, Friday 13's second half
     expect(".o_tl_drop").toHaveCount(1);
     expect(rowAt(gamma).querySelector(".o_tl_drop")).not.toBe(null);
@@ -649,7 +679,15 @@ test("Focus 1: a gesture ended by blur, pointercancel, a hidden tab or a second 
         blur: () => window.dispatchEvent(new Event("blur")),
         pointercancel: (pointerId) =>
             document.dispatchEvent(new PointerEvent("pointercancel", { pointerId, bubbles: true })),
-        visibilitychange: () => document.dispatchEvent(new Event("visibilitychange")),
+        visibilitychange: () => {
+            // a tab that comes back does nothing; one that is hidden ends the gesture
+            Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+            document.dispatchEvent(new Event("visibilitychange"));
+            expect(moved()).toHaveCount(1, { message: "visible tab" });
+            Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+            document.dispatchEvent(new Event("visibilitychange"));
+            delete document.visibilityState;
+        },
         "second finger": (pointerId) =>
             document.dispatchEvent(
                 new PointerEvent("pointerdown", { pointerId: pointerId + 1, bubbles: true })
@@ -720,4 +758,108 @@ test("Focus 4 no click after a release, a fast second press included", async () 
     await advanceTime(250);
     await animationFrame();
     expect(".o_tl_popover").toHaveCount(1);
+});
+
+test("R9 a click on another pill right after a release opens its popover", async () => {
+    freezeTime();
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    await review.drop();
+    await animationFrame();
+    // 20 ms later, a single click on a pill that was not part of the gesture
+    await advanceTime(20);
+    await click(pillEl("Build"));
+    await advanceTime(250);
+    await animationFrame();
+    expect(".o_tl_popover").toHaveCount(1);
+    expect(".o_tl_popover .o_popover_header").toHaveText("Build");
+});
+
+test("Focus 1 unmounting during a held move leaves no hold class and writes nothing", async () => {
+    const view = await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: HOST_ARCHS.H1,
+    });
+    await animationFrame();
+    log.length = 0;
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    const element = root();
+    expect(element).toHaveClass("o_tl_dragging");
+    const app = view.__owl__?.app || view.app;
+    app.destroy();
+    expect(element).not.toHaveClass("o_tl_dragging");
+    expect(element).not.toHaveClass("o_tl_drag_move");
+    await review.drop().catch(() => {});
+    await settle();
+    expect(log).toHaveLength(0);
+});
+
+/** Collapse the group row `name` by a click on its header. */
+async function collapseGroup(name) {
+    const row = queryAll(".o_tl_group_row").find(
+        (element) => element.querySelector(".o_tl_row_label")?.textContent === name
+    );
+    await click(row.querySelector(".o_tl_row_header"));
+    await advanceTime(1100);
+    await animationFrame();
+    return row;
+}
+
+const groupRow = (name) =>
+    queryAll(".o_tl_group_row").find(
+        (element) => element.querySelector(".o_tl_row_label")?.textContent === name
+    );
+
+for (const mode of ["move", "copy"]) {
+    test(`R7 R15 a closed group row opens after the server accepted the ${mode}`, async () => {
+        freezeTime();
+        await mountTimeline({ groupBy: ["parent_id", "x_contact"] });
+        await collapseGroup("Beta");
+        expect(groupRow("Beta")).toHaveClass("o_tl_collapsed");
+        let release;
+        gate = new Promise((resolve) => (release = resolve));
+        if (mode === "copy") {
+            await keyDown("ctrl");
+        }
+        const review = await pressPill("Review");
+        const rect = queryRect(groupRow("Beta"));
+        await review.move(review.start.x + 2 * partWidth(), rect.top + rect.height / 2);
+        expect(".o_tl_drop").toHaveCount(1);
+        await review.drop();
+        if (mode === "copy") {
+            await keyUp("ctrl");
+        }
+        await advanceTime(50);
+        await animationFrame();
+        // sent, not answered yet: the row is still closed
+        expect(log).toHaveLength(1);
+        expect(groupRow("Beta")).toHaveClass("o_tl_collapsed");
+        release();
+        await advanceTime(100);
+        await animationFrame();
+        expect(groupRow("Beta")).not.toHaveClass("o_tl_collapsed");
+    });
+}
+
+test("R7 R15 a refused copy leaves the closed group row closed", async () => {
+    freezeTime();
+    expect.errors(1);
+    await mountTimeline({ groupBy: ["parent_id", "x_contact"] });
+    await collapseGroup("Beta");
+    gate = Promise.resolve();
+    gate.refuse = true;
+    await keyDown("ctrl");
+    const review = await pressPill("Review");
+    const rect = queryRect(groupRow("Beta"));
+    await review.move(review.start.x + 2 * partWidth(), rect.top + rect.height / 2);
+    await review.drop();
+    await keyUp("ctrl");
+    await advanceTime(100);
+    await animationFrame();
+    expect(copies()).toHaveLength(1);
+    expect(groupRow("Beta")).toHaveClass("o_tl_collapsed");
+    expect.verifyErrors(["RPC_ERROR: Access denied"]);
 });

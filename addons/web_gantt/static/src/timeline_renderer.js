@@ -180,6 +180,7 @@ export class TimelineRenderer extends Component {
         // where the pressed pill stood (grid coordinates) and how far the grid had scrolled
         this._pressed = null;
         this._drawing = null;
+        this._dragMode = null;
         this.popover = usePopover(TimelinePopover, {
             position: "bottom",
             // a click on the pill the popover hangs from is handled by the pill (it toggles)
@@ -396,9 +397,9 @@ export class TimelineRenderer extends Component {
      * the new one opens, so another pill swaps the popovers.
      */
     onPillClick(ev, pill) {
-        if (this._drag.consumeClick() || this._drag.justReleased) {
-            // the release of a move or a copy (or of a cancelled one) is no click, and nor is a
-            // click that follows it at once (R9, R-T11-1)
+        if (this._drag.consumeClick() || (this._drag.justReleased && ev.detail > 1)) {
+            // the release of a move or a copy (or of a cancelled one) is no click, and nor is the
+            // second click of a double click that began with it (R9, R-T11-1)
             ev.stopPropagation();
             return;
         }
@@ -1015,26 +1016,31 @@ export class TimelineRenderer extends Component {
         };
     }
 
-    /** The moved pill: the pill as it was pressed, moved by the pointer (S1). */
+    /**
+     * The moved pill and the copy left behind (S1). Each is a box of the pill's span (the body
+     * and one pixel around it: M1, M5) that carries the opacity, with the body one pixel inside
+     * (M3). The box of the moved pill follows the pointer; the other stays at the press.
+     */
     get dragGhost() {
         const drag = this.state.drag;
         if (!drag) {
             return null;
         }
         const { ghost, offset } = drag;
+        const box = (left, top) =>
+            `left: ${left - PILL_INSET}px; top: ${top - PILL_INSET}px;` +
+            ` width: ${ghost.width + 2 * PILL_INSET}px; height: ${ghost.height + 2 * PILL_INSET}px`;
         return {
             ...ghost,
-            className: `${ghost.className} o_tl_pill_moved`,
-            style:
-                `left: ${ghost.left + offset.x}px; top: ${ghost.top + offset.y}px;` +
-                ` width: ${ghost.width}px; height: ${ghost.height}px`,
+            movedStyle: box(ghost.left + offset.x, ghost.top + offset.y),
+            originStyle: box(ghost.left, ghost.top),
         };
     }
 
     /** The class of a pill: the pill being held leaves a faded copy where it was (S1). */
     pillClass(pill) {
         return this.state.drag?.pillId === pill.id
-            ? `${pill.className} o_tl_pill_faded`
+            ? `${pill.className} o_tl_pill_origin`
             : pill.className;
     }
 
@@ -1093,12 +1099,14 @@ export class TimelineRenderer extends Component {
                 },
             };
         }
-        const row = data.visibleRows.find((candidate) => candidate.id === target.rowId);
-        if (row?.isGroup && row.collapsed && Object.keys(change.values).length) {
-            // a closed group row that receives the record opens (R5, R7)
-            model.toggleRow(row.id);
-        }
-        return editor.applyChange(change);
+        // a closed group row that received the record opens once the server accepted (R5, R7, R15)
+        return editor.applyChange(change).then((done) => {
+            const row = done && model.data.visibleRows.find((item) => item.id === target.rowId);
+            if (row?.isGroup && row.collapsed) {
+                model.toggleRow(row.id);
+            }
+            return done;
+        });
     }
 
     // ------------------------------------------------------------------------

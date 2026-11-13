@@ -147,7 +147,11 @@ export class TimelinePillDrag {
         );
         // no release will come when the window or the tab loses the focus
         this._listen(doc.defaultView, "blur", () => this._cancel());
-        this._listen(doc, "visibilitychange", () => this._cancel());
+        this._listen(doc, "visibilitychange", () => {
+            if (doc.visibilityState === "hidden") {
+                this._cancel();
+            }
+        });
         this._listen(doc, "keydown", (event) => this._onKeyDown(event), { capture: true });
         this._listen(doc, "keyup", (event) => this._onKeyUp(event), { capture: true });
         if (ev.pointerType === "touch") {

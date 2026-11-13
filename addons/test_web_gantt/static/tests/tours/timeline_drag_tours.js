@@ -702,11 +702,11 @@ tours.add("timeline_002b2_a1_move_one_day", {
                 assert(moved, "no moved pill");
                 assert(getComputedStyle(moved).opacity === "0.8", "the moved pill is not at 80 %");
                 assert(
-                    Math.abs(moved.getBoundingClientRect().left - origin.left - 2 * partWidthOf()) <= 1,
+                    Math.abs(moved.getBoundingClientRect().left + 1 - origin.left - 2 * partWidthOf()) <= 1,
                     "the moved pill does not follow the pointer"
                 );
                 assert(
-                    getComputedStyle(pillNamed("Review")).opacity === "0.5",
+                    $(".o_tl_pill_faded") && getComputedStyle($(".o_tl_pill_faded")).opacity === "0.5",
                     "the pill left behind is not faded"
                 );
                 assert($(".o_tl_drop"), "no target highlight");
@@ -883,7 +883,7 @@ tours.add("timeline_002b2_a21_copy_into_gamma", {
                 const gesture = await copyReviewTo("Gamma", 1);
                 assert($(".o_timeline_view").classList.contains("o_tl_drag_copy"), "no copy class");
                 assert(getComputedStyle($(".o_timeline_view")).cursor === "copy", "not the copy shape");
-                assert(pillNamed("Review").classList.contains("o_tl_pill_faded"), "the original is not faded");
+                assert($(".o_tl_pill_faded"), "the original is not faded");
                 release(gesture);
                 key("keyup", "Control");
                 await until(() => noticeText(), "the notification");
