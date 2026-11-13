@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import {
     click,
     dblclick,
@@ -62,6 +62,8 @@ beforeEach(() => {
 });
 
 test("A77: default popover", async () => {
+    // the 150 ms "not yet" check must not race real time: the clock moves with advanceTime only
+    freezeTime();
     await mountTimeline(timelineArch());
     await click(pillOf(BUILD));
     await advanceTime(150);
