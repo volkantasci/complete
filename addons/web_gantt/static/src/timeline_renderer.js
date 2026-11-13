@@ -1130,8 +1130,8 @@ export class TimelineRenderer extends Component {
         const last = columns.at(-1).stop.minus({ milliseconds: 1 });
         const stop = placement.stopIsDate ? record.stop : record.stop.minus({ milliseconds: 1 });
         return {
-            min: Math.min(-this._boundUnit(record.start), 0),
-            max: Math.max(this._boundUnit(last) - this._boundUnit(stop), 0),
+            min: -this._boundUnit(record.start),
+            max: this._boundUnit(last) - this._boundUnit(stop),
         };
     }
 
@@ -1197,7 +1197,13 @@ export class TimelineRenderer extends Component {
         if (!this._dateOnly) {
             return border - (edge === "stop" ? to : from);
         }
-        const base = edge === "stop" ? this._unitOf(to) : this._boundUnit(pill.record.start);
+        // the stop's edge is the end of the stop's day, the start's the start of the start's day,
+        // whatever the type of the bound: the step falls at the middle of a day (R17.2)
+        const { stop } = pill.record;
+        const base =
+            edge === "stop"
+                ? this._boundUnit(this.data.placement.stopIsDate ? stop : stop.minus({ milliseconds: 1 })) + 1
+                : this._boundUnit(pill.record.start);
         return this._unitOf(border) - base;
     }
 

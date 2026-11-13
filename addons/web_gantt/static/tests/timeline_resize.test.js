@@ -25,7 +25,7 @@ import {
 import { localization } from "@web/core/l10n/localization";
 import { TimelineController } from "@web_gantt/timeline_controller";
 
-import { at, HOST_ARCHS, setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
+import { at, HOST_ARCHS, MIX_ARCHS, setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
 
 describe.current.tags("desktop");
 
@@ -58,7 +58,7 @@ beforeEach(async () => {
 });
 
 const RECORD_ROW = ".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)";
-const PILL = { Design: 4, Build: 5, Review: 6, "Overlap B": 12, "Three days": 2, "Next month": 3 };
+const PILL = { Design: 4, Build: 5, Review: 6, "Overlap B": 12, "Three days": 2, "Next month": 3, "MIX first": 1 };
 
 async function mountTimeline({ arch = HOST_ARCHS.H1, ...rest } = {}) {
     await mountView({ type: "gantt", resModel: "pill", arch, ...rest });
@@ -712,5 +712,30 @@ test("A59.5 Year copy of H25: the end of Next month past the middle of January w
     await settle();
     expect(writes()).toEqual([
         { call: "write", ids: [PILL["Next month"]], values: { date_stop: "2027-01-22" } },
+    ]);
+});
+
+test("R17.5 mixed model (date-only start, date-time stop 10:00): the step falls at the middle of a day, the bound keeps 10:00", async () => {
+    await makeMockServer();
+    const mix = MockServer.current.env["mix"].find((record) => record.name === "MIX first");
+    Object.assign(mix, { day: "2026-11-12", date_stop: at(1, "10:00") });
+    await mountTimeline({ arch: MIX_ARCHS.H14, resModel: "mix" });
+    const stop = await pressHandle("MIX first", "stop");
+    // a nudge of 10 px from the drawn edge never changes the date
+    await stop.to(stop.start.x + 10);
+    expect(badgeTexts()[1]).not.toInclude("days");
+    await stop.drop();
+    await settle();
+    expect(writes()).toHaveLength(0);
+    // past the middle of the next day: one more day, at 10:00
+    const again = await pressHandle("MIX first", "stop");
+    await again.to(leftOf("2026-11-14") + 0.4 * dayWidth());
+    expect(badgeTexts()[1]).not.toInclude("days");
+    await again.to(leftOf("2026-11-14") + 0.75 * dayWidth());
+    expect(badgeTexts()[1]).toInclude("(+24 hours)");
+    await again.drop();
+    await settle();
+    expect(writes()).toEqual([
+        { call: "write", ids: [1], values: { date_stop: at(2, "10:00") } },
     ]);
 });

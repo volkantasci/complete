@@ -2424,9 +2424,12 @@ tours.add("timeline_002b2_a59_half_day_precision", {
                 badgesAre(0, 2, "into the next day");
                 await moveHeld(gesture, next().left - 2);
                 badgesAre(-1, 1, "back");
+                // close the notification of the Undo, so that any later one shows
+                $(".o_notification .btn-close, .o_notification .o_notification_close")?.click();
+                await until(() => !$(".o_notification"), "the Undo notification to close");
                 release(gesture);
-                await sleep(400);
-                assert(noticeText() !== "Dates changed", "a notification after a release that changes nothing");
+                await gridSettled();
+                assert(!$(".o_notification"), "a notification after a release that changes nothing");
                 assert(
                     datesOf(await datedRecord("Three days")).join() === original.join(),
                     "the record changed"

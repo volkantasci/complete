@@ -318,11 +318,17 @@ class TestTimelineDragTours(HttpCase):
         view.arch = view.arch.replace(
             'default_range="month" scales="day,week,month"',
             'default_range="year" scales="day,week,month,year"')
-        self._tour('h25', 'timeline_002b2_a59_year_scale')
+        self.assertIn('scales="day,week,month,year"', view.arch)
+        # "Next month" on fixed days of next month (the 7th to the 22nd), whatever today is
+        first = (self.today.replace(day=1) + timedelta(days=32)).replace(day=1)
         next_month = self.records['Next month']
+        original = (next_month.date_start, next_month.date_stop)
+        next_month.write({'date_start': first.replace(day=7), 'date_stop': first.replace(day=22)})
+        self._tour('h25', 'timeline_002b2_a59_year_scale')
         next_month.invalidate_recordset()
-        self.assertEqual((next_month.date_start - self.today).days, 25)
-        self.assertEqual((next_month.date_stop - self.today).days, 40)
+        self.assertEqual(next_month.date_start, first.replace(day=7))
+        self.assertEqual(next_month.date_stop, first.replace(day=22))
+        next_month.write({'date_start': original[0], 'date_stop': original[1]})
 
     def test_a71_tour_date_only_copy(self):
         self._tour('h25', 'timeline_002b2_a71_date_only_copy')

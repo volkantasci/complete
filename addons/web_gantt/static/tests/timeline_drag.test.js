@@ -1142,3 +1142,26 @@ test("A59.5 Year copy of H25: Next month crossing a month border becomes Jan 7 t
         },
     ]);
 });
+
+test("R17.5 a date-only pill moved against the first day of the grid stops there, in whole days", async () => {
+    const week = timelineArch(`string="Dated pills" default_range="week" plan="0"`);
+    // wide enough for the whole grid to show, its first day included
+    await resize({ width: 3200, height: 900 });
+    await mountTimeline({ arch: week, resModel: "pill2" });
+    queryOne(".o_tl_renderer").scrollLeft = 0;
+    await animationFrame();
+    const three = await pressPill("Three days");
+    await three.move(leftOf("2026-11-01") + 5, three.start.y);
+    expect(badgeTexts()).toEqual(["11/1/2026", "11/3/2026"]);
+    expect(near(queryRect(".o_tl_drop").left, leftOf("2026-11-01"))).toBe(true);
+    expect(near(queryRect(".o_tl_drop").width, 3 * dayWidth())).toBe(true);
+    await three.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            call: "write",
+            ids: [PILL["Three days"]],
+            values: { date_start: "2026-11-01", date_stop: "2026-11-03" },
+        },
+    ]);
+});
