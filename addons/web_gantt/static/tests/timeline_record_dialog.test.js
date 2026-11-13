@@ -107,11 +107,9 @@ test("002b A36: View opens read-only without Remove", async () => {
     await openDialog(BUILD);
     expect(".o_dialog .o_form_readonly").toHaveCount(1);
     expect(".o_dialog .o_field_widget[name='name'] input").toHaveCount(0);
-    expect(".o_dialog .o_form_button_save").toHaveCount(0);
     expect(".o_dialog .o_form_button_remove").toHaveCount(0);
-    // Community's read-only buttons: the closing button (hidden by the stylesheet while "New" is
-    // there) and the form's own New
-    expect(".o_dialog .modal-footer .o-default-button").toHaveCount(1);
+    // the Community buttons of a read-only form dialog, unchanged: its primary button and New
+    expect(".o_dialog .modal-footer .o_form_button_save").toHaveCount(1);
     expect(".o_dialog .modal-footer .o_form_button_create").toHaveCount(1);
     await contains(".o_dialog .btn-close").click();
     await animationFrame();
@@ -207,7 +205,7 @@ test("002b A41: Remove only on existing records with delete", async () => {
     expect(".o_dialog .o_form_button_remove").toHaveCount(0);
     await contains(".o_dialog .o_form_button_cancel").click();
     await animationFrame();
-})
+});
 
 test("002b A41: a new record has no Remove", async () => {
     await mountTimeline();
@@ -276,4 +274,27 @@ test("002b A26: record dialog uses form_view_id", async () => {
     await openDialog(BUILD);
     expect(".o_dialog .o_field_widget[name='name']").toHaveCount(1);
     expect(".o_dialog .o_field_widget[name='x_progress']").toHaveCount(0);
+});
+
+test("002b E4: a second open while one is pending or open does nothing", async () => {
+    await mountTimeline();
+    let release;
+    controller.model.trackWrite(new Promise((resolve) => (release = resolve)));
+    const editor = controller.editor;
+    editor.openRecord(BUILD);
+    await editor.openRecord(BUILD); // returns at once
+    release();
+    await waitFor(".o_dialog .o_form_view");
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(1);
+    // while the dialog is open, another call does nothing
+    await editor.openRecord(DEPLOY);
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(1);
+    // once closed, a new one opens
+    await contains(".o_dialog .o_form_button_cancel").click();
+    await animationFrame();
+    editor.openRecord(DEPLOY);
+    await waitFor(".o_dialog .o_form_view");
+    expect(".o_dialog").toHaveCount(1);
 });

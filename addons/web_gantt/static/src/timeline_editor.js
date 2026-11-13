@@ -18,10 +18,6 @@ import { creationContext, planWriteValues, rowValueChain } from "./timeline_edit
 export class TimelineRecordDialog extends FormViewDialog {
     setup() {
         super.setup();
-        if (this.props.preventEdit) {
-            // the buttons of a read-only form: no Save, the form's own New when it allows creation
-            this.viewProps.buttonDialogTemplate = "web.FormView.DialogButtons";
-        }
         if (this.props.removeRecord) {
             this.viewProps.removeRecord = async () => {
                 if (await this.props.removeRecord()) {
@@ -197,9 +193,19 @@ export class TimelineEditor {
      * @param {number} resId
      */
     async openRecord(resId) {
+        // one record dialog at a time: a second call while one is pending or open does nothing
+        if (this._recordOpen) {
+            return;
+        }
+        this._recordOpen = true;
+        try {
+            await this.model.whenWritesDone();
+        } catch (error) {
+            this._recordOpen = false;
+            throw error;
+        }
         const { model, archInfo, services } = this;
         const { dialog, orm } = services;
-        await model.whenWritesDone();
         const { canEdit, canDelete, formViewId } = archInfo;
         const context = model.context;
         const removeRecord = async () => {
@@ -239,6 +245,7 @@ export class TimelineEditor {
                 },
                 {
                     onClose: async () => {
+                        this._recordOpen = false;
                         try {
                             if (!model.disposed) {
                                 await model.reload();
