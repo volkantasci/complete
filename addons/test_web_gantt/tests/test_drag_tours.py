@@ -109,3 +109,64 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h28', 'timeline_002b2_a69_read_only_button', login=RESTRICTED)
         self.assertEqual(self.env[PILL].search_count([]), count)
         self.assertEqual(self.records['Build'].name, 'Build')
+
+    # -- moving and copying a pill (R2 to R7, R9, R10, R15, R16) --------------------------------
+
+    def _restored(self):
+        review = self.records['Review']
+        review.invalidate_recordset()
+        self.assertEqual((review.date_start.hour, review.date_start.minute), (13, 0))
+        self.assertEqual(review.date_start.date(), self.today)
+        self.assertFalse(self.env[PILL].search([('name', 'like', '(copy)')]))
+
+    def test_a1_tour_move_one_day(self):
+        self._tour('h1', 'timeline_002b2_a1_move_one_day')
+        self._restored()
+
+    def test_a3_tour_pointer_and_popover(self):
+        self._tour('h1', 'timeline_002b2_a3_pointer_and_popover')
+        self._restored()
+
+    def test_a4_tour_cancel_keys(self):
+        self._tour('h1', 'timeline_002b2_a4_cancel_keys')
+        self._restored()
+
+    def test_a17_tour_phone_move_touch(self):
+        self._tour('h1', 'timeline_002b2_a17_phone_move_touch', size='390x844', touch=True)
+        self._restored()
+
+    def test_a21_tour_copy_into_gamma(self):
+        self._tour('h2', 'timeline_002b2_a21_copy_into_gamma')
+        self._restored()
+
+    def test_a22_tour_ctrl_during_move(self):
+        self._tour('h2', 'timeline_002b2_a22_ctrl_during_move')
+        self._restored()
+
+    def test_a24_tour_phone_size_copy(self):
+        self._tour('h2', 'timeline_002b2_a24_phone_size_copy', size='390x844')
+        self._restored()
+
+    def test_a38_tour_undo_move(self):
+        self._tour('h1', 'timeline_002b2_a38_undo_move')
+        self._restored()
+
+    def test_a41_tour_undo_copy(self):
+        self._tour('h2', 'timeline_002b2_a41_undo_copy')
+        self._restored()
+
+    def test_a43_tour_undo_record_gone(self):
+        self._tour('h2', 'timeline_002b2_a43_undo_record_gone')
+        self.assertFalse(self.env[PILL].search([('name', 'like', '(copy)')]))
+
+    def test_a44_tour_one_notification(self):
+        self._tour('h1', 'timeline_002b2_a44_one_notification')
+        self._restored()
+
+    def test_a45_tour_phone_undo(self):
+        self._tour('h1', 'timeline_002b2_a45_phone_undo', size='390x844', touch=True)
+        self._restored()
+
+    def test_a57_tour_refused_move_and_copy(self):
+        self._tour('h28', 'timeline_002b2_a57_refused_move_and_copy', login=RESTRICTED)
+        self.assertFalse(self.env[PILL].search([('name', 'like', '(copy)')]))

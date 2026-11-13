@@ -1,5 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 
 /**
@@ -562,6 +563,612 @@ tours.add("timeline_002b2_a69_read_only_button", {
                 } finally {
                     network.stop();
                 }
+            },
+        },
+    ],
+});
+
+// ---------------------------------------------------------------------------------------------
+// Moving and copying a pill: A1, A3, A4, A17, A21, A22, A24, A38, A41, A43, A44, A45, A57
+// ---------------------------------------------------------------------------------------------
+
+const PILL_MODEL = "test.web.gantt.pill";
+const addDays = (iso, days) => DateTime.fromISO(iso).plus({ days }).toISODate();
+const usBadge = (iso, clock) => {
+    const date = DateTime.fromISO(iso);
+    return `${date.month}/${date.day}/${date.year}, ${clock}`;
+};
+
+async function recordNamed(name) {
+    const rows = await rpc(`/web/dataset/call_kw/${PILL_MODEL}/search_read`, {
+        model: PILL_MODEL,
+        method: "search_read",
+        args: [[["name", "=", name]], ["name", "date_start", "date_stop", "parent_id"]],
+        kwargs: {},
+    });
+    return rows[0];
+}
+
+const countNamed = async (name) =>
+    rpc(`/web/dataset/call_kw/${PILL_MODEL}/search_count`, {
+        model: PILL_MODEL,
+        method: "search_count",
+        args: [[["name", "=", name]]],
+        kwargs: {},
+    });
+
+function pointer(type, x, y, { target = document, pointerType = "mouse", ctrl = false } = {}) {
+    target.dispatchEvent(
+        new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            pointerId: 1,
+            pointerType,
+            isPrimary: true,
+            button: 0,
+            buttons: type === "pointerup" ? 0 : 1,
+            ctrlKey: ctrl,
+            clientX: x,
+            clientY: y,
+        })
+    );
+}
+
+function key(type, name) {
+    document.dispatchEvent(
+        new KeyboardEvent(type, {
+            key: name,
+            ctrlKey: type === "keydown" && name === "Control",
+            bubbles: true,
+            cancelable: true,
+        })
+    );
+}
+
+const centreOf = (element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+};
+const partWidthOf = () => {
+    const cell = $$(".o_tl_cell[data-column]")[0];
+    return cell.getBoundingClientRect().width / 2;
+};
+const rowNamed = (name) =>
+    $$(".o_tl_row:not(.o_tl_total_row)").find(
+        (row) => $(".o_tl_row_label", row)?.textContent.trim() === name
+    );
+const middleOfRow = (name) => {
+    const rect = rowNamed(name).getBoundingClientRect();
+    return rect.top + rect.height / 2;
+};
+const noticeButton = (text) =>
+    $$(".o_notification button").find((button) => button.textContent.trim() === text);
+const noticeText = () => $(".o_notification .o_notification_content")?.textContent.trim();
+
+/** Press the pill `name`, hold it when touch, and move it to (x, y) in `steps` moves. */
+async function holdAndMove(name, { to, pointerType = "mouse", ctrl = false, steps = 6, hold = 0 }) {
+    const pill = await until(() => pillNamed(name), `the pill ${name}`);
+    const from = centreOf(pill);
+    pointer("pointerdown", from.x, from.y, { target: pill, pointerType, ctrl });
+    if (hold) {
+        await sleep(hold);
+    }
+    const end = { x: to.x ?? from.x, y: to.y ?? from.y };
+    for (let i = 1; i <= steps; i++) {
+        const x = from.x + ((end.x - from.x) * i) / steps;
+        const y = from.y + ((end.y - from.y) * i) / steps;
+        pointer("pointermove", x, y, { pointerType, ctrl });
+        await (pointerType === "touch" ? sleep(120) : frame());
+    }
+    await frame();
+    return { from, end, pointerType, ctrl };
+}
+
+function release(gesture) {
+    pointer("pointerup", gesture.end.x, gesture.end.y, {
+        pointerType: gesture.pointerType,
+        ctrl: gesture.ctrl,
+    });
+}
+
+/** Move "Review" one day later and release; the notification of the accepted write follows. */
+async function moveReviewOneDay() {
+    const pill = await until(() => pillNamed("Review"), "Review");
+    const from = centreOf(pill);
+    const gesture = await holdAndMove("Review", { to: { x: from.x + 2 * partWidthOf() } });
+    release(gesture);
+    await until(() => noticeText(), "the notification");
+    await gridSettled();
+}
+
+const reviewAt = (record, iso, start = "13:00:00", stop = "17:00:00") =>
+    record.date_start === `${iso} ${start}` && record.date_stop === `${iso} ${stop}`;
+
+tours.add("timeline_002b2_a1_move_one_day", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const tomorrow = addDays(today, 1);
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const origin = pill.getBoundingClientRect();
+                const gesture = await holdAndMove("Review", {
+                    to: { x: centreOf(pill).x + 2 * partWidthOf() },
+                });
+                const moved = $(".o_tl_pill_moved");
+                assert(moved, "no moved pill");
+                assert(getComputedStyle(moved).opacity === "0.8", "the moved pill is not at 80 %");
+                assert(
+                    Math.abs(moved.getBoundingClientRect().left - origin.left - 2 * partWidthOf()) <= 1,
+                    "the moved pill does not follow the pointer"
+                );
+                assert(
+                    getComputedStyle(pillNamed("Review")).opacity === "0.5",
+                    "the pill left behind is not faded"
+                );
+                assert($(".o_tl_drop"), "no target highlight");
+                const badges = $$(".o_tl_selection_badge").map((badge) => badge.textContent.trim());
+                assert(
+                    badges[0] === usBadge(tomorrow, "1:00 PM") && badges[1] === usBadge(tomorrow, "5:00 PM"),
+                    `badges ${badges}`
+                );
+                assert(
+                    $$(".o_tl_selection_badge").every((badge) => badge.classList.contains("text-success")),
+                    "the badges are not in the success colour"
+                );
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                assert(!$(".o_tl_pill_moved") && !$(".o_tl_drop"), "the drawing stayed after the release");
+                const record = await recordNamed("Review");
+                assert(reviewAt(record, tomorrow), `Review is ${record.date_start} to ${record.date_stop}`);
+                // restore by Undo
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                const back = await recordNamed("Review");
+                assert(reviewAt(back, today), `Review is ${back.date_start} after Undo`);
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a3_pointer_and_popover", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const point = centreOf(pill);
+                pointer("pointerdown", point.x, point.y, { target: pill });
+                pointer("pointerup", point.x, point.y, { target: pill });
+                pill.dispatchEvent(
+                    new MouseEvent("click", { bubbles: true, cancelable: true, clientX: point.x, clientY: point.y })
+                );
+                await until(() => $(".o_tl_popover"), "the popover");
+                const gesture = await holdAndMove("Review", { to: { x: point.x + 40 } });
+                assert(!$(".o_tl_popover"), "the popover stayed open");
+                const root = $(".o_timeline_view");
+                assert(root.classList.contains("o_tl_drag_move"), "no move class on the view");
+                assert(getComputedStyle(root).cursor === "move", "the pointer is not the move shape");
+                assert(
+                    getComputedStyle($(".o_control_panel")).pointerEvents === "none",
+                    "the control panel takes the pointer"
+                );
+                // back over the pill itself and release: no write, no popover
+                pointer("pointermove", point.x, point.y);
+                release({ ...gesture, end: point });
+                pill.dispatchEvent(
+                    new MouseEvent("click", { bubbles: true, cancelable: true, clientX: point.x, clientY: point.y })
+                );
+                await sleep(500);
+                assert(!$(".o_tl_popover") && !$(".o_dialog"), "a popover or dialog opened after the release");
+                assert(!root.classList.contains("o_tl_dragging"), "the view still holds the gesture");
+                assert(!$(".o_notification"), "a notification appeared for a move that wrote nothing");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a4_cancel_keys", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const dx = 2 * partWidthOf();
+                for (const name of ["Escape", "a", "ArrowLeft"]) {
+                    const gesture = await holdAndMove("Review", { to: { x: centreOf(pill).x + dx } });
+                    assert($(".o_tl_pill_moved"), "no moved pill");
+                    key("keydown", name);
+                    await until(() => !$(".o_tl_pill_moved"), `${name} to cancel`);
+                    assert(!$(".o_tl_pill_moved") && !$(".o_tl_drop"), `${name} did not cancel`);
+                    assert(!$(".o_tl_selection_badge"), `${name} left the badges`);
+                    release(gesture);
+                }
+                // Shift, Alt and Meta change nothing and make no copy
+                const gesture = await holdAndMove("Review", { to: { x: centreOf(pill).x + dx } });
+                for (const name of ["Shift", "Alt", "Meta"]) {
+                    key("keydown", name);
+                    key("keyup", name);
+                }
+                assert($(".o_tl_pill_moved"), "a harmless key cancelled the move");
+                assert(!$(".o_timeline_view").classList.contains("o_tl_drag_copy"), "Meta made a copy");
+                // the pointer over a column header: no target, a release writes nothing
+                const header = $(".o_tl_col.o_tl_is_today").getBoundingClientRect();
+                pointer("pointermove", header.left + 20, header.top + header.height / 2);
+                await until(() => !$(".o_tl_drop") && !$(".o_tl_selection_badge"), "no target over the header");
+                release({ ...gesture, end: { x: header.left + 20, y: header.top + header.height / 2 } });
+                await sleep(500);
+                const record = await recordNamed("Review");
+                assert(reviewAt(record, today), "Review was written");
+                assert(!$(".o_notification"), "a notification appeared");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a17_phone_move_touch", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const from = centreOf(pill);
+                // a finger held 600 ms, then five steps to one sub-column to the left
+                const gesture = await holdAndMove("Review", {
+                    to: { x: from.x - partWidthOf() },
+                    pointerType: "touch",
+                    hold: 600,
+                    steps: 5,
+                });
+                assert($(".o_tl_pill_moved"), "the pill did not lift");
+                const badges = $$(".o_tl_selection_badge");
+                assert(
+                    badges.map((badge) => badge.textContent.trim()).join("|") ===
+                        `${usBadge(today, "1:00 AM")}|${usBadge(today, "5:00 AM")}`,
+                    `badges ${badges.map((badge) => badge.textContent)}`
+                );
+                assert(
+                    badges.every((badge) => badge.classList.contains("text-danger")),
+                    "the badges are not in the danger colour"
+                );
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const record = await recordNamed("Review");
+                assert(reviewAt(record, today, "01:00:00", "05:00:00"), `Review ${record.date_start}`);
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                // a quick swipe without the hold scrolls instead
+                const again = await until(() => pillNamed("Review"), "Review");
+                const point = centreOf(again);
+                pointer("pointerdown", point.x, point.y, { target: again, pointerType: "touch" });
+                await sleep(80);
+                pointer("pointermove", point.x - 60, point.y, { pointerType: "touch" });
+                await sleep(400);
+                assert(!$(".o_tl_pill_moved"), "a quick swipe moved the pill");
+                pointer("pointerup", point.x - 60, point.y, { pointerType: "touch" });
+            },
+        },
+    ],
+});
+
+async function copyReviewTo(parentRow, days) {
+    const pill = await until(() => pillNamed("Review"), "Review");
+    const from = centreOf(pill);
+    key("keydown", "Control");
+    const gesture = await holdAndMove("Review", {
+        to: { x: from.x + days * 2 * partWidthOf(), y: middleOfRow(parentRow) },
+        ctrl: true,
+    });
+    return gesture;
+}
+
+tours.add("timeline_002b2_a21_copy_into_gamma", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const tomorrow = addDays(today, 1);
+                const gesture = await copyReviewTo("Gamma", 1);
+                assert($(".o_timeline_view").classList.contains("o_tl_drag_copy"), "no copy class");
+                assert(getComputedStyle($(".o_timeline_view")).cursor === "copy", "not the copy shape");
+                assert(pillNamed("Review").classList.contains("o_tl_pill_faded"), "the original is not faded");
+                release(gesture);
+                key("keyup", "Control");
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                assert(noticeText().length > 0, "no notification text");
+                const copy = await recordNamed("Review (copy)");
+                assert(copy, "no copy");
+                assert(reviewAt(copy, tomorrow), `the copy is ${copy.date_start} to ${copy.date_stop}`);
+                assert(copy.parent_id && copy.parent_id[1] === "Gamma", "the copy is not under Gamma");
+                assert(reviewAt(await recordNamed("Review"), today), "Review changed");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Copy removed", "the result of Undo");
+                assert((await countNamed("Review (copy)")) === 0, "the copy stayed");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a22_ctrl_during_move", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const tomorrow = addDays(today, 1);
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const gesture = await holdAndMove("Review", {
+                    to: { x: centreOf(pill).x + 2 * partWidthOf() },
+                });
+                const root = $(".o_timeline_view");
+                assert(root.classList.contains("o_tl_drag_move"), "not the move shape");
+                key("keydown", "Control");
+                await frame();
+                assert(getComputedStyle(root).cursor === "copy", "Ctrl did not give the copy shape");
+                key("keyup", "Control");
+                await frame();
+                assert(getComputedStyle(root).cursor === "move", "Ctrl up did not give the move shape");
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const record = await recordNamed("Review");
+                assert(reviewAt(record, tomorrow), "Review did not move");
+                assert((await countNamed("Review (copy)")) === 0, "a copy was made");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                assert(reviewAt(await recordNamed("Review"), today), "Review is not back");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a24_phone_size_copy", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const pill = await until(() => pillNamed("Plan"), "Plan");
+                const renderer_ = renderer().getBoundingClientRect();
+                const rect = pill.getBoundingClientRect();
+                const x = Math.min(Math.max(rect.left + rect.width / 2, renderer_.left + 5), renderer_.right - 5);
+                key("keydown", "Control");
+                pointer("pointerdown", x, rect.top + rect.height / 2, { target: pill, ctrl: true });
+                const y = middleOfRow("Beta");
+                for (let i = 1; i <= 6; i++) {
+                    pointer("pointermove", x, rect.top + rect.height / 2 + ((y - rect.top - rect.height / 2) * i) / 6, {
+                        ctrl: true,
+                    });
+                    await frame();
+                }
+                assert($(".o_timeline_view").classList.contains("o_tl_drag_copy"), "no copy shape");
+                assert($$(".o_tl_selection_badge").length === 2, "no badges");
+                pointer("pointerup", x, y, { ctrl: true });
+                key("keyup", "Control");
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const copy = await recordNamed("Plan (copy)");
+                assert(copy && copy.parent_id && copy.parent_id[1] === "Beta", "no copy of Plan in Beta");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Copy removed", "the result of Undo");
+            },
+        },
+    ],
+});
+
+// -- the notification and Undo (A38, A41, A43, A44, A45, A57) -----------------------------------
+
+tours.add("timeline_002b2_a38_undo_move", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                await moveReviewOneDay();
+                const notice = $(".o_notification").getBoundingClientRect();
+                assert(noticeText().startsWith("Dates changed"), `message "${noticeText()}"`);
+                assert(notice.right > window.innerWidth - 40 && notice.top < 120, "not at the top right");
+                assert(Math.abs(notice.width - 288) <= 2, `width ${notice.width}`);
+                assert(noticeButton("Undo"), "no Undo button");
+                assert($(".o_notification .btn-close, .o_notification .o_notification_close"), "no close cross");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                assert(!noticeButton("Undo"), "the result has an Undo button");
+                await gridSettled();
+                assert(reviewAt(await recordNamed("Review"), today), "Review is not back");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a41_undo_copy", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const gesture = await copyReviewTo("Gamma", 1);
+                release(gesture);
+                key("keyup", "Control");
+                await until(() => noticeText(), "the notification");
+                assert((await countNamed("Review (copy)")) === 1, "no copy");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Copy removed", "the result of Undo");
+                assert((await countNamed("Review (copy)")) === 0, "the copy stayed");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a43_undo_record_gone", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                // a copy that is deleted meanwhile
+                const gesture = await copyReviewTo("Gamma", 1);
+                release(gesture);
+                key("keyup", "Control");
+                await until(() => noticeText(), "the notification");
+                const copy = await recordNamed("Review (copy)");
+                await rpc(`/web/dataset/call_kw/${PILL_MODEL}/unlink`, {
+                    model: PILL_MODEL,
+                    method: "unlink",
+                    args: [[copy.id]],
+                    kwargs: {},
+                });
+                noticeButton("Undo").click();
+                await until(() => $(".o_notification_danger, .o_tl_notification_danger"), "the danger notice");
+                assert(noticeText() !== undefined, "no text");
+                assert($(".o_tl_notification_danger"), "not a danger notification");
+                // a move whose record is deleted meanwhile
+                await gridSettled();
+                const review = await recordNamed("Review");
+                await moveReviewOneDay();
+                await rpc(`/web/dataset/call_kw/${PILL_MODEL}/unlink`, {
+                    model: PILL_MODEL,
+                    method: "unlink",
+                    args: [[review.id]],
+                    kwargs: {},
+                });
+                noticeButton("Undo").click();
+                await until(() => $(".o_tl_notification_danger"), "the danger notice of the move");
+                await gridSettled();
+                assert(!pillNamed("Review"), "the deleted record is still drawn");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a44_one_notification", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const tomorrow = addDays(today, 1);
+                await moveReviewOneDay();
+                assert($$(".o_notification").length === 1, "no first notification");
+                // another pill: Plan one day later
+                const plan = await until(() => pillNamed("Plan"), "Plan");
+                const before = await recordNamed("Plan");
+                const gesture = await holdAndMove("Plan", {
+                    to: { x: centreOf(plan).x + 2 * partWidthOf() },
+                });
+                release(gesture);
+                await until(
+                    () => $$(".o_notification").length === 1 && !!noticeButton("Undo"),
+                    "one notification with Undo"
+                );
+                await sleep(400);
+                assert($$(".o_notification").length === 1, "two notifications stand");
+                await gridSettled();
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                const plan2 = await recordNamed("Plan");
+                assert(plan2.date_start === before.date_start, "Plan is not back");
+                assert(reviewAt(await recordNamed("Review"), tomorrow), "the first move was undone too");
+                // restore Review
+                await gridSettled();
+                await moveReviewBack(today);
+            },
+        },
+    ],
+});
+
+async function moveReviewBack(today) {
+    const record = await recordNamed("Review");
+    await rpc(`/web/dataset/call_kw/${PILL_MODEL}/write`, {
+        model: PILL_MODEL,
+        method: "write",
+        args: [[record.id], { date_start: `${today} 13:00:00`, date_stop: `${today} 17:00:00` }],
+        kwargs: {},
+    });
+}
+
+tours.add("timeline_002b2_a45_phone_undo", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const gesture = await holdAndMove("Review", {
+                    to: { x: centreOf(pill).x - partWidthOf() },
+                    pointerType: "touch",
+                    hold: 600,
+                    steps: 5,
+                });
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                const notice = $(".o_notification").getBoundingClientRect();
+                assert(notice.bottom > window.innerHeight / 2, "the notification is not at the bottom");
+                assert(Math.abs(notice.left - 16) <= 2, `left ${notice.left}`);
+                assert(Math.abs(window.innerWidth - notice.right - 16) <= 2, `right ${notice.right}`);
+                const button = noticeButton("Undo");
+                const rect = button.getBoundingClientRect();
+                const point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+                pointer("pointerdown", point.x, point.y, { target: button, pointerType: "touch" });
+                pointer("pointerup", point.x, point.y, { target: button, pointerType: "touch" });
+                button.click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                await gridSettled();
+                assert(reviewAt(await recordNamed("Review"), today), "Review is not back");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a57_refused_move_and_copy", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const build = await recordNamed("Build");
+                const pill = await until(() => pillNamed("Build"), "Build");
+                const gesture = await holdAndMove("Build", {
+                    to: { x: centreOf(pill).x + 2 * partWidthOf() },
+                });
+                release(gesture);
+                await until(() => $(".o_error_dialog"), "the access error");
+                assert(!$(".o_notification"), "a success notification appeared");
+                await gridSettled();
+                const after = await recordNamed("Build");
+                assert(after.date_start === build.date_start, "Build moved");
+                const place = pillNamed("Build").getBoundingClientRect();
+                assert(Math.abs(place.left - pill.getBoundingClientRect().left) <= 1, "Build is not in place");
+                $(".o_error_dialog .btn-close, .o_error_dialog .modal-header .btn-close, .o_error_dialog button")?.click();
+                await until(() => !$(".o_error_dialog"), "the error to close");
+                // a refused copy: only the error, no copy, no notification
+                key("keydown", "Control");
+                const copy = await holdAndMove("Build", {
+                    to: { x: centreOf(pillNamed("Build")).x + 2 * partWidthOf() },
+                    ctrl: true,
+                });
+                release(copy);
+                key("keyup", "Control");
+                await until(() => $(".o_error_dialog"), "the access error of the copy");
+                assert(!$(".o_notification"), "a notification appeared for the copy");
+                assert((await countNamed("Build (copy)")) === 0, "a copy exists");
             },
         },
     ],
