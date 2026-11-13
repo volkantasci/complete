@@ -91,8 +91,8 @@ test("002b A16: click creates the whole day", async () => {
 
 test("002b A16: day scale creates the whole hour", async () => {
     await mountTimeline({ arch: timelineArch(`default_range="day" plan="0"`) });
-    // the day range starts on 11 Nov (the 10th column is 10:00)
-    await click(queryAll(".o_tl_row:not(.o_tl_total_row) .o_tl_cell")[10]);
+    const header = queryAll(".o_tl_col").find((col) => /^10/.test(col.textContent));
+    await click(cellAt(Number(header.dataset.index)));
     await animationFrame();
     expect(inputValue("date_start")).toBe("11/11/2026 10:00:00");
     expect(inputValue("date_stop")).toBe("11/11/2026 11:00:00");
@@ -115,20 +115,53 @@ test("002b A17/E7: cell create off and plan off do nothing; New still creates", 
     expect(title()).toBe("Create");
 });
 
-test("002b A18: group row toggles; folded column unfolds in a group row; double click opens one dialog", async () => {
+test("002b A18: group row toggles and opens no dialog", async () => {
     await mountTimeline({ arch: ARCHS.H18, groupBy: ["parent_id", "x_contact"] });
-    const group = queryAll(".o_tl_group_row")[0];
-    expect(group).not.toHaveClass("o_tl_collapsed");
-    await click(group.querySelector(".o_tl_cell"));
+    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+    await click(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell"));
     await animationFrame();
     expect(queryAll(".o_tl_group_row")[0]).toHaveClass("o_tl_collapsed");
     expect(".o_dialog").toHaveCount(0);
+});
 
-    // double click on an empty cell: one dialog
-    await advanceTime(1100);
+test("002b R7: a double click on a group row toggles it once", async () => {
+    await mountTimeline({ arch: ARCHS.H18, groupBy: ["parent_id", "x_contact"] });
+    await dblclick(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell"));
+    await animationFrame();
+    expect(queryAll(".o_tl_group_row")[0]).toHaveClass("o_tl_collapsed");
+});
+
+test("002b R7: a click on a group row cell during a lock is swallowed", async () => {
+    freezeTime();
+    await mountTimeline({ arch: ARCHS.H18, groupBy: ["parent_id", "x_contact"] });
+    const cell = () => queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell");
+    await click(cell());
+    await animationFrame();
+    await click(cell());
+    await animationFrame();
+    expect(queryAll(".o_tl_group_row")[0]).toHaveClass("o_tl_collapsed");
+    await advanceTime(1050);
+    await click(cell());
+    await animationFrame();
+    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+});
+
+test("002b A18: double click on an empty cell opens one dialog", async () => {
+    await mountTimeline();
     await dblclick(cellAt(indexOfDate("2026-11-14")));
     await animationFrame();
     expect(".o_dialog").toHaveCount(1);
+});
+
+test("002b R7: a reload without a popover starts no lock", async () => {
+    await mountTimeline({ arch: ARCHS.H1 });
+    // the view reloads (a step forward and back) while no popover is open
+    await contains(".o_tl_next").click();
+    await animationFrame();
+    await contains(".o_tl_previous").click();
+    await animationFrame();
+    await clickDate("2026-11-14");
+    expect(title()).toBe("Plan");
 });
 
 test("002b A18: a folded column unfolds in a group row without toggling it", async () => {
@@ -264,18 +297,9 @@ test("002b A49: week click on Friday 13 proposes 13 to 13", async () => {
 });
 
 test("002b A49b: year click November on date-only Nov 1 to Nov 30", async () => {
-    await mountTimeline({
-        arch: timelineArch(`default_range="year" scales="year"`),
-        resModel: "pill2",
-    });
-    MockServer.current.env.pill2.create({ name: "Undated", active: true });
-    await clickDate("2026-11-01");
-    await waitFor(".o_dialog .o_list_view .o_content");
-    await animationFrame();
-    await contains(".o_dialog .o_data_row:contains(Undated) .o_list_record_selector input").click();
-    await waitFor(".o_dialog .o_select_button:not(:disabled)");
-    await contains(".o_dialog .o_select_button").click();
-    await animationFrame();
-    const [write] = writes;
+    const write = await planUndated(
+        timelineArch(`default_range="year" scales="year"`),
+        "2026-11-01"
+    );
     expect(write.values).toEqual({ date_start: "2026-11-01", date_stop: "2026-11-30" });
 });

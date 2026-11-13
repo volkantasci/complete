@@ -115,8 +115,11 @@ export class TimelineRenderer extends Component {
             // a click on the pill the popover hangs from is handled by the pill (it toggles)
             closeOnClickAway: (target) => !this._isPopoverAnchor(target),
             onClose: () => {
+                // only a popover that was really open locks the cells (closing none does not)
+                if (this._popoverFor !== null) {
+                    this._lockClicks(POPOVER_CLOSE_LOCK, false);
+                }
                 this._popoverFor = null;
-                this._lockClicks(POPOVER_CLOSE_LOCK, false);
             },
         });
         // new data (reload, step, range change) may remove or redraw the pill: close the popover
@@ -388,19 +391,31 @@ export class TimelineRenderer extends Component {
             ev.stopPropagation();
             return;
         }
+        if (this.data.isSample) {
+            return;
+        }
+        if (!descriptor) {
+            // the total row starts no lock and plans nothing, but a folded cell still opens
+            if (cell.run !== undefined) {
+                ev.stopPropagation();
+                this._setRunOpen(cell.run, true);
+            }
+            return;
+        }
+        // every real click on a body cell locks the next ones (a double click acts once)
+        this._lockClicks(CELL_CLICK_LOCK, true);
         if (cell.run !== undefined) {
             ev.stopPropagation();
             this._setRunOpen(cell.run, true);
             return;
         }
-        if (!descriptor || descriptor.kind !== "pills" || this.data.isSample) {
+        if (descriptor.kind !== "pills") {
             return;
         }
         const { archInfo, editor } = this.props;
         if (!editor || cell.column === undefined || !(archInfo.canPlan || archInfo.canCellCreate)) {
             return;
         }
-        this._lockClicks(CELL_CLICK_LOCK, true);
         const params = { period: columnPeriod(this.data, cell.column), row: descriptor.row };
         if (archInfo.canPlan) {
             editor.planFor(params);
