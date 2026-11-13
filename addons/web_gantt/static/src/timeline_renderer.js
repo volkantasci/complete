@@ -213,8 +213,9 @@ export class TimelineRenderer extends Component {
 
     /**
      * The date in the middle of the visible part of the grid; the focus date without a grid (R39).
-     * It is the start of the column under that point: on the year scale, the first day of the
-     * month.
+     * It is a linear share of the displayed period (R18): the column under the middle point and
+     * the place of that point inside it give the day and the time, so on the year scale the
+     * middle of a month column is a day of that month, not its first day.
      */
     visibleMiddleDate() {
         const element = this.rendererRef?.();
@@ -237,7 +238,17 @@ export class TimelineRenderer extends Component {
             }
         }
         const column = this.data.columns[Number(best.dataset.index)];
-        return column ? column.start.startOf("day") : this.data.range.focus;
+        if (!column) {
+            return this.data.range.focus;
+        }
+        if (best.classList.contains("o_tl_folded")) {
+            return column.start.startOf("day");
+        }
+        const rect = best.getBoundingClientRect();
+        const share = this._isRtl() ? (rect.right - x) / rect.width : (x - rect.left) / rect.width;
+        const length = column.stop - column.start;
+        const inside = Math.min(Math.max(share, 0), 1) * length;
+        return column.start.plus({ milliseconds: Math.min(inside, length - 1) });
     }
 
     /**
