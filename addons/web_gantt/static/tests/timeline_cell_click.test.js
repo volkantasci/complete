@@ -226,6 +226,31 @@ test("002b R7: a reload without a popover starts no lock", async () => {
     expect(title()).toBe("Plan");
 });
 
+test("A68 a click on a folded cell of a group row unfolds and starts the lock (R-T6-1)", async () => {
+    freezeTime();
+    timelineMock.unavailability = {
+        x_contact: Object.fromEntries(
+            [1, 2, 3].map((id) => [id, [{ start: at(3, "00:00"), stop: at(5, "00:00") }]])
+        ),
+    };
+    await mountTimeline({
+        arch: HOST_ARCHS.H12,
+        groupBy: ["parent_id", "x_contact"],
+        domain: [["id", "in", [4, 5, 6, 9]]],
+    });
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    await click(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_folded_cell"));
+    await animationFrame();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+    await click(cellAt(indexOfDate("2026-11-14")));
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(0);
+    await advanceTime(1050);
+    await click(cellAt(indexOfDate("2026-11-14")));
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(1);
+});
+
 test("002b A18: a folded column unfolds in a group row without toggling it", async () => {
     timelineMock.unavailability = {
         x_contact: Object.fromEntries(

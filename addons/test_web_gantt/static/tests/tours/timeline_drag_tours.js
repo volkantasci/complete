@@ -388,17 +388,6 @@ tours.add("timeline_002b2_a68_click_lock", {
                 );
                 $(".o_dialog .btn-close").click();
                 await until(() => !$(".o_dialog"), "the dialog to close");
-                // a cell of a record row starts the lock: a second click 0.4 s later does nothing
-                await sleep(1100);
-                const cell = cellOf("Undefined Contact");
-                cell.click();
-                await until(() => $(".o_dialog .modal-body"), "the plan dialog");
-                $(".o_dialog .btn-close").click();
-                await until(() => !$(".o_dialog"), "the dialog to close");
-                await sleep(400);
-                cell.click();
-                await sleep(400);
-                assert(!$(".o_dialog"), "a second click within one second opened a dialog");
             },
         },
     ],
