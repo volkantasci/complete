@@ -745,6 +745,34 @@ tours.add("timeline_002b_a44_restricted_user", {
     ],
 });
 
+// A10b: Escape during a drag, then the real release and click in the same cell: no dialog
+tours.add("timeline_002b_a10b_escape_then_release", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row",
+            async run() {
+                const cell = cellOf(pillRow(), addDays(todayIso(), 3));
+                const from = press(cell, 0.2);
+                const to = pointIn(cell, 0.2);
+                to.x += 60;
+                await moveTo(from, to);
+                await until(() => $(".o_tl_selection"), "the highlight");
+                escape();
+                await until(() => !$(".o_tl_selection"), "the highlight to disappear");
+                // the user keeps the button down a while, then releases over the same cell
+                await sleep(400);
+                fire(cell, "pointerup", to.x, to.y);
+                cell.dispatchEvent(
+                    new MouseEvent("click", { bubbles: true, cancelable: true, clientX: to.x, clientY: to.y })
+                );
+                await sleep(600);
+                assert(!$(".o_dialog"), "a dialog opened after Escape and the release");
+            },
+        },
+    ],
+});
+
 /** Press in `cell`, move 60 px inside it, report whether a highlight was drawn, then cancel. */
 async function dragInCell(cell) {
     const from = press(cell, 0.2);

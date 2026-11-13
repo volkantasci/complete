@@ -34,6 +34,7 @@ export class TimelineSelection {
         this._frame = null;
         this._press = null;
         this._suppressClick = false;
+        this._release = null;
     }
 
     get isSelecting() {
@@ -43,6 +44,7 @@ export class TimelineSelection {
     /** A new press: the click of the previous release has had its chance. */
     resetClick() {
         this._suppressClick = false;
+        this._forgetRelease();
     }
 
     /** Swallow the click of this release, and forget it once the click had its chance. */
@@ -70,6 +72,7 @@ export class TimelineSelection {
             return;
         }
         this._suppressClick = false;
+        this._forgetRelease();
         const startPart = this.host.partAt(ev.clientX, null);
         if (startPart === null) {
             return;
@@ -110,6 +113,7 @@ export class TimelineSelection {
 
     destroy() {
         this._finish();
+        this._forgetRelease();
     }
 
     // ------------------------------------------------------------------------
@@ -188,10 +192,41 @@ export class TimelineSelection {
         if (ev.key === "Escape" && this.state === "selecting") {
             ev.preventDefault();
             ev.stopPropagation();
+            const { id } = this._press;
+            const doc = ev.target.ownerDocument || document;
             this._cancel();
-            // the button is still down: its release is no click on a cell either
-            this._expectClick();
+            // the button is still down: its release is no click on a cell either, so the click
+            // is swallowed at the real release, not now
+            this._awaitRelease(doc, id);
         }
+    }
+
+    /** One-shot: the release of pointer `id` after a cancel swallows the click that follows. */
+    _awaitRelease(doc, id) {
+        this._forgetRelease();
+        const onUp = (event) => {
+            if (event.pointerId !== id) {
+                return;
+            }
+            this._forgetRelease();
+            this._expectClick();
+        };
+        const onCancel = (event) => {
+            if (event.pointerId === id) {
+                this._forgetRelease();
+            }
+        };
+        doc.addEventListener("pointerup", onUp, true);
+        doc.addEventListener("pointercancel", onCancel, true);
+        this._release = () => {
+            doc.removeEventListener("pointerup", onUp, true);
+            doc.removeEventListener("pointercancel", onCancel, true);
+        };
+    }
+
+    _forgetRelease() {
+        this._release?.();
+        this._release = null;
     }
 
     _cancel() {

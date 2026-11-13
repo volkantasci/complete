@@ -169,6 +169,34 @@ test("002b A10: Escape cancels", async () => {
     expect(".o_dialog").toHaveCount(0);
 });
 
+test("002b A10b: Escape, then release and click in the same cell opens no dialog", async () => {
+    await mountTimeline({ arch: ARCHS.H18 });
+    let pointerId = 1;
+    document.addEventListener("pointerdown", (ev) => (pointerId = ev.pointerId), { once: true });
+    await pressAndNudge("2026-11-14", 0);
+    expect(".o_tl_selection").toHaveCount(1);
+    // a bare Escape: the button stays down, no pointer event ends the gesture
+    document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })
+    );
+    await animationFrame();
+    expect(".o_tl_selection").toHaveCount(0);
+    // the user releases the button later, over the same cell: the click is not a cell click
+    await advanceTime(50);
+    // the browser sends the click right after the release, in the same task
+    const target = cellAt("2026-11-14");
+    target.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId }));
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(0);
+    // the next press starts afresh: a plain click opens the dialog
+    freezeTime();
+    await advanceTime(1100);
+    await click(cellAt("2026-11-14"));
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(1);
+});
+
 test("002b A10: no start on a pill, a group row, sample, H20, H23", async () => {
     // a pill
     await mountTimeline();

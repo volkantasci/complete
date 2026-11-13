@@ -88,6 +88,11 @@ class TestTimelineEditTours(HttpCase):
         self._tour('h1', 'timeline_002b_a8_selection_dialog')
         self.assertEqual(self.env[PILL].search_count([]), count, 'Discard created a record')
 
+    def test_002b_a10b_tour_escape_then_release(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h1', 'timeline_002b_a10b_escape_then_release')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
     def test_002b_a12_tour_edge_scroll(self):
         count = self.env[PILL].search_count([])
         self._tour('h1', 'timeline_002b_a12_edge_scroll')
