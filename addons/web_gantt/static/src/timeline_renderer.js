@@ -31,6 +31,7 @@ import {
     unavailableParts,
 } from "./timeline_layout";
 import { columnWidth } from "./timeline_dates";
+import { columnPeriod } from "./timeline_editing";
 import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
 
 const { DateTime } = luxon;
@@ -45,6 +46,10 @@ const LINE_GAP = 2;
 const GROUP_ROW_HEIGHT = 40;
 /** Width of a folded column, in pixels (M45). */
 const FOLDED_WIDTH = 36;
+/** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
+export const CELL_CLICK_LOCK = 1000;
+/** ... and this long after the popover closes, unless a lock already runs (R7). */
+export const POPOVER_CLOSE_LOCK = 250;
 
 /** The date with its weekday, as the language writes it (P2: "Saturday, November 7, 2026"). */
 function textOfDate(date) {
@@ -89,6 +94,7 @@ export class TimelineRenderer extends Component {
         this._fold = null;
         this._popoverTimer = null;
         this._popoverFor = null;
+        this._clickLock = null;
         this._seenData = null;
         this.popover = usePopover(TimelinePopover, {
             position: "bottom",
@@ -96,6 +102,7 @@ export class TimelineRenderer extends Component {
             closeOnClickAway: (target) => !this._isPopoverAnchor(target),
             onClose: () => {
                 this._popoverFor = null;
+                this._lockClicks(POPOVER_CLOSE_LOCK, false);
             },
         });
         // new data (reload, step, range change) may remove or redraw the pill: close the popover
@@ -119,6 +126,7 @@ export class TimelineRenderer extends Component {
         onPatched(() => this._syncScroll());
         onWillUnmount(() => {
             browser.clearTimeout(this._popoverTimer);
+            browser.clearTimeout(this._clickLock);
             if (model._view === access) {
                 model.setViewAccess(null);
             }
@@ -332,11 +340,49 @@ export class TimelineRenderer extends Component {
         }
     }
 
-    /** A click on a folded cell (any row) opens its run; other cells leave the click to the row. */
-    onCellClick(ev, cell) {
+    /**
+     * Ignore the clicks on cells for `delay` ms. With `replace` false a running lock stays (the
+     * popover closing does not shorten or extend the lock of a cell click).
+     */
+    _lockClicks(delay, replace) {
+        if (this._clickLock !== null && !replace) {
+            return;
+        }
+        browser.clearTimeout(this._clickLock);
+        this._clickLock = browser.setTimeout(() => {
+            this._clickLock = null;
+        }, delay);
+    }
+
+    /**
+     * R7: a click on a body cell. Locked: nothing. A folded cell opens its run. A group row
+     * toggles (through the row's own click). A cell of a record row plans (plan on), creates
+     * (cell create on) or does nothing, for the whole column. The total row and the sample
+     * state do nothing.
+     */
+    onCellClick(ev, cell, descriptor = null) {
+        if (this._clickLock !== null) {
+            ev.stopPropagation();
+            return;
+        }
         if (cell.run !== undefined) {
             ev.stopPropagation();
             this._setRunOpen(cell.run, true);
+            return;
+        }
+        if (!descriptor || descriptor.kind !== "pills" || this.data.isSample) {
+            return;
+        }
+        const { archInfo, editor } = this.props;
+        if (!editor || cell.column === undefined || !(archInfo.canPlan || archInfo.canCellCreate)) {
+            return;
+        }
+        this._lockClicks(CELL_CLICK_LOCK, true);
+        const params = { period: columnPeriod(this.data, cell.column), row: descriptor.row };
+        if (archInfo.canPlan) {
+            editor.planFor(params);
+        } else {
+            editor.createFor(params);
         }
     }
 
@@ -588,7 +634,7 @@ export class TimelineRenderer extends Component {
             const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
             style = `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
         }
-        return { key: index, className: classes.join(" "), style };
+        return { key: index, column: index, className: classes.join(" "), style };
     }
 
     _columnView(header) {

@@ -35,7 +35,7 @@
                                 </div>
                             </div>
                             <t t-foreach="row.cells" t-as="cell" t-key="cell.key">
-                                <div class="o_tl_cell" t-att-class="(cell.className || '') + (layout.isSample ? ' o_tl_sample' : '')" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell)"/>
+                                <div class="o_tl_cell" t-att-class="(cell.className || '') + (layout.isSample ? ' o_tl_sample' : '')" t-att-style="cell.style" t-on-click="(ev) => this.onCellClick(ev, cell, row)"/>
                             </t>
                             <div t-if="row.kind === 'group'" class="o_tl_pills">
                                 <div t-foreach="row.counts" t-as="segment" t-key="segment.key" class="o_tl_group_pill" t-att-style="segment.style">
