@@ -66,6 +66,25 @@ class TimelineHostPill(models.Model):
         return super()._gantt_progress_bar(*hook_args) if answer is None else answer
 
     @api.model
+    def _tl_rtl_user(self, env=None):
+        """Activate Arabic; return the user "RTL Admin" (login rtl), creating it once."""
+        env = self.env if env is None else env
+        lang = env['res.lang']._activate_lang('ar_001')
+        users = env['res.users'].with_context(active_test=False)
+        user = users.search([('login', '=', 'rtl')], limit=1)
+        if not user:
+            admin = env.ref('base.user_admin')
+            user = users.create({
+                'name': 'RTL Admin',
+                'login': 'rtl',
+                'password': 'rtl',
+                'lang': lang.code,
+                'tz': admin.tz,
+                'group_ids': [(6, 0, admin.group_ids.ids)],
+            })
+        return user
+
+    @api.model
     def _tl_build_host_records(self, today=None, tz_offset_hours=3):
         """Create the records of the scratch host; times are browser-local."""
         if today is None:
