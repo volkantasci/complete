@@ -93,6 +93,26 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h1', 'timeline_002b2_a65_selection_edge_speed')
         self.assertEqual(self.env[PILL].search_count([]), count)
 
+    # -- edge scrolling while a pill is held (R14) ------------------------------------------------
+
+    def test_a53_tour_move_edge_scroll(self):
+        self._tour('h1', 'timeline_002b2_a53_move_edge_scroll')
+
+    def test_a53_tour_move_edge_scroll_stops_at_end(self):
+        self._tour('h1', 'timeline_002b2_a53_move_edge_scroll_stops_at_end')
+
+    def test_a53_tour_phone_vertical_edge_scroll(self):
+        self._tour('h3', 'timeline_002b2_a53_phone_vertical_edge_scroll', size='390x420')
+
+    def test_a54_tour_resize_edge_scroll(self):
+        self._tour('h1', 'timeline_002b2_a54_resize_edge_scroll')
+
+    def test_a54_tour_phone_resize_zone(self):
+        self._tour('h1', 'timeline_002b2_a54_phone_resize_zone', size='390x844')
+
+    def test_a55_tour_row_header_edge(self):
+        self._tour('h2', 'timeline_002b2_a55_row_header_edge')
+
     # -- the click lock (R23) -------------------------------------------------------------------
 
     def test_a68_tour_click_lock(self):

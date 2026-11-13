@@ -169,12 +169,13 @@ export class TimelineRenderer extends Component {
             edges: () => this._visibleBounds(),
             scrollBy: (dx, dy) => {
                 const renderer = this.rendererRef();
-                const before = { left: renderer.scrollLeft, top: renderer.scrollTop };
+                const vertical = this._verticalScroller();
+                const before = { left: renderer.scrollLeft, top: vertical.scrollTop };
                 renderer.scrollLeft += dx;
-                renderer.scrollTop += dy;
+                vertical.scrollTop += dy;
                 return {
                     dx: renderer.scrollLeft - before.left,
-                    dy: renderer.scrollTop - before.top,
+                    dy: vertical.scrollTop - before.top,
                 };
             },
             change: (drawing) => this._setDrag(drawing),
@@ -279,7 +280,32 @@ export class TimelineRenderer extends Component {
                 right = Math.min(right, rect.left);
             }
         }
-        return { left, right };
+        // the sticky headers stay at the top of the area, the rows scroll under them (R14)
+        const scroller = this._verticalScroller();
+        const area = scroller.getBoundingClientRect();
+        let top = Math.max(area.top + scroller.clientTop, 0);
+        for (const header of element.querySelectorAll(".o_tl_col, .o_tl_col_group")) {
+            top = Math.max(top, header.getBoundingClientRect().bottom);
+        }
+        // a page that scrolls the rows ends at the window, a grid's own area at its own edge
+        const end = area.top + scroller.clientTop + scroller.clientHeight;
+        const bottom = scroller === element ? end : Math.min(end, window.innerHeight);
+        return { left, right, top, bottom };
+    }
+
+    /**
+     * The element that scrolls the rows: the grid's area, or on the phone, where the grid only
+     * scrolls sideways, the nearest ancestor that scrolls the page (R14, R32 of 002a).
+     */
+    _verticalScroller() {
+        const element = this.rendererRef();
+        for (let node = element; node; node = node.parentElement) {
+            const overflow = getComputedStyle(node).overflowY;
+            if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight) {
+                return node;
+            }
+        }
+        return element;
     }
 
     /** Scroll the grid so that the viewport coordinate `x` is in the middle of the visible part. */
@@ -760,16 +786,34 @@ export class TimelineRenderer extends Component {
         if (drag && !rtl) {
             this._keepStopBadgeInside(grid, stopBadge, header);
         }
+        if (drag) {
+            // a badge past the grid's end would make the grid longer, and a pointer held in an
+            // edge zone would scroll without end (R14)
+            this._keepBadgeInGrid(grid, startBadge);
+            this._keepBadgeInGrid(grid, stopBadge);
+        }
+    }
+
+    _keepBadgeInGrid(grid, badge) {
+        const rect = badge.getBoundingClientRect();
+        const box = grid.getBoundingClientRect();
+        const shift = Math.max(rect.right - box.right, 0) - Math.max(box.left - rect.left, 0);
+        if (shift) {
+            badge.style.left = `${rect.left - shift - box.left}px`;
+        }
     }
 
     /**
-     * R6: the stop badge of a moved pill stays at least 1 px inside the window's right edge, and
-     * no further from that edge than the window's width minus the row header column's.
+     * R6: the stop badge of a moved pill stays at least 1 px inside the window's right edge (and
+     * the grid's), and no further from that edge than the window's width minus the row header
+     * column's.
      */
     _keepStopBadgeInside(grid, badge, header) {
         const rect = badge.getBoundingClientRect();
         const least = header ? header.getBoundingClientRect().width : 0;
-        const right = Math.min(Math.max(rect.right, least), window.innerWidth - 1);
+        // nor past the end of the grid, which would make it longer (R14)
+        const end = Math.min(window.innerWidth - 1, grid.getBoundingClientRect().right);
+        const right = Math.min(Math.max(rect.right, least), end);
         if (right !== rect.right) {
             badge.style.left = `${right - rect.width - grid.getBoundingClientRect().left}px`;
         }
@@ -886,7 +930,7 @@ export class TimelineRenderer extends Component {
         const rect = element.getBoundingClientRect();
         const renderer = this.rendererRef();
         this._pressed = {
-            scroll: { left: renderer.scrollLeft, top: renderer.scrollTop },
+            scroll: { left: renderer.scrollLeft, top: this._verticalScroller().scrollTop },
             ghost: {
                 label: pill.label,
                 className: pill.className,
@@ -1107,7 +1151,7 @@ export class TimelineRenderer extends Component {
             // to the grid, the pointer to the window
             offset: {
                 x: offset.x + renderer.scrollLeft - pressed.scroll.left,
-                y: offset.y + renderer.scrollTop - pressed.scroll.top,
+                y: offset.y + this._verticalScroller().scrollTop - pressed.scroll.top,
             },
             ghost: pressed.ghost,
         };
@@ -1171,10 +1215,18 @@ export class TimelineRenderer extends Component {
         const box = (left, top) =>
             `left: ${left - PILL_INSET}px; top: ${top - PILL_INSET}px;` +
             ` width: ${ghost.width + 2 * PILL_INSET}px; height: ${ghost.height + 2 * PILL_INSET}px`;
+        // The moved pill follows the pointer but never leaves the grid: it would make the grid
+        // longer, and a pointer held in an edge zone would scroll without end (R14).
+        const grid = this.rendererRef?.()?.querySelector(".o_tl_grid");
+        const inside = (value, size, room) =>
+            grid ? Math.min(Math.max(value, 0), Math.max(room - size, 0)) : value;
         return {
             ...ghost,
             locked: Boolean(drag.lock),
-            movedStyle: box(ghost.left + offset.x, ghost.top + offset.y),
+            movedStyle: box(
+                inside(ghost.left + offset.x, ghost.width, grid?.offsetWidth),
+                inside(ghost.top + offset.y, ghost.height, grid?.offsetHeight)
+            ),
             originStyle: box(ghost.left, ghost.top),
         };
     }

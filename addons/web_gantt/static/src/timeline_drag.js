@@ -1,6 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { browser } from "@web/core/browser/browser";
+import { MOVE_EDGE, SELECT_EDGE, TimelineEdgeScroll } from "./timeline_edge_scroll";
 import { LONG_PRESS, MOVE_THRESHOLD } from "./timeline_selection";
 
 /** Movement in pixels that starts a move with a mouse, or abandons a touch press (R2). */
@@ -71,6 +72,13 @@ export class TimelinePillDrag {
         this._recent = false;
         this._recentTimer = null;
         this._pairSwallowed = false;
+        // the grid scrolled under the held pointer: the target is worked out again (R14)
+        this._edge = new TimelineEdgeScroll({
+            edges: () => this.host.edges(),
+            scrollBy: (dx, dy) => this.host.scrollBy(dx, dy),
+            onScrolled: () => this.refresh(),
+            axes: "xy",
+        });
     }
 
     get isActive() {
@@ -392,8 +400,11 @@ export class TimelinePillDrag {
             target: press.target,
             offset: { x: press.x - press.x0, y: press.y - press.y0 },
         });
-        // Edge scrolling (R14, a later task) follows the pointer here: `host.edges()`,
-        // `host.scrollBy()` and `_update()` again once the grid has scrolled.
+        if (mode.follows || mode.edge) {
+            // R14: a move scrolls on both axes near an edge; a resize like a selection, on x
+            this._edge.axes = mode.edge ? "x" : "xy";
+            this._edge.follow(press.x, press.y, mode.edge ? SELECT_EDGE : MOVE_EDGE);
+        }
     }
 
     _finish() {
@@ -405,6 +416,7 @@ export class TimelinePillDrag {
             remove();
         }
         this._listeners = [];
+        this._edge.stop();
         this._setHeld(null);
     }
 }

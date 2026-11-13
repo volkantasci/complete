@@ -1716,6 +1716,11 @@ tours.add("timeline_002b2_a35_touch_moves_not_resizes", {
             async run() {
                 const today = todayIso();
                 const review = await recordNamed("Review");
+                // the end of the pill goes to the middle of the narrow screen, clear of the edge zones (R14)
+                const area = renderer();
+                const box = area.getBoundingClientRect();
+                area.scrollLeft += pillNamed("Review").getBoundingClientRect().right - (box.left + box.right) / 2;
+                await gridSettled();
                 const gesture = await pressHandle("Review", "stop", { pointerType: "touch" });
                 await sleep(600);
                 await dragHandleTo(gesture, gesture.from.x - partWidthOf(), 5, () => sleep(120));
@@ -2027,6 +2032,250 @@ tours.add("timeline_002b2_a49_lock_on_long_pill", {
                 const gesture = await holdLocked("Long task", { visibleIcon: false });
                 const record = await recordNamed("Long task");
                 await releaseLocked(gesture, { "Long task": record.date_start.slice(0, 10) });
+            },
+        },
+    ],
+});
+
+// ---------------------------------------------------------------------------------------------
+// Edge scrolling while a pill is held (R14, A53 to A55). The amount scrolled depends on how long
+// the pointer stays in a zone, so a gesture holds for a fixed time and the tour asserts generous
+// ranges, never an exact value.
+// ---------------------------------------------------------------------------------------------
+
+/** The right edge of the scrolling area. */
+const areaRightNow = () => renderer().getBoundingClientRect().left + renderer().clientLeft + renderer().clientWidth;
+
+/** Press the first record pill `name` in its middle and move 20 px: the move has begun. */
+async function beginMove(name, options = {}) {
+    const gesture = await holdAndMove(name, { to: { x: centreOf(await until(() => pillNamed(name), name)).x + 20 }, ...options });
+    await until(() => $(".o_tl_pill_moved"), "the moved pill");
+    return gesture;
+}
+
+/** Move the held pointer to (x, y) in one move. */
+async function pointerTo(gesture, x, y) {
+    pointer("pointermove", x, y, { pointerType: gesture.pointerType });
+    gesture.end = { x, y };
+    await frame();
+}
+
+/** Escape cancels the gesture, then the release ends it; nothing is written. */
+async function abandon(gesture) {
+    key("keydown", "Escape");
+    release(gesture);
+    await until(() => !$(".o_tl_pill_moved") && !$(".o_tl_pill_resizing"), "the gesture to end");
+}
+
+tours.add("timeline_002b2_a53_move_edge_scroll", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const area = renderer();
+                area.scrollLeft = 0;
+                await gridSettled();
+                const room = area.scrollWidth - area.clientWidth - area.scrollLeft;
+                assert(room > 1200, `the grid has only ${room} px to scroll to the right`);
+                const network = watchNetwork();
+                try {
+                    const gesture = await beginMove("Review");
+                    const y = gesture.end.y;
+                    // 40 px from the edge: no scroll
+                    const calm = area.scrollLeft;
+                    await pointerTo(gesture, areaRightNow() - 40, y);
+                    await sleep(700);
+                    assert(area.scrollLeft === calm, `the grid scrolled ${area.scrollLeft - calm} px 40 px from the edge`);
+                    // 10 px from the edge: about 417 px per second
+                    await pointerTo(gesture, areaRightNow() - 10, y);
+                    const badges = badgesNow().join('|');
+                    await sleep(1000);
+                    const moved = area.scrollLeft - calm;
+                    assert(moved > 250 && moved < 700, `the grid scrolled ${moved} px in a second, expected about 417`);
+                    assert($(".o_tl_drop") && badgeCount() === 2, "the highlight or the badges are gone");
+                    assert(badgesNow().join('|') !== badges, "the badges did not follow the scroll");
+                    // 20 px from the edge: about 208 px per second, slower than at 10 px
+                    await pointerTo(gesture, areaRightNow() - 20, y);
+                    const before = area.scrollLeft;
+                    await sleep(1000);
+                    const slower = area.scrollLeft - before;
+                    assert(slower > 100 && slower < 400, `the grid scrolled ${slower} px in a second, expected about 208`);
+                    await abandon(gesture);
+                    assert(writesOf(network).length === 0, "a cancelled move wrote");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a53_move_edge_scroll_stops_at_end", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const area = renderer();
+                const gesture = await beginMove("Review");
+                const max = area.scrollWidth - area.clientWidth;
+                area.scrollLeft = max - 150;
+                await frame();
+                await pointerTo(gesture, areaRightNow() - 2, gesture.end.y);
+                await until(() => area.scrollLeft >= max - 1, "the grid to reach its end");
+                await sleep(500);
+                assert(area.scrollLeft >= max - 1, "the grid went back");
+                assert($(".o_tl_pill_moved"), "the moved pill vanished at the end");
+                await abandon(gesture);
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a53_phone_vertical_edge_scroll", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                // on the phone the page scrolls the rows (the grid only scrolls sideways)
+                const scrolls = (element) =>
+                    ["auto", "scroll"].includes(getComputedStyle(element).overflowY) &&
+                    element.scrollHeight > element.clientHeight + 100;
+                let page = renderer();
+                while (page && !scrolls(page)) {
+                    page = page.parentElement;
+                }
+                assert(page, "the rows fit in the screen");
+                page.scrollTop = 0;
+                await gridSettled();
+                const box = page.getBoundingClientRect();
+                const bottom = Math.min(box.top + page.clientTop + page.clientHeight, window.innerHeight);
+                // a pill drawn in the middle zone of the narrow screen (no scrolling there)
+                const middle = visibleMiddle();
+                const pill = $$(".o_tl_pill").find((element) => {
+                    const rect = element.getBoundingClientRect();
+                    return (
+                        rect.left < middle + 60 &&
+                        rect.right > middle - 60 &&
+                        rect.top > box.top + 60 &&
+                        rect.bottom < bottom - 60
+                    );
+                });
+                assert(pill, "no pill in the middle of the screen");
+                const from = centreOf(pill);
+                pointer("pointerdown", middle, from.y, { target: pill });
+                const gesture = { from, end: { x: middle, y: from.y }, pointerType: "mouse", ctrl: false };
+                await pointerTo(gesture, middle + 20, from.y);
+                await until(() => $(".o_tl_pill_moved"), "the moved pill");
+                // the move zones leave x 30 to 360: stay on the middle, go down to the bottom edge
+                const before = page.scrollTop;
+                await pointerTo(gesture, middle, bottom - 10);
+                await sleep(1000);
+                const moved = page.scrollTop - before;
+                assert(moved > 250 && moved < 700, `the page scrolled down ${moved} px in a second, expected about 417`);
+                // the moved pill stays under the pointer while the rows pass under it
+                const rect = $(".o_tl_pill_moved").getBoundingClientRect();
+                assert(Math.abs(rect.top + rect.height / 2 - (bottom - 10)) < 40, "the moved pill did not follow the pointer");
+                // held to the end of the rows
+                await until(() => page.scrollTop >= page.scrollHeight - page.clientHeight - 1, "the end of the rows");
+                assert($(".o_tl_pill_moved"), "the moved pill vanished with its row out of view");
+                await abandon(gesture);
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a54_resize_edge_scroll", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const area = renderer();
+                area.scrollLeft = 0;
+                await gridSettled();
+                const network = watchNetwork();
+                try {
+                    // Build's end handle, then 100 px from the right edge: about 833 px per second
+                    const gesture = await pressHandle("Build", "stop");
+                    await dragHandleTo(gesture, centreOf(await until(() => pillNamed("Build"), "Build")).x + 30);
+                    await until(() => $(".o_tl_pill_resizing"), "the resizing pill");
+                    const before = area.scrollLeft;
+                    const badges = badgesNow().join("|");
+                    const x = areaRightNow() - 100;
+                    await dragHandleTo(gesture, x);
+                    const seen = new Set([badges]);
+                    for (let i = 0; i < 4; i++) {
+                        await sleep(250);
+                        seen.add(badgesNow().join("|"));
+                    }
+                    const moved = area.scrollLeft - before;
+                    assert(moved > 600 && moved < 1300, `the grid scrolled ${moved} px in a second, expected about 833`);
+                    // the end stays at the pointer, which now points to a later place of the grid
+                    const end = $(".o_tl_pill_resizing").getBoundingClientRect().right;
+                    assert(Math.abs(end - x) < 80, `the end is at ${end}, the pointer at ${x}`);
+                    // the badge went through other dates while the grid scrolled under the pointer
+                    assert(seen.size > 2, `the badge did not follow the scroll: ${[...seen].join(" / ")}`);
+                    await abandon(gesture);
+                    assert(writesOf(network).length === 0, "a cancelled resize wrote");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a54_phone_resize_zone", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const area = renderer();
+                const box = area.getBoundingClientRect();
+                const build = await until(() => pillNamed("Build"), "Build");
+                const rect = build.getBoundingClientRect();
+                area.scrollLeft += rect.left + rect.width / 2 - (box.left + box.right) / 2;
+                await gridSettled();
+                const gesture = await pressHandle("Build", "stop");
+                await dragHandleTo(gesture, gesture.from.x + 12, 3);
+                // between x 150 and 240 of the screen nothing scrolls
+                await dragHandleTo(gesture, 195);
+                await sleep(300);
+                const calm = area.scrollLeft;
+                await sleep(600);
+                assert(area.scrollLeft === calm, "the grid scrolled in the middle of the phone");
+                // inside the outer 150 px it does
+                await dragHandleTo(gesture, areaRightNow() - 100);
+                await sleep(800);
+                assert(area.scrollLeft - calm > 250, `the grid scrolled ${area.scrollLeft - calm} px`);
+                await abandon(gesture);
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a55_row_header_edge", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const area = renderer();
+                const gesture = await beginMove("Review");
+                const start = area.scrollLeft;
+                area.scrollLeft = start + 400;
+                await frame();
+                assert(area.scrollLeft > start + 300, "the grid did not scroll right");
+                const title = $(".o_tl_title_cell").getBoundingClientRect();
+                // on the right edge of the row header column, within the row of the pill
+                await pointerTo(gesture, title.right - 2, gesture.end.y);
+                await until(() => area.scrollLeft === 0, "the grid to scroll back to its start", 15000);
+                assert($(".o_tl_pill_moved"), "the moved pill vanished");
+                await abandon(gesture);
             },
         },
     ],

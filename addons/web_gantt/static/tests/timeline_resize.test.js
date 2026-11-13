@@ -418,6 +418,11 @@ test("A35 a finger on the end handle moves the pill: no touch resizing (D5)", as
     freezeTime();
     await resize({ width: 390, height: 844 });
     await mountTimeline();
+    // the end of the pill goes to the middle of the narrow screen, clear of the edge zones (R14)
+    const area = queryOne(".o_tl_renderer");
+    const box = queryRect(area);
+    area.scrollLeft += queryRect(pillEl("Review")).right - (box.left + box.right) / 2;
+    await animationFrame();
     // the pointer rests on the pill first, so that its handles exist when the finger comes
     await hover(pillEl("Review"));
     await animationFrame();
