@@ -10,12 +10,13 @@ is rolled back after it: every test starts from the records of `setUpClass`.
 import os
 import time
 
-from odoo import fields
+from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
 
 HOST_ACTION = '/odoo/action-test_web_gantt.host_action_{}'
 PILL = 'test.web.gantt.pill'
 DESKTOP = '1600x900'
+RESTRICTED = 'restricted_editor'
 
 
 @tagged('post_install', '-at_install')
@@ -43,6 +44,12 @@ class TestTimelineDragTours(HttpCase):
         cls.today = fields.Date.today()
         cls.records = pill._tl_build_host_records(today=cls.today, tz_offset_hours=0)
         cls.rtl_user = pill._tl_rtl_user()
+        cls.restricted = cls.env['res.users'].create({
+            'name': 'Restricted editor',
+            'login': RESTRICTED,
+            'password': RESTRICTED,
+            'group_ids': [Command.set([cls.env.ref('base.group_user').id])],
+        })
 
     def setUp(self):
         super().setUp()
@@ -91,8 +98,14 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h3', 'timeline_002b2_a68_click_lock')
         self.assertEqual(self.env[PILL].search_count([]), count)
 
-    # -- the record dialog (R21) ----------------------------------------------------------------
+    # -- the record dialog (R21, R24) -----------------------------------------------------------
 
     def test_a66_tour_delete_offline(self):
         self._tour('h1', 'timeline_002b2_a66_delete_offline')
         self.assertTrue(self.records['Build'].exists(), 'Build was deleted')
+
+    def test_a69_tour_read_only_button(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h28', 'timeline_002b2_a69_read_only_button', login=RESTRICTED)
+        self.assertEqual(self.env[PILL].search_count([]), count)
+        self.assertEqual(self.records['Build'].name, 'Build')

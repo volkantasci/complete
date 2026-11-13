@@ -532,3 +532,37 @@ tours.add("timeline_002b2_a66_delete_offline", {
         },
     ],
 });
+
+tours.add("timeline_002b2_a69_read_only_button", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const network = watchNetwork();
+                try {
+                    doubleClick(await until(() => pillNamed("Build"), "Build"));
+                    const dialog = await until(() => dialogTitled("Open"), "the record dialog");
+                    await until(() => $(".o_form_view .o_field_widget", dialog), "the form");
+                    await gridSettled();
+                    const visible = $$(".modal-footer button", dialog).filter(
+                        (button) => button.getClientRects().length
+                    );
+                    const labels = visible.map((button) => button.textContent.trim());
+                    assert(
+                        visible.length === 1 && labels[0] === "Save",
+                        `the visible buttons are: ${labels.join(", ")}`
+                    );
+                    assert(visible[0].classList.contains("btn-primary"), "Save is not primary");
+                    network.log.length = 0;
+                    visible[0].click();
+                    await until(() => !$(".o_dialog"), "the dialog to close");
+                    await gridSettled();
+                    assert(!writesOf(network).length, "a write was sent");
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
