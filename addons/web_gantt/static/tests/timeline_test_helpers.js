@@ -35,6 +35,7 @@ export function at(days, clock) {
     return DateTime.utc(2026, 11, 12, hour, minute)
         .plus({ days })
         .minus({ hours: UTC_OFFSET_HOURS })
+        .reconfigure({ locale: "en", numberingSystem: "latn" })
         .toFormat("yyyy-MM-dd HH:mm:ss");
 }
 

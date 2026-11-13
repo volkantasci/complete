@@ -780,3 +780,12 @@ test("A62 Build handles: right end is start (e-resize), left end is stop (w-resi
         { call: "write", ids: [PILL.Build], values: { date_stop: "2026-11-15 15:00:00" } },
     ]);
 });
+
+test("R-C-7 the difference of a badge keeps its text in en_US", async () => {
+    await mountTimeline();
+    const build = await pressHandle("Build", "stop");
+    await build.to(build.start.x + 2 * partWidth());
+    expect(badgeTexts()[1]).toBe("11/15/2026, 6:00 PM (+24 hours)");
+    await build.drop();
+    await settle();
+});

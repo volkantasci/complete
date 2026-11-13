@@ -567,3 +567,36 @@ test("serializeBound formats", () => {
     expect(serializeBound(d("2026-11-12T23:30"), "date")).toBe("2026-11-12");
     expect(serializeBound(null, "date")).toBe(false);
 });
+
+test("A62 R-C-7 the difference of a resize badge is written with the user's digits, whole badge", () => {
+    const arabic = (text) => DateTime.fromISO(text, { locale: "ar-EG" });
+    const badges = dragBadges({
+        kind: "resize",
+        which: "stop",
+        start: arabic("2026-11-12T09:00"),
+        oldStart: arabic("2026-11-12T09:00"),
+        oldStop: arabic("2026-11-14T18:00"),
+        stop: arabic("2026-11-15T18:00"),
+        data: dataFor("week", 2),
+        dateOnlyStart: false,
+        dateOnlyStop: false,
+    });
+    const text = badges.stop.text;
+    expect(/[0-9]/.test(text)).toBe(false);
+    expect(text).toMatch(/\(\+\u0662\u0664 hours\)$/);
+    expect(text).toMatch(/[\u0660-\u0669]/);
+    // a date-only bound: days, in the same digits
+    const dateOnly = dragBadges({
+        kind: "resize",
+        which: "stop",
+        start: arabic("2026-11-11"),
+        oldStart: arabic("2026-11-11"),
+        oldStop: arabic("2026-11-13"),
+        stop: arabic("2026-11-12"),
+        data: dataFor("week", 2),
+        dateOnlyStart: true,
+        dateOnlyStop: true,
+    });
+    expect(/[0-9]/.test(dateOnly.stop.text)).toBe(false);
+    expect(dateOnly.stop.text).toMatch(/\(-\u0661 days\)$/);
+});

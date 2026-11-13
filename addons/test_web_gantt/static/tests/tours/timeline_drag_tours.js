@@ -2673,8 +2673,8 @@ tours.add("timeline_002b2_a62_rtl_move_and_resize", {
                 await dragHandleTo(gesture, gesture.from.x - 2 * partWidthOf());
                 assert($(".o_timeline_view").classList.contains("o_tl_drag_west"), "no west resize shape");
                 assert($$(".o_tl_selection_badge")[1].classList.contains("text-success"), "not success");
-                // the date of the moved bound is in Arabic digits (its difference in brackets is not a date)
-                assert(/[٠-٩]/.test(badgesNow()[1].split("(")[0]), `badge ${badgesNow()[1]}`);
+                // the whole badge, its difference in brackets included, is in Arabic digits
+                assertArabicDigits();
                 assert(asciiDigits(badgesNow()[1]).includes("+24"), `badge ${badgesNow()[1]}`);
                 release(gesture);
                 await until(() => noticeText(), "the notification");
