@@ -1,0 +1,723 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import {
+    click,
+    dblclick,
+    keyDown,
+    keyUp,
+    queryAll,
+    queryAllTexts,
+    queryOne,
+    queryRect,
+    resize,
+} from "@odoo/hoot-dom";
+import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
+import {
+    defineWebModels,
+    MockServer,
+    mountView,
+    onRpc,
+    patchWithCleanup,
+} from "@web/../tests/web_test_helpers";
+import { localization } from "@web/core/l10n/localization";
+import { drag } from "@odoo/hoot-dom";
+import { TimelineController } from "@web_gantt/timeline_controller";
+
+import { HOST_ARCHS, setupTimelineFixtures, timelineArch, timelineMock } from "./timeline_test_helpers";
+
+describe.current.tags("desktop");
+
+setupTimelineFixtures();
+defineWebModels();
+
+let controller;
+/** The write and copy calls the server saw, in order. */
+let log;
+
+beforeEach(async () => {
+    mockTimeZone(3);
+    mockDate("2026-11-11 21:30:00");
+    patchWithCleanup(localization, { weekStart: 7 });
+    patchWithCleanup(TimelineController.prototype, {
+        setup() {
+            super.setup(...arguments);
+            controller = this;
+        },
+    });
+    log = [];
+    onRpc("write", ({ args }) => {
+        log.push({ call: "write", ids: args[0], values: args[1] });
+    });
+    onRpc("copy", ({ args, kwargs }) => {
+        log.push({ call: "copy", ids: args[0], default: kwargs.default });
+    });
+    await resize({ width: 1600, height: 900 });
+});
+
+const RECORD_ROW = ".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)";
+const PILL = { Design: 4, Build: 5, Review: 6, Plan: 9, "Long task": 10, "Color ten": 14 };
+
+async function mountTimeline({ arch = HOST_ARCHS.H1, groupBy, ...rest } = {}) {
+    await mountView({ type: "gantt", resModel: "pill", arch, groupBy, ...rest });
+    // the grid shows Thursday 12 in the middle (R39), where the pills of the tests are
+    await animationFrame();
+    log.length = 0;
+    timelineMock.calls.length = 0;
+}
+
+const rowAt = (row = 0) => queryAll(RECORD_ROW)[row];
+const rowIndexOf = (name) =>
+    queryAll(RECORD_ROW).findIndex(
+        (row) => row.querySelector(".o_tl_row_label")?.textContent === name
+    );
+const pillEl = (name) =>
+    queryOne(`.o_tl_pill[data-pill-id="${PILL[name]}"]:not(.o_tl_pill_moved)`);
+const indexOfDate = (date) => Number(queryOne(`.o_tl_col[data-date="${date}"]`).dataset.index);
+const cellAt = (date, row = 0) => rowAt(row).querySelectorAll(".o_tl_cell")[indexOfDate(date)];
+const partWidth = () => queryRect(cellAt("2026-11-12")).width / 2;
+const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
+const rowMiddle = (row) => {
+    const rect = queryRect(rowAt(row));
+    return rect.top + rect.height / 2;
+};
+const css = (element, property) => getComputedStyle(element)[property];
+
+/**
+ * Press the pill `name` at `at` (0 to 1) of its width. Returns the drag helpers, the press point,
+ * `move(x, y)` (to a viewport point) and `by(dx, dy)` (from the press point).
+ */
+async function pressPill(name, at = 0.5) {
+    const element = pillEl(name);
+    const rect = queryRect(element);
+    const start = { x: rect.left + rect.width * at, y: rect.top + rect.height / 2 };
+    const helpers = await drag(element, { position: start });
+    const move = async (x, y) => {
+        const target = document.elementFromPoint(x, y) || queryOne(".o_tl_renderer");
+        await helpers.moveTo(target, { position: { x, y } });
+        await animationFrame();
+    };
+    return { ...helpers, start, move, by: (dx, dy = 0) => move(start.x + dx, start.y + dy) };
+}
+
+/** Let the write and its reload settle. */
+async function settle() {
+    await advanceTime(100);
+    await animationFrame();
+}
+
+const root = () => queryOne(".o_timeline_view");
+const moved = () => queryAll(".o_tl_pill_moved");
+const badgeTexts = () => queryAllTexts(".o_tl_selection_badge");
+const writes = () => log.filter((entry) => entry.call === "write");
+const copies = () => log.filter((entry) => entry.call === "copy");
+
+// ----------------------------------------------------------------------------
+// Moving
+// ----------------------------------------------------------------------------
+
+test("A1 move one day: the moved pill follows, faded copy, highlight, badges, one write", async () => {
+    await mountTimeline();
+    const review = await pressPill("Review");
+    const origin = queryRect(pillEl("Review"));
+    await review.by(2 * partWidth());
+
+    // the moved pill follows the pointer (M1 to M4), the pressed pill stays, faded (M5)
+    expect(moved()).toHaveCount(1);
+    const ghost = queryRect(moved()[0]);
+    expect(near(ghost.left, origin.left + 2 * partWidth())).toBe(true);
+    expect(near(ghost.top, origin.top)).toBe(true);
+    expect(near(ghost.width, origin.width)).toBe(true);
+    expect(css(moved()[0], "opacity")).toBe("0.8");
+    expect(css(moved()[0], "boxShadow")).toBe("rgb(0, 0, 0) 0px 5px 25px -10px");
+    expect(pillEl("Review")).toHaveClass("o_tl_pill_faded");
+    expect(css(pillEl("Review"), "opacity")).toBe("0.5");
+    expect(near(queryRect(pillEl("Review")).left, origin.left)).toBe(true);
+
+    // the highlight: Friday 13's second half over the row's height, under the pills (M7)
+    expect(".o_tl_drop").toHaveCount(1);
+    const highlight = queryRect(".o_tl_drop");
+    const friday = queryRect(cellAt("2026-11-13"));
+    expect(near(highlight.left, friday.left + friday.width / 2)).toBe(true);
+    expect(near(highlight.width, partWidth())).toBe(true);
+    expect(near(highlight.height, queryRect(rowAt(0)).height)).toBe(true);
+    expect(css(queryOne(".o_tl_drop"), "backgroundColor")).toBe("rgba(0, 160, 157, 0.3)");
+    expect(css(queryOne(".o_tl_drop"), "borderRightWidth")).toBe("1px");
+    expect(css(queryOne(".o_tl_drop"), "borderBottomWidth")).toBe("1px");
+
+    // the badges: the record's own bounds, success colour (M9)
+    expect(badgeTexts()).toEqual(["11/13/2026, 1:00 PM", "11/13/2026, 5:00 PM"]);
+    expect(queryAll(".o_tl_selection_badge").map((badge) => badge.classList.contains("text-success"))).toEqual([
+        true,
+        true,
+    ]);
+
+    await review.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            call: "write",
+            ids: [PILL.Review],
+            values: { date_start: "2026-11-13 10:00:00", date_stop: "2026-11-13 14:00:00" },
+        },
+    ]);
+    expect(moved()).toHaveCount(0);
+    expect(".o_tl_drop").toHaveCount(0);
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    // the notification of the accepted write (Task 10) and the pill at its new place
+    expect(".o_notification").toHaveCount(1);
+    const friday13 = queryRect(cellAt("2026-11-13"));
+    expect(near(queryRect(pillEl("Review")).left, friday13.left + friday13.width / 2 + 1)).toBe(true);
+});
+
+test("A3 the popover closes, the root takes the move shape and shields the buttons, no click follows", async () => {
+    freezeTime();
+    await mountTimeline();
+    await click(pillEl("Review"));
+    await advanceTime(250);
+    await animationFrame();
+    expect(".o_tl_popover").toHaveCount(1);
+
+    const review = await pressPill("Review");
+    await review.by(40);
+    expect(".o_tl_popover").toHaveCount(0);
+    expect(root()).toHaveClass("o_tl_dragging");
+    expect(root()).toHaveClass("o_tl_drag_move");
+    expect(css(root(), "cursor")).toBe("move");
+    expect(css(queryOne(".o_tl_next"), "cursor")).toBe("move");
+    expect(css(queryOne(".o_control_panel"), "pointerEvents")).toBe("none");
+    expect(css(queryOne(".o_tl_controls"), "pointerEvents")).toBe("none");
+
+    // released over the pressed pill itself, whose click would open the popover
+    await review.by(0);
+    await review.drop();
+    await animationFrame();
+    await advanceTime(600);
+    await animationFrame();
+    expect(root()).not.toHaveClass("o_tl_dragging");
+    expect(css(queryOne(".o_control_panel"), "pointerEvents")).not.toBe("none");
+    expect(".o_tl_popover").toHaveCount(0);
+    expect(".o_dialog").toHaveCount(0);
+    expect(log).toHaveLength(0);
+});
+
+test("A4 Escape, a letter and an arrow key cancel; Shift, Alt and Meta do not, Meta makes no copy", async () => {
+    await mountTimeline();
+    for (const key of ["Escape", "a", "ArrowLeft"]) {
+        const review = await pressPill("Review");
+        await review.by(2 * partWidth());
+        expect(moved()).toHaveCount(1);
+        await keyDown(key);
+        await keyUp(key);
+        await animationFrame();
+        expect(moved()).toHaveCount(0);
+        expect(".o_tl_drop").toHaveCount(0);
+        expect(".o_tl_selection_badge").toHaveCount(0);
+        expect(root()).not.toHaveClass("o_tl_dragging");
+        expect(pillEl("Review")).not.toHaveClass("o_tl_pill_faded");
+        // the button comes up later: nothing is written
+        await review.drop().catch(() => {});
+        await settle();
+        expect(log).toHaveLength(0);
+    }
+
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    for (const key of ["shift", "alt", "meta"]) {
+        await keyDown(key);
+        await keyUp(key);
+    }
+    await animationFrame();
+    expect(moved()).toHaveCount(1);
+    expect(root()).toHaveClass("o_tl_drag_move");
+    expect(root()).not.toHaveClass("o_tl_drag_copy");
+    await review.drop();
+    await settle();
+    expect(writes()).toHaveLength(1);
+    expect(copies()).toHaveLength(0);
+});
+
+test("A4 the pointer over a column header hides the highlight and the badges; a release there writes nothing", async () => {
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    expect(".o_tl_drop").toHaveCount(1);
+    expect(".o_tl_selection_badge").toHaveCount(2);
+    const header = queryRect(".o_tl_col[data-date='2026-11-13']");
+    await review.move(header.left + 20, header.top + header.height / 2);
+    expect(moved()).toHaveCount(1);
+    expect(".o_tl_drop").toHaveCount(0);
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    await review.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+    expect(".o_notification").toHaveCount(0);
+});
+
+test("A4 the pointer over the control panel is no target either", async () => {
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    const panel = queryRect(".o_control_panel");
+    await review.move(panel.left + 300, panel.top + 10);
+    expect(".o_tl_drop").toHaveCount(0);
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    await review.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+});
+
+test("A5 8 px is a click: the popover opens; 12 px starts a move", async () => {
+    freezeTime();
+    await mountTimeline();
+    const small = await pressPill("Review");
+    await small.by(8);
+    expect(moved()).toHaveCount(0);
+    expect(root()).not.toHaveClass("o_tl_dragging");
+    await small.drop();
+    await animationFrame();
+    await advanceTime(250);
+    await animationFrame();
+    expect(".o_tl_popover").toHaveCount(1);
+    expect(log).toHaveLength(0);
+    await click(document.body);
+    await advanceTime(1100);
+    await animationFrame();
+
+    const large = await pressPill("Review");
+    await large.by(12);
+    expect(moved()).toHaveCount(1);
+    expect(root()).toHaveClass("o_tl_dragging");
+    await large.drop();
+    await settle();
+    // within the starting sub-column: nothing to write (A6)
+    expect(log).toHaveLength(0);
+});
+
+test("A6 a release that changes nothing: no write, no notification, no reload", async () => {
+    await mountTimeline();
+    // 15 px within the sub-column
+    let review = await pressPill("Review");
+    await review.by(15);
+    expect(".o_tl_drop").toHaveCount(1);
+    await review.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+    expect(timelineMock.calls).toHaveLength(0);
+    expect(".o_notification").toHaveCount(0);
+    expect(".o_tl_drop").toHaveCount(0);
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    expect(pillEl("Review")).not.toHaveClass("o_tl_pill_faded");
+
+    // one day right, then back to the starting sub-column
+    review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    expect(badgeTexts()).toEqual(["11/13/2026, 1:00 PM", "11/13/2026, 5:00 PM"]);
+    await review.by(3);
+    await review.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+    expect(timelineMock.calls).toHaveLength(0);
+    expect(".o_notification").toHaveCount(0);
+});
+
+test("A7 the pill stays inside the grid: Color ten stops at Saturday 21, 24:00", async () => {
+    await mountTimeline();
+    const renderer = queryOne(".o_tl_renderer");
+    renderer.scrollLeft = renderer.scrollWidth;
+    await animationFrame();
+    const colorTen = await pressPill("Color ten", 0.1);
+    const box = queryRect(renderer);
+    await colorTen.move(box.left + renderer.clientWidth - 3, colorTen.start.y);
+    expect(".o_tl_drop").toHaveCount(1);
+    const last = queryRect(cellAt("2026-11-21"));
+    expect(near(queryRect(".o_tl_drop").right, last.right)).toBe(true);
+    // the whole pill (four sub-columns) is inside
+    expect(near(queryRect(".o_tl_drop").width, 4 * partWidth())).toBe(true);
+    await colorTen.drop();
+    await settle();
+    expect(writes()[0].values).toEqual({
+        date_start: "2026-11-20 05:00:00",
+        date_stop: "2026-11-21 15:00:00",
+    });
+});
+
+test("A8 a folded column keeps the highlight where it was", async () => {
+    timelineMock.unavailability = {
+        x_contact: Object.fromEntries(
+            [1, 2, 3].map((id) => [
+                id,
+                [{ start: "2026-11-14 21:00:00", stop: "2026-11-16 21:00:00" }],
+            ])
+        ),
+    };
+    await mountTimeline({
+        arch: HOST_ARCHS.H12,
+        groupBy: ["x_contact"],
+        domain: [["id", "in", [4, 5, 6, 9]]],
+    });
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    const before = queryRect(".o_tl_drop");
+    const folded = queryRect(".o_tl_col.o_tl_folded");
+    await review.move(folded.left + folded.width / 2, review.start.y);
+    expect(".o_tl_drop").toHaveCount(1);
+    expect(near(queryRect(".o_tl_drop").left, before.left)).toBe(true);
+    expect(badgeTexts()).toEqual(["11/13/2026, 1:00 PM", "11/13/2026, 5:00 PM"]);
+    await review.drop();
+    await settle();
+    expect(writes()[0].values.date_start).toBe("2026-11-13 10:00:00");
+});
+
+const BASE_ATTRS = `string="Pills" default_range="week" color="x_color"`;
+for (const [label, attrs] of [
+    ["edit off", `edit="0"`],
+    ["drag and drop off (H31)", `disable_drag_drop="1"`],
+]) {
+    test(`R1 ${label}: a pill does not move`, async () => {
+        await mountTimeline({ arch: timelineArch(`${BASE_ATTRS} ${attrs}`) });
+        const review = await pressPill("Review");
+        await review.by(2 * partWidth());
+        expect(moved()).toHaveCount(0);
+        expect(root()).not.toHaveClass("o_tl_dragging");
+        await review.drop();
+        await settle();
+        expect(log).toHaveLength(0);
+    });
+}
+
+test("R1 a cut pill does not move: Long task starts before the range and ends after it", async () => {
+    await mountTimeline();
+    const longTask = await pressPill("Long task");
+    await longTask.by(2 * partWidth());
+    expect(moved()).toHaveCount(0);
+    await longTask.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+});
+
+test("A13 a press on a group pill reaches the cell: a click there toggles the row, nothing moves", async () => {
+    await mountTimeline({
+        arch: HOST_ARCHS.H1,
+        groupBy: ["parent_id", "x_contact"],
+    });
+    const group = queryAll(".o_tl_group_row")[0];
+    const bar = group.querySelector(".o_tl_group_pill");
+    expect(css(bar, "pointerEvents")).toBe("none");
+    expect(bar.classList.contains("o_tl_pill")).toBe(false);
+    const rect = queryRect(bar);
+    const point = { x: rect.left + 3, y: rect.top + 1 };
+    const under = document.elementFromPoint(point.x, point.y);
+    expect(under).toHaveClass("o_tl_cell");
+    const helpers = await drag(under, { position: point });
+    await helpers.moveTo(under, { position: { x: point.x + 40, y: point.y + 40 } });
+    await animationFrame();
+    expect(moved()).toHaveCount(0);
+    await helpers.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+    await advanceTime(1100);
+    const wasCollapsed = group.classList.contains("o_tl_collapsed");
+    await click(document.elementFromPoint(point.x, point.y));
+    await animationFrame();
+    expect(group.classList.contains("o_tl_collapsed")).toBe(!wasCollapsed);
+});
+
+test("A14 the sample state has no pill to move: a press and a move start nothing", async () => {
+    await mountTimeline({ arch: HOST_ARCHS.H8, domain: [["id", "<", 0]] });
+    expect(".o_tl_pill").toHaveCount(0);
+    const cell = queryAll(".o_tl_cell")[3];
+    const rect = queryRect(cell);
+    const start = { x: rect.left + 5, y: rect.top + 5 };
+    const helpers = await drag(cell, { position: start });
+    await helpers.moveTo(cell, { position: { x: start.x + 200, y: start.y } });
+    await animationFrame();
+    expect(moved()).toHaveCount(0);
+    expect(root()).not.toHaveClass("o_tl_dragging");
+    await helpers.drop();
+    await settle();
+    expect(log).toHaveLength(0);
+});
+
+// ----------------------------------------------------------------------------
+// Badges
+// ----------------------------------------------------------------------------
+
+test("A18 the badges: 20 px above and below the moved pill, 20 px tall", async () => {
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    const pill = queryRect(moved()[0]);
+    const [start, stop] = queryAll(".o_tl_selection_badge").map((badge) => queryRect(badge));
+    expect(near(start.bottom, pill.top)).toBe(true);
+    expect(near(start.height, 20, 0.1)).toBe(true);
+    expect(near(start.left, pill.left)).toBe(true);
+    expect(near(stop.top, pill.bottom)).toBe(true);
+    expect(near(stop.height, 20, 0.1)).toBe(true);
+    expect(near(stop.right, pill.right)).toBe(true);
+    expect(css(queryAll(".o_tl_selection_badge")[0], "backgroundColor")).toBe("rgb(255, 255, 255)");
+    await review.drop();
+    await settle();
+});
+
+test("A20 a move to the left: danger badges", async () => {
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(-partWidth());
+    expect(badgeTexts()).toEqual(["11/12/2026, 1:00 AM", "11/12/2026, 5:00 AM"]);
+    expect(queryAll(".o_tl_selection_badge").map((badge) => badge.classList.contains("text-danger"))).toEqual([
+        true,
+        true,
+    ]);
+    await review.drop();
+    await settle();
+    expect(writes()[0].values).toEqual({
+        date_start: "2026-11-11 22:00:00",
+        date_stop: "2026-11-12 02:00:00",
+    });
+});
+
+// ----------------------------------------------------------------------------
+// Touch
+// ----------------------------------------------------------------------------
+
+test("A17 touch: a 600 ms hold then five steps; a quick swipe scrolls", async () => {
+    freezeTime();
+    mockTouch(true);
+    await resize({ width: 390, height: 844 });
+    await mountTimeline();
+    const rect = queryRect(pillEl("Review"));
+    const renderer = queryRect(".o_tl_renderer");
+    // the visible middle of the pill
+    const x = Math.min(Math.max(rect.left + rect.width / 2, renderer.left + 5), renderer.right - 5);
+    const y = rect.top + rect.height / 2;
+    const helpers = await drag(pillEl("Review"), { position: { x, y } });
+    await advanceTime(600);
+    let at = x;
+    for (const step of [20, 20, 20, 20, partWidth() - 80]) {
+        at -= step;
+        const target = document.elementFromPoint(at, y) || queryOne(".o_tl_renderer");
+        await helpers.moveTo(target, { position: { x: at, y } });
+        await advanceTime(120);
+        await animationFrame();
+    }
+    expect(moved()).toHaveCount(1);
+    expect(badgeTexts()).toEqual(["11/12/2026, 1:00 AM", "11/12/2026, 5:00 AM"]);
+    expect(
+        queryAll(".o_tl_selection_badge").map((badge) => badge.classList.contains("text-danger"))
+    ).toEqual([true, true]);
+    await helpers.drop();
+    await settle();
+    expect(writes()[0].values).toEqual({
+        date_start: "2026-11-11 22:00:00",
+        date_stop: "2026-11-12 02:00:00",
+    });
+
+    // a quick swipe: no hold, the grid scrolls on its own
+    const swipe = await drag(pillEl("Review"), { position: { x, y } });
+    await advanceTime(100);
+    await swipe.moveTo(queryOne(".o_tl_renderer"), { position: { x: x - 80, y } });
+    await advanceTime(300);
+    await animationFrame();
+    expect(moved()).toHaveCount(0);
+    expect(root()).not.toHaveClass("o_tl_dragging");
+    await swipe.drop();
+    await settle();
+    expect(writes()).toHaveLength(1);
+});
+
+// ----------------------------------------------------------------------------
+// Copying
+// ----------------------------------------------------------------------------
+
+test("A21 Ctrl copy into Gamma: the copy shape, the original stays faded, the duplicate with defaults", async () => {
+    await mountTimeline({ groupBy: ["parent_id"] });
+    const gamma = rowIndexOf("Gamma");
+    await keyDown("ctrl");
+    const review = await pressPill("Review");
+    await review.move(review.start.x + 2 * partWidth(), rowMiddle(gamma));
+    expect(root()).toHaveClass("o_tl_drag_copy");
+    expect(css(root(), "cursor")).toBe("copy");
+    expect(pillEl("Review")).toHaveClass("o_tl_pill_faded");
+    // the highlight is in the Gamma row only, Friday 13's second half
+    expect(".o_tl_drop").toHaveCount(1);
+    expect(rowAt(gamma).querySelector(".o_tl_drop")).not.toBe(null);
+    expect(queryAll(".o_tl_drop")[0].closest(".o_tl_row")).toBe(rowAt(gamma));
+    await review.drop();
+    await keyUp("ctrl");
+    await settle();
+    expect(writes()).toHaveLength(0);
+    expect(copies()).toEqual([
+        {
+            call: "copy",
+            ids: [PILL.Review],
+            default: {
+                date_start: "2026-11-13 10:00:00",
+                date_stop: "2026-11-13 14:00:00",
+                parent_id: 3,
+            },
+        },
+    ]);
+    expect(".o_notification").toHaveCount(1);
+});
+
+test("A22 Ctrl pressed then released: copy shape, then move shape, the release moves", async () => {
+    await mountTimeline({ groupBy: ["parent_id"] });
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    expect(root()).toHaveClass("o_tl_drag_move");
+    await keyDown("ctrl");
+    await animationFrame();
+    expect(root()).toHaveClass("o_tl_drag_copy");
+    expect(root()).not.toHaveClass("o_tl_drag_move");
+    await keyUp("ctrl");
+    await animationFrame();
+    expect(root()).toHaveClass("o_tl_drag_move");
+    expect(root()).not.toHaveClass("o_tl_drag_copy");
+    await review.drop();
+    await settle();
+    expect(copies()).toHaveLength(0);
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0].ids).toEqual([PILL.Review]);
+});
+
+test("A23 copy straight down into Beta: start and stop given explicitly, Parent Beta", async () => {
+    await mountTimeline({ groupBy: ["parent_id"] });
+    const beta = rowIndexOf("Beta");
+    await keyDown("ctrl");
+    const review = await pressPill("Review");
+    await review.move(review.start.x, rowMiddle(beta));
+    // no move in time: the badges keep the black role
+    expect(
+        queryAll(".o_tl_selection_badge").map((badge) => [
+            badge.classList.contains("text-success"),
+            badge.classList.contains("text-danger"),
+        ])
+    ).toEqual([
+        [false, false],
+        [false, false],
+    ]);
+    await review.drop();
+    await keyUp("ctrl");
+    await settle();
+    expect(copies()).toEqual([
+        {
+            call: "copy",
+            ids: [PILL.Review],
+            default: {
+                date_start: "2026-11-12 10:00:00",
+                date_stop: "2026-11-12 14:00:00",
+                parent_id: 2,
+            },
+        },
+    ]);
+});
+
+test("A24 phone size with a mouse: Ctrl copy of Plan into Beta", async () => {
+    await resize({ width: 390, height: 844 });
+    await mountTimeline({ groupBy: ["parent_id"] });
+    const plan = pillEl("Plan");
+    const rect = queryRect(plan);
+    const renderer = queryRect(".o_tl_renderer");
+    const x = Math.min(Math.max(rect.left + rect.width / 2, renderer.left + 5), renderer.right - 5);
+    await keyDown("ctrl");
+    const helpers = await drag(plan, { position: { x, y: rect.top + rect.height / 2 } });
+    const beta = rowIndexOf("Beta");
+    const y = rowMiddle(beta);
+    await helpers.moveTo(document.elementFromPoint(x, y) || queryOne(".o_tl_renderer"), {
+        position: { x, y },
+    });
+    await animationFrame();
+    expect(root()).toHaveClass("o_tl_drag_copy");
+    expect(badgeTexts()).toHaveLength(2);
+    await helpers.drop();
+    await keyUp("ctrl");
+    await settle();
+    expect(copies()).toHaveLength(1);
+    expect(copies()[0].ids).toEqual([PILL.Plan]);
+    expect(copies()[0].default.parent_id).toBe(2);
+});
+
+// ----------------------------------------------------------------------------
+// Review Focus
+// ----------------------------------------------------------------------------
+
+test("Focus 1: a gesture ended by blur, pointercancel, a hidden tab or a second finger ends cleanly", async () => {
+    await mountTimeline();
+    const endings = {
+        blur: () => window.dispatchEvent(new Event("blur")),
+        pointercancel: (pointerId) =>
+            document.dispatchEvent(new PointerEvent("pointercancel", { pointerId, bubbles: true })),
+        visibilitychange: () => document.dispatchEvent(new Event("visibilitychange")),
+        "second finger": (pointerId) =>
+            document.dispatchEvent(
+                new PointerEvent("pointerdown", { pointerId: pointerId + 1, bubbles: true })
+            ),
+    };
+    for (const [name, end] of Object.entries(endings)) {
+        let pointerId = 1;
+        document.addEventListener("pointerdown", (ev) => (pointerId = ev.pointerId), {
+            once: true,
+        });
+        const review = await pressPill("Review");
+        await review.by(2 * partWidth());
+        expect(moved()).toHaveCount(1, { message: name });
+        end(pointerId);
+        await animationFrame();
+        expect(moved()).toHaveCount(0, { message: name });
+        expect(".o_tl_drop").toHaveCount(0, { message: name });
+        expect(".o_tl_selection_badge").toHaveCount(0, { message: name });
+        expect(root()).not.toHaveClass("o_tl_dragging");
+        expect(root()).not.toHaveClass("o_tl_drag_move");
+        // the listeners are gone: moving and releasing now do nothing
+        await review.by(3 * partWidth());
+        expect(moved()).toHaveCount(0, { message: name });
+        await review.drop().catch(() => {});
+        await settle();
+        expect(log).toHaveLength(0, { message: name });
+    }
+});
+
+test("Focus 2: a reload during a held move keeps the gesture; the release uses the values read at the press", async () => {
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(2 * partWidth());
+    // the record changes on the server and the view reloads meanwhile
+    const record = MockServer.current.env.pill.find((candidate) => candidate.name === "Review");
+    record.date_start = "2026-11-13 07:00:00";
+    record.date_stop = "2026-11-13 08:00:00";
+    await controller.model.reload();
+    await animationFrame();
+    expect(moved()).toHaveCount(1);
+    expect(".o_tl_drop").toHaveCount(1);
+    expect(badgeTexts()).toEqual(["11/13/2026, 1:00 PM", "11/13/2026, 5:00 PM"]);
+    await review.drop();
+    await settle();
+    expect(writes()[0].values).toEqual({
+        date_start: "2026-11-13 10:00:00",
+        date_stop: "2026-11-13 14:00:00",
+    });
+});
+
+test("Focus 4 no click after a release, a fast second press included", async () => {
+    freezeTime();
+    await mountTimeline();
+    const review = await pressPill("Review");
+    await review.by(40);
+    await review.by(0);
+    await review.drop();
+    await animationFrame();
+    // a double click straight after the release counts neither as a click nor as a double click
+    await dblclick(pillEl("Review"));
+    await advanceTime(300);
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(0);
+    expect(".o_tl_popover").toHaveCount(0);
+    // a while later a click is a click again
+    await advanceTime(1100);
+    await click(pillEl("Review"));
+    await advanceTime(250);
+    await animationFrame();
+    expect(".o_tl_popover").toHaveCount(1);
+});

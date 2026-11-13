@@ -561,6 +561,7 @@
 .o_tl_pill {
     position: absolute;
     cursor: pointer;
+    user-select: none;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -579,6 +580,69 @@
     // the pointer changes neither the colours nor the shadow; the stripes take the full colour
     &:hover {
         box-shadow: none;
+    }
+}
+
+// Moving and copying (S1, S3): the pill that was pressed stays where it was, half faded (M5); the
+// one that follows the pointer is drawn over the grid, above the cells and the row headers, under
+// the badges (M1 to M4). It takes no pointer event, so the cells under it answer.
+.o_tl_pill_faded {
+    opacity: .5;
+}
+
+.o_tl_pill_moved {
+    z-index: 4;
+    opacity: .8;
+    box-shadow: 0 5px 25px -10px #000000;
+    pointer-events: none;
+}
+
+// While a pill is held (R2, R11): the pointer shape of the gesture over the whole view (M13, M22,
+// M33, M38, M43), the buttons of the view ignore the pointer so that the release over one does
+// not press it, and the hover effects of the grid pause.
+.o_timeline_view.o_tl_dragging {
+    user-select: none;
+
+    &.o_tl_drag_move,
+    &.o_tl_drag_move * {
+        cursor: move !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_copy,
+    &.o_tl_drag_copy * {
+        cursor: copy !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_lock,
+    &.o_tl_drag_lock * {
+        cursor: not-allowed !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_resize,
+    &.o_tl_drag_resize * {
+        cursor: e-resize !important; // stylelint-disable-line declaration-no-important
+    }
+
+    .o_control_panel,
+    .o_tl_controls {
+        pointer-events: none;
+    }
+
+    // a row under the pointer keeps the look it has without it
+    .o_tl_group_row:not(.o_tl_hover):hover {
+        @include o-tl-group-gradient($o-tl-group-gradient-start, $o-tl-group-gradient-end);
+    }
+
+    .o_tl_group_row.o_tl_collapsed:not(.o_tl_hover):hover {
+        @include o-tl-group-gradient($o-tl-group-gradient-end, $o-tl-group-gradient-start);
+    }
+
+    .o_tl_total_bar:not(.o_tl_hover):hover {
+        background-color: rgba($o-brand-primary, .5);
+
+        &::before {
+            display: none;
+        }
     }
 }
 

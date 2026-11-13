@@ -31,7 +31,18 @@ import {
     unavailableParts,
 } from "./timeline_layout";
 import { columnWidth } from "./timeline_dates";
-import { badgeText, columnPeriod, partPeriod } from "./timeline_editing";
+import {
+    copyDefaults,
+    dragBadges,
+    dragStep,
+    hasDateOnlyBound,
+    moveWriteValues,
+    movedBounds,
+    rowAcceptsDrop,
+    undoValues,
+} from "./timeline_drag_math";
+import { TimelinePillDrag } from "./timeline_drag";
+import { badgeText, columnPeriod, partPeriod, rowValueChain } from "./timeline_editing";
 import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
 import { TimelineSelection } from "./timeline_selection";
 
@@ -126,7 +137,7 @@ export class TimelineRenderer extends Component {
         this._cache = { data: null, small: null, version: null, layout: null };
         // folded columns: the runs the user opened, by the index of their first column; reset when
         // the range or the scale changes. `state.version` makes a change redraw the grid.
-        this.state = proxy({ version: 0, selection: null });
+        this.state = proxy({ version: 0, selection: null, drag: null });
         this._opened = new Set();
         this._openedKey = null;
         this._fold = null;
@@ -148,6 +159,27 @@ export class TimelineRenderer extends Component {
             commit: (selection) => this._commitSelection(selection),
             hold: (on) => this._hold(on),
         });
+        this._drag = new TimelinePillDrag({
+            pillState: (pill) => this._pillState(pill),
+            targetAt: (x, y, grab) => this._targetAt(x, y, grab),
+            edges: () => this._visibleBounds(),
+            scrollBy: (dx, dy) => {
+                const renderer = this.rendererRef();
+                const before = { left: renderer.scrollLeft, top: renderer.scrollTop };
+                renderer.scrollLeft += dx;
+                renderer.scrollTop += dy;
+                return {
+                    dx: renderer.scrollLeft - before.left,
+                    dy: renderer.scrollTop - before.top,
+                };
+            },
+            change: (drawing) => this._setDrag(drawing),
+            commit: (result) => this._commitDrag(result),
+            hold: (mode) => this._holdDrag(mode),
+        });
+        // where the pressed pill stood (grid coordinates) and how far the grid had scrolled
+        this._pressed = null;
+        this._drawing = null;
         this.popover = usePopover(TimelinePopover, {
             position: "bottom",
             // a click on the pill the popover hangs from is handled by the pill (it toggles)
@@ -184,6 +216,7 @@ export class TimelineRenderer extends Component {
         });
         onWillUnmount(() => {
             this._selecting.destroy();
+            this._drag.destroy();
             browser.clearTimeout(this._popoverTimer);
             browser.clearTimeout(this._clickLock);
             if (model._view === access) {
@@ -363,6 +396,12 @@ export class TimelineRenderer extends Component {
      * the new one opens, so another pill swaps the popovers.
      */
     onPillClick(ev, pill) {
+        if (this._drag.consumeClick() || this._drag.justReleased) {
+            // the release of a move or a copy (or of a cancelled one) is no click, and nor is a
+            // click that follows it at once (R9, R-T11-1)
+            ev.stopPropagation();
+            return;
+        }
         const target = ev.currentTarget;
         browser.clearTimeout(this._popoverTimer);
         if (this.popover.isOpen && this._popoverFor === pill.id) {
@@ -386,6 +425,10 @@ export class TimelineRenderer extends Component {
 
     onPillDoubleClick(ev, pill) {
         this._cancelPopover();
+        if (this._drag.justReleased) {
+            // the second press of a double click that began with the end of a gesture (R9)
+            return;
+        }
         this.props.editor?.openRecord(pill.record.resId);
     }
 
@@ -433,8 +476,8 @@ export class TimelineRenderer extends Component {
      * state do nothing.
      */
     onCellClick(ev, cell, descriptor = null) {
-        if (this._selecting.consumeClick()) {
-            // the release of a selection (or of a cancelled one) is no click
+        if (this._selecting.consumeClick() || this._drag.consumeClick()) {
+            // the release of a selection or of a pill gesture (or of a cancelled one) is no click
             ev.stopPropagation();
             return;
         }
@@ -486,6 +529,7 @@ export class TimelineRenderer extends Component {
     onGridPointerDown() {
         // any press: the click of an earlier release had its chance
         this._selecting.resetClick();
+        this._drag.resetClick();
     }
 
     onCellPointerDown(ev, cell, descriptor) {
@@ -608,8 +652,13 @@ export class TimelineRenderer extends Component {
         if (!selection || selection.rowId !== descriptor.row.id) {
             return null;
         }
-        const start = this._boundary(selection.from);
-        const stop = this._boundary(selection.to + 1);
+        return this._overlayStyle(selection.from, selection.to + 1);
+    }
+
+    /** The span of sub-columns `[from, to)` over the pills layer, for a highlight. */
+    _overlayStyle(from, to) {
+        const start = this._boundary(from);
+        const stop = this._boundary(to);
         return `inset-inline-start: calc(${start}); width: calc(${stop} - ${start})`;
     }
 
@@ -629,8 +678,22 @@ export class TimelineRenderer extends Component {
         return `(${rest} * ${before / units} + ${fold.runsBefore[column] * FOLDED_WIDTH}px)`;
     }
 
-    /** The texts of the two badges: the bounds of the selection (R5). */
-    get selectionBadges() {
+    /**
+     * The two badges now shown, `{start, stop}` each `{text, className}`: the bounds of the
+     * selection (R5), or of the moved pill (R6); null when there is none.
+     */
+    get shownBadges() {
+        const drag = this.state.drag;
+        if (drag) {
+            if (!drag.badges) {
+                return null;
+            }
+            const classOf = (role) => (role === "black" ? "" : `text-${role}`);
+            return {
+                start: { text: drag.badges.start.text, className: classOf(drag.badges.start.role) },
+                stop: { text: drag.badges.stop.text, className: classOf(drag.badges.stop.role) },
+            };
+        }
         const selection = this.state.selection;
         if (!selection || selection.released) {
             return null;
@@ -638,12 +701,16 @@ export class TimelineRenderer extends Component {
         const data = this.data;
         const { start, stop } = partPeriod(data, selection.from, selection.to);
         return {
-            start: badgeText(start, data.scaleId, data.parts),
-            stop: badgeText(stop, data.scaleId, data.parts),
+            start: { text: badgeText(start, data.scaleId, data.parts), className: "" },
+            stop: { text: badgeText(stop, data.scaleId, data.parts), className: "" },
         };
     }
 
     onScroll() {
+        if (this._drawing) {
+            // the moved pill stays under the pointer, and the target changes with the grid
+            this._drag.refresh();
+        }
         this._placeBadges();
     }
 
@@ -653,7 +720,9 @@ export class TimelineRenderer extends Component {
      * selection, its end edge at the one of the selection; right-to-left swaps the sides.
      */
     _placeBadges() {
-        const element = this.state.selection && this.rendererRef()?.querySelector(".o_tl_selection");
+        const drag = this.state.drag;
+        const selector = drag ? ".o_tl_pill_moved" : this.state.selection && ".o_tl_selection";
+        const element = selector && this.rendererRef()?.querySelector(selector);
         if (!element) {
             return;
         }
@@ -663,15 +732,27 @@ export class TimelineRenderer extends Component {
         if (!startBadge || !stopBadge) {
             return;
         }
-        const header = element.closest(".o_tl_row").querySelector(".o_tl_row_header");
-        placeBoundBadges(
-            grid,
-            element.getBoundingClientRect(),
-            header,
-            this._isRtl(),
-            startBadge,
-            stopBadge
-        );
+        const header = drag
+            ? grid.querySelector(".o_tl_title_cell")
+            : element.closest(".o_tl_row").querySelector(".o_tl_row_header");
+        const rtl = this._isRtl();
+        placeBoundBadges(grid, element.getBoundingClientRect(), header, rtl, startBadge, stopBadge);
+        if (drag && !rtl) {
+            this._keepStopBadgeInside(grid, stopBadge, header);
+        }
+    }
+
+    /**
+     * R6: the stop badge of a moved pill stays at least 1 px inside the window's right edge, and
+     * no further from that edge than the window's width minus the row header column's.
+     */
+    _keepStopBadgeInside(grid, badge, header) {
+        const rect = badge.getBoundingClientRect();
+        const least = header ? header.getBoundingClientRect().width : 0;
+        const right = Math.min(Math.max(rect.right, least), window.innerWidth - 1);
+        if (right !== rect.right) {
+            badge.style.left = `${right - rect.width - grid.getBoundingClientRect().left}px`;
+        }
     }
 
     /** A click on a folded header opens its run, on the header of an open foldable one folds it. */
@@ -698,7 +779,7 @@ export class TimelineRenderer extends Component {
 
     /** The pointer over the header of an open foldable column marks its whole run (R29). */
     onColumnEnter(ev, column) {
-        if (column.folded || column.run === null) {
+        if (column.folded || column.run === null || this._drag.isActive) {
             return;
         }
         const grid = ev.currentTarget.closest(".o_tl_grid");
@@ -723,11 +804,301 @@ export class TimelineRenderer extends Component {
 
     /** The pointer marks a group row or a total bar with a class (R26, R40). */
     onPointerEnter(ev) {
+        if (this._drag.isActive) {
+            return; // the hover effects pause while a pill is held (R2)
+        }
         ev.currentTarget.classList.add("o_tl_hover");
     }
 
     onPointerLeave(ev) {
         ev.currentTarget.classList.remove("o_tl_hover");
+    }
+
+    // ------------------------------------------------------------------------
+    // Moving and copying a pill (R1 to R7, R9)
+    // ------------------------------------------------------------------------
+
+    /** R1: a pill moves when the view edits, drag and drop is on, and it is not cut. */
+    _pillState(pill) {
+        const { archInfo, editor } = this.props;
+        const { cutStart, cutStop } = pill.record.span;
+        const movable =
+            Boolean(editor) &&
+            !this.data.isSample &&
+            archInfo.canEdit &&
+            !archInfo.disableDragDrop &&
+            !cutStart &&
+            !cutStop;
+        return { movable, resizable: { start: false, stop: false } };
+    }
+
+    /** The press on a pill (R2): a move may follow. `row` is the row descriptor of the pill. */
+    onPillPointerDown(ev, pill, row) {
+        if (ev.button !== 0 || this.data.isSample) {
+            return;
+        }
+        const element = ev.currentTarget;
+        const grid = element.closest(".o_tl_grid").getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const renderer = this.rendererRef();
+        this._pressed = {
+            scroll: { left: renderer.scrollLeft, top: renderer.scrollTop },
+            ghost: {
+                label: pill.label,
+                className: pill.className,
+                progress: pill.progress,
+                mark: pill.mark,
+                left: rect.left - grid.left,
+                top: rect.top - grid.top,
+                width: rect.width,
+                height: rect.height,
+            },
+        };
+        this._drag.press(ev, pill, { rowId: row.row.id });
+    }
+
+    /** The view root takes the pointer shape of the gesture and shields the buttons (R2, M13). */
+    _holdDrag(mode) {
+        const root = this.rendererRef()?.closest(".o_timeline_view");
+        if (root) {
+            for (const name of [...root.classList]) {
+                if (name.startsWith("o_tl_drag_")) {
+                    root.classList.remove(name);
+                }
+            }
+            root.classList.toggle("o_tl_dragging", Boolean(mode));
+            if (mode) {
+                root.classList.add(`o_tl_drag_${mode.split("-")[0]}`);
+            }
+        }
+        if (mode && !this._dragMode) {
+            // the gesture starts: the popover closes
+            this._cancelPopover();
+            this.popover.close();
+        }
+        this._dragMode = mode;
+    }
+
+    /** The cells of the row element `rowEl` and the one under `x`: `{part}`, "folded" or null. */
+    _cellPart(rowEl, x) {
+        const rtl = this._isRtl();
+        const parts = this.data.parts;
+        const items = [...rowEl.querySelectorAll(".o_tl_cell")].map((element) => ({
+            rect: element.getBoundingClientRect(),
+            column: element.dataset.column === undefined ? null : Number(element.dataset.column),
+        }));
+        const open = items.filter((item) => item.column !== null);
+        if (!open.length) {
+            return null;
+        }
+        const head = items[0].rect;
+        const tail = items.at(-1).rect;
+        if (rtl ? x >= head.right : x < head.left) {
+            return { part: open[0].column * parts };
+        }
+        if (rtl ? x < tail.left : x >= tail.right) {
+            return { part: open.at(-1).column * parts + parts - 1 };
+        }
+        const hit = items.find((item) => x >= item.rect.left && x < item.rect.right);
+        if (!hit) {
+            return null;
+        }
+        if (hit.column === null) {
+            return "folded";
+        }
+        const fraction = (rtl ? hit.rect.right - x : x - hit.rect.left) / (hit.rect.width || 1);
+        return { part: hit.column * parts + Math.min(Math.max(Math.floor(fraction * parts), 0), parts - 1) };
+    }
+
+    /**
+     * R3, R13: the target of a pill held at the viewport point (x, y): the row under it and the
+     * sub-column where the pill would start. See `TimelinePillDrag` for the answers.
+     */
+    _targetAt(x, y, grab) {
+        const renderer = this.rendererRef();
+        const { left, right } = this._visibleBounds();
+        const box = renderer.getBoundingClientRect();
+        if (x < left || x >= right || y >= box.top + renderer.clientHeight) {
+            return null;
+        }
+        // the headers stay at the top of the area, the rows scroll under them
+        let top = box.top;
+        for (const header of renderer.querySelectorAll(".o_tl_col, .o_tl_col_group")) {
+            top = Math.max(top, header.getBoundingClientRect().bottom);
+        }
+        if (y < top) {
+            return null;
+        }
+        const rowEl = [...renderer.querySelectorAll(".o_tl_row[data-row-id]")].find((element) => {
+            const rect = element.getBoundingClientRect();
+            return y >= rect.top && y < rect.bottom;
+        });
+        if (!rowEl) {
+            return null;
+        }
+        const rowId = rowEl.dataset.rowId;
+        const hit = this._cellPart(rowEl, x);
+        if (hit === "folded") {
+            return undefined;
+        }
+        if (!hit) {
+            return null;
+        }
+        if (!grab) {
+            return { rowId, part: hit.part };
+        }
+        const data = this.data;
+        const accepts = rowAcceptsDrop({
+            rows: data.rows,
+            rowId,
+            startRowId: grab.rowId,
+            groupBy: data.groupBy,
+            fields: this.props.model.fields,
+        });
+        if (!accepts) {
+            return null;
+        }
+        const total = data.columns.length * data.parts;
+        const part = Math.min(Math.max(hit.part - grab.offset, 0), Math.max(total - grab.length, 0));
+        return { rowId, part };
+    }
+
+    /** What is drawn while a pill is held (R3, R6): the moved pill, the highlight, the badges. */
+    _setDrag(drawing) {
+        this._drawing = drawing;
+        if (!drawing) {
+            this.state.drag = null;
+            return;
+        }
+        const { pill, mode, target, rowId, offset } = drawing;
+        const data = this.data;
+        const record = pill.record;
+        const length = record.span.to - record.span.from;
+        let badges = null;
+        if (target) {
+            const n = target.part - record.span.from;
+            const { placement } = data;
+            const bounds = movedBounds(
+                { start: record.start, stop: record.stop },
+                n,
+                dragStep(data, { dateOnly: hasDateOnlyBound(placement) }),
+                placement
+            );
+            badges = dragBadges({
+                start: bounds.start,
+                stop: bounds.stop,
+                kind: mode,
+                n,
+                data,
+                dateOnlyStart: placement.startIsDate,
+                dateOnlyStop: placement.stopIsDate,
+            });
+        }
+        const renderer = this.rendererRef();
+        const pressed = this._pressed;
+        this.state.drag = {
+            pillId: pill.id,
+            mode,
+            rowId: target ? target.rowId : null,
+            startRowId: rowId,
+            fromPart: record.span.from,
+            toPart: target ? target.part : null,
+            length,
+            badges,
+            // the pointer's way plus what the grid scrolled since the press: the pill is anchored
+            // to the grid, the pointer to the window
+            offset: {
+                x: offset.x + renderer.scrollLeft - pressed.scroll.left,
+                y: offset.y + renderer.scrollTop - pressed.scroll.top,
+            },
+            ghost: pressed.ghost,
+        };
+    }
+
+    /** The moved pill: the pill as it was pressed, moved by the pointer (S1). */
+    get dragGhost() {
+        const drag = this.state.drag;
+        if (!drag) {
+            return null;
+        }
+        const { ghost, offset } = drag;
+        return {
+            ...ghost,
+            className: `${ghost.className} o_tl_pill_moved`,
+            style:
+                `left: ${ghost.left + offset.x}px; top: ${ghost.top + offset.y}px;` +
+                ` width: ${ghost.width}px; height: ${ghost.height}px`,
+        };
+    }
+
+    /** The class of a pill: the pill being held leaves a faded copy where it was (S1). */
+    pillClass(pill) {
+        return this.state.drag?.pillId === pill.id
+            ? `${pill.className} o_tl_pill_faded`
+            : pill.className;
+    }
+
+    /** Style of the drop highlight in the row `descriptor`, or null when the target is elsewhere. */
+    dropStyleOf(descriptor) {
+        const drag = this.state.drag;
+        if (!drag || drag.toPart === null || drag.rowId !== descriptor.row.id) {
+            return null;
+        }
+        return this._overlayStyle(drag.toPart, drag.toPart + drag.length);
+    }
+
+    /**
+     * The release (R4, R5, R7): a move writes the new dates and row values, a copy duplicates the
+     * record with them; nothing happens without a target. The values come from the record read at
+     * the press, not from what a reload brought since (R15). A refusal is the caller's: the
+     * returned promise rejects with the server error.
+     */
+    _commitDrag({ mode, pill, rowId, target }) {
+        if (!target) {
+            return undefined;
+        }
+        const { model, editor } = this.props;
+        const data = this.data;
+        const { placement } = data;
+        const fields = model.fields;
+        const record = pill.record;
+        const n = target.part - record.span.from;
+        const bounds = movedBounds(
+            { start: record.start, stop: record.stop },
+            n,
+            dragStep(data, { dateOnly: hasDateOnlyBound(placement) }),
+            placement
+        );
+        const targetChain = rowValueChain(data.rows, target.rowId, fields);
+        let change;
+        if (mode === "copy") {
+            change = {
+                kind: "copy",
+                resId: record.resId,
+                values: copyDefaults({ bounds, targetChain, fields, placement }),
+            };
+        } else {
+            change = {
+                kind: "move",
+                resId: record.resId,
+                values: moveWriteValues({ record, bounds, n, targetChain, fields, placement }),
+                undo: {
+                    values: undoValues({
+                        kind: "move",
+                        record,
+                        fromChain: rowValueChain(data.rows, rowId, fields),
+                        fields,
+                        placement,
+                    }),
+                },
+            };
+        }
+        const row = data.visibleRows.find((candidate) => candidate.id === target.rowId);
+        if (row?.isGroup && row.collapsed && Object.keys(change.values).length) {
+            // a closed group row that receives the record opens (R5, R7)
+            model.toggleRow(row.id);
+        }
+        return editor.applyChange(change);
     }
 
     // ------------------------------------------------------------------------
