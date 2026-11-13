@@ -136,7 +136,13 @@ export class TimelineEditor {
                 return;
             }
             written = true;
-            await model.trackWrite(orm.write(model.resModel, ids, values, { context }));
+            await model.trackWrite(
+                orm.write(model.resModel, ids, values, {
+                    // R9.4: the write runs with the context of the action and the search, not
+                    // with the creation defaults
+                    context: model.context,
+                })
+            );
         };
         const createEdit = () => {
             if (archInfo.onCreate) {

@@ -116,6 +116,16 @@ test("002b A28: Select writes start, stop and parent once", async () => {
         parent_id: 2,
     });
     expect(write.context.marker).toBe(7);
+    // R9.4: the write carries the context of the action and the search, nothing the view added
+    expect(Object.keys(write.context).filter((key) => !(key in controller.model.context))).toEqual(
+        []
+    );
+    for (const key of Object.keys(write.context)) {
+        expect(key.startsWith("default_") || key.startsWith("search_default_")).toBe(false);
+    }
+    for (const field of ["date_start", "date_stop", "parent_id"]) {
+        expect(field in write.context).toBe(false);
+    }
     expect(".o_dialog").toHaveCount(0);
     expect(timelineMock.calls.length - before).toBe(1);
     expect(pill("Unscheduled").date_start).toBe("2026-11-11 21:00:00");
