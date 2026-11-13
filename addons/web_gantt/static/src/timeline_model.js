@@ -181,6 +181,7 @@ export class TimelineModel extends Model {
 
     /** Stop the pending step: the view is left. */
     dispose() {
+        this.disposed = true;
         browser.clearTimeout(this._timer);
         this._timer = null;
         this._waiters = [];
