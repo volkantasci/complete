@@ -38,7 +38,10 @@ import {
     hasDateOnlyBound,
     moveWriteValues,
     movedBounds,
+    resizedBound,
+    resizeIsInvalid,
     rowAcceptsDrop,
+    serializeBound,
     undoValues,
 } from "./timeline_drag_math";
 import { TimelinePillDrag } from "./timeline_drag";
@@ -134,10 +137,11 @@ export class TimelineRenderer extends Component {
 
     setup() {
         this.ui = useService("ui");
+        this.notification = useService("notification");
         this._cache = { data: null, small: null, version: null, layout: null };
         // folded columns: the runs the user opened, by the index of their first column; reset when
         // the range or the scale changes. `state.version` makes a change redraw the grid.
-        this.state = proxy({ version: 0, selection: null, drag: null });
+        this.state = proxy({ version: 0, selection: null, drag: null, hover: null });
         this._opened = new Set();
         this._openedKey = null;
         this._fold = null;
@@ -175,6 +179,7 @@ export class TimelineRenderer extends Component {
             },
             change: (drawing) => this._setDrag(drawing),
             commit: (result) => this._commitDrag(result),
+            borderAt: (x, pill, edge) => this._borderAt(x, pill, edge),
             hold: (mode) => this._holdDrag(mode),
         });
         // where the pressed pill stood (grid coordinates) and how far the grid had scrolled
@@ -722,7 +727,11 @@ export class TimelineRenderer extends Component {
      */
     _placeBadges() {
         const drag = this.state.drag;
-        const selector = drag ? ".o_tl_pill_moved" : this.state.selection && ".o_tl_selection";
+        const selector = drag
+            ? drag.resize
+                ? ".o_tl_pill_resizing"
+                : ".o_tl_pill_moved"
+            : this.state.selection && ".o_tl_selection";
         const element = selector && this.rendererRef()?.querySelector(selector);
         if (!element) {
             return;
@@ -737,7 +746,17 @@ export class TimelineRenderer extends Component {
             ? grid.querySelector(".o_tl_title_cell")
             : element.closest(".o_tl_row").querySelector(".o_tl_row_header");
         const rtl = this._isRtl();
-        placeBoundBadges(grid, element.getBoundingClientRect(), header, rtl, startBadge, stopBadge);
+        let rect = element.getBoundingClientRect();
+        if (drag?.resize) {
+            // the badges stand around the pill's box, one pixel outside its body (M29, M31)
+            rect = {
+                left: rect.left - PILL_INSET,
+                right: rect.right + PILL_INSET,
+                top: rect.top - PILL_INSET,
+                bottom: rect.bottom + PILL_INSET,
+            };
+        }
+        placeBoundBadges(grid, rect, header, rtl, startBadge, stopBadge);
         if (drag && !rtl) {
             this._keepStopBadgeInside(grid, stopBadge, header);
         }
@@ -823,14 +842,38 @@ export class TimelineRenderer extends Component {
     _pillState(pill) {
         const { archInfo, editor } = this.props;
         const { cutStart, cutStop } = pill.record.span;
-        const movable =
-            Boolean(editor) &&
-            !this.data.isSample &&
-            archInfo.canEdit &&
-            !archInfo.disableDragDrop &&
-            !cutStart &&
-            !cutStop;
-        return { movable, resizable: { start: false, stop: false } };
+        const editable = Boolean(editor) && !this.data.isSample && archInfo.canEdit;
+        const movable = editable && !archInfo.disableDragDrop && !cutStart && !cutStop;
+        // R8: an end is resizable when it lies inside the range; the drag-and-drop option does
+        // not matter
+        return { movable, resizable: { start: editable && !cutStart, stop: editable && !cutStop } };
+    }
+
+    /** The pointer enters a pill: its handles show, unless a gesture is on (R8). */
+    onPillEnter(pill) {
+        if (!this.state.drag && this._drag.state === "idle") {
+            this.state.hover = pill.id;
+        }
+    }
+
+    onPillLeave() {
+        this.state.hover = null;
+    }
+
+    /**
+     * The resize handles drawn in `pill` (R8, S4): none unless the pointer rests on the pill and
+     * nothing is held. Each handle sits at one end; the pointer shape is the west or east one
+     * (in a mirrored grid the start is on the right).
+     */
+    handlesOf(pill) {
+        if (this.state.hover !== pill.id || this.state.drag || this._drag.state !== "idle") {
+            return [];
+        }
+        const { resizable } = this._pillState(pill);
+        const rtl = this._isRtl();
+        return ["start", "stop"]
+            .filter((edge) => resizable[edge])
+            .map((edge) => ({ edge, side: (edge === "start") !== rtl ? "west" : "east" }));
     }
 
     /** The press on a pill (R2): a move may follow. `row` is the row descriptor of the pill. */
@@ -855,7 +898,8 @@ export class TimelineRenderer extends Component {
                 height: rect.height,
             },
         };
-        this._drag.press(ev, pill, { rowId: row.row.id });
+        const handle = ev.target.closest?.(".o_tl_handle")?.dataset.edge || null;
+        this._drag.press(ev, pill, { rowId: row.row.id, handle });
     }
 
     /** The view root takes the pointer shape of the gesture and shields the buttons (R2, M13). */
@@ -871,6 +915,11 @@ export class TimelineRenderer extends Component {
             if (mode) {
                 root.classList.add(`o_tl_drag_${mode.split("-")[0]}`);
             }
+            if (mode?.startsWith("resize-")) {
+                // the shape follows the side of the edge, mirrored in right-to-left languages
+                const west = (mode === "resize-start") !== this._isRtl();
+                root.classList.add(west ? "o_tl_drag_west" : "o_tl_drag_east");
+            }
         }
         if (mode && !this._dragMode) {
             // the gesture starts: the popover closes
@@ -881,7 +930,7 @@ export class TimelineRenderer extends Component {
     }
 
     /** The cells of the row element `rowEl` and the one under `x`: `{part}`, "folded" or null. */
-    _cellPart(rowEl, x) {
+    _cellPart(rowEl, x, nearest = false) {
         const rtl = this._isRtl();
         const parts = this.data.parts;
         const items = [...rowEl.querySelectorAll(".o_tl_cell")].map((element) => ({
@@ -898,7 +947,7 @@ export class TimelineRenderer extends Component {
             return { part: open[0].column * parts };
         }
         if (rtl ? x < tail.left : x >= tail.right) {
-            return { part: open.at(-1).column * parts + parts - 1 };
+            return { part: open.at(-1).column * parts + parts - (nearest ? 0 : 1) };
         }
         const hit = items.find((item) => x >= item.rect.left && x < item.rect.right);
         if (!hit) {
@@ -908,6 +957,10 @@ export class TimelineRenderer extends Component {
             return "folded";
         }
         const fraction = (rtl ? hit.rect.right - x : x - hit.rect.left) / (hit.rect.width || 1);
+        if (nearest) {
+            // the border nearest to the pointer: 0 to `parts` within the column
+            return { part: hit.column * parts + Math.min(Math.max(Math.round(fraction * parts), 0), parts) };
+        }
         return { part: hit.column * parts + Math.min(Math.max(Math.floor(fraction * parts), 0), parts - 1) };
     }
 
@@ -964,11 +1017,36 @@ export class TimelineRenderer extends Component {
         return { rowId, part };
     }
 
+    /**
+     * R8.1: the sub-column border nearest to the abscissa `x`, for the edge `edge` of `pill`; the
+     * edge stays one sub-column from the other one. `undefined` over a folded column. The row
+     * does not matter: every row has the same cells.
+     */
+    _borderAt(x, pill, edge) {
+        const rowEl = this.rendererRef().querySelector(".o_tl_row[data-row-id]");
+        const hit = rowEl && this._cellPart(rowEl, x, true);
+        if (hit === "folded") {
+            return undefined;
+        }
+        if (!hit) {
+            return null;
+        }
+        const total = this.data.columns.length * this.data.parts;
+        const { from, to } = pill.record.span;
+        return edge === "stop"
+            ? Math.min(Math.max(hit.part, from + 1), total)
+            : Math.max(Math.min(hit.part, to - 1), 0);
+    }
+
     /** What is drawn while a pill is held (R3, R6): the moved pill, the highlight, the badges. */
     _setDrag(drawing) {
         this._drawing = drawing;
         if (!drawing) {
             this.state.drag = null;
+            return;
+        }
+        if (drawing.mode.startsWith("resize-")) {
+            this._setResize(drawing);
             return;
         }
         const { pill, mode, target, rowId, offset } = drawing;
@@ -1017,13 +1095,57 @@ export class TimelineRenderer extends Component {
     }
 
     /**
+     * What is drawn while a handle is held (R6, R8): the pill with its new length, and the
+     * badges, the one of the moved bound with its difference. The bounds are the record's own,
+     * moved by the number of sub-columns the edge moved; an invalid result shows too (R12).
+     */
+    _setResize({ pill, mode, target, rowId }) {
+        const edge = mode.slice("resize-".length);
+        const data = this.data;
+        const { placement } = data;
+        const record = pill.record;
+        const { from, to } = record.span;
+        const border = target ? target.part : edge === "stop" ? to : from;
+        const n = border - (edge === "stop" ? to : from);
+        const step = dragStep(data, { dateOnly: hasDateOnlyBound(placement) });
+        const bounds = {
+            start: record.start,
+            stop: record.stop,
+            [edge]: resizedBound(record, edge, n, step, placement),
+        };
+        this.state.drag = {
+            pillId: pill.id,
+            mode,
+            rowId: null,
+            startRowId: rowId,
+            fromPart: from,
+            toPart: null,
+            length: to - from,
+            badges: dragBadges({
+                ...bounds,
+                which: edge,
+                kind: "resize",
+                n,
+                oldStart: record.start,
+                oldStop: record.stop,
+                data,
+                dateOnlyStart: placement.startIsDate,
+                dateOnlyStop: placement.stopIsDate,
+            }),
+            offset: { x: 0, y: 0 },
+            ghost: null,
+            resize: edge === "stop" ? { from, to: border } : { from: border, to },
+        };
+    }
+
+    /**
      * The moved pill and the copy left behind (S1). Each is a box of the pill's span (the body
      * and one pixel around it: M1, M5) that carries the opacity, with the body one pixel inside
      * (M3). The box of the moved pill follows the pointer; the other stays at the press.
      */
     get dragGhost() {
         const drag = this.state.drag;
-        if (!drag) {
+        if (!drag || drag.resize) {
             return null;
         }
         const { ghost, offset } = drag;
@@ -1039,9 +1161,21 @@ export class TimelineRenderer extends Component {
 
     /** The class of a pill: the pill being held leaves a faded copy where it was (S1). */
     pillClass(pill) {
-        return this.state.drag?.pillId === pill.id
-            ? `${pill.className} o_tl_pill_origin`
-            : pill.className;
+        const drag = this.state.drag;
+        if (drag?.pillId !== pill.id) {
+            return pill.className;
+        }
+        // a resized pill is drawn with its new length; a moved one is drawn by its ghost
+        return `${pill.className} ${drag.resize ? "o_tl_pill_resizing" : "o_tl_pill_origin"}`;
+    }
+
+    /** The place of a pill: its stored one, or the new length while its handle is held (R8.1). */
+    pillStyle(pill) {
+        const drag = this.state.drag;
+        if (drag?.pillId !== pill.id || !drag.resize) {
+            return pill.style;
+        }
+        return `${this._spanStyle(drag.resize.from, drag.resize.to, this.data, PILL_INSET)}; top: ${pill.top}px`;
     }
 
     /** Style of the drop highlight in the row `descriptor`, or null when the target is elsewhere. */
@@ -1062,6 +1196,9 @@ export class TimelineRenderer extends Component {
     _commitDrag({ mode, pill, rowId, target }) {
         if (!target) {
             return undefined;
+        }
+        if (mode.startsWith("resize-")) {
+            return this._commitResize({ mode, pill, target });
         }
         const { model, editor } = this.props;
         const data = this.data;
@@ -1106,6 +1243,54 @@ export class TimelineRenderer extends Component {
                 model.toggleRow(row.id);
             }
             return done;
+        });
+    }
+
+    /**
+     * The release of a handle (R8.2, R8.3, R12): the moved bound of the record, alone, moves by
+     * the sub-columns the edge moved. Nothing happens when it did not move (D3); an impossible
+     * result writes nothing and raises a warning. A refusal is the caller's, as for a move.
+     */
+    _commitResize({ mode, pill, target }) {
+        const edge = mode.slice("resize-".length);
+        const { model, editor } = this.props;
+        const data = this.data;
+        const { placement } = data;
+        const record = pill.record;
+        const n = target.part - (edge === "stop" ? record.span.to : record.span.from);
+        if (!n) {
+            return undefined;
+        }
+        const value = resizedBound(
+            record,
+            edge,
+            n,
+            dragStep(data, { dateOnly: hasDateOnlyBound(placement) }),
+            placement
+        );
+        if (resizeIsInvalid(record, edge, value, placement)) {
+            this.notification.add(
+                edge === "start"
+                    ? _t("The start cannot come after the end.")
+                    : _t("The end cannot come before the start."),
+                { type: "warning" }
+            );
+            return undefined;
+        }
+        const field = edge === "start" ? placement.startField : placement.stopField;
+        const isDate = edge === "start" ? placement.startIsDate : placement.stopIsDate;
+        return editor.applyChange({
+            kind: "resize",
+            resId: record.resId,
+            values: { [field]: serializeBound(value, isDate ? "date" : "datetime") },
+            undo: {
+                values: undoValues({
+                    kind: "resize",
+                    record,
+                    fields: model.fields,
+                    placement,
+                }),
+            },
         });
     }
 
@@ -1537,6 +1722,7 @@ export class TimelineRenderer extends Component {
             style:
                 `${this._spanStyle(from, to, data, PILL_INSET)};` +
                 ` top: ${LINE_GAP + (line - 1) * LINE_STEP}px`,
+            top: LINE_GAP + (line - 1) * LINE_STEP,
             progress,
             mark: DECORATION_ORDER.find((name) => decorations.includes(name)) || null,
         };

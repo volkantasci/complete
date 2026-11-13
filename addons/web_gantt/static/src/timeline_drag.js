@@ -19,10 +19,14 @@ const HARMLESS_KEYS = ["Alt", "Control", "Meta", "Shift"];
  * a locked pill) together with the `host` methods they need.
  * - `move`, `copy`: the pill follows the pointer; the target is a sub-column of a row (R3).
  * `copy` is `move` with Ctrl held (R7): the mode switches while the gesture runs.
+ * - `resize-start`, `resize-stop`: a handle of the pill is held; the moved edge goes to the
+ * sub-column border nearest to the pointer (R8). Only a mouse holds a handle (D5, R16).
  */
 const MODES = {
     move: { follows: true },
     copy: { follows: true },
+    "resize-start": { edge: "start" },
+    "resize-stop": { edge: "stop" },
 };
 
 /**
@@ -42,11 +46,15 @@ const MODES = {
  * - `change(drawing)`: what to draw now, `{mode, pill, rowId, target, offset: {x, y}}` (`offset`:
  *   how far the pointer is from where it was pressed, in pixels), or `null` for nothing;
  * - `commit(result)`: the release, `{mode, pill, rowId, target}` (`target` may be `null`);
+ * - `borderAt(x, pill, edge)`: for a resize, the sub-column border nearest to the viewport
+ *   abscissa `x` for the edge `edge` of `pill` (kept one sub-column from the other edge), or
+ *   `undefined` to keep the previous one (a folded column); the drawing's `target` is then
+ *   `{part: border}`, or `null` while the pointer has not given one;
  * - `hold(mode)`: the gesture in `mode` is held (the view root takes the pointer shape), or `null`
  *   when it is over.
  *
  * `press(ev, pill, {handle, rowId})` starts it: `handle` ("start" or "stop") is the resize
- * handle that was pressed (later task), `rowId` the row of the pill.
+ * handle that was pressed, `rowId` the row of the pill. A finger on a handle moves the pill (D5).
  */
 export class TimelinePillDrag {
     constructor(host) {
@@ -114,12 +122,14 @@ export class TimelinePillDrag {
         }
         this._suppressClick = false;
         this._forgetRelease();
-        const mode = this._baseMode(pill, handle);
+        const mode = this._baseMode(pill, handle, ev.pointerType);
         if (!mode) {
             return;
         }
         // where the pill was grabbed: the sub-column under the pointer, in the pill
-        const pressed = this.host.targetAt(ev.clientX, ev.clientY, null);
+        const pressed = MODES[mode].follows
+            ? this.host.targetAt(ev.clientX, ev.clientY, null)
+            : null;
         const offset = pressed ? pressed.part - pill.record.span.from : 0;
         this._press = {
             id: ev.pointerId,
@@ -189,11 +199,13 @@ export class TimelinePillDrag {
     // ------------------------------------------------------------------------
 
     /** The mode a press starts with, or null when this press starts nothing (yet). */
-    _baseMode(pill, handle) {
-        if (handle) {
-            return null;
+    _baseMode(pill, handle, pointerType) {
+        const state = this.host.pillState(pill);
+        if (handle && pointerType !== "touch") {
+            return state.resizable[handle] ? `resize-${handle}` : null;
         }
-        return this.host.pillState(pill).movable ? "move" : null;
+        // a finger on a handle holds the pill itself (D5)
+        return state.movable ? "move" : null;
     }
 
     _listen(target, type, handler, options) {
@@ -359,10 +371,16 @@ export class TimelinePillDrag {
 
     _update() {
         const press = this._press;
-        if (MODES[this._mode].follows) {
+        const mode = MODES[this._mode];
+        if (mode.follows) {
             const target = this.host.targetAt(press.x, press.y, press.grab);
             if (target !== undefined) {
                 press.target = target;
+            }
+        } else if (mode.edge) {
+            const border = this.host.borderAt(press.x, press.pill, mode.edge);
+            if (border !== undefined) {
+                press.target = { part: border };
             }
         }
         this.host.change({

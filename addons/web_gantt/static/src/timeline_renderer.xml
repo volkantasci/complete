@@ -57,10 +57,11 @@
                             </div>
                             <div t-if="row.kind === 'pills'" class="o_tl_pills">
                                 <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
-                                    <div class="o_tl_pill" t-att-class="this.pillClass(pill)" t-att-style="pill.style" t-att-data-pill-id="pill.id" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
+                                    <div class="o_tl_pill" t-att-class="this.pillClass(pill)" t-att-style="this.pillStyle(pill)" t-att-data-pill-id="pill.id" t-on-mouseenter="() => this.onPillEnter(pill)" t-on-mouseleave="this.onPillLeave" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
                                         <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
                                         <span class="o_tl_pill_title" t-out="pill.label"/>
                                         <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>
+                                        <div t-foreach="this.handlesOf(pill)" t-as="handle" t-key="handle.edge" class="o_tl_handle" t-att-class="`o_tl_handle_${handle.edge} o_tl_handle_${handle.side}`" t-att-data-edge="handle.edge"/>
                                     </div>
                                 </t>
                             </div>

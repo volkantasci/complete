@@ -587,6 +587,40 @@
     }
 }
 
+// The resize handles (S4, M25 to M28): two invisible strips inside the coloured body, 8 px wide
+// and as tall as the body, one at each resizable end. Which side of the grid they stand on follows
+// the writing direction (the start is on the right in a mirrored grid); the renderer names the
+// side of the pointer shape.
+.o_tl_handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.o_tl_handle_start {
+    inset-inline-start: 0;
+}
+
+.o_tl_handle_stop {
+    inset-inline-end: 0;
+}
+
+.o_tl_handle_west {
+    cursor: w-resize;
+}
+
+.o_tl_handle_east {
+    cursor: e-resize;
+}
+
 // Moving and copying (S1, S3): the pill that was pressed stays where it was, half faded (M5); the
 // one that follows the pointer is drawn over the grid, above the cells and the row headers, under
 // the badges (M1 to M4). It takes no pointer event, so the cells under it answer.
@@ -646,8 +680,13 @@
         cursor: not-allowed !important; // stylelint-disable-line declaration-no-important
     }
 
-    &.o_tl_drag_resize,
-    &.o_tl_drag_resize * {
+    &.o_tl_drag_west,
+    &.o_tl_drag_west * {
+        cursor: w-resize !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_east,
+    &.o_tl_drag_east * {
         cursor: e-resize !important; // stylelint-disable-line declaration-no-important
     }
 
