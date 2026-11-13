@@ -296,7 +296,9 @@ test("002b A1b: the form's own edit off makes the dialog read-only, without Remo
     expect(".o_dialog .o_form_readonly").toHaveCount(1);
     expect(".o_dialog .o_field_widget[name='name'] input").toHaveCount(0);
     expect(removeButtons()).toHaveLength(0);
-    // the Community read-only buttons: one primary closing button, no New (the form allows no creation)
+    // what Community renders for a read-only dialog: its Save button (always shown by the
+    // dialog template) and the footer's primary "Ok" that closes it; no New (the form allows
+    // no creation), no Discard, no Remove
     expect(".o_dialog .o_form_button_create").toHaveCount(0);
     expect(".o_dialog .o_form_button_cancel").toHaveCount(0);
     expect(footer()).toEqual(["Save", "Ok"]);

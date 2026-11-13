@@ -167,6 +167,11 @@ class TestTimelineEditTours(HttpCase):
         self._tour('h1', 'timeline_002b_a12b_phone_edge_scroll', size=PHONE, touch=False)
         self.assertEqual(self.env[PILL].search_count([]), count)
 
+    def test_002b_a12b_tour_phone_edge_scroll_touch(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h1', 'timeline_002b_a12b_phone_edge_scroll_touch', size=PHONE, touch=True)
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
     def test_002b_a46_tour_phone_long_press(self):
         self._tour('h1', 'timeline_002b_a46_phone_long_press', size=PHONE, touch=True)
 

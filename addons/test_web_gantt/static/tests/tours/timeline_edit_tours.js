@@ -1026,59 +1026,78 @@ tours.add("timeline_002b_a46_phone_long_press", {
     ],
 });
 
+/** A12b: edge scrolling on the phone; with touch the finger is held 700 ms first (A46). */
+async function edgeScroll(pointerType) {
+    const today = todayIso();
+    assertOpenedPosition(today);
+    // pressed at x 20, inside the left zone: the grid scrolls to the left
+    const from = pressAt(20, pointerType);
+    if (pointerType === "touch") {
+        await sleep(700);
+    }
+    const inside = { x: 100, y: from.y };
+    await moveTo(from, inside, pointerType, 4);
+    await until(() => $(".o_tl_selection"), "the highlight");
+    const before = $(".o_tl_selection").getBoundingClientRect();
+    const first = headerLeft(today);
+    await sleep(600);
+    const later = headerLeft(today);
+    assert(later > first + 20, `the grid did not scroll: ${first} then ${later}`);
+    assert(later > 195, `the header of today is at x ${later}, it should move right`);
+    const grown = $(".o_tl_selection").getBoundingClientRect();
+    assert(
+        grown.width > before.width + 20,
+        `the highlight did not grow: ${before.width} then ${grown.width}`
+    );
+    // moved out of the zone, to x 180: the scroll stops
+    const out = { x: 180, y: from.y };
+    await moveTo(inside, out, pointerType, 4);
+    await sleep(300);
+    const stopped = headerLeft(today);
+    await sleep(500);
+    assert(
+        Math.abs(headerLeft(today) - stopped) <= 1,
+        "the grid kept scrolling outside the zone"
+    );
+    escape();
+    release(out, pointerType);
+    await until(() => !$(".o_tl_selection"), "the highlight to disappear");
+    await sleep(300);
+    // x 160 to x 230 stays outside both zones: the grid does not move
+    const start = headerLeft(today);
+    const origin = pressAt(160, pointerType);
+    if (pointerType === "touch") {
+        await sleep(700);
+    }
+    const to = { x: 230, y: origin.y };
+    await moveTo(origin, to, pointerType, 8);
+    await until(() => $(".o_tl_selection"), "the highlight");
+    await sleep(500);
+    assert(
+        Math.abs(headerLeft(today) - start) <= 1,
+        `the grid scrolled between x 160 and x 230: ${start} then ${headerLeft(today)}`
+    );
+    escape();
+    release(to, pointerType);
+    await until(() => !$(".o_tl_selection"), "the highlight to disappear");
+}
+
 tours.add("timeline_002b_a12b_phone_edge_scroll", {
     steps: () => [
         gridReady,
         {
             trigger: ".o_tl_row",
-            async run() {
-                const today = todayIso();
-                assertOpenedPosition(today);
-                // pressed at x 20, inside the left zone: the grid scrolls to the left
-                const from = pressAt(20);
-                const inside = { x: 100, y: from.y };
-                await moveTo(from, inside, "mouse", 4);
-                await until(() => $(".o_tl_selection"), "the highlight");
-                const before = $(".o_tl_selection").getBoundingClientRect();
-                const first = headerLeft(today);
-                await sleep(600);
-                const later = headerLeft(today);
-                assert(later > first + 20, `the grid did not scroll: ${first} then ${later}`);
-                assert(later > 195, `the header of today is at x ${later}, it should move right`);
-                const grown = $(".o_tl_selection").getBoundingClientRect();
-                assert(
-                    grown.width > before.width + 20,
-                    `the highlight did not grow: ${before.width} then ${grown.width}`
-                );
-                // moved out of the zone, to x 180: the scroll stops
-                const out = { x: 180, y: from.y };
-                await moveTo(inside, out, "mouse", 4);
-                await sleep(300);
-                const stopped = headerLeft(today);
-                await sleep(500);
-                assert(
-                    Math.abs(headerLeft(today) - stopped) <= 1,
-                    "the grid kept scrolling outside the zone"
-                );
-                escape();
-                release(out);
-                await until(() => !$(".o_tl_selection"), "the highlight to disappear");
-                await sleep(300);
-                // x 160 to x 230 stays outside both zones: the grid does not move
-                const start = headerLeft(today);
-                const origin = pressAt(160);
-                const to = { x: 230, y: origin.y };
-                await moveTo(origin, to, "mouse", 8);
-                await until(() => $(".o_tl_selection"), "the highlight");
-                await sleep(500);
-                assert(
-                    Math.abs(headerLeft(today) - start) <= 1,
-                    `the grid scrolled between x 160 and x 230: ${start} then ${headerLeft(today)}`
-                );
-                escape();
-                release(to);
-                await until(() => !$(".o_tl_selection"), "the highlight to disappear");
-            },
+            run: () => edgeScroll("mouse"),
+        },
+    ],
+});
+
+tours.add("timeline_002b_a12b_phone_edge_scroll_touch", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row",
+            run: () => edgeScroll("touch"),
         },
     ],
 });
