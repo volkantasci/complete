@@ -102,6 +102,24 @@ export class TimelineEditor {
     }
 
     /**
+     * 002b3 R11: create every record of `valuesList` in one Community create call, with the
+     * action's and search context and the multi-creation key (`model.md`), after the writes sent
+     * before; the view reloads when the call returns. A refused call creates nothing (E1): the
+     * rejection is passed on, so that the Community error shows when the caller does not catch it.
+     * @param {Array<Object>} valuesList
+     */
+    createMany(valuesList) {
+        const { model, services } = this;
+        return this._queueChange({
+            send: () =>
+                services.orm.create(model.resModel, valuesList, {
+                    context: { ...model.context, multi_create: true },
+                }),
+            announce: () => {},
+        });
+    }
+
+    /**
      * R9: the plan dialog for `period`, in `row` when given. Resolves after the dialog (and the
      * create action started from it) has closed and the view has reloaded, if anything changed.
      * @param {{period: {start, stop}, row?: Object|null}} params

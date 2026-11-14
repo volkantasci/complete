@@ -24,6 +24,7 @@ import { fixCustomDates } from "./timeline_dates";
 import { TimelineEditor } from "./timeline_editor";
 import { TimelineSelectionButtons } from "./timeline_selection_buttons";
 import { newButtonPeriod } from "./timeline_editing";
+import { buildMultiCreateValues } from "./timeline_multi_create";
 
 const KIND_LABELS = {
     day: _t("Day"),
@@ -105,6 +106,9 @@ export class TimelineController extends Component {
             state: proxy({ count: 0, cellCount: 0, drawing: false, visible: false }),
             renderer: null,
         };
+        // Escape is registered twice: by the renderer (cells picked, no drawing held) and by the
+        // Community buttons (while they show); both call `clearPicked`, which is idempotent, so
+        // the order they are reached in does not matter
         this.pickedButtons = this._makePickedButtons();
         this.editor = new TimelineEditor({
             env: this.env,
@@ -170,11 +174,7 @@ export class TimelineController extends Component {
             resModel: this.props.resModel,
             context: this.props.context || {},
             get showMultiCreateTimeRange() {
-                const { startField, stopField } = controller.model.config;
-                const fields = controller.props.fields;
-                return (
-                    fields[startField]?.type === "datetime" && fields[stopField]?.type === "datetime"
-                );
+                return controller._pickedShowsTimes;
             },
             multiCreateValues: this.props.state?.multiCreateValues,
         });
@@ -200,8 +200,47 @@ export class TimelineController extends Component {
         });
     }
 
-    /** Hook of the creation (the popover's Add), filled in by the creation step. */
-    _onPickedAdd(multiCreateData) {} // eslint-disable-line no-unused-vars
+    /**
+     * The popover's Add, once the form and the times are valid (R11): the selection is cleared at
+     * once, then one record per picked day and record row goes to the server in one create call
+     * (the cell's values win over the form's, decision D4).
+     */
+    async _onPickedAdd(multiCreateData) {
+        const renderer = this.selection.renderer;
+        if (!renderer) {
+            return;
+        }
+        const entries = renderer.pickedDays();
+        const rows = {};
+        for (const { rowId } of entries) {
+            rows[rowId] = renderer.rowOf(rowId).values;
+        }
+        renderer.clearPicked();
+        if (!entries.length) {
+            return;
+        }
+        // every field the form shows that is not read-only, as the relational record serializes it
+        // for a save: a new record gives all of them, empty values included
+        const formValues = await multiCreateData.record.getChanges();
+        const { startField, stopField } = this.model.config;
+        const valuesList = buildMultiCreateValues({
+            formValues,
+            entries,
+            rows,
+            fields: this.props.fields,
+            startField,
+            stopField,
+            timeRange: this._pickedShowsTimes ? multiCreateData.timeRange : null,
+            partBounds: (part) => renderer.partPeriod(part, part),
+        });
+        return this.editor.createMany(valuesList);
+    }
+
+    get _pickedShowsTimes() {
+        const { startField, stopField } = this.model.config;
+        const fields = this.props.fields;
+        return fields[startField]?.type === "datetime" && fields[stopField]?.type === "datetime";
+    }
 
     /** Hook of the deletion (after the confirmation), filled in by the deletion step. */
     _onPickedDelete() {}
@@ -293,6 +332,16 @@ export class TimelineController extends Component {
     }
 
     _createForNew() {
+        // R12: with cells picked, the first block of the selection; the selection stays until the
+        // dialog closes (its reload clears it)
+        const renderer = this.selection.renderer;
+        const block = this.selection.state.cellCount ? renderer?.firstBlock() : null;
+        if (block) {
+            return this.editor.createFor({
+                period: renderer.partPeriod(block.fromPart, block.toPart),
+                row: renderer.rowOf(block.rowId).row,
+            });
+        }
         const period = newButtonPeriod(
             this.data.scaleId,
             this.model.visibleMiddleDate(),

@@ -11,4 +11,11 @@ import { MultiSelectionButtons } from "@web/views/view_components/multi_selectio
  */
 export class TimelineSelectionButtons extends MultiSelectionButtons {
     static template = "web_gantt.TimelineSelectionButtons";
+
+    /** The template form is only loaded when Add is offered (no request for nothing). */
+    async loadMultiCreateView() {
+        if (this.props.reactive.canAdd) {
+            await super.loadMultiCreateView();
+        }
+    }
 }

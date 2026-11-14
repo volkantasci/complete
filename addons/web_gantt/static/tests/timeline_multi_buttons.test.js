@@ -269,7 +269,10 @@ test("002b3 A37: no rights shows the count box alone", async () => {
 
 test("002b3 A63: create and delete off; delete off only", async () => {
     await mountMulti(`create="0" delete="0"`);
+    // the New button is absent too (002b R14)
+    expect(".o_tl_button_add").toHaveCount(0);
     await drawA9();
+    expect(".o_tl_button_add").toHaveCount(0);
     expect(".o_multi_selection_buttons [data-tooltip='Add']").toHaveCount(0);
     expect(".o_multi_selection_buttons [data-tooltip='Delete']").toHaveCount(0);
     await drawInHalfDay(rowIndex("Beta", "Host Contact 2"), "2026-11-10", 0);
