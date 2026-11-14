@@ -61,11 +61,30 @@ class TestTimelineDragHost(TransactionCase):
         self.assertEqual(self.env[PILL]._fields['create_uid'].readonly, True)
 
     def test_host_records_are_created_by_the_administrator(self):
-        built = self.env[PILL]._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        # start from a clean host (demo data holds the same records), then build it from a
+        # user who is not the administrator: the builder alone must make the administrator
+        # the creator of every record
+        pill = self.env[PILL]
+        pill.with_context(active_test=False).search([]).unlink()
+        names = [f'Host Contact {i}' for i in (1, 2, 3)]
+        self.env['res.partner'].with_context(active_test=False).search(
+            [('name', 'in', names)]).unlink()
+        self.env['res.partner.category'].search(
+            [('name', 'in', ['Host Tag 1', 'Host Tag 2'])]).unlink()
         admin = self.env.ref('base.user_admin')
-        pills = self.env[PILL].browse([r.id for r in built.values() if r._name == PILL])
+        other = self.env['res.users'].create({
+            'name': 'Host builder',
+            'login': 'host_builder',
+            'group_ids': [Command.set([self.env.ref('base.group_user').id])],
+        })
+        self.assertNotEqual(other, admin)
+        built = pill.with_user(other)._tl_build_host_records(
+            today='2026-11-12', tz_offset_hours=3)
+        for key in ('C1', 'C2', 'C3', 'T1', 'T2', 'Alpha', 'Beta', 'Gamma'):
+            self.assertEqual(built[key].sudo().create_uid, admin, key)
+        pills = pill.browse([r.id for r in built.values() if r._name == PILL])
         self.assertTrue(pills)
-        self.assertEqual(pills.create_uid, admin)
+        self.assertEqual(pills.sudo().create_uid, admin)
 
     def test_rtl_user(self):
         user = self.env[PILL]._tl_rtl_user(self.env)
