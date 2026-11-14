@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // The box measures the width of the view (without the scrollbar of the grid) for the width of
-// the row header column.
+// the row header column. No text can be selected anywhere in it (002b3 R1): the property is
+// inherited, so the headers, the cells, the total row and the pills all take it, and a press, a
+// move and a release inside one row header never select text nor start the drag of a selection.
 .o_tl_box {
+    user-select: none;
     position: relative;
     flex: 1 1 auto;
     min-height: 0;
@@ -253,6 +256,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+// the label of a group row's header is 18 px tall (M56d, M56p), centred in its 40 px row
+.o_tl_group_row .o_tl_row_label {
+    line-height: 18px;
 }
 
 // The header wraps: the caret, the thumbnail and the body (the name and the capacity label on a
