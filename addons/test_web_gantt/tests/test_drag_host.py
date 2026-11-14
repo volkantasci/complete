@@ -72,6 +72,13 @@ class TestTimelineDragHost(TransactionCase):
         self.assertEqual(user.tz, admin.tz)
         # asking again returns the same user
         self.assertEqual(self.env[PILL]._tl_rtl_user(self.env), user)
+        # the view's own Arabic words (the unit of a resize badge's difference) reach the browser
+        words, params = self.env['ir.http']._get_translations_for_webclient(['web_gantt'], 'ar_001')
+        self.assertEqual(params['direction'], 'rtl')
+        terms = {m['id']: m['string'] for m in words['web_gantt']['messages']}
+        self.assertEqual(
+            [terms[unit] for unit in ('minutes', 'hours', 'days', 'months')],
+            ['دقائق', 'ساعات', 'أيام', 'أشهر'])
 
 
 @tagged('post_install', '-at_install')

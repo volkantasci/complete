@@ -138,12 +138,6 @@ function roleOf(change) {
     return change > 0 ? "success" : change < 0 ? "danger" : "black";
 }
 
-/** R6 (R-C-7): a whole number written as the dates beside it are, in the user's locale. */
-function localNumber(value, date) {
-    const options = date.numberingSystem ? { numberingSystem: date.numberingSystem } : {};
-    return new Intl.NumberFormat(date.locale || undefined, options).format(value);
-}
-
 /**
  * R6: texts and colour roles of the two badges while moving, copying or resizing.
  * @param {Object} params
@@ -195,7 +189,8 @@ export function dragBadges({
             : wallDifference(oldStop, stop, unit);
     badges[which].role = roleOf(change);
     if (count) {
-        badges[which].text += ` (${count > 0 ? "+" : "-"}${localNumber(Math.abs(count), start)} ${unitText(unit)})`;
+        // R19: the number keeps Western digits and its sign; the unit word is translated
+        badges[which].text += ` (${count > 0 ? "+" : "-"}${Math.abs(count)} ${unitText(unit)})`;
     }
     return badges;
 }

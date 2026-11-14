@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { allowTranslations } from "@web/../tests/web_test_helpers";
+import { allowTranslations, patchTranslations } from "@web/../tests/web_test_helpers";
 
 import { buildColumns } from "@web_gantt/timeline_dates";
 import {
@@ -568,35 +568,66 @@ test("serializeBound formats", () => {
     expect(serializeBound(null, "date")).toBe(false);
 });
 
-test("A62 R-C-7 the difference of a resize badge is written with the user's digits, whole badge", () => {
-    const arabic = (text) => DateTime.fromISO(text, { locale: "ar-EG" });
-    const badges = dragBadges({
-        kind: "resize",
-        which: "stop",
-        start: arabic("2026-11-12T09:00"),
-        oldStart: arabic("2026-11-12T09:00"),
-        oldStop: arabic("2026-11-14T18:00"),
-        stop: arabic("2026-11-15T18:00"),
-        data: dataFor("week", 2),
-        dateOnlyStart: false,
-        dateOnlyStop: false,
+/** A DateTime as the Community's web client makes them for the Arabic user. */
+const arabic = (text) => DateTime.fromISO(text, { locale: "ar-001", numberingSystem: "arab" });
+const RLM = "\u200F";
+
+test("R19 an Arabic badge reads like the browser's formatting with Arabic-Indic digits", () => {
+    const badge = (start, dateOnly = false) =>
+        dragBadges({
+            kind: "move",
+            n: 0,
+            start,
+            stop: start,
+            oldStart: start,
+            oldStop: start,
+            data: dataFor("week", 2),
+            dateOnlyStart: dateOnly,
+            dateOnlyStop: dateOnly,
+        }).start.text;
+    // Monday 9 November 2026, midnight: day, mark, slash, month, mark, slash, year, comma, time, sad
+    expect(badge(arabic("2026-11-09T00:00"))).toBe(
+        `\u0669${RLM}/\u0661\u0661${RLM}/\u0662\u0660\u0662\u0666\u060C \u0661\u0662:\u0660\u0660 \u0635`
+    );
+    // the evening marker is meem
+    expect(badge(arabic("2026-11-09T18:00"))).toBe(
+        `\u0669${RLM}/\u0661\u0661${RLM}/\u0662\u0660\u0662\u0666\u060C \u0666:\u0660\u0660 \u0645`
+    );
+    // a date-only bound: the date part only
+    expect(badge(arabic("2026-11-09"), true)).toBe(
+        `\u0669${RLM}/\u0661\u0661${RLM}/\u0662\u0660\u0662\u0666`
+    );
+    // English stays as it was
+    expect(badge(DateTime.fromISO("2026-11-13T13:00", { locale: "en-US", numberingSystem: "latn" }))).toBe(
+        "11/13/2026, 1:00 PM"
+    );
+});
+
+test("R19 the difference of an Arabic resize badge keeps Western digits and its sign, the unit word is translated", () => {
+    patchTranslations({
+        web_gantt: { hours: "ساعات", days: "أيام" },
     });
-    const text = badges.stop.text;
-    expect(/[0-9]/.test(text)).toBe(false);
-    expect(text).toMatch(/\(\+\u0662\u0664 hours\)$/);
-    expect(text).toMatch(/[\u0660-\u0669]/);
-    // a date-only bound: days, in the same digits
-    const dateOnly = dragBadges({
-        kind: "resize",
-        which: "stop",
-        start: arabic("2026-11-11"),
-        oldStart: arabic("2026-11-11"),
-        oldStop: arabic("2026-11-13"),
-        stop: arabic("2026-11-12"),
-        data: dataFor("week", 2),
-        dateOnlyStart: true,
-        dateOnlyStop: true,
-    });
-    expect(/[0-9]/.test(dateOnly.stop.text)).toBe(false);
-    expect(dateOnly.stop.text).toMatch(/\(-\u0661 days\)$/);
+    const resize = (which, oldBound, newBound, dateOnly = false) => {
+        const base = {
+            kind: "resize",
+            which,
+            start: arabic("2026-11-12T09:00"),
+            oldStart: arabic("2026-11-12T09:00"),
+            oldStop: arabic("2026-11-14T18:00"),
+            stop: arabic("2026-11-15T18:00"),
+            data: dataFor("week", 2),
+            dateOnlyStart: dateOnly,
+            dateOnlyStop: dateOnly,
+        };
+        return dragBadges({ ...base, [which]: arabic(newBound), [which === "stop" ? "oldStop" : "oldStart"]: arabic(oldBound) })[which].text;
+    };
+    // the stop one day later: the pill is 24 hours longer
+    const longer = resize("stop", "2026-11-14T18:00", "2026-11-15T18:00");
+    expect(longer.endsWith("(+24 \u0633\u0627\u0639\u0627\u062A)")).toBe(true);
+    expect(longer.startsWith(`\u0661\u0665${RLM}/`)).toBe(true);
+    // the start one day later: the pill is shorter; the unit word of a date-only bound is days
+    const shorter = resize("start", "2026-11-12T09:00", "2026-11-13T09:00");
+    expect(shorter.endsWith("(-24 \u0633\u0627\u0639\u0627\u062A)")).toBe(true);
+    const dateOnly = resize("stop", "2026-11-13", "2026-11-12", true);
+    expect(dateOnly.endsWith("(-1 \u0623\u064A\u0627\u0645)")).toBe(true);
 });

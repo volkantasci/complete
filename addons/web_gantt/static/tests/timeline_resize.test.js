@@ -782,7 +782,7 @@ test("A62 Build handles: right end is start (e-resize), left end is stop (w-resi
     ]);
 });
 
-test("R-C-7 the difference of a badge keeps its text in en_US", async () => {
+test("R19 the difference of a badge keeps its text in en_US", async () => {
     await mountTimeline();
     const build = await pressHandle("Build", "stop");
     await build.to(build.start.x + 2 * partWidth());

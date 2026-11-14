@@ -67,9 +67,12 @@ class TimelineHostPill(models.Model):
 
     @api.model
     def _tl_rtl_user(self, env=None):
-        """Activate Arabic; return the user "RTL Admin" (login rtl), creating it once."""
+        """Activate Arabic with its translations; return the user "RTL Admin" (login rtl).
+
+        The user is created once.
+        """
         env = self.env if env is None else env
-        lang = env['res.lang']._activate_lang('ar_001')
+        lang = env['res.lang']._activate_and_install_lang('ar_001')
         users = env['res.users'].with_context(active_test=False)
         user = users.search([('login', '=', 'rtl')], limit=1)
         if not user:
