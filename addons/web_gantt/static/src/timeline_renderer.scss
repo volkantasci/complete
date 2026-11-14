@@ -524,6 +524,14 @@
     pointer-events: none;
 }
 
+// On a phone the target highlight of a move has the colour of the today border at its start edge
+// (M8, M52), whatever the column.
+.o_tl_selection.o_tl_drop {
+    @include media-breakpoint-down(md) {
+        border-left-color: $o-tl-today-border;
+    }
+}
+
 // The badges with the bounds of the selection (M2, M3, M8), placed by the renderer against the grid.
 .o_tl_selection_badge {
     position: absolute;
