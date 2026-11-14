@@ -117,6 +117,12 @@ class TimelineHostPill(models.Model):
                 return found
             return records.create(values)
 
+        # what a fresh create leaves empty, written too so a rebuild equals a fresh build
+        neutral = {
+            'parent_id': False, 'x_contact': False, 'x_color': 0, 'x_progress': 0,
+            'x_tags': [(6, 0, [])], 'x_flagged': False, 'x_done': False, 'x_day': False,
+            'date_start': False, 'date_stop': False,
+        }
         built = {}
         palette = ((200, 60, 60), (60, 160, 90), (60, 100, 200))
         for index, rgb in enumerate(palette, start=1):
@@ -128,7 +134,7 @@ class TimelineHostPill(models.Model):
         for index in (1, 2):
             built[f'T{index}'] = put('res.partner.category', {'name': f'Host Tag {index}'})
         for name in ('Alpha', 'Beta', 'Gamma'):
-            built[name] = put(self._name, {'name': name, 'active': True})
+            built[name] = put(self._name, {**neutral, 'name': name, 'active': True})
         rows = [
             # name, parent, contact, start, stop, colour, progress, tags, extra
             ('Design', 'Alpha', 'C1', (-3, '09:00'), (-1, '18:00'), 1, 40, ('T1',), {}),
@@ -148,6 +154,7 @@ class TimelineHostPill(models.Model):
         ]
         for name, parent, contact, start, stop, color, progress, tags, extra in rows:
             values = {
+                **neutral,
                 'name': name,
                 'active': True,
                 'parent_id': built[parent].id if parent else False,
@@ -157,8 +164,6 @@ class TimelineHostPill(models.Model):
                 'x_color': color,
                 'x_progress': progress,
                 'x_tags': [(6, 0, [built[tag].id for tag in tags])],
-                'x_flagged': False,
-                'x_done': False,
             }
             values.update(extra)
             built[name] = put(self._name, values)
@@ -172,10 +177,9 @@ class TimelineHostPill(models.Model):
             ('MIX after', last_day + timedelta(days=1)),
         ):
             built[name] = put(self._name, {
+                **neutral,
                 'name': name,
                 'active': True,
-                'parent_id': False,
-                'x_contact': False,
                 'x_day': day,
                 'date_start': datetime.combine(day, time(10, 0)),
                 'date_stop': datetime.combine(day, time(12, 0)),
@@ -191,6 +195,7 @@ class TimelineHostPill(models.Model):
             built[name] = put('test.web.gantt.pill2', {
                 'name': name,
                 'active': True,
+                'parent_id': False,
                 'date_start': today + timedelta(days=first),
                 'date_stop': today + timedelta(days=last),
             })

@@ -9,11 +9,20 @@ from odoo.tests.common import TransactionCase
 class TestHost(TransactionCase):
     def test_host_builder_creates_setup(self):
         Pill = self.env['test.web.gantt.pill']
+        # start from an empty baseline: no host record of any kind
+        Pill2 = self.env['test.web.gantt.pill2']
+        Pill.with_context(active_test=False).search([]).unlink()
+        Pill2.with_context(active_test=False).search([]).unlink()
+        partners = self.env['res.partner'].with_context(active_test=False)
+        partners.search([('name', '=like', 'Host Contact %')]).unlink()
+        Tag = self.env['res.partner.category']
+        Tag.search([('name', '=like', 'Host Tag %')]).unlink()
+        models = [m.with_context(active_test=False) for m in (Pill, Pill2, partners, Tag)]
+        counts = [m.search_count([]) for m in models]
         built = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
-        # 3 parents + 14 setup records + 4 mixed-type records, whatever the database held before
-        pills = [key for key, record in built.items() if record._name == Pill._name]
-        self.assertEqual(len(pills), 21)
-        self.assertEqual(Pill.search_count([('id', 'in', [built[k].id for k in pills])]), 21)
+        # 3 parents + 14 setup records + 4 mixed-type records, 3 pill2, 3 contacts, 2 tags
+        after = [m.search_count([]) for m in models]
+        self.assertEqual([a - b for a, b in zip(after, counts, strict=True)], [21, 3, 3, 2])
         self.assertEqual(self.env['test.web.gantt.pill2'].search_count(
             [('id', 'in', [built[n].id for n in ('Day one', 'Three days', 'Next month')])]), 3)
         self.assertEqual(built['Build'].date_start, datetime(2026, 11, 12, 6, 0))
@@ -162,6 +171,8 @@ class TestHost(TransactionCase):
             'parent_id': built['Gamma'].id, 'date_start': '2026-12-01 00:00:00',
             'date_stop': '2026-12-02 00:00:00', 'active': False})
         unscheduled.parent_id = False
+        built['MIX first'].write({'x_color': 5, 'x_flagged': True, 'x_contact': built['C1'].id})
+        built['Alpha'].write({'x_progress': 50, 'date_start': '2026-12-01 00:00:00'})
         again = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
         self.assertEqual(again['Review'], review)
         self.assertTrue(review.active)
@@ -169,6 +180,11 @@ class TestHost(TransactionCase):
         self.assertEqual(review.date_start, datetime(2026, 11, 12, 10, 0))
         self.assertEqual(review.date_stop, datetime(2026, 11, 12, 14, 0))
         self.assertEqual(unscheduled.parent_id, built['Beta'])
+        self.assertEqual(built['MIX first'].x_color, 0)
+        self.assertFalse(built['MIX first'].x_flagged)
+        self.assertFalse(built['MIX first'].x_contact)
+        self.assertEqual(built['Alpha'].x_progress, 0)
+        self.assertFalse(built['Alpha'].date_start)
 
     def test_host_builder_recreates_deleted_record(self):
         Pill = self.env['test.web.gantt.pill']
