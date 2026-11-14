@@ -559,20 +559,9 @@ class TimelineDragProbes(TimelineProbeCase):
 
     # -- M51, M52: the target highlight of a group row (H30) --------------------------------------
 
-    def _without_creator(self):
-        """The host of the table holds a record that nobody created (the row "Undefined Created
-        by" under "Undefined Parent")."""
-        record = self.env['test.web.gantt.pill'].create({
-            'name': 'Nobody made it', 'date_start': '2026-11-02 07:00:00',
-            'date_stop': '2026-11-02 09:00:00'})
-        self.env.flush_all()
-        self.env.cr.execute('UPDATE test_web_gantt_pill SET create_uid = NULL WHERE id = %s',
-                            [record.id])
-        self.env.invalidate_all()
-
     def _group_target(self, probe, viewport, pill, row):
         for scheme, vp in self.combos([probe], (viewport,)):
-            with self.visit('h30', scheme, vp, touch=False, prepare=self._without_creator):
+            with self.visit('h30', scheme, vp, touch=False):
                 x, y = self.visible_middle(self.pill(pill))
                 _rx, ry, _rbox = self.centre(self.row(row))
                 self.press_and_move(x, y, x, ry, steps=3)

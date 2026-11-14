@@ -2741,3 +2741,71 @@ tours.add("timeline_002b2_a71_rtl_date_only_move", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// A76: the chain of empty-value rows under the leading one (R26)
+// ---------------------------------------------------------------------------------------------
+
+/** The rows from the top: label, height and the titles of the pills they hold. */
+const rowChain = () =>
+    $$(".o_tl_row[data-row-id]:not(.o_tl_total_row)").map((row) => ({
+        name: $(".o_tl_row_name", row)?.textContent.trim(),
+        height: Math.round(row.getBoundingClientRect().height),
+        pills: $$(".o_tl_pill", row).map((pill) => pill.textContent.trim()),
+    }));
+
+const holdsPlan = (row) => row.pills.some((text) => text.includes("Plan"));
+
+tours.add("timeline_002b2_a76_chain_of_empty_rows_h30", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row_name",
+            async run() {
+                const rows = rowChain();
+                assert(rows[0].name === "Undefined Parent", `first row: ${rows[0].name}`);
+                assert(rows[1].name === "Undefined Created by", `second row: ${rows[1].name}`);
+                assert(rows[1].height === 41, `the empty row is ${rows[1].height} px`);
+                assert(rows[1].pills.length === 0, "the empty creator row holds a pill");
+                assert(!rows[2].name.startsWith("Undefined"), `third row: ${rows[2].name}`);
+                assert(holdsPlan(rows[2]), "Plan is not in the creator's row");
+                for (const parent of ["Alpha", "Beta", "Gamma"]) {
+                    const at = rows.findIndex((row) => row.name === parent);
+                    assert(at > 2, `no ${parent} row`);
+                    assert(
+                        rows[at + 1].name === rows[2].name &&
+                            rows[at + 2]?.name !== "Undefined Created by",
+                        `${parent} is not followed by the creator's row only`
+                    );
+                }
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a76_chain_of_empty_rows_h32", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row_name",
+            async run() {
+                const rows = rowChain();
+                assert(rows[0].name === "Undefined Parent", `first row: ${rows[0].name}`);
+                assert(
+                    rows[1].name === "Undefined Created by" && rows[1].height === 40,
+                    `second row: ${rows[1].name} ${rows[1].height}`
+                );
+                assert(
+                    rows[2].name === "Undefined Contact" && rows[2].height === 41,
+                    `third row: ${rows[2].name} ${rows[2].height}`
+                );
+                assert(rows[1].pills.length + rows[2].pills.length === 0, "an empty row holds a pill");
+                assert(!rows[3].name.startsWith("Undefined"), `fourth row: ${rows[3].name}`);
+                assert(
+                    rows[4].name === "Undefined Contact" && holdsPlan(rows[4]),
+                    `fifth row: ${rows[4].name}`
+                );
+            },
+        },
+    ],
+});

@@ -793,10 +793,14 @@ export class TimelineModel extends Model {
             rows.forEach((row) => emptyFirst(row.children));
         };
         emptyFirst(roots);
-        // the first level always has an empty-value row, with empty rows below it
+        // the first level always has an empty-value row (R19); under that leading row every
+        // lower level gets its own leading empty-value row too, even without a record (R26)
         const first = groupBy[0];
         if (this._canBeEmpty(first) && !roots.some((row) => row.isEmptyValueRow)) {
-            roots.unshift(this._emptyChain(0, ""));
+            roots.unshift(this._makeGroupRow(first, false, 0, `|${first}=false`));
+        }
+        if (roots.length && roots[0].isEmptyValueRow) {
+            this._extendEmptyChain(roots[0]);
         }
         if (!roots.length) {
             return [this._makeBlankRow(0, "all")];
@@ -826,15 +830,19 @@ export class TimelineModel extends Model {
         return !field.required && field.type !== "boolean";
     }
 
-    _emptyChain(level, parentKey) {
+    /** Gives an empty-value row an empty-value child for each lower level that can be empty. */
+    _extendEmptyChain(row) {
+        const level = row.level + 1;
         const name = this.groupBy[level];
-        const key = `${parentKey}|${name}=false`;
-        const row = this._makeGroupRow(name, false, level, key);
-        const next = this.groupBy[level + 1];
-        if (next && this._canBeEmpty(next)) {
-            row.children.push(this._emptyChain(level + 1, key));
+        if (!name || !this._canBeEmpty(name)) {
+            return;
         }
-        return row;
+        let child = row.children.find((candidate) => candidate.isEmptyValueRow);
+        if (!child) {
+            child = this._makeGroupRow(name, false, level, `${row.id}|${name}=false`);
+            row.children.unshift(child);
+        }
+        this._extendEmptyChain(child);
     }
 
     _applyCollapsed() {

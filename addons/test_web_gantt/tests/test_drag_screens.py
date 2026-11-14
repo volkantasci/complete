@@ -71,7 +71,6 @@ class TimelineDragScreens(TimelineProbeCase):
     open_plan_dialog = Drag.open_plan_dialog
     _hover_pill = Drag._hover_pill
     _handle = Drag._handle
-    _without_creator = Drag._without_creator
     _snapshot = Drag.__dict__['_snapshot']
     restore = Drag.restore
     visit = Drag.visit
@@ -131,14 +130,13 @@ class TimelineDragScreens(TimelineProbeCase):
 
     def _created_by_admin(self):
         """The host records were made by the system user; the screens show them made by the
-        administrator (named as in the demo data), and one record that nobody made, so the
-        rows under each parent carry a person's name."""
+        administrator (named as in the demo data), so the rows under each parent carry a
+        person's name."""
         admin = self.env.ref('base.user_admin')
         admin.partner_id.name = 'Mitchell Admin'
         self.env.flush_all()
         self.env.cr.execute('UPDATE test_web_gantt_pill SET create_uid = %s', [admin.id])
         self.env.invalidate_all()
-        self._without_creator()
 
     # -- S4 (01): the handles ----------------------------------------------------------
 

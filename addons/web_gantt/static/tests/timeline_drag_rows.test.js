@@ -338,3 +338,46 @@ test("A72 Review onto its own Alpha group row: nothing written, no notification"
     expect(moved()).toHaveCount(0);
     expect(root()).not.toHaveClass("o_tl_dragging");
 });
+
+// ----------------------------------------------------------------------------
+// R26: the chain of empty-value rows under the leading one
+// ----------------------------------------------------------------------------
+
+/** Row names and heights from the top: the Contact field stands for the host's "Created by". */
+const rowSummary = () =>
+    queryAll(".o_tl_row[data-row-id]").map((element) => [
+        element.querySelector(".o_tl_row_name")?.textContent.trim(),
+        Math.round(queryRect(element).height),
+    ]);
+
+test("A76 H30: Undefined Parent, Undefined Contact (empty), the contact's row with Plan, then Alpha, Beta, Gamma", async () => {
+    // Plan has a contact, so no record lies in the empty "Undefined Contact" row
+    Pill._records.find((record) => record.name === "Plan").x_contact = 1;
+    await mountTimeline({ groupBy: BY_PARENT_CONTACT });
+    const names = rowSummary().map(([name]) => name);
+    expect(names.slice(0, 3)).toEqual(["Undefined Parent", "Undefined Contact", "Host Contact 1"]);
+    expect(names.indexOf("Alpha")).toBeGreaterThan(2);
+    // the empty row lies under the first group row, it is a leaf of one record row height
+        expect(rowEl("Undefined Parent", "Undefined Contact").querySelectorAll(".o_tl_pill")).toHaveCount(0);
+    expect(rowSummary()[1][1]).toBe(41);
+    expect(rowSummary()[0][1]).toBe(40);
+    expect(rowEl("Undefined Parent", "Host Contact 1").querySelectorAll(".o_tl_pill")).toHaveCount(1);
+    // under the other top-level rows nothing is added
+    expect(names[names.indexOf("Alpha") + 1]).toBe("Host Contact 1");
+});
+
+test("A76 H32: Undefined Parent, Undefined Contact (empty, 40 px), Undefined State (empty, 41 px), the contact's row with its Undefined State row holding Plan", async () => {
+    Pill._records.find((record) => record.name === "Plan").x_contact = 1;
+    await mountTimeline({ groupBy: ["parent_id", "x_contact", "x_state"] });
+    const summary = rowSummary();
+    expect(summary.slice(0, 5)).toEqual([
+        ["Undefined Parent", 40],
+        ["Undefined Contact", 40],
+        ["Undefined State", 41],
+        ["Host Contact 1", 40],
+        ["Undefined State", 41],
+    ]);
+    expect(
+        rowEl("Undefined Parent", "Host Contact 1", "Undefined State").querySelectorAll(".o_tl_pill")
+    ).toHaveCount(1);
+});

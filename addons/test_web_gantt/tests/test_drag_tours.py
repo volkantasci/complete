@@ -79,6 +79,14 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h1', 'timeline_002b2_a64_scroll_moves_focus')
         self.assertEqual(self.env[PILL].search_count([]), count)
 
+    # -- the chain of empty-value rows (R26) ------------------------------------------------------
+
+    def test_a76_tour_chain_of_empty_rows_h30(self):
+        self._tour('h30', 'timeline_002b2_a76_chain_of_empty_rows_h30')
+
+    def test_a76_tour_chain_of_empty_rows_h32(self):
+        self._tour('h32', 'timeline_002b2_a76_chain_of_empty_rows_h32')
+
     # -- right-to-left badges (R19) -------------------------------------------------------------
 
     def test_a60_tour_rtl_selection_badges(self):
