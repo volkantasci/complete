@@ -314,12 +314,10 @@ test("R25 the week line of an Arabic user: Arabic-Indic digits, weeks from Satur
     // week 46 runs from Saturday 7 to Friday 13
     expect(groups[1].start.toISODate()).toBe("2026-11-07");
     const label = groups[1].label;
-    const first = DateTime.fromISO("2026-11-07").toLocaleString({ month: "short", day: "numeric" });
-    const last = DateTime.fromISO("2026-11-13").toLocaleString({ month: "short", day: "numeric" });
-    expect(label).toBe(`Week \u0664\u0666, ${first} - ${last}`);
-    expect(first.startsWith("\u0667")).toBe(true);
-    expect(last.startsWith("\u0661\u0663")).toBe(true);
-    expect(/[0-9]/.test(label)).toBe(false);
+    // "Week" stays (no Arabic wording), then \u0664\u0666, \u0667 \u0646\u0648\u0641\u0645\u0628\u0631 - \u0661\u0663 \u0646\u0648\u0641\u0645\u0628\u0631
+    expect(label).toBe(
+        "Week \u0664\u0666, \u0667 \u0646\u0648\u0641\u0645\u0628\u0631 - \u0661\u0663 \u0646\u0648\u0641\u0645\u0628\u0631"
+    );
 });
 
 test("R25 the week line keeps Western digits in English", () => {

@@ -271,22 +271,43 @@ function firePointer(target, type, x, y) {
     );
 }
 
+/** A number with Arabic-Indic digits. */
+function indic(value) {
+    return String(value).replace(/[0-9]/g, (digit) => String.fromCharCode(0x660 + Number(digit)));
+}
+
 /**
- * R19: the text of a badge for 00:00 on `date` (ISO) for the Arabic user: day, right-to-left mark,
- * slash, month, mark, slash, year, Arabic comma, space, 12-hour time, space, the morning marker
- * (sad). Monday 9 November 2026 reads \u0669\u200f/\u0661\u0661\u200f/\u0662\u0660\u0662\u0666\u060c \u0661\u0662:\u0660\u0660 \u0635.
+ * R19: the date part of a badge for the Arabic user: day, right-to-left mark, slash, month, mark,
+ * slash, year, all in Arabic-Indic digits.
  */
-function arabicMidnight(date) {
-    const { day, month, year } = DateTime.fromISO(date);
-    const indic = (value) =>
-        String(value).replace(/[0-9]/g, (digit) => String.fromCharCode(0x660 + Number(digit)));
-    return `${indic(day)}\u200f/${indic(month)}\u200f/${indic(year)}\u060c \u0661\u0662:\u0660\u0660 \u0635`;
+function arabicDate(iso) {
+    const { day, month, year } = DateTime.fromISO(iso);
+    return `${indic(day)}\u200f/${indic(month)}\u200f/${indic(year)}`;
+}
+
+/**
+ * R19: the text of a badge `hours` after 00:00 on `iso`: the date, an Arabic comma, a space, the
+ * 12-hour time with a colon, a space and the morning marker (sad) or the evening marker (meem).
+ * Monday 9 November 2026 at 00:00 reads
+ * \u0669\u200f/\u0661\u0661\u200f/\u0662\u0660\u0662\u0666\u060c \u0661\u0662:\u0660\u0660 \u0635.
+ */
+function arabicDateTime(iso, hours = 0) {
+    const moment = DateTime.fromISO(iso).plus({ hours });
+    const marker = moment.hour < 12 ? "\u0635" : "\u0645";
+    const clock = `${indic(moment.hour % 12 || 12)}:${indic(String(moment.minute).padStart(2, "0"))}`;
+    return `${arabicDate(moment.toISODate())}\u060c ${clock} ${marker}`;
 }
 
 /** The ISO date of the column under a point of the grid. */
 function dateAtPoint(x, y) {
     const cell = document.elementFromPoint(x, y).closest("[data-column]");
     return $(`.o_tl_col[data-index="${cell.dataset.column}"]`).dataset.date;
+}
+
+/** Date and half (0: first, on the right in this direction; 1: second) under a point of the grid. */
+function halfAtPoint(x, y) {
+    const box = document.elementFromPoint(x, y).closest("[data-column]").getBoundingClientRect();
+    return { date: dateAtPoint(x, y), half: x > (box.left + box.right) / 2 ? 0 : 1 };
 }
 
 tours.add("timeline_002b2_a60_rtl_selection_badges", {
@@ -329,8 +350,8 @@ tours.add("timeline_002b2_a60_rtl_selection_badges", {
                 assert(start.top > box.bottom - 1 && stop.bottom < box.top + 1, "the badges did not swap");
                 // R19: day, mark, slash, month, mark, slash, year, Arabic comma, 12-hour time, sad
                 const [startText, stopText] = badgesNow();
-                const wantedStart = arabicMidnight(first);
-                const wantedStop = arabicMidnight(DateTime.fromISO(last).plus({ days: 1 }).toISODate());
+                const wantedStart = arabicDateTime(first);
+                const wantedStop = arabicDateTime(last, 24);
                 assert(startText === wantedStart, `start badge '${startText}', expected '${wantedStart}'`);
                 assert(stopText === wantedStop, `stop badge '${stopText}', expected '${wantedStop}'`);
                 firePointer(document, "pointerup", 1030, y);
@@ -352,6 +373,10 @@ tours.add("timeline_002b2_a61_rtl_selection_badges_phone", {
                 // a finger held 800 ms at x 230 on the empty bottom part, along y 412 in four steps
                 // with a pause of 120 ms after each, then held 700 ms
                 const y = 412;
+                // the half-day pressed (the selection starts at its start) and the half-day where
+                // the finger ends (the selection stops at its end)
+                const pressed = halfAtPoint(230, y);
+                const ended = halfAtPoint(160, y);
                 const target = document.elementFromPoint(230, y);
                 pointer("pointerdown", 230, y, { target, pointerType: "touch" });
                 await sleep(800);
@@ -375,9 +400,11 @@ tours.add("timeline_002b2_a61_rtl_selection_badges_phone", {
                 near(stop.top, 239, "stop badge y");
                 near(start.height, 20, "start badge height");
                 near(stop.height, 20, "stop badge height");
-                for (const text of badgesNow()) {
-                    assert(/[\u0660-\u0669]/.test(text) && !/[0-9]/.test(text), `badge '${text}'`);
-                }
+                const [startText, stopText] = badgesNow();
+                const wantedStart = arabicDateTime(pressed.date, 12 * pressed.half);
+                const wantedStop = arabicDateTime(ended.date, 12 * (ended.half + 1));
+                assert(startText === wantedStart, `start badge '${startText}', expected '${wantedStart}'`);
+                assert(stopText === wantedStop, `stop badge '${stopText}', expected '${wantedStop}'`);
                 pointer("pointerup", 160, y, { pointerType: "touch" });
                 await until(() => $(".o_dialog .o_form_view"), "the Create dialog");
                 $(".o_dialog .o_form_button_cancel").click();
@@ -2685,7 +2712,7 @@ function assertArabicDigits() {
  * R19: a resize badge is the date in Arabic digits, then the difference in brackets: its number
  * and sign in Western digits, a space and the unit word in Arabic.
  */
-function assertArabicDifference(text, difference) {
+function assertArabicDifference(text, difference, unitWord) {
     const [date, rest] = text.split(" (");
     assert(/[\u0660-\u0669]/.test(date) && !/[0-9]/.test(date), `date part '${date}' is not in Arabic digits`);
     assert(
@@ -2693,7 +2720,7 @@ function assertArabicDifference(text, difference) {
         `badge '${text}' does not read '(${difference} ...)'`
     );
     const unit = rest.slice(difference.length + 1, -1);
-    assert(/^[\u0600-\u06ff]+$/.test(unit), `unit word '${unit}' is not Arabic`);
+    assert(unit === unitWord, `unit word '${unit}', expected '${unitWord}'`);
 }
 
 /** Click the Undo button of the notification (its label is in Arabic) and wait for it to close. */
@@ -2763,7 +2790,8 @@ tours.add("timeline_002b2_a62_rtl_move_and_resize", {
                 assert($(".o_timeline_view").classList.contains("o_tl_drag_west"), "no west resize shape");
                 assert($$(".o_tl_selection_badge")[1].classList.contains("text-success"), "not success");
                 // the date in Arabic digits; the difference "(+24" in Western digits, then an Arabic word
-                assertArabicDifference(badgesNow()[1], "+24");
+                // hours, from the module's Arabic translations (the translation reached the browser)
+                assertArabicDifference(badgesNow()[1], "+24", "\u0633\u0627\u0639\u0627\u062a");
                 release(gesture);
                 await until(() => noticeText(), "the notification");
                 await gridSettled();
@@ -2788,7 +2816,6 @@ tours.add("timeline_002b2_a71_rtl_date_only_move", {
             async run() {
                 assert(getComputedStyle(renderer()).direction === "rtl", "the view is not right to left");
                 const iso = todayIso();
-                const today = DateTime.fromISO(iso);
                 // press near the right end (the start) of "Three days" and move one day later (left)
                 const gesture = await pressAtX("Three days", cellOfDate(iso).right - 13);
                 await moveHeld(gesture, cellOfDate(addDays(iso, 1)).right - 2);
@@ -2801,15 +2828,10 @@ tours.add("timeline_002b2_a71_rtl_date_only_move", {
                 nearTo(stop.left, moved.left, "stop badge at the left end");
                 assertArabicDigits();
                 assert(badgesNow().every((text) => !text.includes(":")), "a badge shows a time");
-                // the same two dates as in left-to-right, without time: the numbers, in any order
-                const numbers = badgesNow().map((text) =>
-                    asciiDigits(text).match(/\d+/g).map(Number).sort((a, b) => a - b).join()
-                );
-                [0, 2].forEach((shift, index) => {
-                    const date = today.plus({ days: shift });
-                    const wanted = [date.day, date.month, date.year].sort((a, b) => a - b).join();
-                    assert(numbers[index] === wanted, `badge ${index}: ${badgesNow()[index]}`);
-                });
+                // the same two dates as in left-to-right, without time, in Arabic digits
+                const [startText, stopText] = badgesNow();
+                assert(startText === arabicDate(iso), `start badge '${startText}'`);
+                assert(stopText === arabicDate(addDays(iso, 2)), `stop badge '${stopText}'`);
                 release(gesture);
                 await until(() => noticeText(), "the notification");
                 await gridSettled();
@@ -2840,8 +2862,8 @@ tours.add("timeline_002b2_a75_rtl_headers", {
             trigger: ".o_tl_col_group",
             async run() {
                 assert(getComputedStyle(renderer()).direction === "rtl", "the view is not right to left");
-                const indic = (value) =>
-                    String(value).replace(/[0-9]/g, (digit) => String.fromCharCode(0x660 + Number(digit)));
+                const weekday = new Intl.DateTimeFormat("ar-001", { weekday: "long" });
+                const month = new Intl.DateTimeFormat("ar-001", { month: "short" });
                 const days = $$(".o_tl_col");
                 const weeks = $$(".o_tl_col_group_label").map((label) => label.textContent.trim());
                 // no Western digit in any header
@@ -2851,9 +2873,9 @@ tours.add("timeline_002b2_a75_rtl_headers", {
                 // the day line: the weekday name and the day number in Arabic digits
                 for (const day of days) {
                     const text = day.textContent.trim();
-                    assert(/^[\u0600-\u06ff]+ [\u0660-\u0669]+$/.test(text), `day header '${text}'`);
                     const date = DateTime.fromISO(day.dataset.date);
-                    assert(text.endsWith(` ${indic(date.day)}`), `day header '${text}' for ${date.toISODate()}`);
+                    const wanted = `${weekday.format(date.toJSDate())} ${indic(date.day)}`;
+                    assert(text === wanted, `day header '${text}', expected '${wanted}'`);
                 }
                 // weeks start on Saturday and each header names its week
                 assert(days.length % 7 === 0 && weeks.length === days.length / 7, "weeks and days do not fit");
@@ -2862,13 +2884,12 @@ tours.add("timeline_002b2_a75_rtl_headers", {
                     assert(saturday.weekday === 6, `the week starts on ${saturday.toISODate()}`);
                     const friday = saturday.plus({ days: 6 });
                     const number = indic(saturday.plus({ days: 3 }).weekNumber);
-                    const match = text.match(
-                        /^Week ([\u0660-\u0669]+), ([\u0660-\u0669]+) (\S+?)(?: [\u0660-\u0669]+)? - ([\u0660-\u0669]+) (\S+)/
-                    );
-                    assert(match, `week header '${text}'`);
-                    assert(match[1] === number, `week number in '${text}', expected ${number}`);
-                    assert(match[2] === indic(saturday.day), `first day in '${text}'`);
-                    assert(match[4] === indic(friday.day), `last day in '${text}'`);
+                    // the year, when it is not the current one, follows the day numbers
+                    const plain = text.replace(/ [\u0660-\u0669]{4}/g, "");
+                    const wanted =
+                        `Week ${number}, ${indic(saturday.day)} ${month.format(saturday.toJSDate())}` +
+                        ` - ${indic(friday.day)} ${month.format(friday.toJSDate())}`;
+                    assert(plain === wanted, `week header '${text}', expected '${wanted}'`);
                 });
             },
         },

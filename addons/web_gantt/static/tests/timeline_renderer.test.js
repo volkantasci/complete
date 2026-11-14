@@ -632,3 +632,16 @@ for (const step of ["quarter", "month", "day", "custom"]) {
         // the total bars of the year grid are asserted in timeline_rows.test.js
     });
 }
+
+test("R25: the day line of an Arabic user: the weekday name and the day number in Arabic-Indic digits", async () => {
+    // the localization sets luxon's locale and numbering system from the user's language
+    serverState.lang = "ar-001";
+    await mountTimeline({ arch: timelineArch(`default_range="week"`) });
+    // Sunday 1 to Tuesday 3 November 2026: the Arabic weekday name, a space, the day number
+    expect(queryAllTexts(".o_tl_col").slice(0, 3)).toEqual([
+        "الأحد ١",
+        "الاثنين ٢",
+        "الثلاثاء ٣",
+    ]);
+    expect(queryAllTexts(".o_tl_col").some((text) => /[0-9]/.test(text))).toBe(false);
+});
