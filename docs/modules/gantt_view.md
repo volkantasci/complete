@@ -160,7 +160,11 @@ ignored.
 
 A row that has sub-rows is a **group row**: a caret before its name shows
 whether it is open or folded, and clicking its header or its cells folds or
-opens it. Instead of pills, a group row shows for each stretch of time the
+opens it. Only a whole click does: the button pressed and released in the same
+cell of the row (the same day column on the Week scale), however far the
+pointer moved in between. Pressed in one cell and released in another, or
+released in another row, it neither folds nor opens the row and nothing moves.
+Instead of pills, a group row shows for each stretch of time the
 number of records running there, as a thin line with the count at its left.
 Clicking the header of a row without sub-rows scrolls the grid so that the
 start of the column in which its first pill begins is in the middle. Pointing at a group row highlights the whole row, header included.
@@ -561,8 +565,11 @@ resize shape over them; they go away when the pointer leaves). A pill can be
 resized at its start when its start lies inside the displayed range, and at its
 stop when its stop does. Press a handle and move ten pixels to start; the edge
 then follows the pointer to the nearest sub-column border, and the pill never
-becomes shorter than one sub-column. On a pill narrower than 16 pixels the two
-handles cover the whole body, so it can only be resized at its end.
+becomes shorter than one sub-column. On a pill whose body is narrower than 16 pixels
+(a pill narrower than 18 pixels, as its body is inset by one pixel on each
+side) the two handles cover the whole body, so it can only be resized at its
+end; a 26 pixel pill has a 24 pixel body, and the 8 pixels between its two
+handles move it.
 
 The badge of the moved end shows the new date and time with the change of the
 pill's length in brackets ("(+24 hours)"; minutes on the day scale, hours on
@@ -602,7 +609,8 @@ small black lock at its right end while the pointer is the not-allowed shape;
 nothing is written. A cut pill shows only the handle of its other end, a pill
 cut at both ends none, and without edit rights there are no handles at all.
 The grey group pills of group rows let the pointer through to the row and never
-move. In the sample state nothing moves.
+move, and pressing and releasing on one in two different cells does nothing. In
+the sample state nothing moves.
 
 ![Handles of a cut pill, light](../assets/gantt_view/43-cut-handles.png)
 
