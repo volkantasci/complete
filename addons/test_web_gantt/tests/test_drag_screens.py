@@ -277,8 +277,6 @@ class TimelineDragScreens(TimelineProbeCase):
 
     def test_s07_readonly_grouping(self):
         def prepare(viewport, shot):
-            self.env.ref('base.user_admin').partner_id.name = 'Mitchell Admin'
-            self.env.flush_all()
             pill, parent = ('Design', 'Beta') if viewport == 'desktop' else ('Plan', 'Alpha')
             x, y = self.visible_middle(self.pill(pill))
             creator = self.env.ref('base.user_admin').name
@@ -300,6 +298,9 @@ class TimelineDragScreens(TimelineProbeCase):
             shot('48-group-target')
             self.release(x, gy)
             self.settle()
+        # the screens show the administrator as the demo data names it
+        self.env.ref('base.user_admin').partner_id.name = 'Mitchell Admin'
+        self.env.flush_all()
         self.each('h30', prepare, touch=False)
 
     # -- S8 (17): right-to-left selection badges ------------------------------------------
