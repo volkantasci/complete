@@ -122,12 +122,21 @@ class TestTimelineMultiHost(TransactionCase):
         fields = list(arch.iter('field'))
         self.assertEqual([f.get('name') for f in fields], ['name'])
         self.assertEqual(fields[0].get('required'), '1')
-        # both have a high priority number; the first model keeps its own default form (the
-        # second model has no other form view, so its only form is the template)
+        # neither template is the default form of its model: each model has an explicit default
         for template in (TEMPLATE_ONE, TEMPLATE_TWO):
             self.assertEqual(self.env.ref(template).priority, 99)
         default = self.env[PILL].get_views([(False, 'form')])['views']['form']
-        self.assertNotEqual(default['id'], self.env.ref(TEMPLATE_ONE).id)
+        self.assertEqual(default['id'], self.env.ref(XML + 'host_view_h16_form').id)
+        explicit = self.env.ref(XML + 'host_view_pill2_default_form')
+        self.assertEqual(explicit.priority, 1)
+        default = self.env[PILL2].get_views([(False, 'form')])['views']['form']
+        self.assertEqual(default['id'], explicit.id)
+        self.assertNotEqual(default['id'], self.env.ref(TEMPLATE_TWO).id)
+        # the fields of the form the model's generator made (the served arch adds sub-fields)
+        names = [f.get('name') for f in etree.fromstring(explicit.arch_db).iter('field')]
+        self.assertEqual(names, [
+            'active', 'name', 'dependency_field', 'dependency_inverted_field',
+            'date_start', 'parent_id', 'date_stop'])
 
     def test_host_adds_no_record(self):
         pill = self.env[PILL]
