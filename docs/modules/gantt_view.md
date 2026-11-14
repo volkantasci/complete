@@ -511,7 +511,7 @@ move is never taken for a click.
 - Release over a cell to write. Release over the headers, the control panel, a
   refusing row or nowhere does nothing. A release that would change nothing (the
   same place, or a row whose values the record already holds) writes nothing,
-  shows no notification and does not reload. If you drop on a folded group row,
+  shows no notification and does not reload. If you drop on a closed group row,
   it opens once the server has accepted the change.
 - **Escape**, or any other key except Alt, Ctrl, Meta and Shift, cancels the
   move, as does the browser cancelling the pointer or the tab being hidden.
@@ -547,7 +547,7 @@ reports "Change undone" or "Copy removed", or, when the record no longer exists,
 "This change could not be undone" or "This copy could not be removed". The view
 reloads either way. If the server refuses a write, only the usual error dialog
 appears, the pill returns to its stored place and no success notification is
-shown. Writes are sent one after the other, and the view reloads after each.
+shown. Writes are sent one after the other (Undo is sent at once), and the view reloads after each.
 
 ![The result of Undo, light](../assets/gantt_view/36-undone.png)
 
@@ -610,7 +610,7 @@ move. In the sample state nothing moves.
 
 ### Rows that refuse a drop
 
-When one of the grouping fields is read-only for the user, the rows of that
+When one of the grouping fields is read-only, the rows of that
 level and of every level below refuse drops; rows of the levels above it accept
 them. While you move a pill, its own row still accepts it, and so do the rows
 next to it under the same row of the read-only level. A refusing row shows no

@@ -43,7 +43,7 @@ prefix `o_tl_`, templates `web_gantt.Timeline...`.
 
 Slice 002b2. The browser view lets a pill be dragged (`timeline_drag.js`,
 `timeline_drag_math.js`, `timeline_edge_scroll.js`, `timeline_notification.scss`
-and the matching parts of the renderer, model and controller): a move or, with
+and the matching parts of the renderer, model, editor and arch parser): a move or, with
 Ctrl held, a copy, within or across rows (grouping values written, read-only
 grouping levels refuse drops); a resize by the two handles; the lock for cut
 pills, edit off and `disable_drag_drop`; time badges; edge scrolling; the
