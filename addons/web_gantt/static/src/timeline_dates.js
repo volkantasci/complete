@@ -332,6 +332,17 @@ function groupStart(scaleId, date) {
     }
 }
 
+/**
+ * R25: a whole number written with the digits of the date's numbering system (the Community sets
+ * Arabic-Indic digits for Arabic), so it sits correctly beside the texts luxon writes.
+ */
+function localNumber(value, date) {
+    return new Intl.NumberFormat(date.locale || undefined, {
+        numberingSystem: date.numberingSystem || undefined,
+        useGrouping: false,
+    }).format(value);
+}
+
 function groupLabel(scaleId, first) {
     switch (TIMELINE_SCALES[scaleId].group) {
         case "day":
@@ -342,7 +353,7 @@ function groupLabel(scaleId, first) {
             const format = withYear
                 ? { month: "short", day: "numeric", year: "numeric" }
                 : { month: "short", day: "numeric" };
-            const number = first.plus({ days: 3 }).weekNumber;
+            const number = localNumber(first.plus({ days: 3 }).weekNumber, first);
             return _t("Week %(number)s, %(from)s - %(to)s", {
                 number,
                 from: first.toLocaleString(format),
@@ -352,7 +363,7 @@ function groupLabel(scaleId, first) {
         case "month":
             return first.toLocaleString({ month: "long", year: "numeric" });
         default:
-            return String(first.year);
+            return localNumber(first.year, first);
     }
 }
 

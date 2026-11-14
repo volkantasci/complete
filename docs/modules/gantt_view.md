@@ -6,7 +6,9 @@ be arranged in rows by any field. Besides looking and navigating, you can
 create records from the grid, plan records that have no dates yet, open a
 record, change it and delete it, as far as the view and your rights allow (see
 [Creating, planning, opening and deleting](#creating-planning-opening-and-deleting)).
-Moving and resizing pills with the pointer is not part of this release.
+You can also move a pill to another time or row, copy it, and stretch or
+shorten it by its ends (see
+[Moving, copying and resizing pills](#moving-copying-and-resizing-pills)).
 
 The view has no menu of its own. It appears in any window action whose view
 modes include **Gantt**, next to the other views in the view switcher, or as
@@ -56,7 +58,11 @@ the light scheme, white in the dark one); they return to the accent colour when
 it closes. If you pick a start after the stop (or
 the reverse), the other date follows. A range can be at most ten years minus
 one day long. Choosing another range in the list rebuilds the grid around the
-date that is currently in the middle of the screen.
+date that is currently in the middle of the visible grid (the row header column
+left out), taken exactly and not rounded to a column: on the Year range the
+middle lies inside a month, and going Week, Day, Month, Year and back to Week
+brings you to the same day each time. Scrolling by hand moves that date too, in
+every range, and the New button reads it as well.
 
 ![The range menu, light](../assets/gantt_view/09-range-menu.png)
 
@@ -140,7 +146,9 @@ ignored.
 
 - A row for records **without a value** comes first and is named "Undefined"
   followed by the field label, for example "Undefined Parent". It is always
-  there at the top level, unless the field is required. Zero and an empty text
+  there at the top level, unless the field is required. Under that leading row every lower grouping level also gets its
+  own "Undefined" row first, even when empty, so the first rows form a chain of
+  "Undefined" rows. Zero and an empty text
   also count as no value. Yes/no fields show "True" and "False".
 - With a **many-to-many** field, a record appears in the row of every value it
   has, and in the empty-value row only when it has none.
@@ -152,7 +160,11 @@ ignored.
 
 A row that has sub-rows is a **group row**: a caret before its name shows
 whether it is open or folded, and clicking its header or its cells folds or
-opens it. Instead of pills, a group row shows for each stretch of time the
+opens it. Only a whole click does: the button pressed and released in the same
+cell of the row (the same day column on the Week scale), however far the
+pointer moved in between. Pressed in one cell and released in another, or
+released in another row, it neither folds nor opens the row and nothing moves.
+Instead of pills, a group row shows for each stretch of time the
 number of records running there, as a thin line with the count at its left.
 Clicking the header of a row without sub-rows scrolls the grid so that the
 start of the column in which its first pill begins is in the middle. Pointing at a group row highlights the whole row, header included.
@@ -378,6 +390,12 @@ filter on the parent of that row.
   both dialogs close; Discard returns to the plan dialog.
 - **Close** writes nothing.
 
+The dialog's search bar is 33 pixels tall and bordered in the accent tone, like
+that of every list dialog; on a phone a small search button next to the pager
+shows the bar when tapped.
+
+![The search bar of the plan dialog, light](../assets/gantt_view/52-plan-search.png)
+
 ![The plan dialog, light](../assets/gantt_view/22-plan-dialog.png)
 
 ![The plan dialog, dark](../assets/gantt_view/22-plan-dialog-dark.png)
@@ -397,7 +415,11 @@ client. An editable dialog has Save, Discard and, when the view allows deleting,
 **Remove**. Remove asks for confirmation with the web client's own
 record-deletion box ("Bye-bye, record!", with **Delete** and **No, keep it**).
 Delete removes the record and closes both dialogs; "No, keep it" or the cross
-returns to the record. A new record's dialog has no Remove. If the server
+returns to the record. If the connection is lost when you confirm, the
+deletion is not sent later: the confirmation closes, the record dialog stays
+open with its buttons disabled while the offline indicator shows, nothing is
+deleted, and when the connection returns you can press Remove again. A new
+record's dialog has no Remove. If the server
 refuses a save or a deletion (a missing right, a constraint), the usual error
 dialog appears over the record dialog, nothing is changed, and a refused save
 keeps what you typed.
@@ -459,6 +481,191 @@ the popover button **View** and a read-only dialog.
 
 ![A read-only record dialog, light](../assets/gantt_view/27-readonly-dialog.png)
 
+## Moving, copying and resizing pills
+
+A pill can be dragged to another time, to another row, or stretched by one of
+its ends, as long as the view lets you edit. Every gesture is one ordinary
+write (or copy) on the record, made with your own rights.
+
+![The handles of a pill, light](../assets/gantt_view/33-handles.png)
+
+### Moving
+
+Press on a pill and move the pointer by at least ten pixels; a press that does
+not move stays a click (popover on a single click, record dialog on a double
+click). The popover closes when the move starts, and the release that ends a
+move is never taken for a click.
+
+- The pill follows the pointer, a little see-through and with a soft shadow,
+  and a faded copy stays at its place. A highlight covers the cells where the
+  pill would land, over the full height of the target row; the pill keeps the
+  offset at which you grabbed it. The pointer over the view becomes the
+  four-arrow move shape.
+- Two **time badges** show the new start (above the pill's left end) and stop
+  (below its right end), as in a selection: green when the pill moves later, red
+  when it moves earlier. They show the record's own times, not the column
+  borders, so a pill from 09:00 to 18:00 moved by a half-day column reads
+  21:00 to 06:00.
+- Moving is in whole sub-columns (half days, hours or months according to the
+  scale and the view's precision) and the pill cannot leave the grid. The
+  target row may be another row, a group row (only the grouping values of that
+  row and of the rows above it are written) or an "Undefined" row (which empties
+  the value). A drop on a many-to-many row replaces the record's list with that
+  one value, unless the record already has it.
+- Release over a cell to write. Release over the headers, the control panel, a
+  refusing row or nowhere does nothing. A release that would change nothing (the
+  same place, or a row whose values the record already holds) writes nothing,
+  shows no notification and does not reload. If you drop on a closed group row,
+  it opens once the server has accepted the change.
+- **Escape**, or any other key except Alt, Ctrl, Meta and Shift, cancels the
+  move, as does the browser cancelling the pointer or the tab being hidden.
+
+![A pill being moved, light](../assets/gantt_view/34-moving.png)
+
+![The pill after the move, light](../assets/gantt_view/35-moved.png)
+
+### Copying
+
+Hold **Ctrl** at the start of the move, or press it while moving, and the move
+becomes a copy; release it and it is a move again. The pointer shows the
+arrow with a plus. Releasing over a cell duplicates the record with the target
+start, stop and row values (all of them, even ones the record already has, and
+also when the dates do not change); the original stays as it is. The copy is
+named by the model's own duplicate rules. Pressing Meta does not copy. A copy
+also needs the right to create records.
+
+![A copy being made, light](../assets/gantt_view/37-copying.png)
+
+![The copy after the release, light](../assets/gantt_view/38-copied.png)
+
+### The notification and Undo
+
+After a move, a resize or a copy that the server accepted, a notification at
+the top right ("Dates changed" or "Record copied") offers **Undo**. Only one
+such notification exists at a time: the next change replaces it. It closes by
+itself after a while, or with its cross, and nothing is undone then. Undo puts
+the earlier start, stop and row values back (for a move, those of the row where
+the pill started; for a many-to-many row, the former whole list), or deletes the
+copy. The notification stays until the server answers, then a second one
+reports "Change undone" or "Copy removed", or, when the record no longer exists,
+"This change could not be undone" or "This copy could not be removed". The view
+reloads either way. If the server refuses a write, only the usual error dialog
+appears, the pill returns to its stored place and no success notification is
+shown. Writes are sent one after the other (Undo is sent at once), and the view reloads after each.
+
+![The result of Undo, light](../assets/gantt_view/36-undone.png)
+
+![A copy removed by Undo, light](../assets/gantt_view/39-copy-removed.png)
+
+### Resizing
+
+When the pointer enters a pill that can be resized, two invisible handles, each
+eight pixels wide, appear at its ends (the pointer shows the east or west
+resize shape over them; they go away when the pointer leaves). A pill can be
+resized at its start when its start lies inside the displayed range, and at its
+stop when its stop does. Press a handle and move ten pixels to start; the edge
+then follows the pointer to the nearest sub-column border, and the pill never
+becomes shorter than one sub-column. On a pill whose body is narrower than 16 pixels
+(a pill narrower than 18 pixels, as its body is inset by one pixel on each
+side) the two handles cover the whole body, so it can only be resized at its
+end; a 26 pixel pill has a 24 pixel body, and the 8 pixels between its two
+handles move it.
+
+The badge of the moved end shows the new date and time with the change of the
+pill's length in brackets ("(+24 hours)"; minutes on the day scale, hours on
+the week and month scales, months on the year scale): green when the pill gets
+longer, red when shorter. The sign is the change of the *length*, so moving a
+start earlier reads "+". The other badge keeps its value in plain text colour.
+Releasing writes only the moved end, shows the notification and reloads; a
+release at the starting border does nothing. Escape and the other cancelling
+events work as for a move. Resizing works whether or not drag and drop is
+switched off.
+
+![Shortening a pill, light](../assets/gantt_view/40-shrinking.png)
+
+![Lengthening a pill, light](../assets/gantt_view/41-growing.png)
+
+![The pill after a resize, light](../assets/gantt_view/42-resized.png)
+
+#### Invalid results
+
+A resize that would put the stop before the start (or the start after the stop)
+shows the impossible value in red while you hold; on release nothing is written
+and a warning notification, without Undo, says why. This can happen when a
+record does not start and end on sub-column borders, for example a 10:00 to
+14:00 record drawn over two half-days and shortened by one of them.
+
+![An impossible resize, light](../assets/gantt_view/45-invalid-resizing.png)
+
+![The warning, light](../assets/gantt_view/46-invalid-warning.png)
+
+### Locked pills
+
+A pill cannot be moved or copied when the view does not allow editing, when the
+view's drag-and-drop option is off, or when it is **cut**, that is, it begins
+before the first displayed moment or ends after the last one. It looks like any
+other pill, but when you press and drag it, it only rises in place and shows a
+small black lock at its right end while the pointer is the not-allowed shape;
+nothing is written. A cut pill shows only the handle of its other end, a pill
+cut at both ends none, and without edit rights there are no handles at all.
+The grey group pills of group rows let the pointer through to the row and never
+move, and pressing and releasing on one in two different cells does nothing. In
+the sample state nothing moves.
+
+![Handles of a cut pill, light](../assets/gantt_view/43-cut-handles.png)
+
+![A locked pill held down, light](../assets/gantt_view/44-locked.png)
+
+### Rows that refuse a drop
+
+When one of the grouping fields is read-only, the rows of that
+level and of every level below refuse drops; rows of the levels above it accept
+them. While you move a pill, its own row still accepts it, and so do the rows
+next to it under the same row of the read-only level. A refusing row shows no
+highlight and no badges, and releasing over it does nothing. A row that accepts
+the drop is highlighted.
+
+![A read-only row refusing the drop, light](../assets/gantt_view/47-readonly-refused.png)
+
+![A group row as the target, light](../assets/gantt_view/48-group-target.png)
+
+### Edge scrolling
+
+Near the left or right edge of the grid (the row header column does not count),
+and near the top or bottom when the grid is taller than its area, the grid
+scrolls while you hold a moved pill; the scroll stops at the ends of the grid
+and the target, highlight and badges follow it. The edge zone is narrow (30
+pixels) for a move, and wide (150 pixels) for a resize or a selection; the
+nearer the pointer is to the edge, the faster the grid scrolls, evenly on every
+frame.
+
+### Date-only fields
+
+When a start or stop field holds only a date, moving and resizing go in whole
+days (whole months on the year scale), whatever precision the view draws its
+cells with. A move steps when the pointer crosses a midnight counted from where
+you pressed; a resize edge goes to the nearest day border, so it steps at the
+middle of a day. A date-only pill is never shorter than one day. The badges
+show dates without a time, and a date-only stop as its last day (three days from
+the 11th to the 13th, moved a day later, reads the 12th and the 14th). The
+difference of a resize counts days. Released within its starting day, a
+date-only pill is left alone. On a mixed model the other bound moves by the same
+number of days, keeping its local time.
+
+### Right-to-left languages
+
+In a right-to-left language the picture is mirrored: later is to the left, the
+start handle is at the pill's right end, and the badges of a selection, a move
+and a resize swap sides and heights (the stop badge stands above, the start
+badge below). Dates and times in badges and in the column headers use the
+language's own formatting, with Arabic-Indic digits for Arabic; the resize
+difference keeps Western digits.
+
+![A selection in Arabic, light](../assets/gantt_view/49-rtl-selection.png)
+
+Every screenshot above also exists in a dark variant (suffix `-dark`) and a
+phone variant (suffix `.mobile`) in `docs/assets/gantt_view/`.
+
 ## Sample data and empty views
 
 If the view definition allows sample data and the first load finds no record,
@@ -517,6 +724,22 @@ scrolling. With a mouse the selection works as on a desktop.
 
 ![The deletion confirmation on a phone, light](../assets/gantt_view/25-delete-confirm.mobile.png)
 
+![A deletion with the connection lost, light](../assets/gantt_view/50-offline-delete.png)
+
+![The same dialog after the connection returned, light](../assets/gantt_view/51-back-online.png)
+
+Moving pills works with a finger after a **long press** of about a third of a
+second followed by a move (a quick swipe scrolls the grid), or with a mouse. The
+edge zones take a large part of the narrow screen, so start in the middle.
+Copying needs a held Ctrl key, so it is possible only with a keyboard. Resizing
+needs a mouse: a finger held on a pill's end, even on its handle, moves the
+pill, and touch resizing is not offered. A finger held on a locked pill shows
+its lock after the hold. The notifications stand at the bottom of the screen.
+
+![A move on a phone, light](../assets/gantt_view/34-moving.mobile.png)
+
+![A locked pill on a phone, light](../assets/gantt_view/44-locked.mobile.png)
+
 Hovering a column header gives a tooltip with the date including the weekday
 ("Saturday, November 7, 2026"; on the day scale also the time).
 
@@ -564,6 +787,7 @@ or date-and-time fields) are required. The other attributes:
 | `progress_bar` | relational grouping fields that show a capacity bar |
 | `display_unavailability` | grey out unavailable periods |
 | `groups_limit` | groups per page |
+| `disable_drag_drop` | yes or no (default no): locks every pill for moving and copying; resizing stays possible. Any value read as false keeps moving on |
 | `create`, `edit`, `delete` | yes or no; the usual meaning in a Community view, with the effects listed under [What you may do](#what-you-may-do) |
 | `cell_create` | yes or no (default yes): allows creating from cells, by click when planning is off and by selection |
 | `plan` | yes or no (default yes): a click on a cell opens the plan dialog instead of the create dialog |
@@ -576,7 +800,7 @@ popover) and at most one `popover`. A `popover` takes `card_id` only, and may
 hold `field` elements and one `templates` element with `popover-body` (or
 `card`), `popover-header` and `popover-footer` (the last with `replace` set to
 a false value to keep the default button). The attributes
-`multi_create_view`, `disable_drag_drop`, `dependency_field`,
+`multi_create_view`, `dependency_field`,
 `dependency_inverted_field`, `buffer_start`, `buffer_stop`, `schedule`,
 `collapse_first_level`, `dynamic_range` and `offset` are accepted and have no
 effect yet. A view that breaks the rules is refused when saved, with a message
@@ -616,6 +840,12 @@ the other keys. The New button gives the period keys and no row keys.
   `progress_bars`.
 - `_gantt_unavailability` and `_gantt_progress_bar` are the two hooks a host
   model overrides to fill the last two keys. The base versions return nothing.
+- `gantt_undo_drag_drop(drag_kind, values=None)` takes back a move, a resize
+  or a copy. Called on the one record, it deletes the record when the kind is
+  `copy`, and writes `values` (earlier start, stop and grouping values) when the
+  kind is `reschedule`. It returns the result of the deletion or write, and false
+  when the record no longer exists, the kind is unknown or a reschedule has
+  nothing to write. It adds no access rule: the user's own rights apply.
 - A model without a Gantt view gets a generated one (`_get_default_gantt_view`)
   built from the fields named by `_start_name` and `_stop_name`, or the usual
   candidates (`date_start`, `start_date`, `date_stop`, `date_end`, ...). If no
@@ -623,7 +853,6 @@ the other keys. The New button gives the period keys and no row keys.
 
 ## Not included yet
 
-Moving, copying and resizing pills with the pointer, selecting several cells
-at once and the side panel of records to schedule, the dependency arrows and
+Selecting several cells at once and the side panel of records to schedule, the dependency arrows and
 buffers, rescheduling, and the Gantt views of employees, attendances, event
 tracks and time off are delivered in later slices.

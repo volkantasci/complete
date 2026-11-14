@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { after, beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { allowTranslations, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 
@@ -296,4 +296,31 @@ test("ten-year cap renders", () => {
     const columns = buildColumns("year", displayedPeriod(range, "year"));
     expect(columns.length).toBeLessThan(122);
     expect(columns).toHaveLength(120);
+});
+
+test("R25 the week line of an Arabic user: Arabic-Indic digits, weeks from Saturday", () => {
+    const { Settings } = luxon;
+    // what the Community's localization sets for Arabic
+    const before = [Settings.defaultLocale, Settings.defaultNumberingSystem];
+    Settings.defaultLocale = "ar-001";
+    Settings.defaultNumberingSystem = "arab";
+    after(() => {
+        [Settings.defaultLocale, Settings.defaultNumberingSystem] = before;
+    });
+    patchWithCleanup(localization, { weekStart: 6 });
+    const arabicToday = DateTime.now().startOf("day");
+    const period = displayedPeriod(namedRange("week", arabicToday), "week");
+    const groups = buildColumnGroups("week", buildColumns("week", period));
+    // week 46 runs from Saturday 7 to Friday 13
+    expect(groups[1].start.toISODate()).toBe("2026-11-07");
+    const label = groups[1].label;
+    // "Week" stays (no Arabic wording), then \u0664\u0666, \u0667 \u0646\u0648\u0641\u0645\u0628\u0631 - \u0661\u0663 \u0646\u0648\u0641\u0645\u0628\u0631
+    expect(label).toBe(
+        "Week \u0664\u0666, \u0667 \u0646\u0648\u0641\u0645\u0628\u0631 - \u0661\u0663 \u0646\u0648\u0641\u0645\u0628\u0631"
+    );
+});
+
+test("R25 the week line keeps Western digits in English", () => {
+    const groups = buildColumnGroups("week", buildColumns("week", displayedPeriod(namedRange("week", today), "week")));
+    expect(groups[1].label).toBe("Week 46, Nov 8 - Nov 14");
 });

@@ -119,12 +119,18 @@ class TestPolish(OverlayMixin, ThemeProbeCase):
                                  'padding-left')
                 self.assertEqual(set(pad.values()), {'4px'}, pad)
                 self.assertBox(self.rect(menu), {'x': 0, 'width': 390})
+                # a Latin-script option: the height of a row follows its glyph metrics, which
+                # differ from one script to another (so not "the first one", whatever is installed)
+                index = self.js(f"""[...document.querySelectorAll('{option}')]
+                    .findIndex((el) => el.textContent.trim() === 'English (US)')""")
+                self.assertGreaterEqual(index, 0)
                 row = self.style(option, 'margin-left', 'margin-right', 'padding-left',
-                                 'padding-right')
+                                 'padding-right', index=index)
                 self.assertEqual(
                     (row['margin-left'], row['margin-right'], row['padding-left'],
                      row['padding-right']), ('16px', '16px', '16px', '40px'))
-                self.assertBox(self.rect(option), {'x': 20, 'width': 350, 'height': 57.109})
+                self.assertBox(self.rect(option, index=index),
+                                 {'x': 20, 'width': 350, 'height': 57.109})
 
     def test_001e_a2_sheet_list_padding(self):
         # the list inside the sheet (the choices element) carries the padding, not the body

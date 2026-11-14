@@ -162,6 +162,8 @@ export function parseTimelineArch(xmlDoc, fields = {}) {
         canCreate: activeActions.create,
         canEdit: activeActions.edit,
         canDelete: activeActions.delete,
+        // R1, R11: pills cannot be moved or copied; they keep their resize handles
+        disableDragDrop: exprToBoolean(attr("disable_drag_drop"), false),
         canCellCreate: activeActions.create && exprToBoolean(attr("cell_create"), true),
         canPlan: activeActions.edit && exprToBoolean(attr("plan"), true),
         popover,

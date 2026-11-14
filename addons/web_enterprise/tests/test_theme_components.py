@@ -1451,3 +1451,51 @@ class TestThemeNotebookStatusbar(OverlayMixin, ThemeProbeCase):
                     self.assertColour(
                         self.style(clickable, 'background-color')['background-color'], pressed)
 
+
+
+@tagged('post_install', '-at_install')
+class TestThemeListDialogSearch(ThemeProbeCase):
+    """R22 of slice 002b2: the search bar of a Community list dialog (here the one of a
+    many-to-one field's "Search More") is 33 px tall; the bar of the page keeps its 37 px."""
+
+    def _open_list_dialog(self):
+        field = '.o_field_widget[name="user_id"] input'
+        self.wait(f"!!document.querySelector('{field}')")
+        self.js(f"document.querySelector('{field}').click()")
+        more = '.o_m2o_dropdown_option_search_more'
+        self.wait(f"!!document.querySelector('{more}')")
+        self.js(f"document.querySelector('{more}').click()")
+        self.wait("!!document.querySelector('.o_dialog .o_list_view .o_searchview')")
+        self.js("new Promise((resolve) => setTimeout(resolve, 400))")
+
+    def test_A67_list_dialog_search_bar(self):
+        bar = '.o_dialog .o_searchview'
+        for scheme, rest, background in (
+            ('light', '#68A9AF', '#FFFFFF'),
+            ('dark', '#398A88', '#2C2E35'),
+        ):
+            with self.page(self.fixtures['record_form_url'], scheme=scheme):
+                self._open_list_dialog()
+                got = self.style(
+                    bar, 'border-top-color', 'border-top-width', 'border-top-style',
+                    'padding-left', 'background-color', 'border-top-left-radius',
+                    'border-bottom-left-radius')
+                self.assertColour(got['border-top-color'], rest)
+                self.assertEqual((got['border-top-width'], got['border-top-style']),
+                                 ('1px', 'solid'))
+                self.assertEqual(got['padding-left'], '16px')
+                self.assertColour(got['background-color'], background)
+                self.assertGreaterEqual(float(got['border-top-left-radius'][:-2]), 100)
+                self.assertGreaterEqual(float(got['border-bottom-left-radius'][:-2]), 100)
+                self.assertAlmostEqual(self.rect(bar)['height'], 33, delta=.5)
+                field = self.rect('.o_dialog .o_searchview_input')
+                self.assertAlmostEqual(field['height'], 23, delta=.5)
+                self.assertEqual(
+                    self.style('.o_dialog .o_searchview_input', 'font-size')['font-size'],
+                    '14px')
+
+    def test_A67_page_search_bar_unchanged(self):
+        with self.page(self.fixtures['apps_kanban_url']):
+            bar = '.o_control_panel .o_searchview'
+            self.wait(f"!!document.querySelector('{bar}')")
+            self.assertAlmostEqual(self.rect(bar)['height'], 37, delta=.5)

@@ -11,7 +11,9 @@ import {
     makeTestApp,
     models,
     onRpc,
+    patchWithCleanup,
 } from "@web/../tests/web_test_helpers";
+import { localization } from "@web/core/l10n/localization";
 import { parseXML } from "@web/core/utils/xml";
 import { parseTimelineArch } from "@web_gantt/timeline_arch_parser";
 import { TimelineModel } from "@web_gantt/timeline_model";
@@ -33,6 +35,7 @@ export function at(days, clock) {
     return DateTime.utc(2026, 11, 12, hour, minute)
         .plus({ days })
         .minus({ hours: UTC_OFFSET_HOURS })
+        .reconfigure({ locale: "en", numberingSystem: "latn" })
         .toFormat("yyyy-MM-dd HH:mm:ss");
 }
 
@@ -377,6 +380,23 @@ export function setupTimelineFixtures() {
     hoot.beforeEach(() => {
         allowTranslations();
         resetMock();
+    });
+}
+
+/**
+ * Switch the test page to a right-to-left language, as the Community does: the localization's
+ * direction, `dir` on the document and the direction its converted page styles give. Undone
+ * after the test.
+ */
+export function useRtl() {
+    patchWithCleanup(localization, { direction: "rtl" });
+    document.documentElement.setAttribute("dir", "rtl");
+    const style = document.createElement("style");
+    style.textContent = "* { direction: rtl !important; }";
+    document.head.appendChild(style);
+    hoot.after(() => {
+        style.remove();
+        document.documentElement.removeAttribute("dir");
     });
 }
 

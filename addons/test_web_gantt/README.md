@@ -18,7 +18,7 @@ Hidden module, never installed in production. User documentation:
   fourteen Gantt views H1 to H12, H14 and H15 (main, grouped by parent, by
   parent and contact, by tags, minimal, labels in sparse mode, custom popover,
   empty with and without sample data, dated, colour by contact, unavailability,
-  and the two mixed-type views) and the editing hosts H16 to H29 (below), their
+  and the two mixed-type views), the editing hosts H16 to H29 and the drag hosts H30 to H32 (below), their
   window actions (view modes
   `gantt,list,form`) and a top menu **Gantt Host**.
 - **H16 to H29, the editing hosts** (slice 002b). H16: the default form view
@@ -34,6 +34,17 @@ Hidden module, never installed in production. User documentation:
   explicitly yes. H29: the same with its own form view, which also says yes to
   edit, create and delete. Each has an action and a menu entry under
   **Gantt Host**; the new actions open in `gantt,list,form`.
+- **H30 to H32, the drag hosts** (slice 002b2), each with an action and a menu
+  entry under **Gantt Host**. H30: the view of the editing hosts without
+  planning, grouped by Parent and then by Created by (a read-only field, so its
+  rows refuse drops). H31: the same view with `disable_drag_drop` on and no
+  grouping. H32: H30's view grouped by Parent, Created by and Contact.
+- **The right-to-left user**: `test.web.gantt.pill._tl_rtl_user(env=None)`
+  activates Arabic (`ar_001`) with its translations and returns the user
+  "RTL Admin" (login and password `rtl`, the administrator's groups and time
+  zone), creating it when missing and returning the same one afterwards. The
+  demo data calls it through a function record; tests that need the user call
+  the helper themselves (the demo data is absent in CI).
 - **H13, the search view**: a search view with an **Archived** filter and
   group-bys for parent, contact and tags; it is the search view of every action
   on the first model (not of H10, which has its own model). Archived records
@@ -46,7 +57,8 @@ Hidden module, never installed in production. User documentation:
   tz_offset_hours=3)` creates the records the scenarios need, around today in a
   +3 hour browser time, among them the four **MIX** records (first, last,
   before, after) at 10:00 and 12:00 UTC on their day that exercise the mixed
-  views, including the same-day case. Demo data calls it; tests that need the records call it
+  views, including the same-day case. The administrator (`base.user_admin`) creates
+  every record, so the "Created by" rows of H30 and H32 carry that name. Demo data calls it; tests that need the records call it
   too (without demo data, as in CI).
 - **Hook override for tests**: `test.web.gantt.pill` overrides
   `_gantt_unavailability` and `_gantt_progress_bar`. When the system parameter
@@ -65,6 +77,10 @@ Hidden module, never installed in production. User documentation:
 | `static/tests/tours/timeline_edit_tours.js`, `tests/test_edit_tours.py` | Editing tours (scenarios A8 to A49c of slice 002b): selection and create dialog, edge scrolling on desktop and phone (mouse and touch), plan dialog from a row, Create New in the plan dialog, opening and renaming, the dialog waiting for a write, delete and keep, the restricted user, explicit-yes views (A1b read-only dialog, A1c server refusals), phone taps, long press, mouse drag and popover, New on the week in a Monday-first language, create and search, the popover switch, planning on a date-only model. |
 | `tests/test_edit_host.py` | Backend tests of the editing hosts: H16 to H29 load with their options, the loader switches create, edit and delete off for the restricted user unless the view says yes (and the same for the forms), internal users read-only on the first model. |
 | `tests/test_edit_probes.py` + `tests/timeline_edit_probe_values.py` (tag `timeline_probes`, class `TimelineEditProbes`) | Probes M1 to M37 of slice 002b in a real Chrome, light and dark, desktop and phone (with the middle-zone phone gesture and a touch variant): selection highlight and badges, New button, popover buttons, dialog sizes, Remove, the deletion box. Expected values are in the values file. |
+| `static/tests/tours/timeline_drag_tours.js`, `tests/test_drag_tours.py` (class `TestTimelineDragTours`) | Drag tours of slice 002b2 (the scenarios of A1 to A76 that need the live client): moves, copies, Ctrl during a move, Undo and its notification, refused drops, read-only grouping rows, resizes and invalid ones, locks, edge scrolling, date-only fields, right-to-left, the phone with touch emulation, plus the notes on 002a and 002b (focus date, click lock, offline deletion, read-only button, empty-value rows). |
+| `tests/test_drag_host.py` | Backend tests: H30 to H32 views, actions and menus, the `rtl` user helper (and the Arabic unit words reaching the browser), and the undo method `gantt_undo_drag_drop` (reschedule, copy, missing record, empty mapping, unknown kind, access error). |
+| `tests/test_drag_probes.py` + `tests/timeline_drag_probe_values.py` (tag `timeline_probes`, class `TimelineDragProbes`) | Probes M1 to M61 of slice 002b2 in a real Chrome, light and dark, desktop and phone: move, copy, handles, resize, locks, notifications, right-to-left badges, the plan dialog's search bar. Run only these with `--test-tags timeline_probes/test_web_gantt:TimelineDragProbes`. |
+| `tests/test_drag_screens.py` (tag `gantt_drag_screens`) | The documentation screenshots 33 to 52 of `gantt_view`, on demand, not part of the normal run. |
 | `tests/test_screens.py` (tag `gantt_view_screens`) | Takes the documentation screenshots on demand, the phone ones on an emulated touch phone; not part of the normal run. |
 | `tests/test_edit_screens.py` (tag `gantt_edit_screens`) | The same for the editing screens, images 20 to 32 of `gantt_view`, on demand. |
 
@@ -82,11 +98,16 @@ for a demo run. Probes: `--test-tags timeline_probes/test_web_gantt`. A probe pa
 with the viewport's own touch setting (touch for the phone, none for the
 desktop); the `touch` option of the probe's `page` overrides it, for example to
 read the phone without touch.
-Screenshots: `--test-tags gantt_view_screens --screenshots <dir>` on a database
-with `web_enterprise`; the files land in `<dir>/gantt_view/`.
+Screenshots: `--test-tags gantt_view_screens --screenshots <dir>` (and
+`gantt_edit_screens`, `gantt_drag_screens`) on a database with
+`web_enterprise`; the files land in `<dir>/gantt_view/`. Drag tours:
+`--test-tags /test_web_gantt:TestTimelineDragTours`; host and undo tests:
+`/test_web_gantt:TestTimelineDragHost` and
+`/test_web_gantt:TestTimelineUndoMethod`.
 
 ## Provenance
 
-Spec package: slice 002a-gantt-display. The provenance record is
+Spec packages: slices 002a-gantt-display, 002b-gantt-editing and
+002b2-gantt-drag-resize. The provenance record is
 `provenance/test_web_gantt.yaml`. See
 [docs/module-authoring.md](../../docs/module-authoring.md).

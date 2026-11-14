@@ -1,6 +1,14 @@
 <!-- Copyright 2026 Complete contributors -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineGhostBody">
+        <div class="o_tl_pill" t-att-class="ghost.className">
+            <div t-if="ghost.progress" class="o_tl_pill_progress" t-attf-style="width: {{ghost.progress}}%"/>
+            <span class="o_tl_pill_title" t-out="ghost.label"/>
+            <span t-if="ghost.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${ghost.mark}`"/>
+            <i t-if="ghost.locked" class="oi o_tl_pill_lock" data-icon="lock"/>
+        </div>
+    </t>
     <t t-name="web_gantt.TimelineRenderer">
         <t t-set="layout" t-value="this.layout"/>
         <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
@@ -17,7 +25,7 @@
                         </div>
                     </t>
                     <t t-foreach="layout.rows" t-as="row" t-key="row.key">
-                        <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
+                        <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-pointerdown="(ev) => this.onRowPointerDown(ev, row)" t-on-pointerup="(ev) => this.onRowPointerUp(ev, row)" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
                             <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-class="{ o_tl_sample: layout.isSample }" t-att-title="row.row.name" t-on-click="() => this.onRowHeaderClick(row)">
                                 <i t-if="row.kind === 'group'" class="oi o_tl_caret" t-att-data-icon="row.row.collapsed ? 'arrow_right' : 'arrow_drop_down'"/>
                                 <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
@@ -40,6 +48,9 @@
                             <div t-if="row.kind === 'pills' and this.selectionStyleOf(row)" class="o_tl_selection_layer">
                                 <div class="o_tl_selection" t-att-style="this.selectionStyleOf(row)"/>
                             </div>
+                            <div t-if="this.dropStyleOf(row)" class="o_tl_selection_layer">
+                                <div class="o_tl_selection o_tl_drop" t-att-style="this.dropStyleOf(row)"/>
+                            </div>
                             <div t-if="row.kind === 'group'" class="o_tl_pills">
                                 <div t-foreach="row.counts" t-as="segment" t-key="segment.key" class="o_tl_group_pill" t-att-style="segment.style">
                                     <span class="o_tl_group_count" t-out="segment.count"/>
@@ -47,19 +58,29 @@
                             </div>
                             <div t-if="row.kind === 'pills'" class="o_tl_pills">
                                 <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
-                                    <div class="o_tl_pill" t-att-class="pill.className" t-att-style="pill.style" t-att-data-pill-id="pill.id" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
+                                    <div class="o_tl_pill" t-att-class="this.pillClass(pill, row)" t-att-style="this.pillStyle(pill, row)" t-att-data-pill-id="pill.id" t-on-mouseenter="() => this.onPillEnter(pill, row)" t-on-mouseleave="this.onPillLeave" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
                                         <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
                                         <span class="o_tl_pill_title" t-out="pill.label"/>
                                         <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>
+                                        <div t-foreach="this.handlesOf(pill, row)" t-as="handle" t-key="handle.edge" class="o_tl_handle" t-att-class="`o_tl_handle_${handle.edge} o_tl_handle_${handle.side}`" t-att-data-edge="handle.edge"/>
                                     </div>
                                 </t>
                             </div>
                         </div>
                     </t>
-                    <t t-set="badges" t-value="this.selectionBadges"/>
+                    <t t-set="ghost" t-value="this.dragGhost"/>
+                    <t t-if="ghost">
+                        <div t-if="!ghost.locked" class="o_tl_pill_faded" t-att-style="ghost.originStyle">
+                            <t t-call="web_gantt.TimelineGhostBody"/>
+                        </div>
+                        <div class="o_tl_pill_moved" t-att-style="ghost.movedStyle">
+                            <t t-call="web_gantt.TimelineGhostBody"/>
+                        </div>
+                    </t>
+                    <t t-set="badges" t-value="this.shownBadges"/>
                     <t t-if="badges">
-                        <div class="o_tl_selection_badge o_tl_badge_start" t-out="badges.start"/>
-                        <div class="o_tl_selection_badge o_tl_badge_stop" t-out="badges.stop"/>
+                        <div class="o_tl_selection_badge o_tl_badge_start" t-att-class="badges.start.className" t-out="badges.start.text"/>
+                        <div class="o_tl_selection_badge o_tl_badge_stop" t-att-class="badges.stop.className" t-out="badges.stop.text"/>
                     </t>
                     <div t-if="layout.total" class="o_tl_row o_tl_total_row" t-attf-style="height: {{layout.total.height}}px">
                         <div t-if="layout.hasRowHeaders" class="o_tl_row_header">

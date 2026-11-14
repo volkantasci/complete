@@ -94,14 +94,21 @@ def compare_value(prop, expected, measured):
     if prop == 'box-shadow':
         if expected == 'none' or measured == 'none':
             return None if expected == measured else f'{measured} instead of {expected}'
-        want_colour = re.search(r'rgba?\([^)]*\)', expected)
-        got_colour = re.search(r'rgba?\([^)]*\)', measured)
-        if not (want_colour and got_colour):
+        # several layers: the table separates them with ';', Chrome with a comma outside the
+        # parentheses
+        want_layers = [layer for layer in expected.split(';') if layer.strip()]
+        got_layers = re.split(r',\s*(?![^()]*\))', measured)
+        if len(want_layers) != len(got_layers):
             return f'{measured} instead of {expected}'
-        want = _numbers(expected.replace(want_colour.group(0), ''))
-        got = _numbers(measured.replace(got_colour.group(0), ''))
-        if want != got or not _same_colour(want_colour.group(0), got_colour.group(0)):
-            return f'{measured} instead of {expected}'
+        for want_layer, got_layer in zip(want_layers, got_layers, strict=True):
+            want_colour = re.search(r'rgba?\([^)]*\)', want_layer)
+            got_colour = re.search(r'rgba?\([^)]*\)', got_layer)
+            if not (want_colour and got_colour):
+                return f'{measured} instead of {expected}'
+            want = _numbers(want_layer.replace(want_colour.group(0), ''))
+            got = _numbers(got_layer.replace(got_colour.group(0), ''))
+            if want != got or not _same_colour(want_colour.group(0), got_colour.group(0)):
+                return f'{measured} instead of {expected}'
         return None
     if prop in ('background-image', 'border-image'):
         norm = re.compile(r'\s+')

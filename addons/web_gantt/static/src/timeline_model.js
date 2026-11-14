@@ -9,7 +9,6 @@ import {
     serializeDateTime,
 } from "@web/core/l10n/dates";
 import { _t } from "@web/core/l10n/translation";
-import { KeepLast } from "@web/core/utils/concurrency";
 import { imageUrl } from "@web/core/utils/urls";
 import { addPropertyFieldDefs, Model } from "@web/model/model";
 import { formatFloat, formatInteger } from "@web/views/fields/formatters";
@@ -65,7 +64,6 @@ export class TimelineModel extends Model {
         this._view = null;
         this._focusVersion = 0;
         this._rangeKey = null;
-        this.keepLast = new KeepLast();
         this.displayMode = this.config.displayMode;
         if (["dense", "sparse"].includes(params.state?.displayMode)) {
             this.displayMode = params.state.displayMode;
@@ -89,9 +87,12 @@ export class TimelineModel extends Model {
         this._targetRange = null;
         // the range asked by the last navigation whose answer is not committed yet
         this._requestedRange = null;
+        this._requestedOffset = null;
         this._timer = null;
         this._waiters = [];
         this._writes = new Set();
+        this._writeTail = Promise.resolve();
+        this._onDispose = [];
         this._publish();
     }
 
@@ -182,9 +183,17 @@ export class TimelineModel extends Model {
     /** Stop the pending step: the view is left. */
     dispose() {
         this.disposed = true;
+        for (const callback of this._onDispose) {
+            callback();
+        }
         browser.clearTimeout(this._timer);
         this._timer = null;
         this._waiters = [];
+    }
+
+    /** Run `callback` when the view is left (the model is disposed). */
+    onDispose(callback) {
+        this._onDispose.push(callback);
     }
 
     /** R10: register a write in flight; returns the same promise. */
@@ -196,6 +205,21 @@ export class TimelineModel extends Model {
         this._writes.add(settled);
         settled.then(() => this._writes.delete(settled));
         return promise;
+    }
+
+    /**
+     * R15: run `fn` once every write queued before it has settled (refused or not), one at a
+     * time. The write is tracked like any other (`whenWritesDone`). Returns the promise of `fn`.
+     * `fn` must not await `whenWritesDone` or `queueWrite` itself: it would wait for itself.
+     * @param {() => any} fn
+     */
+    queueWrite(fn) {
+        const run = this._writeTail.then(() => fn());
+        this._writeTail = run.then(
+            () => {},
+            () => {}
+        );
+        return this.trackWrite(run);
     }
 
     /** Resolves when every tracked write has settled (also those started meanwhile). */
@@ -471,27 +495,55 @@ export class TimelineModel extends Model {
         return { range, scaleId, period, offset: offset || 0, kwargs };
     }
 
-    async _reload({ range = this.range, offset = this.offset } = {}) {
+    /**
+     * Load the data of `range` and `offset` and show it. Only the newest request counts (002a R35):
+     * a request that was overtaken by a newer one settles quietly, without showing its data (a
+     * promise that never settled would hold back every caller, the writes queued behind it
+     * included).
+     */
+    async _reload({
+        range = this._requestedRange || this.range,
+        offset = this._requestedOffset ?? this.offset,
+    } = {}) {
         let request = this._request(range, offset);
         this._requestedRange = range;
+        this._requestedOffset = offset;
+        const serial = (this._reloadSerial = (this._reloadSerial || 0) + 1);
+        const latest = () => serial === this._reloadSerial;
         let result;
         try {
-            result = await this.keepLast.add(
-                this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs)
-            );
+            result = await this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs);
         } catch (error) {
+            if (!latest()) {
+                return;
+            }
             this._requestedRange = null;
+            this._requestedOffset = null;
             throw error;
+        }
+        if (!latest()) {
+            return;
         }
         if (request.offset > 0 && !result.groups.length) {
             // the page is past the end of what this range holds: back to the first page, so the
             // pager stays usable
             request = this._request(range, 0);
-            result = await this.keepLast.add(
-                this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs)
-            );
+            try {
+                result = await this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs);
+            } catch (error) {
+                if (!latest()) {
+                    return;
+                }
+                this._requestedRange = null;
+                this._requestedOffset = null;
+                throw error;
+            }
+            if (!latest()) {
+                return;
+            }
         }
         this._requestedRange = null;
+        this._requestedOffset = null;
         this._commit(request, result);
     }
 
@@ -768,10 +820,14 @@ export class TimelineModel extends Model {
             rows.forEach((row) => emptyFirst(row.children));
         };
         emptyFirst(roots);
-        // the first level always has an empty-value row, with empty rows below it
+        // the first level always has an empty-value row (R19); under that leading row every
+        // lower level gets its own leading empty-value row too, even without a record (R26)
         const first = groupBy[0];
         if (this._canBeEmpty(first) && !roots.some((row) => row.isEmptyValueRow)) {
-            roots.unshift(this._emptyChain(0, ""));
+            roots.unshift(this._makeGroupRow(first, false, 0, `|${first}=false`));
+        }
+        if (roots.length && roots[0].isEmptyValueRow) {
+            this._extendEmptyChain(roots[0]);
         }
         if (!roots.length) {
             return [this._makeBlankRow(0, "all")];
@@ -801,15 +857,19 @@ export class TimelineModel extends Model {
         return !field.required && field.type !== "boolean";
     }
 
-    _emptyChain(level, parentKey) {
+    /** Gives an empty-value row an empty-value child for each lower level that can be empty. */
+    _extendEmptyChain(row) {
+        const level = row.level + 1;
         const name = this.groupBy[level];
-        const key = `${parentKey}|${name}=false`;
-        const row = this._makeGroupRow(name, false, level, key);
-        const next = this.groupBy[level + 1];
-        if (next && this._canBeEmpty(next)) {
-            row.children.push(this._emptyChain(level + 1, key));
+        if (!name || !this._canBeEmpty(name)) {
+            return;
         }
-        return row;
+        let child = row.children.find((candidate) => candidate.isEmptyValueRow);
+        if (!child) {
+            child = this._makeGroupRow(name, false, level, `${row.id}|${name}=false`);
+            row.children.unshift(child);
+        }
+        this._extendEmptyChain(child);
     }
 
     _applyCollapsed() {

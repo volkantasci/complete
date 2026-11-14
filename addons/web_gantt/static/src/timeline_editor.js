@@ -45,6 +45,8 @@ export class TimelineEditor {
         this.model = model;
         this.archInfo = archInfo;
         this.services = services;
+        // the Community notifications are global: this view's go when the view is left
+        model.onDispose(() => this.closeNotification());
     }
 
     /** R6: the context of a creation for `period`, in `row` when given. */
@@ -137,7 +139,8 @@ export class TimelineEditor {
                 return;
             }
             written = true;
-            await model.trackWrite(
+            // R15: after the writes sent before
+            await model.queueWrite(() =>
                 orm.write(model.resModel, ids, values, {
                     // R9.4: the write runs with the context of the action and the search, not
                     // with the creation defaults
@@ -192,6 +195,201 @@ export class TimelineEditor {
                 { onClose: closed }
             );
         });
+    }
+
+    /**
+     * R5, R7, R8, R10, R15: send a move, a resize or a copy whose values are computed, then
+     * reload and tell the user. The write waits for the writes sent before.
+     * - `values` empty: nothing is sent, shown or reloaded, resolves `false` (D3).
+     * - accepted: the view reloads, then the success notification with Undo shows (D6); a copy
+     *   that was accepted reloads too. Resolves `true`.
+     * - refused (the call rejects): move and resize reload (the pill is drawn from its stored
+     *   values), a copy reloads nothing; the rejection is passed on, so that the Community error
+     *   shows when the caller does not catch it.
+     * @param {Object} change
+     * @param {"move"|"copy"|"resize"} change.kind
+     * @param {number} change.resId the moved or resized record, the duplicated one for a copy
+     * @param {Object} change.values written values; defaults of the duplicate for a copy
+     * @param {{values: Object}} [change.undo] what Undo gives back (`undoValues`)
+     * @returns {Promise<boolean>}
+     */
+    async applyChange({ kind, resId, values, undo }) {
+        if (!values || !Object.keys(values).length) {
+            return false;
+        }
+        const { model, services } = this;
+        const { orm } = services;
+        const context = model.context;
+        const isCopy = kind === "copy";
+        let newId = resId;
+        return this._queueChange({
+            send: async () => {
+                if (isCopy) {
+                    const copied = await orm.call(model.resModel, "copy", [[resId]], {
+                        default: values,
+                        context,
+                    });
+                    newId = Array.isArray(copied) ? copied[0] : copied;
+                } else {
+                    await orm.write(model.resModel, [resId], values, { context });
+                }
+                return true;
+            },
+            // only to draw the pill again from its stored values
+            reloadOnRefusal: !isCopy,
+            announce: () =>
+                this._notifyChange({
+                    message: isCopy ? _t("Record copied") : _t("Dates changed"),
+                    undo: { kind, resId: newId, values: isCopy ? {} : undo?.values || {} },
+                }),
+        });
+    }
+
+    /**
+     * R10: take a change back on the server and tell the user. `undo` is the descriptor of the
+     * notification: `{kind: "move"|"resize"|"copy", resId, values}`, `resId` being the copy for
+     * a copy. The view reloads whatever the answer. Resolves `true` when it was undone. When the
+     * call itself fails, the notification of the change is closed and the error is passed on.
+     * @returns {Promise<boolean>}
+     */
+    undoChange(undo) {
+        const { model, services } = this;
+        const { kind, resId, values, source } = undo;
+        const isCopy = kind === "copy";
+        return this._queueChange({
+            send: () =>
+                services.orm.call(model.resModel, "gantt_undo_drag_drop", [[resId]], {
+                    drag_kind: isCopy ? "copy" : "reschedule",
+                    values: isCopy ? {} : values,
+                    context: model.context,
+                }),
+            reloadOnRefusal: true,
+            immediate: true,
+            refused: () => this._closeIfCurrent(source),
+            announce: (done) =>
+                this._notifyChange({
+                    message: done
+                        ? isCopy
+                            ? _t("Copy removed")
+                            : _t("Change undone")
+                        : isCopy
+                        ? _t("This copy could not be removed")
+                        : _t("This change could not be undone"),
+                    failed: !done,
+                }),
+        }).then(Boolean);
+    }
+
+    /**
+     * The one pattern of a write of this view (R15): `send` after the writes queued before, then
+     * reload and `announce(result)`; when `send` rejects, `refused` runs, the view reloads when
+     * `reloadOnRefusal` (errors of that reload ignored) and the rejection is passed on. Nothing
+     * is reloaded or announced once the view is left.
+     */
+    _queueChange({ send, reloadOnRefusal, refused, announce, immediate = false }) {
+        const { model } = this;
+        const reload = () => (model.disposed ? undefined : model.reload());
+        const task = async () => {
+            let result;
+            try {
+                result = await send();
+            } catch (error) {
+                refused?.();
+                if (reloadOnRefusal) {
+                    await reload()?.catch(() => {});
+                }
+                throw error;
+            }
+            try {
+                await reload();
+            } finally {
+                announce(result);
+            }
+            return result;
+        };
+        // an Undo is not one of the serialized writes (R15): it is sent at once (R10)
+        return immediate ? model.trackWrite(task()) : model.queueWrite(task);
+    }
+
+    /**
+     * A warning of this view (a gesture that cannot be applied): it goes when the view is left,
+     * like the notifications of the changes.
+     */
+    warn(message) {
+        if (this.model.disposed) {
+            return;
+        }
+        const close = this.services.notification.add(message, { type: "warning" });
+        this.model.onDispose(close);
+    }
+
+    /** Close the notification of the last change, if it is still shown. */
+    closeNotification() {
+        this._current?.close();
+        this._current = null;
+    }
+
+    _closeIfCurrent(source) {
+        if (this._current && this._current === source) {
+            this.closeNotification();
+        }
+    }
+
+    /**
+     * The clicked notification stays until its Undo is answered. It relies on the Community's
+     * notification template, which binds `freeze` to `mouseenter` (it stops the autoclose timer)
+     * and `refresh` to `mouseleave` (it restarts it): a `mouseenter` is dispatched on the element
+     * and its `mouseleave` is not passed on. The element goes with the notification.
+     */
+    _holdOpen(element) {
+        if (!element) {
+            return;
+        }
+        element.addEventListener("mouseleave", (event) => event.stopImmediatePropagation(), true);
+        element.dispatchEvent(new MouseEvent("mouseenter"));
+        // a later entry of the pointer would freeze again and empty the bar: it is not passed on
+        element.addEventListener("mouseenter", (event) => event.stopImmediatePropagation(), true);
+        // the freeze empties the bar; a full one shows that the notification waits
+        const bar = element.querySelector(".o_notification_progress");
+        if (bar) {
+            bar.style.width = "100%";
+        }
+    }
+
+    /**
+     * R10: one notification of this view at a time; it replaces the view's current one (the
+     * newest change's, which is the clicked one unless a newer change was made while its Undo was
+     * pending). Without an `undo` it is a result (no Undo button); `failed` makes it a danger
+     * one. Nothing is shown once the view is left.
+     */
+    _notifyChange({ message, undo, failed = false }) {
+        this.closeNotification();
+        if (this.model.disposed) {
+            return;
+        }
+        const type = failed ? "danger" : "success";
+        const options = { type, className: `o_tl_notification o_tl_notification_${type}` };
+        const handle = {};
+        if (undo) {
+            let used = false;
+            options.buttons = [
+                {
+                    name: _t("Undo"),
+                    icon: "undo",
+                    onClick: (ev) => {
+                        // a second click while the undo runs does nothing; the notification stays
+                        // (with its progress bar) until the server answers (R10)
+                        if (!used) {
+                            used = true;
+                            this._holdOpen(ev?.currentTarget?.closest(".o_notification"));
+                            this.undoChange({ ...undo, source: handle });
+                        }
+                    },
+                },
+            ];
+        }
+        handle.close = this.services.notification.add(message, options);
+        this._current = handle;
     }
 
     /**

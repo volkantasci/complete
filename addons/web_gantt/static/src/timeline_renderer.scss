@@ -524,6 +524,14 @@
     pointer-events: none;
 }
 
+// On a phone the target highlight of a move has the colour of the today border at its start edge
+// (M8, M52), whatever the column.
+.o_tl_selection.o_tl_drop {
+    @include media-breakpoint-down(md) {
+        border-left-color: $o-tl-today-border;
+    }
+}
+
 // The badges with the bounds of the selection (M2, M3, M8), placed by the renderer against the grid.
 .o_tl_selection_badge {
     position: absolute;
@@ -544,6 +552,13 @@
 
 // While a selection is held (R8): the closed hand over the content, and the buttons of the view
 // ignore the pointer so that a release over one does not press it.
+@mixin o-tl-shield {
+    .o_control_panel,
+    .o_tl_controls {
+        pointer-events: none;
+    }
+}
+
 .o_timeline_view.o_tl_selecting {
     user-select: none;
 
@@ -552,15 +567,13 @@
         cursor: grabbing !important; // stylelint-disable-line declaration-no-important
     }
 
-    .o_control_panel,
-    .o_tl_controls {
-        pointer-events: none;
-    }
+    @include o-tl-shield;
 }
 
 .o_tl_pill {
     position: absolute;
     cursor: pointer;
+    user-select: none;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -579,6 +592,155 @@
     // the pointer changes neither the colours nor the shadow; the stripes take the full colour
     &:hover {
         box-shadow: none;
+    }
+}
+
+// The resize handles (S4, M25 to M28): two invisible strips inside the coloured body, 8 px wide
+// and as tall as the body, one at each resizable end. Which side of the grid they stand on follows
+// the writing direction (the start is on the right in a mirrored grid); the renderer names the
+// side of the pointer shape.
+.o_tl_handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    // always 8 px (R8): on a pill narrower than 16 px the two handles cover the whole body, the
+    // end handle (below) lying over the start handle
+    width: 8px;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.o_tl_handle_start {
+    inset-inline-start: 0;
+}
+
+.o_tl_handle_stop {
+    inset-inline-end: 0;
+    z-index: 2;
+}
+
+.o_tl_handle_west {
+    cursor: w-resize;
+}
+
+.o_tl_handle_east {
+    cursor: e-resize;
+}
+
+// Moving and copying (S1, S3): the pill that was pressed stays where it was, half faded (M5); the
+// one that follows the pointer is drawn over the grid, above the cells and the row headers, under
+// the badges (M1 to M4). It takes no pointer event, so the cells under it answer.
+// The origin of the pill held stays drawn by the box below, so the pill itself only keeps its
+// place for the pointer.
+.o_tl_pill_origin {
+    opacity: 0;
+}
+
+// the pill held by a handle: its box, one pixel around the body of the pill at rest (M34, M35)
+.o_tl_pill_resizing {
+    height: $o-tl-pill-height + 2px;
+}
+
+.o_tl_pill_faded,
+.o_tl_pill_moved {
+    position: absolute;
+    box-sizing: border-box;
+    padding: 1px;
+    pointer-events: none;
+
+    // the body, one pixel inside its box, as wide as the span less two pixels
+    > .o_tl_pill {
+        position: relative;
+        width: 100%;
+        pointer-events: none;
+    }
+}
+
+.o_tl_pill_faded {
+    opacity: .5;
+}
+
+// R11, M39, M40: the lock of a held pill that cannot move, at the right end of its body
+.o_tl_pill_lock {
+    position: relative;
+    flex: none;
+    align-self: center;
+    // as wide as the glyph of its font (14.016 px at 14 px), 14 px tall
+    height: 14px;
+    // the title ends where the icon starts: the icon takes the rest of the line (M39, M40)
+    margin: 0 8px 0 auto;
+    font-size: 14px;
+    line-height: 14px;
+    color: #000000;
+}
+
+.o_tl_pill_locked > .o_tl_pill_title {
+    flex-grow: 0;
+}
+
+.o_tl_pill_moved {
+    z-index: 4;
+    opacity: .8;
+    box-shadow: 0 5px 25px -10px #000000;
+
+    > .o_tl_pill {
+        box-shadow: 0 5px 25px -10px #000000;
+    }
+}
+
+// While a pill is held (R2, R11): the pointer shape of the gesture over the whole view (M13, M22,
+// M33, M38, M43), the buttons of the view ignore the pointer so that the release over one does
+// not press it, and the hover effects of the grid pause.
+.o_timeline_view.o_tl_dragging {
+    user-select: none;
+
+    &.o_tl_drag_move,
+    &.o_tl_drag_move * {
+        cursor: move !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_copy,
+    &.o_tl_drag_copy * {
+        cursor: copy !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_lock,
+    &.o_tl_drag_lock * {
+        cursor: not-allowed !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_west,
+    &.o_tl_drag_west * {
+        cursor: w-resize !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_east,
+    &.o_tl_drag_east * {
+        cursor: e-resize !important; // stylelint-disable-line declaration-no-important
+    }
+
+    @include o-tl-shield;
+
+    // a row under the pointer keeps the look it has without it
+    .o_tl_group_row:not(.o_tl_hover):hover {
+        @include o-tl-group-gradient($o-tl-group-gradient-start, $o-tl-group-gradient-end);
+    }
+
+    .o_tl_group_row.o_tl_collapsed:not(.o_tl_hover):hover {
+        @include o-tl-group-gradient($o-tl-group-gradient-end, $o-tl-group-gradient-start);
+    }
+
+    .o_tl_total_bar:not(.o_tl_hover):hover {
+        background-color: rgba($o-brand-primary, .5);
+
+        &::before {
+            display: none;
+        }
     }
 }
 

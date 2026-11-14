@@ -347,8 +347,47 @@ test("002b A12: edge scroll grows the selection", async () => {
         await advanceFrame();
     }
     expect(renderer.scrollLeft).toBeLessThan(from);
-    expect(from - renderer.scrollLeft).not.toBeGreaterThan(3 * 20 + 1);
+    // the speed is by time (R20): 2500 px per second is 42 px of a frame
+    expect(from - renderer.scrollLeft).not.toBeGreaterThan(3 * 42 + 1);
     await drawing.cancel();
+});
+
+/** Draw a selection, hold the pointer `distance` px from the right edge, and measure 250 ms. */
+async function scrollOf250ms(distance) {
+    await mountTimeline({ groupBy: ["parent_id"] });
+    const renderer = queryOne(".o_tl_renderer");
+    const header = queryRect(rowAt().querySelector(".o_tl_row_header"));
+    const box = queryRect(renderer);
+    const y = queryRect(rowAt()).bottom - 4;
+    const cellUnder = (x) =>
+        queryAll(`${RECORD_ROW} .o_tl_cell`).find((cell) => {
+            const rect = queryRect(cell);
+            return rect.left <= x && x < rect.right;
+        });
+    const startX = header.right + 400;
+    const drawing = await drag(cellUnder(startX), { position: { x: startX, y } });
+    await drawing.moveTo(cellUnder(startX + 60), { position: { x: startX + 60, y } });
+    await animationFrame();
+    const x = box.right - distance;
+    freezeTime();
+    const before = renderer.scrollLeft;
+    await drawing.moveTo(cellUnder(x), { position: { x, y } });
+    await advanceTime(250);
+    const moved = renderer.scrollLeft - before;
+    await drawing.cancel();
+    return moved;
+}
+
+test("A65: a selection held 100 px from the right edge scrolls about 208 px per 250 ms", async () => {
+    const moved = await scrollOf250ms(100);
+    expect(moved).toBeGreaterThan(190);
+    expect(moved).toBeLessThan(225);
+});
+
+test("A65: a selection held 50 px from the right edge scrolls about 417 px per 250 ms", async () => {
+    const moved = await scrollOf250ms(50);
+    expect(moved).toBeGreaterThan(385);
+    expect(moved).toBeLessThan(450);
 });
 
 test("002b A12: a drag leaves no swallowed click behind (group row, folded cell)", async () => {
@@ -452,8 +491,42 @@ test("002b A14: RTL swaps badges", async () => {
         const [start, stop] = queryAll(".o_tl_selection_badge").map((badge) => queryRect(badge));
         expect(near(start.right, selection.right)).toBe(true);
         expect(near(stop.left, selection.left)).toBe(true);
-        expect(near(start.bottom, selection.top)).toBe(true);
-        expect(near(stop.top, selection.bottom)).toBe(true);
+        // R19 (002b2): right to left the sides swap vertically too
+        expect(near(start.top, selection.bottom)).toBe(true);
+        expect(near(stop.bottom, selection.top)).toBe(true);
+        await drawing.cancel();
+    } finally {
+        style.remove();
+        document.documentElement.removeAttribute("dir");
+    }
+});
+
+test("A60 rtl start badge below the highlight's right end, stop badge 20 px above its left end, not past the row header", async () => {
+    patchWithCleanup(localization, { direction: "rtl" });
+    document.documentElement.setAttribute("dir", "rtl");
+    const style = document.createElement("style");
+    style.textContent = "* { direction: rtl !important; }";
+    document.head.appendChild(style);
+    try {
+        await mountTimeline();
+        queryOne(".o_tl_renderer").scrollLeft = 0;
+        await animationFrame();
+        // the first half of a day lies on the right in this direction
+        const drawing = await press("2026-11-12", 0);
+        await drawing.to("2026-11-11", 0);
+        await drawing.to("2026-11-10", 1);
+        const selection = selectionRect();
+        const start = queryRect(".o_tl_badge_start");
+        const stop = queryRect(".o_tl_badge_stop");
+        expect(near(start.top, selection.bottom)).toBe(true);
+        expect(near(start.right, selection.right)).toBe(true);
+        expect(near(stop.top, selection.top - 20)).toBe(true);
+        expect(near(stop.left, selection.left)).toBe(true);
+        // with a row header (on the right in this direction) the start badge never goes past it
+        const header = rowAt().querySelector(".o_tl_row_header");
+        if (header) {
+            expect(start.right <= queryRect(header).left + 1).toBe(true);
+        }
         await drawing.cancel();
     } finally {
         style.remove();

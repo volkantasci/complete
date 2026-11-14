@@ -47,6 +47,27 @@
     }
 }
 
+// The search bar of a list dialog (002b2 R22): 33 px (a 23 px field between 4 px of padding
+// and the 1 px border), its border in the focus colour at rest as well, the pill closing at
+// its left end. Only inside dialogs: the bar of a page above keeps its 37 px.
+.o_dialog .o_cp_searchview {
+    min-height: 0;
+
+    .o_searchview {
+        min-height: 0;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        padding-left: 16px;
+        border-color: $o-cws-focus-border;
+
+        .o_searchview_input {
+            font-size: 14px;
+            line-height: 21px;
+            height: 23px;
+        }
+    }
+}
+
 // Facets: grey 100 chip with a 6 px radius; its label part is the primary subtle fill
 // with the primary text tone.
 .o_searchview_facet {

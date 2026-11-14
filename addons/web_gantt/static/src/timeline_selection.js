@@ -1,15 +1,12 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { browser } from "@web/core/browser/browser";
+import { SELECT_EDGE, TimelineEdgeScroll } from "./timeline_edge_scroll";
 
 /** Movement in pixels that starts a selection with a mouse, or abandons a touch press (R4). */
 export const MOVE_THRESHOLD = 10;
 /** Milliseconds a finger stays still before a selection starts (R4). */
 export const LONG_PRESS = 300;
-/** Distance from the edge of the grid area in which the grid scrolls, in pixels (R4). */
-export const EDGE_ZONE = 150;
-/** Scroll step of a frame with the pointer at the very edge, in pixels. */
-export const EDGE_SPEED = 20;
 
 /**
  * The pointer state machine of the selection of cells (R4): idle, `pending` (pressed, not yet
@@ -20,7 +17,8 @@ export const EDGE_SPEED = 20;
  *   selected (folded columns skipped in the direction away from `anchor`, the part where the
  *   selection started);
  * - `edges()`: `{left, right}`, the viewport bounds of the grid area without the row header;
- * - `scrollBy(dx)`: scroll the grid horizontally (positive: its content moves to the left);
+ * - `scrollBy(dx, dy)`: scroll the grid (positive: its content moves to the left) and return the
+ *   `{dx, dy}` really scrolled; the selection only scrolls horizontally, by speed (R20);
  * - `change(selection)`: the selection `{row, from, to}` (inclusive, ordered) drawn now, or null;
  * - `commit(selection)`: the release of a selection;
  * - `hold(on)`: a selection is (no longer) held.
@@ -31,7 +29,12 @@ export class TimelineSelection {
         this.state = "idle";
         this._listeners = [];
         this._timer = null;
-        this._frame = null;
+        this._edge = new TimelineEdgeScroll({
+            edges: () => this.host.edges(),
+            scrollBy: (dx, dy) => this.host.scrollBy(dx, dy),
+            onScrolled: () => this._update(),
+            axes: "x",
+        });
         this._press = null;
         this._suppressClick = false;
         this._release = null;
@@ -249,46 +252,7 @@ export class TimelineSelection {
             press.part = part;
         }
         this.host.change(this._selection());
-        this._edgeScroll();
-    }
-
-    /** The edge scroll loop: one step per frame while the pointer is in the zone of an edge. */
-    _edgeScroll() {
-        if (this._frame !== null || this.state !== "selecting") {
-            return;
-        }
-        const step = () => {
-            this._frame = null;
-            if (this.state !== "selecting") {
-                return;
-            }
-            const dx = this._edgeStep();
-            if (!dx) {
-                return;
-            }
-            this.host.scrollBy(dx);
-            this._update();
-        };
-        if (this._edgeStep()) {
-            this._frame = browser.requestAnimationFrame(step);
-        }
-    }
-
-    /** Horizontal scroll step for the pointer where it is: 0 outside the zones. */
-    _edgeStep() {
-        const { left, right } = this.host.edges();
-        const x = this._press.x;
-        const zone = Math.min(EDGE_ZONE, (right - left) / 2);
-        if (zone <= 0) {
-            return 0;
-        }
-        if (x > right - zone) {
-            return Math.ceil((Math.min(x - (right - zone), zone) / zone) * EDGE_SPEED);
-        }
-        if (x < left + zone) {
-            return -Math.ceil((Math.min(left + zone - x, zone) / zone) * EDGE_SPEED);
-        }
-        return 0;
+        this._edge.follow(press.x, press.y, SELECT_EDGE);
     }
 
     _finish() {
@@ -297,10 +261,7 @@ export class TimelineSelection {
         this._press = null;
         browser.clearTimeout(this._timer);
         this._timer = null;
-        if (this._frame !== null) {
-            browser.cancelAnimationFrame(this._frame);
-            this._frame = null;
-        }
+        this._edge.stop();
         for (const remove of this._listeners) {
             remove();
         }

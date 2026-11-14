@@ -124,26 +124,88 @@ test("002b A18: group row toggles and opens no dialog", async () => {
     expect(".o_dialog").toHaveCount(0);
 });
 
-test("002b R7: a double click on a group row toggles it once", async () => {
+test("A68 a double click on a group row toggles it twice: it starts no lock (R23)", async () => {
     await mountTimeline({ arch: ARCHS.H18, groupBy: ["parent_id", "x_contact"] });
     await dblclick(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell"));
+    await animationFrame();
+    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+});
+
+test("A68 a click on a group row starts no lock: closing Gamma then 0.3 s later an empty cell opens the plan dialog", async () => {
+    freezeTime();
+    await mountTimeline({ arch: ARCHS.H1, groupBy: ["parent_id", "x_contact"] });
+    const group = queryAll(".o_tl_group_row")[0];
+    await click(group.querySelector(".o_tl_cell"));
+    await animationFrame();
+    expect(queryAll(".o_tl_group_row")[0]).toHaveClass("o_tl_collapsed");
+    await advanceTime(300);
+    const rows = queryAll(".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)");
+    await click(rows[rows.length - 1].querySelectorAll(".o_tl_cell")[indexOfDate("2026-11-14")]);
+    await animationFrame();
+    expect(title()).toBe("Plan");
+});
+
+test("A68 a click on a group row cell during the lock of a record row cell is swallowed", async () => {
+    freezeTime();
+    await mountTimeline({ arch: ARCHS.H18, groupBy: ["parent_id", "x_contact"] });
+    await clickDate("2026-11-14", ".o_tl_row:not(.o_tl_total_row):not(.o_tl_group_row)");
+    await closeDialog();
+    await click(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell"));
+    await animationFrame();
+    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+    await advanceTime(1050);
+    await click(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell"));
     await animationFrame();
     expect(queryAll(".o_tl_group_row")[0]).toHaveClass("o_tl_collapsed");
 });
 
-test("002b R7: a click on a group row cell during a lock is swallowed", async () => {
+for (const [name, arch] of Object.entries({
+    "plan on": timelineArch(`${BASE}`),
+    "plan off, create on": timelineArch(`${BASE} plan="0"`),
+    "plan off, create off": ARCHS.H23,
+})) {
+    test(`A68 a click on an empty cell of a record row locks the next cell click for 1 s (${name})`, async () => {
+        freezeTime();
+        await mountTimeline({ arch });
+        await click(cellAt(indexOfDate("2026-11-14")));
+        await animationFrame();
+        if (queryAll(".o_dialog").length) {
+            await closeDialog();
+        }
+        await advanceTime(500);
+        await click(cellAt(indexOfDate("2026-11-15")));
+        await animationFrame();
+        expect(".o_dialog").toHaveCount(0);
+        await advanceTime(600);
+        await click(cellAt(indexOfDate("2026-11-15")));
+        await animationFrame();
+        expect(".o_dialog").toHaveCount(name === "plan off, create off" ? 0 : 1);
+    });
+}
+
+test("A68 a click on a folded column starts the lock", async () => {
     freezeTime();
-    await mountTimeline({ arch: ARCHS.H18, groupBy: ["parent_id", "x_contact"] });
-    const cell = () => queryAll(".o_tl_group_row")[0].querySelector(".o_tl_cell");
-    await click(cell());
+    timelineMock.unavailability = {
+        x_contact: Object.fromEntries(
+            [1, 2, 3].map((id) => [id, [{ start: at(3, "00:00"), stop: at(5, "00:00") }]])
+        ),
+    };
+    await mountTimeline({
+        arch: HOST_ARCHS.H12,
+        groupBy: ["parent_id", "x_contact"],
+        domain: [["id", "in", [4, 5, 6, 9]]],
+    });
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    await click(".o_tl_col.o_tl_folded");
     await animationFrame();
-    await click(cell());
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+    await click(cellAt(indexOfDate("2026-11-14")));
     await animationFrame();
-    expect(queryAll(".o_tl_group_row")[0]).toHaveClass("o_tl_collapsed");
+    expect(".o_dialog").toHaveCount(0);
     await advanceTime(1050);
-    await click(cell());
+    await click(cellAt(indexOfDate("2026-11-14")));
     await animationFrame();
-    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+    expect(".o_dialog").toHaveCount(1);
 });
 
 test("002b A18: double click on an empty cell opens one dialog", async () => {
@@ -162,6 +224,31 @@ test("002b R7: a reload without a popover starts no lock", async () => {
     await animationFrame();
     await clickDate("2026-11-14");
     expect(title()).toBe("Plan");
+});
+
+test("A68 a click on a folded cell of a group row unfolds and starts the lock (R-T6-1)", async () => {
+    freezeTime();
+    timelineMock.unavailability = {
+        x_contact: Object.fromEntries(
+            [1, 2, 3].map((id) => [id, [{ start: at(3, "00:00"), stop: at(5, "00:00") }]])
+        ),
+    };
+    await mountTimeline({
+        arch: HOST_ARCHS.H12,
+        groupBy: ["parent_id", "x_contact"],
+        domain: [["id", "in", [4, 5, 6, 9]]],
+    });
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    await click(queryAll(".o_tl_group_row")[0].querySelector(".o_tl_folded_cell"));
+    await animationFrame();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+    await click(cellAt(indexOfDate("2026-11-14")));
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(0);
+    await advanceTime(1050);
+    await click(cellAt(indexOfDate("2026-11-14")));
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(1);
 });
 
 test("002b A18: a folded column unfolds in a group row without toggling it", async () => {
