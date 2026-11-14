@@ -7,21 +7,16 @@ built around the date of that zone with a zero offset, so the browser and the re
 what today is. A scenario that changes the database runs inside the test's own savepoint, which
 is rolled back after it: every test starts from the records of `setUpClass`.
 
-A tour that needs real pointer events asks for them through ``window.__tl_mouse``: a helper
-thread of the test sends the events with the Chrome DevTools protocol while the tour waits.
+A tour that needs real pointer events asks for them through ``window.__tl_mouse`` (see
+``timeline_real_pointer``).
 """
-import json
-import logging
 import os
-import threading
 import time
-from unittest.mock import patch
 
 from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
-from odoo.tests.common import ChromeBrowser
 
-_logger = logging.getLogger(__name__)
+from .timeline_real_pointer import RealPointerMixin
 
 HOST_ACTION = '/odoo/action-test_web_gantt.host_action_{}'
 PILL = 'test.web.gantt.pill'
@@ -29,43 +24,9 @@ DESKTOP = '1600x900'
 PHONE = '390x844'
 RESTRICTED = 'restricted_editor'
 
-PENDING_MOUSE = """(() => {
-    const request = window.__tl_mouse;
-    return request && window.__tl_mouse_done !== request.id ? JSON.stringify(request) : null;
-})()"""
-
-
-class MouseBridge(threading.Thread):
-    """Sends the mouse events a tour publishes on ``window.__tl_mouse`` as real ones."""
-
-    def __init__(self, browser):
-        super().__init__(daemon=True)
-        self.browser = browser
-        self.stopped = threading.Event()
-
-    def evaluate(self, expression):
-        res = self.browser._websocket_request('Runtime.evaluate', params={
-            'expression': expression, 'returnByValue': True,
-        })
-        return ((res or {}).get('result') or {}).get('value')
-
-    def run(self):
-        while not self.stopped.wait(.05):
-            try:
-                pending = self.evaluate(PENDING_MOUSE)
-                if not pending:
-                    continue
-                request = json.loads(pending)
-                for event in request['events']:
-                    self.browser._websocket_request('Input.dispatchMouseEvent', params=event)
-                    time.sleep(.03)
-                self.evaluate(f"window.__tl_mouse_done = {int(request['id'])}")
-            except Exception:  # noqa: BLE001 - the page is loading or already closed
-                _logger.debug('mouse bridge', exc_info=True)
-
 
 @tagged('post_install', '-at_install')
-class TestTimelineMultiTours(HttpCase):
+class TestTimelineMultiTours(RealPointerMixin, HttpCase):
 
     @classmethod
     def setUpClass(cls):
@@ -108,19 +69,7 @@ class TestTimelineMultiTours(HttpCase):
         self.browser_size = size
         self.touch_enabled = touch
         path = host if host.startswith('/') else HOST_ACTION.format(host)
-        original = ChromeBrowser._wait_code_ok
-
-        def wait_code_ok(browser, *args, **kwargs):
-            bridge = MouseBridge(browser)
-            bridge.start()
-            try:
-                return original(browser, *args, **kwargs)
-            finally:
-                bridge.stopped.set()
-                bridge.join(5)
-
-        with patch.object(ChromeBrowser, '_wait_code_ok', wait_code_ok):
-            self.start_tour(path, name, login=login)
+        self.start_tour_with_pointer(path, name, login=login)
 
     # -- notes on the earlier parts (R1) ---------------------------------------------------------
 

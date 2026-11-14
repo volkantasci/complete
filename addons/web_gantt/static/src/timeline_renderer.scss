@@ -6,6 +6,7 @@
 // inherited, so the headers, the cells, the total row and the pills all take it, and a press, a
 // move and a release inside one row header never select text nor start the drag of a selection.
 .o_tl_box {
+    -webkit-user-select: none; // stylelint-disable-line property-no-vendor-prefix
     user-select: none;
     position: relative;
     flex: 1 1 auto;
