@@ -401,13 +401,25 @@ tours.add("timeline_002b3_a5_phone", {
         {
             trigger: ".o_tl_row[data-row-id]",
             async run() {
-                const row = recordRows()[0];
+                // Beta / Undefined Contact: the row after the Beta group row
+                const beta = allRows().find(
+                    (element) => $(".o_tl_row_label", element)?.textContent === "Beta"
+                );
+                assert(beta, "the Beta group row");
+                const row = beta.nextElementSibling;
                 const grid = renderer();
                 const today = todayIndex();
                 await clickAt(cellPoint(row, today, 0));
                 assert(pickedCount() === 0, "a cell click picks nothing on the phone");
                 await until(() => $(".o_dialog .modal-title"), "the plan dialog");
                 assert($(".o_dialog .modal-title").textContent === "Plan", "002b's plan dialog opens");
+                // the search bar shows behind its toggle on the phone
+                $(".o_dialog .o_control_panel .oi[data-icon='search']").click();
+                await until(() => $(".o_dialog .o_searchview_facet"), "the search of the plan dialog");
+                assert(
+                    $(".o_dialog .o_searchview_facet").textContent.includes("Beta"),
+                    "the plan dialog's search starts with Parent Beta"
+                );
                 $(".o_dialog .btn-close, .o_dialog .o_form_button_cancel")?.click();
                 await until(() => !$(".o_dialog"), "the dialog closes");
                 await clickAt(centreOf($(".o_tl_col.o_tl_is_today")));
@@ -424,3 +436,174 @@ tours.add("timeline_002b3_a5_phone", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// The selection buttons (R8, R13; A9, A23, A37, A63)
+// ---------------------------------------------------------------------------------------------
+
+const buttonsBox = () => $(".o_multi_selection_buttons");
+const buttonTexts = () =>
+    $$(".o_multi_selection_buttons > button")
+        .map((button) => button.textContent.trim() || button.dataset.tooltip)
+        .join(",");
+const countShown = () => $(".o_multi_selection_buttons .o_selection_box b")?.textContent;
+
+/** A point of the cell under the middle of the pill of the first record row holding one pill. */
+function oneCellUnderOnePill() {
+    for (const row of recordRows()) {
+        const pills = $$(".o_tl_pill", row);
+        if (pills.length !== 1) {
+            continue;
+        }
+        const pill = pills[0].getBoundingClientRect();
+        const box = renderer().getBoundingClientRect();
+        if (pill.right <= box.left || pill.left >= box.right) {
+            continue;
+        }
+        const middle = (Math.max(pill.left, box.left) + Math.min(pill.right, box.right)) / 2;
+        const index = $$(".o_tl_cell", row).findIndex((cell) => {
+            const rect = cell.getBoundingClientRect();
+            return rect.left <= middle && middle < rect.right;
+        });
+        if (index >= 0) {
+            // the half of the cell under the middle of the pill
+            const cell = $$(".o_tl_cell", row)[index].getBoundingClientRect();
+            return cellPoint(row, index, middle >= cell.left + cell.width / 2 ? 1 : 0);
+        }
+    }
+    return null;
+}
+
+tours.add("timeline_002b3_a9_buttons_after_release", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                assert(!buttonsBox(), "no buttons before a selection");
+                const point = oneCellUnderOnePill();
+                assert(point, "a cell under the only pill of a row");
+                await clickAt(point);
+                await until(() => buttonsBox(), "the buttons");
+                assert(pickedCount() === 2, `a click picks two cells, got ${pickedCount()}`);
+                assert(countShown() === "1", `the count is ${countShown()}`);
+                assert(buttonTexts() === "Add,Delete", `the buttons are ${buttonTexts()}`);
+                assert(!$(".o_tl_multi_plan"), "no Plan with two cells");
+                // the group of buttons is in the middle of the control bar, on the line of the
+                // range buttons
+                const bar = $(".o_tl_controls").getBoundingClientRect();
+                const box = buttonsBox().getBoundingClientRect();
+                assert(
+                    Math.abs(box.left + box.width / 2 - (bar.left + bar.width / 2)) < 2,
+                    "the buttons are in the middle of the control bar"
+                );
+                assert(
+                    Math.abs(box.top + box.height / 2 - middleY($(".o_tl_today"))) < 2,
+                    "the buttons are on the line of the range buttons"
+                );
+                // the cross clears
+                $(".o_multi_selection_buttons .o_unselect_all").click();
+                await until(() => pickedCount() === 0 && !buttonsBox(), "the cross clears");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a23_plan_button", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const beta = allRows().find(
+                    (element) => $(".o_tl_row_label", element)?.textContent === "Beta"
+                );
+                assert(beta, "the Beta group row");
+                const row = beta.nextElementSibling;
+                const from = cellPoint(row, todayIndex(), 0);
+                const to = { x: from.x + 25, y: from.y };
+                await realMouse([
+                    ...holdEvents(from, [{ x: from.x + 12, y: from.y }, to]),
+                    ...releaseAt(to),
+                ]);
+                await until(() => buttonsBox(), "the buttons");
+                assert(pickedCount() === 1, `one cell is picked, got ${pickedCount()}`);
+                assert(countShown() === "0", `the count is ${countShown()}`);
+                assert(buttonTexts() === "Add,Plan", `the buttons are ${buttonTexts()}`);
+                $(".o_tl_multi_plan").click();
+                await until(() => $(".o_dialog .o_list_view .o_data_row"), "the plan dialog");
+                assert($(".o_dialog .modal-title").textContent === "Plan", "the plan dialog");
+                const facet = $(".o_dialog .o_searchview_facet");
+                assert(facet && facet.textContent.includes("Beta"), "the search starts with Parent Beta");
+                const names = $$(".o_dialog .o_data_row .o_data_cell[name='name']").map((cell) =>
+                    cell.textContent.trim()
+                );
+                assert(names.includes("Unscheduled"), `the dialog lists ${names}`);
+                document.dispatchEvent(
+                    new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })
+                );
+                await until(() => !$(".o_dialog"), "Escape closes the dialog");
+                assert(pickedCount() === 1, "Escape keeps the selection");
+                assert($(".o_tl_multi_plan"), "the buttons stay");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a37_restricted", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                assert(!$(".o_tl_button_add"), "no New button");
+                const point = oneCellUnderOnePill();
+                assert(point, "a cell under the only pill of a row");
+                await clickAt(point);
+                await until(() => buttonsBox(), "the count box");
+                assert(countShown() === "1", `the count is ${countShown()}`);
+                assert(buttonTexts() === "", `the buttons are ${buttonTexts()}`);
+                assert($(".o_multi_selection_buttons .o_unselect_all"), "the cross");
+                assert(pickedCount() === 2, "the selection works without rights");
+            },
+        },
+    ],
+});
+
+/**
+ * One tour of A63 for each set of options: a click on a cell under a pill, then a drawing inside
+ * one half day of the same cell; `many` and `one` are the buttons expected after each.
+ */
+function optionsTour(name, { many, one }) {
+    tours.add(name, {
+        steps: () => [
+            gridReady,
+            {
+                trigger: ".o_tl_row[data-row-id]",
+                async run() {
+                    const point = oneCellUnderOnePill();
+                    assert(point, "a cell under the only pill of a row");
+                    await clickAt(point);
+                    await until(() => buttonsBox(), "the buttons");
+                    assert(countShown() === "1", `the count is ${countShown()}`);
+                    assert(buttonTexts() === many, `a day shows "${buttonTexts()}", wanted "${many}"`);
+                    $(".o_multi_selection_buttons .o_unselect_all").click();
+                    await until(() => !buttonsBox(), "the cross clears");
+                    const to = { x: point.x + 25, y: point.y };
+                    await realMouse([
+                        ...holdEvents(point, [{ x: point.x + 12, y: point.y }, to]),
+                        ...releaseAt(to),
+                    ]);
+                    await until(() => buttonsBox(), "the buttons after a drawing");
+                    assert(pickedCount() === 1, `one cell, got ${pickedCount()}`);
+                    assert(buttonTexts() === one, `a cell shows "${buttonTexts()}", wanted "${one}"`);
+                },
+            },
+        ],
+    });
+}
+
+optionsTour("timeline_002b3_a63_create_delete_off", { many: "", one: "Plan" });
+optionsTour("timeline_002b3_a63_delete_off", { many: "Add", one: "Add,Plan" });
+optionsTour("timeline_002b3_a63_explicit_yes", { many: "Add,Delete", one: "Add,Plan,Delete" });
+optionsTour("timeline_002b3_a63_no_unlink_right", { many: "Add", one: "Add,Plan" });

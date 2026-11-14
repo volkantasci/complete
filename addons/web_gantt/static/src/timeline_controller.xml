@@ -57,6 +57,7 @@
                 </div>
             </t>
             <t t-else="">
+                <TimelineSelectionButtons t-if="this.props.archInfo.multiCreateView" reactive="this.pickedButtons"/>
                 <t t-call="web_gantt.TimelineStepButtons"/>
                 <t t-call="web_gantt.TimelineRangeMenu"/>
                 <t t-call="web_gantt.TimelineTodayButton"/>

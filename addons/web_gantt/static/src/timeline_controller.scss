@@ -4,6 +4,8 @@
     min-height: 0;
 
     .o_tl_controls {
+        // the selection buttons centre themselves in the bar (002b3 M4)
+        position: relative;
         padding: 0 16px 16px;
         column-gap: 4px;
 
@@ -52,6 +54,12 @@
             }
         }
     }
+}
+
+// The cross of the count box keeps an inert zero-size black ring (M7); the other values of the
+// selection buttons come from the Community component and the theme.
+.o_timeline_view .o_multi_selection_buttons .o_unselect_all {
+    box-shadow: 0 0 0 0 $o-tl-ring-black;
 }
 
 // The dates of the custom line are plain fields: a bottom line only, 4 px side padding (M73). The

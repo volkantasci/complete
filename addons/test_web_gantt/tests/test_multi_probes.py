@@ -187,3 +187,46 @@ class TimelineMultiProbes(TimelineProbeCase):
                         f"{friday}.getBoundingClientRect().left) < 1)")
                 self.check('M16', cell, scheme, viewport,
                            'highlight under Friday 13 of Beta / Douglas Fletcher')
+
+    # -- the selection buttons: M4 to M11 (R8) -----------------------------------------------------
+    #
+    # Elements read: M4 the Community root `.o_multi_selection_buttons`; M5, M6, M7 the count box
+    # `.o_selection_box .list-group-item`, its `b` and `.o_unselect_all`; M8 the Add button,
+    # M9 the Delete button and M10 its icon, M11 `.o_tl_multi_plan`.
+
+    BUTTONS = "document.querySelector('.o_multi_selection_buttons')"
+
+    def test_002b3_m4_m10_selection_buttons(self):
+        probes = ['M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h34'), scheme, viewport):
+                self.draw_h34(release=True)
+                root = self.BUTTONS
+                self.check('M4', root, scheme, viewport, 'the group of selection buttons')
+                self.check('M5', f"{root}.querySelector('.o_selection_box .list-group-item')",
+                           scheme, viewport, 'the count box')
+                self.check('M6', f"{root}.querySelector('.o_selection_box b')", scheme,
+                           viewport, 'the count number')
+                self.check('M7', f"{root}.querySelector('.o_unselect_all')", scheme, viewport,
+                           'the cross')
+                self.check('M8', f"{root}.querySelector('[data-tooltip=\"Add\"]')", scheme,
+                           viewport, 'the Add button')
+                delete = f"{root}.querySelector('[data-tooltip=\"Delete\"]')"
+                self.check('M9', delete, scheme, viewport, 'the Delete button')
+                self.check('M10', f"{delete}.querySelector('i')", scheme, viewport,
+                           'the bin icon')
+
+    def test_002b3_m11_plan_button(self):
+        for scheme, viewport in self.combos(['M11'], ('desktop',)):
+            with self.page(HOST.format('h34'), scheme, viewport):
+                self.mouse('mouseMoved', 560, 470)
+                self.mouse('mousePressed', 560, 470, button='left', buttons=1, clickCount=1)
+                for x in (570, 580, 585):
+                    self.mouse('mouseMoved', x, 470, button='left', buttons=1)
+                    time.sleep(.05)
+                self.mouse('mouseReleased', 585, 470, button='left', buttons=0, clickCount=1)
+                self.settle(400)
+                picked = self.js("document.querySelectorAll('.o_tl_cell_picked').length")
+                self.assertEqual(picked, 1)
+                self.check('M11', f"{self.BUTTONS}.querySelector('.o_tl_multi_plan')", scheme,
+                           viewport, 'the Plan button')

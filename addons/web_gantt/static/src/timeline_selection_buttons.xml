@@ -1,0 +1,15 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineSelectionButtons" t-inherit="web.MultiSelectionButtons" t-inherit-mode="primary">
+        <xpath expr="//button[@t-ref='this.addButtonRef']" position="attributes">
+            <attribute name="t-if">this.props.reactive.canAdd</attribute>
+        </xpath>
+        <xpath expr="//button[@t-ref='this.addButtonRef']" position="after">
+            <button t-if="this.props.reactive.canPlan" type="button" class="btn btn-secondary o_tl_multi_plan" t-on-click="() => this.props.reactive.onPlan()">Plan</button>
+        </xpath>
+        <xpath expr="//button[@data-tooltip='Delete']" position="attributes">
+            <attribute name="t-if">this.props.reactive.nbSelected > 0 and this.props.reactive.canDelete</attribute>
+        </xpath>
+    </t>
+</templates>

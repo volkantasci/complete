@@ -22,6 +22,7 @@ import { useSearchBarToggler } from "@web/search/search_bar/search_bar_toggler";
 import { standardViewProps } from "@web/views/standard_view_props";
 import { fixCustomDates } from "./timeline_dates";
 import { TimelineEditor } from "./timeline_editor";
+import { TimelineSelectionButtons } from "./timeline_selection_buttons";
 import { newButtonPeriod } from "./timeline_editing";
 
 const KIND_LABELS = {
@@ -71,6 +72,7 @@ export class TimelineController extends Component {
         DropdownItem,
         Layout,
         SearchBar,
+        TimelineSelectionButtons,
     };
     props = useProps({
         ...standardViewProps,
@@ -103,6 +105,7 @@ export class TimelineController extends Component {
             state: proxy({ count: 0, cellCount: 0, drawing: false, visible: false }),
             renderer: null,
         };
+        this.pickedButtons = this._makePickedButtons();
         this.editor = new TimelineEditor({
             env: this.env,
             model: this.model,
@@ -133,6 +136,75 @@ export class TimelineController extends Component {
             };
         });
     }
+
+    // ------------------------------------------------------------------------
+    // The selection buttons (002b3 R8, decision D3)
+    // ------------------------------------------------------------------------
+
+    /**
+     * The reactive object the Community buttons read. The counts and the visibility come from
+     * what the renderer published; the permissions are those of the view (Add: create, Plan: the
+     * plan option and edit, with one cell picked, Delete: delete).
+     */
+    _makePickedButtons() {
+        const archInfo = this.props.archInfo;
+        const state = this.selection.state;
+        const controller = this;
+        return proxy({
+            get visible() {
+                return state.visible;
+            },
+            get nbSelected() {
+                return state.count;
+            },
+            canAdd: archInfo.canCreate,
+            get canPlan() {
+                return archInfo.canPlan && state.cellCount === 1 && controller._pickedPlanBlock();
+            },
+            canDelete: archInfo.canDelete,
+            onAdd: (multiCreateData) => this._onPickedAdd(multiCreateData),
+            onCancel: () => this.selection.renderer?.clearPicked(),
+            onDelete: () => this._onPickedDelete(),
+            onPlan: () => this._onPickedPlan(),
+            multiCreateView: archInfo.multiCreateView,
+            resModel: this.props.resModel,
+            context: this.props.context || {},
+            get showMultiCreateTimeRange() {
+                const { startField, stopField } = controller.model.config;
+                const fields = controller.props.fields;
+                return (
+                    fields[startField]?.type === "datetime" && fields[stopField]?.type === "datetime"
+                );
+            },
+            multiCreateValues: this.props.state?.multiCreateValues,
+        });
+    }
+
+    /** The one picked cell of a record row, as the first block of the selection, or null. */
+    _pickedPlanBlock() {
+        const block = this.selection.renderer?.firstBlock();
+        return Boolean(block);
+    }
+
+    /** Plan: 002b's plan dialog for the row and the sub-column of the one picked cell (R13). */
+    _onPickedPlan() {
+        const renderer = this.selection.renderer;
+        const block = renderer?.firstBlock();
+        if (!block) {
+            return;
+        }
+        const { row } = renderer.rowOf(block.rowId);
+        return this.editor.planFor({
+            period: renderer.partPeriod(block.fromPart, block.toPart),
+            row,
+        });
+    }
+
+    /** Hook of the creation (the popover's Add), filled in by the creation step. */
+    _onPickedAdd(multiCreateData) {} // eslint-disable-line no-unused-vars
+
+    /** Hook of the deletion (after the confirmation), filled in by the deletion step. */
+    _onPickedDelete() {}
 
     // ------------------------------------------------------------------------
     // State read by the template

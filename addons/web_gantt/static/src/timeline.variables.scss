@@ -4,6 +4,9 @@
 // Values of the timeline view that match no theme role. The dark counterparts live in
 // timeline.variables.dark.scss, which the dark bundle places before this file.
 
+// The inert zero-size ring of the cross of the selection count box: black in both schemes (M7).
+$o-tl-ring-black: #000000 !default;
+
 // Highlight of the column of now: fill and the left and top border of its header.
 $o-tl-today-bg: #FFFAEB !default;
 $o-tl-today-border: #DCA665 !default;

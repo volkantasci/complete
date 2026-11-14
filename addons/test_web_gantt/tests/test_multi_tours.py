@@ -13,6 +13,7 @@ A tour that needs real pointer events asks for them through ``window.__tl_mouse`
 import os
 import time
 
+from lxml import etree
 from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
 
@@ -103,3 +104,67 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
 
     def test_a5_tour_phone(self):
         self._tour('h34', 'timeline_002b3_a5_phone', size=PHONE)
+
+    # -- the selection buttons (R8, R13) ---------------------------------------------------------
+
+    def test_a9_tour_buttons_after_release(self):
+        self._tour('h34', 'timeline_002b3_a9_buttons_after_release')
+
+    def test_a23_tour_plan_button(self):
+        self._tour('h34', 'timeline_002b3_a23_plan_button')
+
+    def test_a37_tour_restricted(self):
+        self._tour('h34', 'timeline_002b3_a37_restricted', login=RESTRICTED)
+
+    # -- A63: the view's create and delete options (decision D3) ---------------------------------
+
+    def _tl_option_action(self, options):
+        """An action like H34 on a copy of H33's view with ``options`` set on the root tag."""
+        base = self.env.ref('test_web_gantt.host_view_h33')
+        arch = etree.fromstring(base.arch)
+        for key, value in options.items():
+            arch.set(key, value)
+        view = self.env['ir.ui.view'].create({
+            'name': 'H33 options ' + ' '.join(f'{k}={v}' for k, v in options.items()),
+            'model': PILL,
+            'type': 'gantt',
+            'arch': etree.tostring(arch, encoding='unicode'),
+        })
+        action = self.env['ir.actions.act_window'].create({
+            'name': 'H33 options',
+            'res_model': PILL,
+            'view_mode': 'gantt,list,form',
+            'view_id': view.id,
+            'search_view_id': self.env.ref('test_web_gantt.host_view_h13').id,
+            'context': "{'group_by': ['parent_id', 'x_contact']}",
+        })
+        return f'/odoo/action-{action.id}'
+
+    def test_a63_tour_create_and_delete_off(self):
+        path = self._tl_option_action({'create': '0', 'delete': '0'})
+        self._tour(path, 'timeline_002b3_a63_create_delete_off')
+
+    def test_a63_tour_delete_off(self):
+        path = self._tl_option_action({'delete': '0'})
+        self._tour(path, 'timeline_002b3_a63_delete_off')
+
+    def test_a63_tour_explicit_yes_for_the_restricted_user(self):
+        path = self._tl_option_action({'create': '1', 'edit': '1', 'delete': '1'})
+        self._tour(path, 'timeline_002b3_a63_explicit_yes', login=RESTRICTED)
+
+    def test_a63_tour_no_unlink_right(self):
+        group = self.env['res.groups'].create({'name': 'Pill creators without unlink'})
+        self.env['ir.access'].create({
+            'name': 'Pill creators without unlink',
+            'model_id': self.env['ir.model']._get_id(PILL),
+            'group_id': group.id,
+            'operation': 'cru',
+        })
+        self.env['res.users'].create({
+            'name': 'Creator without unlink',
+            'login': 'creator_no_unlink',
+            'password': 'creator_no_unlink',
+            'group_ids': [Command.set([self.env.ref('base.group_user').id, group.id])],
+        })
+        path = self._tl_option_action({})
+        self._tour(path, 'timeline_002b3_a63_no_unlink_right', login='creator_no_unlink')
