@@ -211,10 +211,14 @@ export function serializeBound(value, fieldType) {
 
 function boundValues(bounds, placement) {
     const { startField, stopField, startIsDate, stopIsDate } = placement;
-    return {
+    const values = {
         [startField]: serializeBound(bounds.start, startIsDate ? "date" : "datetime"),
-        [stopField]: serializeBound(bounds.stop, stopIsDate ? "date" : "datetime"),
     };
+    // one field for both ends: the stop's value must not overwrite the start's
+    if (stopField !== startField) {
+        values[stopField] = serializeBound(bounds.stop, stopIsDate ? "date" : "datetime");
+    }
+    return values;
 }
 
 /** Value of a grouping field in the form `write` and `copy` accept. */

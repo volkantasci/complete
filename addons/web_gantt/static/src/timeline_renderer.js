@@ -64,6 +64,13 @@ const GROUP_ROW_HEIGHT = 40;
 /** Distance from the top of the selection to the top of its start badge (R5). */
 const BADGE_HEIGHT = 20;
 
+/** Width of a folded column, in pixels (M45). */
+const FOLDED_WIDTH = 36;
+/** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
+export const CELL_CLICK_LOCK = 1000;
+/** ... and this long after the popover closes, unless a lock already runs (R7). */
+export const POPOVER_CLOSE_LOCK = 250;
+
 /**
  * R5/R19: place the two time badges of a highlight (or a moved pill) `rect` inside `grid`.
  * Left to right: the start badge stands 20 px above the rectangle, its left edge at the
@@ -98,12 +105,6 @@ export function placeBoundBadges(grid, rect, header, rtl, startBadge, stopBadge)
     stopBadge.style.left = `${stopLeft - box.left}px`;
     stopBadge.style.top = `${stopTop - box.top}px`;
 }
-/** Width of a folded column, in pixels (M45). */
-const FOLDED_WIDTH = 36;
-/** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
-export const CELL_CLICK_LOCK = 1000;
-/** ... and this long after the popover closes, unless a lock already runs (R7). */
-export const POPOVER_CLOSE_LOCK = 250;
 
 /** The date with its weekday, as the language writes it (P2: "Saturday, November 7, 2026"). */
 function textOfDate(date) {
@@ -139,7 +140,6 @@ export class TimelineRenderer extends Component {
 
     setup() {
         this.ui = useService("ui");
-        this.notification = useService("notification");
         this._cache = { data: null, small: null, version: null, layout: null };
         // folded columns: the runs the user opened, by the index of their first column; reset when
         // the range or the scale changes. `state.version` makes a change redraw the grid.
@@ -901,9 +901,9 @@ export class TimelineRenderer extends Component {
     }
 
     /** The pointer enters a pill: its handles show, unless a gesture is on (R8). */
-    onPillEnter(pill) {
+    onPillEnter(pill, row) {
         if (!this.state.drag && this._drag.state === "idle") {
-            this.state.hover = pill.id;
+            this.state.hover = `${row.row.id}|${pill.id}`;
         }
     }
 
@@ -916,8 +916,8 @@ export class TimelineRenderer extends Component {
      * nothing is held. Each handle sits at one end; the pointer shape is the west or east one
      * (in a mirrored grid the start is on the right).
      */
-    handlesOf(pill) {
-        if (this.state.hover !== pill.id || this.state.drag || this._drag.state !== "idle") {
+    handlesOf(pill, row) {
+        if (this.state.hover !== `${row.row.id}|${pill.id}` || this.state.drag || this._drag.state !== "idle") {
             return [];
         }
         const { resizable } = this._pillState(pill);
@@ -956,8 +956,11 @@ export class TimelineRenderer extends Component {
     /** The view root takes the pointer shape of the gesture and shields the buttons (R2, M13). */
     _holdDrag(mode) {
         // what the edge scrolling needs is looked for once, not on every frame
-        this._gesture = null;
-        if (mode && this.rendererRef()) {
+        // (a change of mode inside one gesture, as Ctrl pressed during a move, keeps the ends read
+        // at the start: by then the drag's own drawing may have made the grid longer)
+        if (!mode) {
+            this._gesture = null;
+        } else if (!this._gesture && this.rendererRef()) {
             // the ends of the rows and columns, before the pill, the highlight and the badges are
             // drawn: the drag's own drawing must not let the grid scroll further (R14)
             const element = this.rendererRef();
@@ -1408,10 +1411,15 @@ export class TimelineRenderer extends Component {
         };
     }
 
+    /** Whether `pill`, as drawn in `row`, is the one the gesture holds (a record can stand in several rows). */
+    _isHeld(drag, pill, row) {
+        return drag?.pillId === pill.id && drag.startRowId === row.row.id;
+    }
+
     /** The class of a pill: the pill being held leaves a faded copy where it was (S1). */
-    pillClass(pill) {
+    pillClass(pill, row) {
         const drag = this.state.drag;
-        if (drag?.pillId !== pill.id) {
+        if (!this._isHeld(drag, pill, row)) {
             return pill.className;
         }
         // a resized pill is drawn with its new length; a moved one is drawn by its ghost
@@ -1419,9 +1427,9 @@ export class TimelineRenderer extends Component {
     }
 
     /** The place of a pill: its stored one, or the new length while its handle is held (R8.1). */
-    pillStyle(pill) {
+    pillStyle(pill, row) {
         const drag = this.state.drag;
-        if (drag?.pillId !== pill.id || !drag.resize) {
+        if (!this._isHeld(drag, pill, row) || !drag.resize) {
             return pill.style;
         }
         // the pill held by a handle is drawn as its box, one pixel around the body it has at
@@ -1520,11 +1528,10 @@ export class TimelineRenderer extends Component {
             placement
         );
         if (resizeIsInvalid(record, edge, value, placement)) {
-            this.notification.add(
+            editor.warn(
                 edge === "start"
                     ? _t("The start cannot come after the end.")
-                    : _t("The end cannot come before the start."),
-                { type: "warning" }
+                    : _t("The end cannot come before the start.")
             );
             return undefined;
         }

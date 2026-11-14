@@ -376,6 +376,7 @@ export class TimelinePillDrag {
         browser.clearTimeout(this._recentTimer);
         this._recentTimer = browser.setTimeout(() => {
             this._recent = false;
+            this._pairSwallowed = false;
         }, DOUBLE_CLICK_GUARD);
     }
 

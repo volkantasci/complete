@@ -311,6 +311,18 @@ export class TimelineEditor {
         return immediate ? model.trackWrite(task()) : model.queueWrite(task);
     }
 
+    /**
+     * A warning of this view (a gesture that cannot be applied): it goes when the view is left,
+     * like the notifications of the changes.
+     */
+    warn(message) {
+        if (this.model.disposed) {
+            return;
+        }
+        const close = this.services.notification.add(message, { type: "warning" });
+        this.model.onDispose(close);
+    }
+
     /** Close the notification of the last change, if it is still shown. */
     closeNotification() {
         this._current?.close();
@@ -335,6 +347,8 @@ export class TimelineEditor {
         }
         element.addEventListener("mouseleave", (event) => event.stopImmediatePropagation(), true);
         element.dispatchEvent(new MouseEvent("mouseenter"));
+        // a later entry of the pointer would freeze again and empty the bar: it is not passed on
+        element.addEventListener("mouseenter", (event) => event.stopImmediatePropagation(), true);
         // the freeze empties the bar; a full one shows that the notification waits
         const bar = element.querySelector(".o_notification_progress");
         if (bar) {
@@ -363,9 +377,6 @@ export class TimelineEditor {
                     name: _t("Undo"),
                     icon: "undo",
                     onClick: (ev) => {
-                        if (!ev) {
-                            return;
-                        }
                         // a second click while the undo runs does nothing; the notification stays
                         // (with its progress bar) until the server answers (R10)
                         if (!used) {

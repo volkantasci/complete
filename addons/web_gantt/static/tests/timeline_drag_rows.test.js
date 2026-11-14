@@ -3,11 +3,9 @@
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import {
     click,
-    dblclick,
     keyDown,
     keyUp,
     queryAll,
-    queryAllTexts,
     queryOne,
     queryRect,
     resize,
@@ -15,7 +13,7 @@ import {
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import {
     defineWebModels,
-    MockServer,
+    contains,
     mountView,
     onRpc,
     patchWithCleanup,
@@ -53,6 +51,10 @@ beforeEach(async () => {
         log.push({ call: "write", ids: args[0], values: args[1] });
         await gate;
     });
+    onRpc("gantt_undo_drag_drop", ({ args, kwargs }) => {
+        log.push({ call: "undo", ids: args[0], kind: kwargs.drag_kind, values: kwargs.values });
+        return true;
+    });
     onRpc("copy", async ({ args, kwargs }) => {
         log.push({ call: "copy", ids: args[0], default: kwargs.default });
         await gate;
@@ -62,7 +64,6 @@ beforeEach(async () => {
     });
     await resize({ width: 1600, height: 900 });
 });
-
 
 const PILL = { Design: 4, Build: 5, Review: 6, Plan: 9 };
 
@@ -230,6 +231,49 @@ test("A12 the Undefined tags row empties the tag list", async () => {
     await design.drop();
     await settle();
     expect(writes()).toEqual([{ call: "write", ids: [PILL.Design], values: { x_tags: false } }]);
+});
+
+test("M1 H4: the held instance of Build in the T1 row leaves its other row's pill in place", async () => {
+    await mountTimeline({ groupBy: ["x_tags"] });
+    expect(queryAll(`.o_tl_pill[data-pill-id="${PILL.Build}"]`)).toHaveLength(2);
+    const build = await pressPill(pillEl("Build", 0));
+    await build.over(rowEl("Host Tag 2"), 40);
+    expect(pillEl("Build", 0)).toHaveClass("o_tl_pill_origin");
+    expect(pillEl("Build", 1)).not.toHaveClass("o_tl_pill_origin");
+    await build.drop();
+    await settle();
+});
+
+test("A40 H4: Undo of a move between many-to-many rows gives the former tags back", async () => {
+    await mountTimeline({ groupBy: ["x_tags"] });
+    // Design from the T1 row to the T2 row, then Undo: T1 again
+    const design = await pressPill(pillEl("Design"));
+    await design.over(rowEl("Host Tag 2"));
+    await design.drop();
+    await settle();
+    log.length = 0;
+    await contains(".o_notification .o_notification_buttons button").click();
+    await settle();
+    const undone = log.filter((entry) => entry.call === "undo");
+    expect(undone).toHaveLength(1);
+    expect(undone[0].values.x_tags).toEqual([[6, 0, [1]]]);
+
+    // Build (T1 and T2) onto the Undefined Tags row, then Undo: T1 and T2 again
+    log.length = 0;
+    const none = queryAll(".o_tl_row[data-row-id]").find(
+        (row) => row.querySelector(".o_tl_row_label")?.textContent === "Undefined Tags"
+    );
+    const build = await pressPill(pillEl("Build", 0));
+    await build.over(none);
+    await build.drop();
+    await settle();
+    expect(writes()).toEqual([{ call: "write", ids: [PILL.Build], values: { x_tags: false } }]);
+    log.length = 0;
+    await contains(".o_notification .o_notification_buttons button").click();
+    await settle();
+    const second = log.filter((entry) => entry.call === "undo");
+    expect(second).toHaveLength(1);
+    expect(second[0].values.x_tags).toEqual([[6, 0, [1, 2]]]);
 });
 
 // ----------------------------------------------------------------------------

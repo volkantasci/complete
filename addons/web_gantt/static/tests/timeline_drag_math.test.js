@@ -124,6 +124,22 @@ test("A15 move to Beta by +2 sub-columns of 12 h, nothing the record holds", () 
     });
 });
 
+test("M8 a view with one field for both ends writes the start's value for a move", () => {
+    const one = { ...DT, stopField: DT.startField, stopIsDate: DT.startIsDate };
+    const design = record("2026-11-10T06:00", "2026-11-12T15:00");
+    const bounds = movedBounds(design, 2, { unit: "hours", amount: 24 }, one);
+    const values = moveWriteValues({
+        record: design,
+        bounds,
+        n: 2,
+        targetChain: {},
+        fields: FIELDS,
+        placement: one,
+    });
+    expect(Object.keys(values)).toEqual([DT.startField]);
+    expect(values[DT.startField]).toBe(serializeBound(bounds.start, "datetime"));
+});
+
 test("A16 DST: 06:00-07:30 Brussels moved +24 h keeps the local times", () => {
     mockTimeZone("Europe/Brussels");
     const dst = record("2027-03-27T06:00", "2027-03-27T07:30");

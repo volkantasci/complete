@@ -658,6 +658,47 @@ test("R35 a range switch while a write's reload is held does not block the next 
     expect(controller.model.data.range.kind).toBe("month");
 });
 
+test("R35 a write's reload that starts while a range switch is loading keeps the switch", async () => {
+    await mountTimeline();
+    const first = editor().applyChange(MOVE());
+    await animationFrame();
+    await animationFrame();
+    const held = holdReloads();
+    // the user switches the range; its load is held
+    const switching = controller.model.setKind("month");
+    await animationFrame();
+    expect(held).toHaveLength(1);
+    // a second write answers and its reload starts while the switch is loading
+    const second = editor().applyChange(MOVE_BUILD());
+    await animationFrame();
+    await animationFrame();
+    expect(held).toHaveLength(2);
+    held[0].resolve();
+    held[1].resolve();
+    await switching;
+    await first;
+    await second;
+    await animationFrame();
+    expect(controller.model.data.range.kind).toBe("month");
+});
+
+test("R10 M4 the progress bar of the clicked notification stays full when the pointer enters again", async () => {
+    await mountTimeline();
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    const gate = deferred();
+    undoGate = gate;
+    await contains(".o_notification .o_notification_buttons button").click();
+    await animationFrame();
+    const bar = queryOne(".o_notification .o_notification_progress");
+    expect(bar.style.width).toBe("100%");
+    queryOne(".o_notification").dispatchEvent(new MouseEvent("mouseenter"));
+    await animationFrame();
+    expect(bar.style.width).toBe("100%");
+    gate.resolve();
+    await animationFrame();
+});
+
 test("R10 the clicked notification stays while its undo is pending, even when the pointer leaves it", async () => {
     await mountTimeline();
     await editor().applyChange(MOVE());

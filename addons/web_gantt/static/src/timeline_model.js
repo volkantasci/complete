@@ -87,6 +87,7 @@ export class TimelineModel extends Model {
         this._targetRange = null;
         // the range asked by the last navigation whose answer is not committed yet
         this._requestedRange = null;
+        this._requestedOffset = null;
         this._timer = null;
         this._waiters = [];
         this._writes = new Set();
@@ -500,9 +501,13 @@ export class TimelineModel extends Model {
      * promise that never settled would hold back every caller, the writes queued behind it
      * included).
      */
-    async _reload({ range = this.range, offset = this.offset } = {}) {
+    async _reload({
+        range = this._requestedRange || this.range,
+        offset = this._requestedOffset ?? this.offset,
+    } = {}) {
         let request = this._request(range, offset);
         this._requestedRange = range;
+        this._requestedOffset = offset;
         const serial = (this._reloadSerial = (this._reloadSerial || 0) + 1);
         const latest = () => serial === this._reloadSerial;
         let result;
@@ -513,6 +518,7 @@ export class TimelineModel extends Model {
                 return;
             }
             this._requestedRange = null;
+            this._requestedOffset = null;
             throw error;
         }
         if (!latest()) {
@@ -529,6 +535,7 @@ export class TimelineModel extends Model {
                     return;
                 }
                 this._requestedRange = null;
+                this._requestedOffset = null;
                 throw error;
             }
             if (!latest()) {
@@ -536,6 +543,7 @@ export class TimelineModel extends Model {
             }
         }
         this._requestedRange = null;
+        this._requestedOffset = null;
         this._commit(request, result);
     }
 
