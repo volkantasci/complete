@@ -1,7 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from odoo.tests.common import TransactionCase
 
@@ -9,10 +9,11 @@ from odoo.tests.common import TransactionCase
 class TestHost(TransactionCase):
     def test_host_builder_creates_setup(self):
         Pill = self.env['test.web.gantt.pill']
-        before = Pill.search_count([])
         built = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
-        # 3 parents + 14 setup records + 4 mixed-type records
-        self.assertEqual(Pill.search_count([]) - before, 21)
+        # 3 parents + 14 setup records + 4 mixed-type records, whatever the database held before
+        pills = [key for key, record in built.items() if record._name == Pill._name]
+        self.assertEqual(len(pills), 21)
+        self.assertEqual(Pill.search_count([('id', 'in', [built[k].id for k in pills])]), 21)
         self.assertEqual(self.env['test.web.gantt.pill2'].search_count(
             [('id', 'in', [built[n].id for n in ('Day one', 'Three days', 'Next month')])]), 3)
         self.assertEqual(built['Build'].date_start, datetime(2026, 11, 12, 6, 0))
@@ -114,3 +115,67 @@ class TestHost(TransactionCase):
             Pill._gantt_progress_bar('x_contact', [1], None, None),
             {'1': {'value': 3, 'max_value': 8}})
         self.assertEqual(Pill._gantt_progress_bar('parent_id', [1], None, None), {})
+
+    def _host_snapshot(self, built):
+        snapshot = {}
+        for key, record in built.items():
+            if record._name in ('test.web.gantt.pill', 'test.web.gantt.pill2'):
+                snapshot[key] = {
+                    name: (value.ids if hasattr(value, 'ids') else value)
+                    for name in ('parent_id', 'date_start', 'date_stop', 'active')
+                    for value in [record[name]]}
+        return snapshot
+
+    def test_host_builder_keeps_ids(self):
+        Pill = self.env['test.web.gantt.pill']
+        Pill2 = self.env['test.web.gantt.pill2']
+        first = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        ids = {key: (record._name, record.id) for key, record in first.items()}
+        before = self._host_snapshot(first)
+        count, count2 = Pill.search_count([]), Pill2.search_count([])
+        again = Pill._tl_build_host_records(today='2026-11-19', tz_offset_hours=3)
+        self.assertEqual({key: (r._name, r.id) for key, r in again.items()}, ids)
+        self.assertEqual(Pill.search_count([]), count)
+        self.assertEqual(Pill2.search_count([]), count2)
+        # every date moved by exactly seven days, nothing else changed
+        shift = timedelta(days=7)
+        for key, row in self._host_snapshot(again).items():
+            for name, value in row.items():
+                old = before[key][name]
+                if name in ('date_start', 'date_stop') and old:
+                    old = old + shift
+                self.assertEqual(value, old, f'{key}.{name}')
+        self.assertEqual(again['Build'].date_start, datetime(2026, 11, 19, 6, 0))
+        self.assertEqual(again['Build'].date_stop, datetime(2026, 11, 21, 15, 0))
+        self.assertEqual(again['Build'].parent_id, again['Alpha'])
+        self.assertEqual(again['Build'].x_contact, again['C1'])
+        self.assertEqual(again['Build'].x_tags, again['T1'] | again['T2'])
+        self.assertEqual(again['Build'].x_color, 2)
+        self.assertEqual(again['Next month'].date_start.isoformat(), '2026-12-14')
+        self.assertEqual(again['MIX first'].x_day.isoformat(), '2026-11-08')
+
+    def test_host_builder_restores_changed_records(self):
+        Pill = self.env['test.web.gantt.pill']
+        built = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        review, unscheduled = built['Review'], built['Unscheduled']
+        review.write({
+            'parent_id': built['Gamma'].id, 'date_start': '2026-12-01 00:00:00',
+            'date_stop': '2026-12-02 00:00:00', 'active': False})
+        unscheduled.parent_id = False
+        again = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        self.assertEqual(again['Review'], review)
+        self.assertTrue(review.active)
+        self.assertEqual(review.parent_id, built['Alpha'])
+        self.assertEqual(review.date_start, datetime(2026, 11, 12, 10, 0))
+        self.assertEqual(review.date_stop, datetime(2026, 11, 12, 14, 0))
+        self.assertEqual(unscheduled.parent_id, built['Beta'])
+
+    def test_host_builder_recreates_deleted_record(self):
+        Pill = self.env['test.web.gantt.pill']
+        built = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        built['Test'].unlink()
+        again = Pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        self.assertTrue(again['Test'].exists())
+        self.assertEqual(again['Test'].parent_id, built['Beta'])
+        self.assertTrue(again['Test'].x_flagged)
+        self.assertEqual(again['Test'].create_uid, self.env.ref('base.user_admin'))
