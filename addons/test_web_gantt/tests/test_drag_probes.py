@@ -322,14 +322,14 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.check('M3', MOVED_BODY, scheme, viewport, 'body of the moved pill')
                 self.check('M5', FADED, scheme, viewport, 'copy left at the start')
                 self.check('M7', DROP, scheme, viewport, 'target highlight')
-                self.check_edge('M9', START_BADGE, scheme, viewport, 'start badge')
-                self.check_edge('M11', STOP_BADGE, scheme, viewport, 'stop badge', 'right')
+                self.check('M9', START_BADGE, scheme, viewport, 'start badge')
+                self.check('M11', STOP_BADGE, scheme, viewport, 'stop badge')
                 self.check('M13', VIEW, scheme, viewport, 'pointer shape')
                 self.release(x + 192, y)
                 self.wait_notification(True)
                 self.check('M14', NOTIFICATION, scheme, viewport, 'notification')
                 self.check('M16', NOTIFICATION_BAR, scheme, viewport, 'notification bar')
-                self.check_edge('M18', UNDO_BUTTON, scheme, viewport, 'Undo button', 'right')
+                self.check('M18', UNDO_BUTTON, scheme, viewport, 'Undo button')
                 self.click_js(UNDO_BUTTON)
                 self.wait_notification(False)
                 self.check('M20', NOTIFICATION, scheme, viewport, 'notification of the Undo')
@@ -346,13 +346,13 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.check('M4', MOVED_BODY, scheme, viewport, 'body of the moved pill')
                 self.check('M6', FADED, scheme, viewport, 'copy left at the start')
                 self.check('M8', DROP, scheme, viewport, 'target highlight')
-                self.check_edge('M10', START_BADGE, scheme, viewport, 'start badge')
-                self.check_edge('M12', STOP_BADGE, scheme, viewport, 'stop badge', 'right')
+                self.check('M10', START_BADGE, scheme, viewport, 'start badge')
+                self.check('M12', STOP_BADGE, scheme, viewport, 'stop badge')
                 self.touch_event('touchEnd', [])
                 self.wait_notification(True)
                 self.check('M15', NOTIFICATION, scheme, viewport, 'notification')
                 self.check('M17', NOTIFICATION_BAR, scheme, viewport, 'notification bar')
-                self.check_edge('M19', UNDO_BUTTON, scheme, viewport, 'Undo button', 'right')
+                self.check('M19', UNDO_BUTTON, scheme, viewport, 'Undo button')
                 self.click_js(UNDO_BUTTON)
                 self.wait_notification(False)
                 self.check('M21', NOTIFICATION, scheme, viewport, 'notification of the Undo')
@@ -372,6 +372,9 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.check('M23', NOTIFICATION_BAR, scheme, viewport, 'bar of the copy notice')
 
     def test_002b2_a24_m24_copy_phone(self):
+        # The table names no gesture for M24 beyond "after the copy of M12": the probe plays the
+        # phone copy of A24 (phone size, mouse, Ctrl held, "Plan" moved straight down into the
+        # Beta row of H2) and measures the bar of the notice after the answer.
         for scheme, viewport in self.combos(['M24'], ('phone',)):
             with self.visit('h2', scheme, viewport, touch=False):
                 x, y, _box = self.centre(self.pill('Plan'))
@@ -429,9 +432,8 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.press_and_move(hx, hy, right - 197, hy)
                 self.wait("!!document.querySelector('.o_tl_pill_resizing')")
                 self.settle()
-                self.check_edge('M29', STOP_BADGE, scheme, viewport, 'badge of the moved bound',
-                                'right')
-                self.check_edge('M31', START_BADGE, scheme, viewport, 'badge of the other bound')
+                self.check('M29', STOP_BADGE, scheme, viewport, 'badge of the moved bound')
+                self.check('M31', START_BADGE, scheme, viewport, 'badge of the other bound')
                 self.check('M33', VIEW, scheme, viewport, 'pointer shape')
                 self.check('M34', "document.querySelector('.o_tl_pill_resizing')", scheme,
                            viewport, 'resized pill')
@@ -447,9 +449,8 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.press_and_move(hx, hy, left + 80, hy, steps=1)
                 self.wait("!!document.querySelector('.o_tl_pill_resizing')")
                 self.settle()
-                self.check_edge('M30', START_BADGE, scheme, viewport, 'badge of the moved bound')
-                self.check_edge('M32', STOP_BADGE, scheme, viewport, 'badge of the other bound',
-                                'right')
+                self.check('M30', START_BADGE, scheme, viewport, 'badge of the moved bound')
+                self.check('M32', STOP_BADGE, scheme, viewport, 'badge of the other bound')
                 self.check('M35', "document.querySelector('.o_tl_pill_resizing')", scheme,
                            viewport, 'resized pill')
                 self.release(left + 80, hy)
@@ -464,7 +465,7 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.press_and_move(hx, hy, left - 192 + 4, hy)
                 self.wait("!!document.querySelector('.o_tl_pill_resizing')")
                 self.settle()
-                self.check_edge('M36', START_BADGE, scheme, viewport, 'badge of the moved bound')
+                self.check('M36', START_BADGE, scheme, viewport, 'badge of the moved bound')
                 self.check('M38', VIEW, scheme, viewport, 'pointer shape')
                 self.release(left - 192 + 4, hy)
                 self.wait_notification(True)
@@ -478,7 +479,7 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.press_and_move(hx, hy, left - 96 + 5, hy, steps=1)
                 self.wait("!!document.querySelector('.o_tl_pill_resizing')")
                 self.settle()
-                self.check_edge('M37', START_BADGE, scheme, viewport, 'badge of the moved bound')
+                self.check('M37', START_BADGE, scheme, viewport, 'badge of the moved bound')
                 self.release(left - 96 + 5, hy)
                 self.wait_notification(True)
 
@@ -528,12 +529,20 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.press_and_move(hx, hy, hx - 88, hy, steps=1)
                 self.wait("!!document.querySelector('.o_tl_pill_resizing')")
                 self.settle()
-                self.check_edge(badge_probe, STOP_BADGE, scheme, vp, 'stop badge', 'right')
+                self.check(badge_probe, STOP_BADGE, scheme, vp, 'stop badge')
                 self.release(hx - 88, hy)
                 self.wait("!!document.querySelector('.o_notification')")
                 self.settle(800)
-                self.check_edge(notification_probe, NOTIFICATION, scheme, vp,
-                                'warning notification', 'right')
+                if vp == 'desktop':
+                    # M47: 334 px wide because of the original's longer message; Complete's own
+                    # wording is shorter, so the notice keeps the minimum width of 288 px. What
+                    # the text does not decide (right edge, top, height, colours) is compared.
+                    self.check_edge(notification_probe, NOTIFICATION, scheme, vp,
+                                    'warning notification', 'right')
+                else:
+                    # M48: the full width of the phone does not depend on the text
+                    self.check(notification_probe, NOTIFICATION, scheme, vp,
+                               'warning notification')
                 self.check(bar_probe, NOTIFICATION_BAR, scheme, vp, 'bar of the warning')
 
     def test_002b2_a31_m45_m47_m49_invalid_resize_desktop(self):
@@ -599,10 +608,20 @@ class TimelineDragProbes(TimelineProbeCase):
                     const r = c.getBoundingClientRect();
                     return r.left <= x && x < r.right;
                 });
-                return column && column.dataset.date;
+                if (!column) { return null; }
+                const r = column.getBoundingClientRect();
+                return [column.dataset.date, (x - r.left) / r.width];
             })()""")
-            self.assertIn(middle, ('2027-01-10', '2027-01-11', '2027-01-12'),
-                          'the week range opens on the date in the middle of the scrolled year')
+            # The spec names Monday 11 January 2027 "in the middle". R18: the round trip may shift
+            # the moment by the rounding of the scroll position (7 hours per pixel on Year), never
+            # by a whole column; the capture's clock was 09:00, this probe's is 00:30 (one more
+            # pixel on Year). So the moment in the middle is compared, not only its day: within
+            # 15 hours of Monday 11 January 12:00.
+            day, share = middle
+            self.assertIn(day, ('2027-01-11', '2027-01-12'), f'the middle is on {day}')
+            hours = (24 if day == '2027-01-12' else 0) + 24 * share - 12
+            self.assertLessEqual(abs(hours), 15,
+                                 f'the middle is {day} at {share:.2f} of the day')
             self.click_js("document.querySelector('.o_tl_button_add')")
             self.wait("!!document.querySelector('.o_dialog .o_form_view')")
             self.settle(500)
