@@ -1,12 +1,12 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: web_enterprise
-slice: 001e-shell-polish
-spec_sha256: 6bbaae972f655b2e6947a29b670d57cd1e7ed67afdc9f921a7f7324a6085456c
+slice: 002b2-gantt-drag-resize
+spec_sha256: e1c151f4f9292aef67ea11069ad4ab2fc7dc3f4c7257d50953f500b5dd16cc67
 ee_build: "20261106"
 implementer_sessions:
-  - d276caf8-eff3-4d99-bb53-823ca75566db
-verifier_session: 9677f219-d958-44d9-8125-53e2c2c919e0
+  - d23d0704-f970-4e8b-a479-112999fef249
+verifier_session: 9967d882-d2f2-45e2-a914-41a0f29ff6ae
 overlap:
   ratio: 0.0016
   longest_run: 3
@@ -50,18 +50,79 @@ overlap:
     - file: addons/web_enterprise/static/tests/navbar.test.js
       line: 208
       reason: common test idiom
-audit_log_sha256: 6e3b09308cd0706708f9c6f3c3d1886b4d57318366cdc5e1f5f2d448f7655fa6
+audit_log_sha256: 9cf5aa6c39b754f5a2344b964a9471e099e05da9599355df16dc841923c08006
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-11"
-  implemented: "2026-11-11"
-  verified: "2026-11-11"
+  spec_approved: "2026-11-13"
+  implemented: "2026-11-14"
+  verified: "2026-11-14"
 approvals:
-  - "owner: spec package approved as written, with decisions D1-D9 taken at the release checkpoints of 001b and 001c on 2026-11-10 (2026-11-11)"
-  - "owner: verifier's polish item P1 promoted into the first rework round (2026-11-11)"
-  - "owner: verifier's polish item P2 promoted into the second rework round (2026-11-11)"
-  - "owner: release approved at CP-release after verification round 3, with the verifier's polish item P3 left for a later batch (2026-11-11)"
+  - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the second (2026-11-12)"
+  - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-13)"
+  - "before verification, the analyst answered the implementer's spec questions in the package, which changed its hash, in a step the owner started (2026-11-14)"
+  - "owner: after verification round 1, had the package corrected, decided D7 on the rework item F1, had F1 and the polish item P3 fixed, accepted the one new overlap match and the two Arabic unit words that equal the original's (P7, P5), and left the polish items P1, P2 and P6 for a later batch (2026-11-14)"
+  - "owner: release approved at CP-release after verification round 2 passed with no rework item and no new overlap match since round 1, with its one new polish item, P8, left for the next slice, 002b3 (2026-11-14)"
 earlier_slices:
+  - slice: 001e-shell-polish
+    spec_sha256: 6bbaae972f655b2e6947a29b670d57cd1e7ed67afdc9f921a7f7324a6085456c
+    ee_build: "20261106"
+    implementer_sessions:
+      - d276caf8-eff3-4d99-bb53-823ca75566db
+    verifier_session: 9677f219-d958-44d9-8125-53e2c2c919e0
+    overlap:
+      ratio: 0.0016
+      longest_run: 3
+      reviewed_matches:
+        - file: addons/web_enterprise/__manifest__.py
+          line: 35
+          reason: asset directive following the Community naming convention
+        - file: addons/web_enterprise/__manifest__.py
+          line: 56
+          reason: asset directive following the Community naming convention
+        - file: addons/web_enterprise/__manifest__.py
+          line: 57
+          reason: bundle interface the spec requires
+        - file: addons/web_enterprise/__manifest__.py
+          line: 60
+          reason: bundle interface the spec requires
+        - file: addons/web_enterprise/models/res_users.py
+          line: 9
+          reason: required interface
+        - file: addons/web_enterprise/models/res_users_settings.py
+          line: 10
+          reason: required interface
+        - file: addons/web_enterprise/static/src/navbar/navbar_patch.scss
+          line: 344
+          reason: generic declaration with a spec value
+        - file: addons/web_enterprise/static/src/theme/form.scss
+          line: 25
+          reason: Community selector name
+        - file: addons/web_enterprise/static/src/theme/overlays.scss
+          line: 85
+          reason: Community variable names set to a spec value
+        - file: addons/web_enterprise/static/src/theme/roles_dark.scss
+          line: 285
+          reason: Community theme variable set to a spec value
+        - file: addons/web_enterprise/static/src/theme/roles_light.scss
+          line: 460
+          reason: Community theme variable set to a spec value
+        - file: addons/web_enterprise/static/src/theme/search_panel.scss
+          line: 19
+          reason: Community selector name
+        - file: addons/web_enterprise/static/tests/navbar.test.js
+          line: 208
+          reason: common test idiom
+    audit_log_sha256: 6e3b09308cd0706708f9c6f3c3d1886b4d57318366cdc5e1f5f2d448f7655fa6
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-11"
+      implemented: "2026-11-11"
+      verified: "2026-11-11"
+    approvals:
+      - "owner: spec package approved as written, with decisions D1-D9 taken at the release checkpoints of 001b and 001c on 2026-11-10 (2026-11-11)"
+      - "owner: verifier's polish item P1 promoted into the first rework round (2026-11-11)"
+      - "owner: verifier's polish item P2 promoted into the second rework round (2026-11-11)"
+      - "owner: release approved at CP-release after verification round 3, with the verifier's polish item P3 left for a later batch (2026-11-11)"
   - slice: 001c-mobile-bridge
     spec_sha256: 5fbc051c1f446bde91226a4bcb1c1997b7dcef253c14748848f6d8358e66b0b7
     ee_build: "20261106"
