@@ -216,6 +216,11 @@ Small corrections to the look, all in the theme layer. Tests: `tests/test_polish
   the row background are as listed above.
 - **Phone tile box.** See the paragraph above the tests (4 px padding, name the
   content width).
+- **Search bar of list dialogs** (slice 002b2, `control_panel.scss`, tested in
+  `tests/test_theme_components.py`). Inside a dialog, the search bar is 33 px
+  tall (4 px padding, a 23 px field with 14 px text), with its border in the
+  focus colour at rest and a 16 px left padding. The bar of a page keeps its
+  37 px.
 
 ![The Language sheet on a phone](../../docs/assets/web_theme/34-language-sheet.mobile.png)
 
