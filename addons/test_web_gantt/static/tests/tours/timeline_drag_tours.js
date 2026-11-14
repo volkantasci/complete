@@ -518,7 +518,8 @@ tours.add("timeline_002b2_a66_delete_offline", {
                     assert(!writesOf(network).length, "a write was sent");
                     // the connection comes back
                     network.down = false;
-                    window.dispatchEvent(new Event("online"));
+                    const backOnline = new Event("online");
+                    window.dispatchEvent(backOnline);
                     await until(() => !$(".o_offline_systray"), "the offline indicator to go");
                     await until(
                         () =>

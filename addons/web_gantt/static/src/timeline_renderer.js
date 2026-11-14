@@ -1195,9 +1195,9 @@ export class TimelineRenderer extends Component {
             if (!cell) {
                 return null;
             }
-            const rect = cell.getBoundingClientRect();
+            const { left, right, width } = cell.getBoundingClientRect();
             const share = (part - index * parts) / parts;
-            return rtl ? rect.right - share * rect.width : rect.left + share * rect.width;
+            return (rtl ? right : left) + (rtl ? -share : share) * width;
         };
         const [a, b] = [x(from), x(to)];
         return a === null || b === null ? null : b - a;

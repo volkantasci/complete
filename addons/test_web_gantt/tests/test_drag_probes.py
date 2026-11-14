@@ -289,7 +289,7 @@ class TimelineDragProbes(TimelineProbeCase):
         """The middle of the part of a pill that lies right of the row header and on screen."""
         return self.js(f"""(() => {{
             const el = {element_js};
-            const box = el.getBoundingClientRect();
+            const box = Object.assign({{}}, el.getBoundingClientRect().toJSON());
             const header = document.querySelector('.o_tl_row_header');
             const edge = header ? header.getBoundingClientRect().right : 0;
             const left = Math.max(box.left, edge + 4, 0);

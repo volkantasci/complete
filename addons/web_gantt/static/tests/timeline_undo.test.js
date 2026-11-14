@@ -58,7 +58,8 @@ beforeEach(() => {
             throw new Error("Access denied");
         }
     });
-    onRpc("copy", ({ args, kwargs }) => {
+    onRpc("copy", (request) => {
+        const { args, kwargs } = request;
         log.push({ call: "copy", ids: args[0], default: kwargs.default, context: kwargs.context });
         if (refuse) {
             throw new Error("Access denied");
@@ -161,7 +162,7 @@ test("A38 an accepted move writes, reloads, then shows Dates changed with Undo",
     expect(".o_notification").toHaveClass("o_tl_notification");
     expect(".o_notification .o_notification_bar").toHaveClass("bg-success");
     expect(noticeText()).toEqual(["Dates changed"]);
-    expect(".o_notification .o_notification_buttons button").toHaveCount(1);
+    expect(queryAllTexts(".o_notification .o_notification_buttons button")).toEqual(["Undo"]);
     expect(".o_notification .o_notification_buttons button").toHaveText("Undo");
     expect(".o_notification .o_notification_buttons button i").toHaveAttribute(
         "data-icon",
