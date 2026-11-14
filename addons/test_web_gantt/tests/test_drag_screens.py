@@ -128,16 +128,6 @@ class TimelineDragScreens(TimelineProbeCase):
             return rows.slice(from + 1).find((r) => title(r) === {name!r});
         }})()"""
 
-    def _created_by_admin(self):
-        """The host records were made by the system user; the screens show them made by the
-        administrator (named as in the demo data), so the rows under each parent carry a
-        person's name."""
-        admin = self.env.ref('base.user_admin')
-        admin.partner_id.name = 'Mitchell Admin'
-        self.env.flush_all()
-        self.env.cr.execute('UPDATE test_web_gantt_pill SET create_uid = %s', [admin.id])
-        self.env.invalidate_all()
-
     # -- S4 (01): the handles ----------------------------------------------------------
 
     def test_s04_handles(self):
@@ -287,11 +277,20 @@ class TimelineDragScreens(TimelineProbeCase):
 
     def test_s07_readonly_grouping(self):
         def prepare(viewport, shot):
+            self.env.ref('base.user_admin').partner_id.name = 'Mitchell Admin'
+            self.env.flush_all()
             pill, parent = ('Design', 'Beta') if viewport == 'desktop' else ('Plan', 'Alpha')
             x, y = self.visible_middle(self.pill(pill))
             creator = self.env.ref('base.user_admin').name
             _rx, ry, _rbox = self.centre(self.child_row(parent, creator))
-            self.press_and_move(x, y, x, ry, steps=3)
+            if viewport == 'desktop':
+                # M51: pressed 5 px left of "Design"'s centre, moved to x 660, then to x 640 over
+                # the target row; the release points are 5 px off the border too
+                x, y = 640, 381
+                self.press_and_move(x, y, 660, y, steps=1)
+                self.mouse('mouseMoved', x, ry, button='left', buttons=1)
+            else:
+                self.press_and_move(x, y, x, ry, steps=3)
             self.settle()
             shot('47-readonly-refused')
             _gx, gy, _gbox = self.centre(self.row(parent))
@@ -301,7 +300,7 @@ class TimelineDragScreens(TimelineProbeCase):
             shot('48-group-target')
             self.release(x, gy)
             self.settle()
-        self.each('h30', prepare, touch=False, before=self._created_by_admin)
+        self.each('h30', prepare, touch=False)
 
     # -- S8 (17): right-to-left selection badges ------------------------------------------
 

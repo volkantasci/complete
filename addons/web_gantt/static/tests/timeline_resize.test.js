@@ -588,7 +588,7 @@ test("R9 a press and release on a handle without movement is a click: the popove
     expect(writes()).toHaveLength(0);
 });
 
-test("R8, A25 a pill narrower than 16 px is covered by its two 8 px handles, the end handle on top", async () => {
+test("R8, A25 a body narrower than 16 px (a pill narrower than 18 px) is covered by its two 8 px handles, the end handle on top", async () => {
     // a 15-minute sub-column of the Day scale is about 10 px wide
     await prepareReview(at(0, "13:00"), at(0, "13:15"));
     const arch = HOST_ARCHS.H1.replace(
@@ -636,9 +636,13 @@ test("A25 Month: Review (a 26 px pill) shows two 8 px handles, a press between t
     for (const handle of handles("Review")) {
         expect(queryRect(handle).width).toBe(8);
     }
-    // the free part between the handles is as wide as the body less 16 px (10 px on a 26 px pill)
-    const gap = body.width - 16;
-    expect(gap).toBeGreaterThan(0);
+    // the 26 px pill's body is 24 px (1 px inset each side); the handles stand at its two ends
+    // and 8 px are left between them
+    expect(near(body.width, 24, 0.5)).toBe(true);
+    const [startHandle, stopHandle] = handles("Review").map((handle) => queryRect(handle));
+    expect(near(startHandle.left, body.left, 0.5)).toBe(true);
+    expect(near(stopHandle.left, body.right - 8, 0.5)).toBe(true);
+    expect(near(stopHandle.left - startHandle.right, 8, 0.5)).toBe(true);
     const y = body.top + body.height / 2;
     const middle = { x: body.left + body.width / 2, y };
     expect(document.elementFromPoint(middle.x, middle.y)).not.toHaveClass("o_tl_handle");

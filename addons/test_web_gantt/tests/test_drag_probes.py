@@ -612,7 +612,15 @@ class TimelineDragProbes(TimelineProbeCase):
             with self.visit('h30', scheme, vp, touch=False):
                 x, y = self.visible_middle(self.pill(pill))
                 _rx, ry, _rbox = self.centre(self.row(row))
-                self.press_and_move(x, y, x, ry, steps=3)
+                if viewport == 'desktop':
+                    # M51: pressed 5 px left of "Design"'s centre (a sub-column border), moved to
+                    # x 660, then to x 640 over the target row; released there
+                    self.assertAlmostEqual(y, 381, delta=1)
+                    x, y = 640, 381
+                    self.press_and_move(x, y, 660, y, steps=1)
+                    self.mouse('mouseMoved', 640, ry, button='left', buttons=1)
+                else:
+                    self.press_and_move(x, y, x, ry, steps=3)
                 self.wait("!!document.querySelector('.o_tl_selection.o_tl_drop')")
                 self.settle()
                 self.check(probe, DROP, scheme, vp, 'target highlight on the group row')

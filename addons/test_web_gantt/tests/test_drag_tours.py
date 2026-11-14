@@ -255,6 +255,11 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h3', 'timeline_002b2_a72_release_on_own_group_row')
         self._restored()
 
+    def test_a13_tour_group_row_press_and_release(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h3', 'timeline_002b2_a13_group_row_press_and_release_h3')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
     # -- resizing with the handles (R8, R12, R15, R16) ------------------------------------------
 
     def _prepare_review(self, start_days, start_clock, stop_days, stop_clock):

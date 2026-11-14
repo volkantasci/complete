@@ -1565,14 +1565,30 @@ for (const copy of [false, true]) {
     });
 }
 
+/** Press "Design" 5 px left of its centre (on a sub-column border) at x 640, y 381 and move to x 660. */
+async function pressDesignOffBorder() {
+    const pill = await until(() => pillNamed("Design"), "Design");
+    const middle = centreOf(pill);
+    assert(
+        Math.abs(middle.x - 645) <= 1 && Math.abs(middle.y - 381) <= 1,
+        `Design is centred at ${middle.x}, ${middle.y}, not 645, 381`
+    );
+    pointer("pointerdown", 640, 381, { target: pill });
+    pointer("pointermove", 660, 381);
+    await frame();
+    await frame();
+    return { from: { x: 640, y: 381 }, end: { x: 660, y: 381 }, pointerType: "mouse", ctrl: false };
+}
+
 tours.add("timeline_002b2_a50_readonly_creator_rows", {
     steps: () => [
         gridReady,
         {
             trigger: ".o_tl_pill",
             async run() {
-                const today = todayIso();
-                const gesture = await holdAndMove("Review", { to: {} });
+                const before = await recordNamed("Design");
+                assert(before.parent_id[1] === "Alpha", "Design is not under Alpha");
+                const gesture = await pressDesignOffBorder();
                 // the creator row of Beta refuses: no highlight, no badge, a release does nothing
                 const creatorOfBeta = rowsOfGroup("Beta")[0];
                 await hoverRow(gesture, creatorOfBeta);
@@ -1582,15 +1598,27 @@ tours.add("timeline_002b2_a50_readonly_creator_rows", {
                 await gridSettled();
                 assert(!noticeText(), "a refused release gave a notification");
                 assert(!$(".o_tl_pill_moved"), "the moved pill stayed");
-                const record = await recordNamed("Review");
-                assert(record.parent_id[1] === "Alpha" && reviewAt(record, today), "Review changed");
-                // the Beta group row accepts: Parent only
-                const second = await holdAndMove("Review", { to: {} });
+                const record = await recordNamed("Design");
+                assert(
+                    record.parent_id[1] === "Alpha" &&
+                        record.date_start === before.date_start &&
+                        record.date_stop === before.date_stop,
+                    "Design changed"
+                );
+                // the Beta group row accepts: the highlight starts at x 357, Parent only
+                const second = await pressDesignOffBorder();
                 await hoverRow(second, groupRowNamed("Beta"));
                 assertAccepted(groupRowNamed("Beta"), 40, "the Beta group row");
+                const highlight = $(".o_tl_drop", groupRowNamed("Beta")).getBoundingClientRect();
+                assert(Math.abs(highlight.left - 357) <= 1, `the highlight starts at x ${highlight.left}`);
                 await releaseAndWait(second);
-                const moved = await recordNamed("Review");
-                assert(moved.parent_id[1] === "Beta" && reviewAt(moved, today), "not under Beta");
+                const moved = await recordNamed("Design");
+                assert(
+                    moved.parent_id[1] === "Beta" &&
+                        moved.date_start === before.date_start &&
+                        moved.date_stop === before.date_stop,
+                    "not under Beta, or the dates changed"
+                );
                 noticeButton("Undo").click();
                 await until(() => noticeText() === "Change undone", "the result of Undo");
             },
@@ -1706,6 +1734,112 @@ tours.add("timeline_002b2_a72_release_on_own_group_row", {
 });
 
 // ----------------------------------------------------------------------------
+// A13: presses and releases on a group row (R1, D7)
+// ----------------------------------------------------------------------------
+
+/**
+ * Press at (x0, y0), move to (x1, y1) in a few steps and release there, the way a browser reports
+ * it: the targets are what lies under the points, and the click (when the browser makes one) goes
+ * to the nearest element holding both of them.
+ */
+async function pressAndRelease([x0, y0], [x1, y1]) {
+    const first = document.elementFromPoint(x0, y0);
+    pointer("pointerdown", x0, y0, { target: first });
+    for (let i = 1; i <= 5; i++) {
+        pointer("pointermove", x0 + ((x1 - x0) * i) / 5, y0 + ((y1 - y0) * i) / 5);
+        await frame();
+    }
+    const last = document.elementFromPoint(x1, y1);
+    pointer("pointerup", x1, y1, { target: last });
+    let common = first;
+    while (common && !common.contains(last)) {
+        common = common.parentElement;
+    }
+    common?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, clientX: x1, clientY: y1, button: 0 })
+    );
+    await sleep(60);
+    await frame();
+}
+
+const alphaIsOpen = () => !groupRowNamed("Alpha").classList.contains("o_tl_collapsed");
+
+/** The gestures of A13 for one kind of press: [far, across a border, inside one cell]. */
+async function groupRowGestures(label, [far, border, inside], network) {
+    const writes = () => writesOf(network).length;
+    // two different cells (a 150 px move; a short move across a border): nothing
+    for (const [from, to] of [far, border]) {
+        await pressAndRelease(from, to);
+        assert(alphaIsOpen(), `${label}: ${from} to ${to} closed the Alpha group`);
+        assert(!$(".o_tl_pill_moved") && !$(".o_tl_drop"), `${label}: something is drawn`);
+        assert(!writes(), `${label}: a write was sent`);
+    }
+    // one cell, 100 px apart: the group closes, and the same gesture opens it again
+    await pressAndRelease(...inside);
+    assert(!alphaIsOpen(), `${label}: the same cell did not close the Alpha group`);
+    await pressAndRelease(...inside);
+    assert(alphaIsOpen(), `${label}: the same gesture did not open the Alpha group again`);
+    // a plain click, without a move
+    await pressAndRelease(inside[0], inside[0]);
+    assert(!alphaIsOpen(), `${label}: a plain click did not close the Alpha group`);
+    await pressAndRelease(inside[0], inside[0]);
+    assert(alphaIsOpen(), `${label}: a plain click did not open it again`);
+    assert(!writes(), `${label}: a write was sent`);
+}
+
+tours.add("timeline_002b2_a13_group_row_press_and_release_h3", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_group_row",
+            async run() {
+                const alpha = groupRowNamed("Alpha");
+                const bar = $(".o_tl_group_pill", alpha);
+                assert(bar, "no grey pill on the Alpha group row");
+                assert(getComputedStyle(bar).pointerEvents === "none", "the grey pill takes the pointer");
+                const rect = alpha.getBoundingClientRect();
+                const y = Math.round(rect.top + rect.height / 2);
+                const network = watchNetwork();
+                try {
+                    assert(Math.abs(y - 308) <= 1, `the Alpha group row is at y ${y}, not 308`);
+                    assert(
+                        document.elementFromPoint(400, y).classList.contains("o_tl_cell"),
+                        "no cell under the pill at x 400"
+                    );
+                    // on the grey pill: x 400 to 550; x 1100 to 1130; x 950 to 1050
+                    await groupRowGestures(
+                        "on the grey pill",
+                        [
+                            [[400, y], [550, y]],
+                            [[1100, y], [1130, y]],
+                            [[950, y], [1050, y]],
+                        ],
+                        network
+                    );
+                    // an empty part of the cells: the same points, 18 px above the pill's thin line
+                    const empty = y - 18;
+                    assert(
+                        document.elementFromPoint(400, empty).classList.contains("o_tl_cell"),
+                        "no cell above the pill at x 400"
+                    );
+                    await groupRowGestures(
+                        "on an empty part of the cells",
+                        [
+                            [[400, empty], [550, empty]],
+                            [[1100, empty], [1130, empty]],
+                            [[950, empty], [1050, empty]],
+                        ],
+                        network
+                    );
+                } finally {
+                    network.stop();
+                }
+            },
+        },
+    ],
+});
+
+// ----------------------------------------------------------------------------
 // Resizing with the handles (Task 13)
 // ----------------------------------------------------------------------------
 
@@ -1791,6 +1925,14 @@ tours.add("timeline_002b2_a25_handles_on_hover", {
                 for (const handle of $$(".o_tl_handle", pill)) {
                     assert(handle.getBoundingClientRect().width === 8, "a handle is not 8 px wide");
                 }
+                // at 1600 x 900 the handles stand at x 827 and 843: 8 px are left between them
+                const start = $(".o_tl_handle_start", pill).getBoundingClientRect();
+                const stop = $(".o_tl_handle_stop", pill).getBoundingClientRect();
+                assert(
+                    Math.abs(start.left - 827) <= 1 && Math.abs(stop.left - 843) <= 1,
+                    `the handles stand at x ${start.left} and ${stop.left}, not 827 and 843`
+                );
+                assert(Math.abs(stop.left - start.right - 8) <= 0.5, "the free part is not 8 px");
                 const middle = centreOf(pill);
                 assert(
                     !document.elementFromPoint(middle.x, middle.y).classList.contains("o_tl_handle"),
