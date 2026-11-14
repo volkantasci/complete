@@ -275,7 +275,6 @@ export class TimelineEditor {
                         ? _t("This copy could not be removed")
                         : _t("This change could not be undone"),
                     failed: !done,
-                    replaces: source,
                 }),
         }).then(Boolean);
     }
@@ -322,16 +321,13 @@ export class TimelineEditor {
     }
 
     /**
-     * R10: one notification of this view at a time; it replaces the previous one. Without an
-     * `undo` it is a result (no Undo button); `failed` makes it a danger one. Nothing is shown
-     * once the view is left. A result of an Undo (`replaces`: the notification it came from)
-     * does not close a notification of a newer change: it is shown beside it (R-T10-6).
+     * R10: one notification of this view at a time; it replaces the view's current one (the
+     * newest change's, which is the clicked one unless a newer change was made while its Undo was
+     * pending). Without an `undo` it is a result (no Undo button); `failed` makes it a danger
+     * one. Nothing is shown once the view is left.
      */
-    _notifyChange({ message, undo, failed = false, replaces }) {
-        const newer = replaces && this._current && this._current !== replaces;
-        if (!newer) {
-            this.closeNotification();
-        }
+    _notifyChange({ message, undo, failed = false }) {
+        this.closeNotification();
         if (this.model.disposed) {
             return;
         }
@@ -345,10 +341,10 @@ export class TimelineEditor {
                     name: _t("Undo"),
                     icon: "undo",
                     onClick: () => {
-                        // a second click while the undo runs does nothing; the used Undo goes
+                        // a second click while the undo runs does nothing; the notification stays
+                        // (with its progress bar) until the server answers (R10)
                         if (!used) {
                             used = true;
-                            this._closeIfCurrent(handle);
                             this.undoChange({ ...undo, source: handle });
                         }
                     },
@@ -356,9 +352,7 @@ export class TimelineEditor {
             ];
         }
         handle.close = this.services.notification.add(message, options);
-        if (!newer) {
-            this._current = handle;
-        }
+        this._current = handle;
     }
 
     /**

@@ -31,6 +31,8 @@ let undoAnswer;
 let writeGate;
 /** The server refuses writes / copies while set. */
 let refuse;
+/** Makes `gantt_undo_drag_drop` wait for the test, or null. */
+let undoGate;
 
 beforeEach(() => {
     mockTimeZone(3);
@@ -46,6 +48,7 @@ beforeEach(() => {
     undoAnswer = true;
     writeGate = null;
     refuse = false;
+    undoGate = null;
     timelineMock.beforeReply = () => {
         log.push("reload");
     };
@@ -65,8 +68,11 @@ beforeEach(() => {
             throw new Error("Access denied");
         }
     });
-    onRpc("gantt_undo_drag_drop", ({ args, kwargs }) => {
+    onRpc("gantt_undo_drag_drop", async ({ args, kwargs }) => {
         log.push({ call: "undo", ids: args[0], kind: kwargs.drag_kind, values: kwargs.values });
+        if (undoGate) {
+            await undoGate;
+        }
         return undoAnswer;
     });
 });
@@ -485,12 +491,38 @@ test("R-T10-2 an undo that fails with an error closes the notification of the ch
     expect(notices()).toHaveCount(0);
 });
 
-test("R-T10-6 the result of an older Undo does not close a newer change's notification", async () => {
+test("A44 R10 Undo does not close its notification: it stays with its bar until the answer, then the result replaces it", async () => {
+    await mountTimeline();
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    const gate = deferred();
+    undoGate = gate;
+    log.length = 0;
+    await contains(".o_notification .o_notification_buttons button").click();
+    await animationFrame();
+    // pending: the notification of the change is still shown, with its Undo and its bar
+    expect(noticeText()).toEqual(["Dates changed"]);
+    expect(".o_notification .o_notification_bar").toHaveCount(1);
+    expect(".o_notification .o_notification_buttons button").toHaveCount(1);
+    // a second click on the same Undo does nothing
+    await contains(".o_notification .o_notification_buttons button").click();
+    await animationFrame();
+    expect(calls("undo")).toHaveLength(1);
+    gate.resolve();
+    await animationFrame();
+    await animationFrame();
+    // the answer: the result stands in its place
+    expect(notices()).toHaveCount(1);
+    expect(noticeText()).toEqual(["Change undone"]);
+    expect(".o_notification .o_notification_buttons").toHaveCount(0);
+});
+
+test("A44 R10 a change made while an Undo is pending: its notification is the one the result replaces", async () => {
     await mountTimeline();
     await editor().applyChange(MOVE());
     await animationFrame();
     const release = holdWrites();
-    // a second change whose write is pending, then Undo of the first one
+    // a second change whose write is pending, then Undo of the first one: the undo waits behind it
     const second = editor().applyChange({
         kind: "resize",
         resId: pill("Build").id,
@@ -500,18 +532,23 @@ test("R-T10-6 the result of an older Undo does not close a newer change's notifi
     await animationFrame();
     await contains(".o_notification .o_notification_buttons button").click();
     await animationFrame();
-    // the used Undo went, nothing else is shown while both wait
-    expect(notices()).toHaveCount(0);
+    // the clicked notification stays while both wait
+    expect(noticeText()).toEqual(["Dates changed"]);
+    expect(".o_notification .o_notification_buttons button").toHaveCount(1);
+    const gate = deferred();
+    undoGate = gate;
+    writeGate = null;
     release();
     await second;
     await animationFrame();
     await animationFrame();
-    // the undo ran after the write; its result sits beside the newer change's notification
-    expect(noticeText().sort()).toEqual(["Change undone", "Dates changed"]);
-    expect(".o_notification:contains(Dates changed) .o_notification_buttons button").toHaveCount(1);
-    // the newer notification is still the one the next change closes
-    writeGate = null;
-    await editor().applyChange(MOVE());
+    // the newer change's notification stands, the undo is pending
+    expect(noticeText()).toEqual(["Dates changed"]);
+    expect(calls("undo")).toHaveLength(1);
+    gate.resolve();
     await animationFrame();
-    expect(noticeText().sort()).toEqual(["Change undone", "Dates changed"]);
+    await animationFrame();
+    // the result replaced the newer notification: never beside a change notification
+    expect(noticeText()).toEqual(["Change undone"]);
+    expect(notices()).toHaveCount(1);
 });

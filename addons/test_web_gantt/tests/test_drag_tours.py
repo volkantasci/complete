@@ -202,6 +202,10 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h1', 'timeline_002b2_a44_one_notification')
         self._restored()
 
+    def test_a44_tour_undo_pending(self):
+        self._tour('h1', 'timeline_002b2_a44_undo_pending')
+        self._restored()
+
     def test_a45_tour_phone_undo(self):
         self._tour('h1', 'timeline_002b2_a45_phone_undo', size='390x844', touch=True)
         self._restored()

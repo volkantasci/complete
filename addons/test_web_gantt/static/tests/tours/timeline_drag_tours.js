@@ -540,16 +540,19 @@ function doubleClick(element) {
 function watchNetwork() {
     const open = XMLHttpRequest.prototype.open;
     const send = XMLHttpRequest.prototype.send;
-    const network = { down: false, hold: false, held: [], log: [] };
-    // send the writes held so far (later ones stay held while `hold` is on)
+    const network = { down: false, hold: false, holdUndo: false, held: [], log: [] };
+    // send the requests held so far (later ones stay held while `hold` / `holdUndo` is on)
     network.release = () => network.held.splice(0).forEach((send) => send());
     XMLHttpRequest.prototype.open = function (method, url, ...rest) {
         this.__url = String(url);
         return open.call(this, method, url, ...rest);
     };
     XMLHttpRequest.prototype.send = function (payload) {
-        if (network.hold && /\/write$/.test(this.__url) && !this.__late) {
-            // a held server: the write waits until the tour releases it
+        const heldKind =
+            (network.hold && /\/write$/.test(this.__url)) ||
+            (network.holdUndo && /\/gantt_undo_drag_drop$/.test(this.__url));
+        if (heldKind && !this.__late) {
+            // a held server: the write (or the undo) waits until the tour releases it
             this.__late = true;
             network.held.push(() => XMLHttpRequest.prototype.send.call(this, payload));
             return;
@@ -1215,6 +1218,82 @@ tours.add("timeline_002b2_a44_one_notification", {
                 // restore Review
                 await gridSettled();
                 await moveReviewBack(today);
+            },
+        },
+    ],
+});
+
+const undosOf = (network) =>
+    network.log.filter((entry) => entry.url.endsWith("/gantt_undo_drag_drop"));
+
+tours.add("timeline_002b2_a44_undo_pending", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const today = todayIso();
+                const network = watchNetwork();
+                try {
+                    // Undo on a slow server: the notification stays, with its bar, until the answer
+                    await moveReviewOneDay();
+                    network.holdUndo = true;
+                    network.log.length = 0;
+                    noticeButton("Undo").click();
+                    await sleep(300);
+                    assert(noticeText() === "Dates changed", `pending: ${noticeText()}`);
+                    assert($(".o_notification .o_notification_progress"), "no bar while pending");
+                    assert(noticeButton("Undo"), "the Undo button went while pending");
+                    noticeButton("Undo").click();
+                    await sleep(100);
+                    network.holdUndo = false;
+                    network.release();
+                    await until(() => noticeText() === "Change undone", "the result of Undo");
+                    assert($$(".o_notification").length === 1, "the result stands beside a notice");
+                    assert(undosOf(network).length === 1, `${undosOf(network).length} undo calls`);
+                    await gridSettled();
+                    assert(reviewAt(await recordNamed("Review"), today), "Review is not back");
+                    // a change made before an Undo's answer: its notification is the one replaced
+                    await moveReviewOneDay();
+                    const plan = await until(() => pillNamed("Plan"), "Plan");
+                    const before = await recordNamed("Plan");
+                    network.hold = true;
+                    const gesture = await holdAndMove("Plan", {
+                        to: { x: centreOf(plan).x + 2 * partWidthOf() },
+                    });
+                    release(gesture);
+                    await sleep(300);
+                    noticeButton("Undo").click();
+                    await sleep(300);
+                    assert(noticeText() === "Dates changed", `both pending: ${noticeText()}`);
+                    network.log.length = 0;
+                    network.hold = false;
+                    network.holdUndo = true;
+                    network.release();
+                    await until(() => network.held.length === 1, "the undo sent after the write");
+                    await sleep(300);
+                    assert(noticeText() === "Dates changed", `undo pending: ${noticeText()}`);
+                    assert($$(".o_notification").length === 1, "two notices while pending");
+                    network.holdUndo = false;
+                    network.release();
+                    await until(() => noticeText() === "Change undone", "the result replaces the notice");
+                    assert($$(".o_notification").length === 1, "the result stands beside a notice");
+                    await gridSettled();
+                    assert(reviewAt(await recordNamed("Review"), today), "Review is not back (2)");
+                    const after = await recordNamed("Plan");
+                    assert(after.date_start !== before.date_start, "the move of Plan was not written");
+                    await rpc(`/web/dataset/call_kw/${PILL_MODEL}/write`, {
+                        model: PILL_MODEL,
+                        method: "write",
+                        args: [[before.id], { date_start: before.date_start, date_stop: before.date_stop }],
+                        kwargs: {},
+                    });
+                } finally {
+                    network.hold = false;
+                    network.holdUndo = false;
+                    network.release();
+                    network.stop();
+                }
             },
         },
     ],
