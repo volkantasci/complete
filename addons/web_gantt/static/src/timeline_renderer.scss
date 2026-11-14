@@ -632,6 +632,11 @@
     opacity: 0;
 }
 
+// the pill held by a handle: its box, one pixel around the body of the pill at rest (M34, M35)
+.o_tl_pill_resizing {
+    height: $o-tl-pill-height + 2px;
+}
+
 .o_tl_pill_faded,
 .o_tl_pill_moved {
     position: absolute;

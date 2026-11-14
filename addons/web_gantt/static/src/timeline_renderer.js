@@ -801,16 +801,7 @@ export class TimelineRenderer extends Component {
             ? grid.querySelector(".o_tl_title_cell")
             : element.closest(".o_tl_row").querySelector(".o_tl_row_header");
         const rtl = this._isRtl();
-        let rect = element.getBoundingClientRect();
-        if (drag?.resize) {
-            // the badges stand around the pill's box, one pixel outside its body (M29, M31)
-            rect = {
-                left: rect.left - PILL_INSET,
-                right: rect.right + PILL_INSET,
-                top: rect.top - PILL_INSET,
-                bottom: rect.bottom + PILL_INSET,
-            };
-        }
+        const rect = element.getBoundingClientRect();
         placeBoundBadges(grid, rect, header, rtl, startBadge, stopBadge);
         if (drag) {
             this._keepStopBadgeInside(grid, stopBadge, header, rtl);
@@ -1433,7 +1424,9 @@ export class TimelineRenderer extends Component {
         if (drag?.pillId !== pill.id || !drag.resize) {
             return pill.style;
         }
-        return `${this._spanStyle(drag.resize.from, drag.resize.to, this.data, PILL_INSET)}; top: ${pill.top}px`;
+        // the pill held by a handle is drawn as its box, one pixel around the body it has at
+        // rest (M34, M35); the badges stand against it (M29, M31)
+        return `${this._spanStyle(drag.resize.from, drag.resize.to, this.data, 0)}; top: ${pill.top - PILL_INSET}px`;
     }
 
     /** Style of the drop highlight in the row `descriptor`, or null when the target is elsewhere. */
