@@ -59,7 +59,7 @@ const DECORATION_ORDER = ["danger", "warning", "success", "info", "secondary"];
 const LINE_STEP = 25;
 // each side of a pill is one pixel inside its columns (the progress fill is 75 % of what is left)
 const PILL_INSET = 1;
-const LINE_GAP = 2;
+const LINE_GAP = 1;
 const GROUP_ROW_HEIGHT = 40;
 /** Distance from the top of the selection to the top of its start badge (R5). */
 const BADGE_HEIGHT = 20;
@@ -196,6 +196,14 @@ export class TimelineRenderer extends Component {
         this._gesture = null;
         this.popover = usePopover(TimelinePopover, {
             position: "bottom",
+            // the popover hangs from the box of the pill, one pixel outside its body (the pill's
+            // lane starts one pixel above the body: M5 of 002b2), as far from it as before
+            onPositioned: (element, { direction }) => {
+                const shift = { bottom: PILL_INSET, top: -PILL_INSET }[direction];
+                if (shift) {
+                    element.style.top = `${parseFloat(element.style.top) + shift}px`;
+                }
+            },
             // a click on the pill the popover hangs from is handled by the pill (it toggles)
             closeOnClickAway: (target) => !this._isPopoverAnchor(target),
             onClose: () => {
