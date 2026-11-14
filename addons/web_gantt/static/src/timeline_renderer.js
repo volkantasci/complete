@@ -297,19 +297,11 @@ export class TimelineRenderer extends Component {
                 right = Math.min(right, rect.left);
             }
         }
-        // the sticky headers stay at the top of the area, the rows scroll under them (R14)
+        // the scrolling area is the whole grid box, its sticky header rows included: the top zone
+        // lies over the column headers (R14, A53)
         const scroller = this._verticalScroller();
         const area = scroller.getBoundingClientRect();
-        let top = Math.max(area.top + scroller.clientTop, 0);
-        // one header of each row of headers is enough: they all end at the same place
-        for (const header of [
-            element.querySelector(".o_tl_col"),
-            element.querySelector(".o_tl_col_group"),
-        ]) {
-            if (header) {
-                top = Math.max(top, header.getBoundingClientRect().bottom);
-            }
-        }
+        const top = Math.max(box.top + element.clientTop, area.top + scroller.clientTop, 0);
         // a page that scrolls the rows ends at the window, a grid's own area at its own edge
         const end = area.top + scroller.clientTop + scroller.clientHeight;
         const bottom = scroller === element ? end : Math.min(end, window.innerHeight);

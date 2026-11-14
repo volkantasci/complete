@@ -341,6 +341,34 @@ describe("while a pill is held", () => {
         await review.cancel();
     });
 
+    test("A53 vertical: the top zone is the top 30 px of the grid box, over the column headers", async () => {
+        await resize({ width: 1600, height: 380 });
+        await mountTimeline({ groupBy: ["parent_id"] });
+        const element = renderer();
+        expect(element.scrollHeight).toBeGreaterThan(element.clientHeight);
+        const review = await pressMove("Review");
+        const top = queryRect(element).top + element.clientTop;
+        // the pointer is over the sticky column headers (they are inside the box)
+        const header = queryRect(queryAll(".o_tl_col")[0]);
+        expect(header.bottom).toBeGreaterThan(top + 10);
+        element.scrollTop = 150;
+        await animationFrame();
+        const scrolledDown = element.scrollTop;
+        expect(scrolledDown).toBeGreaterThan(0);
+        freezeTime();
+        // 40 px below the top of the box: outside the zone, nothing scrolls
+        await review.move(review.start.x, top + 40);
+        await advanceTime(250);
+        expect(element.scrollTop).toBe(scrolledDown);
+        // 10 px below the top of the box, over the headers: it scrolls up, about 104 px per 250 ms
+        await review.move(review.start.x, top + 10);
+        await advanceTime(250);
+        const up = scrolledDown - element.scrollTop;
+        expect(up).toBeGreaterThan(92);
+        expect(up).toBeLessThan(118);
+        await review.cancel();
+    });
+
     /** A short window, the rows scrolled to their end: the last row ends the grid. */
     async function mountAtLastRow() {
         await resize({ width: 1600, height: 380 });
