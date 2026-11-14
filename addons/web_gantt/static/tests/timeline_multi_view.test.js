@@ -196,6 +196,11 @@ test("002b3 A5: the phone keeps 002b", async () => {
     await click(cell);
     await animationFrame();
     expect(".o_dialog .modal-title").toHaveText("Plan");
+    // the search starts from the row's values: Parent Beta
+    // (on the phone the search bar shows behind its toggle)
+    await click(".o_dialog .o_control_panel .oi[data-icon='search']");
+    await animationFrame();
+    expect(".o_dialog .o_searchview_facet").toHaveText(/Beta/);
     expect(pickedCells()).toHaveCount(0);
     await contains(".o_dialog .btn-close, .o_dialog .o_form_button_cancel").click();
     await animationFrame();

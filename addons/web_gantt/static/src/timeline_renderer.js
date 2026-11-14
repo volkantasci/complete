@@ -205,7 +205,8 @@ export class TimelineRenderer extends Component {
                 };
             },
             axes: () => (this.isMultiSelect ? "xy" : "x"),
-            rowAt: (y, rowId) => this._rowIdAt(y, rowId),
+            // only a drawing over several rows needs the row under the pointer
+            rowAt: (y, rowId) => (this.isMultiSelect ? this._rowIdAt(y, rowId) : undefined),
             change: (selection) => this._setSelection(selection),
             commit: (selection) => this._commitSelection(selection),
             hold: (on) => this._hold(on),
@@ -301,6 +302,7 @@ export class TimelineRenderer extends Component {
             model.bus.removeEventListener("update", onUpdate);
             if (link && link.renderer === this) {
                 link.renderer = null;
+                Object.assign(link.state, { count: 0, cellCount: 0, drawing: false, visible: false });
             }
             this._selecting.destroy();
             this._drag.destroy();
@@ -682,7 +684,10 @@ export class TimelineRenderer extends Component {
             // the total row starts no lock and plans nothing, but a folded cell still opens
             if (cell.run !== undefined) {
                 ev.stopPropagation();
-                this._setRunOpen(cell.run, true);
+                // in multi-selection mode a folded cell does nothing (R6): only a header opens it
+                if (!this.isMultiSelect) {
+                    this._setRunOpen(cell.run, true);
+                }
             }
             return;
         }
