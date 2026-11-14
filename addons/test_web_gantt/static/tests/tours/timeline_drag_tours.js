@@ -2244,6 +2244,31 @@ tours.add("timeline_002b2_a48_lock_drag_and_drop_off", {
     ],
 });
 
+tours.add("timeline_002b2_a48_lock_finger", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const review = await recordNamed("Review");
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const from = centreOf(pill);
+                // a finger held 500 ms, then moved 32 px to the left in four steps
+                const gesture = await holdAndMove("Review", {
+                    to: { x: from.x - 32 },
+                    pointerType: "touch",
+                    hold: 500,
+                    stepPx: 8,
+                });
+                assertLocked("Review");
+                assert($(".o_tl_pill_moved .o_tl_pill").classList.contains("o_touch_bounce"), "no touch bounce");
+                await releaseLocked(gesture, { Review: review.date_start.slice(0, 10) });
+                assert((await recordNamed("Review")).date_start === review.date_start, "Review changed");
+            },
+        },
+    ],
+});
+
 tours.add("timeline_002b2_a48_lock_read_only", {
     steps: () => [
         gridReady,

@@ -198,6 +198,10 @@ export class TimelinePillDrag {
                 if (this.state === "pending") {
                     // the gesture starts with the first move: a release without one is a tap
                     this._press.armed = true;
+                    if (this._press.mode === "lock") {
+                        // a pill that cannot move shows its locked state at once (R11, R16)
+                        this._begin();
+                    }
                 }
             }, LONG_PRESS);
         }
@@ -402,6 +406,7 @@ export class TimelinePillDrag {
             rowId: press.rowId,
             target: press.target,
             offset: { x: press.x - press.x0, y: press.y - press.y0 },
+            touch: press.type === "touch",
         });
         if (mode.follows || mode.edge) {
             // R14: a move scrolls on both axes near an edge; a resize like a selection, on x

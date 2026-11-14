@@ -1264,11 +1264,12 @@ export class TimelineRenderer extends Component {
         }
         if (drawing.mode === "lock") {
             // R11: raised in place with the lock icon; no target, badge or highlight
-            const { pill, rowId } = drawing;
+            const { pill, rowId, touch } = drawing;
             const { span } = pill.record;
             this.state.drag = {
                 pillId: pill.id,
                 mode: "lock",
+                touch: Boolean(touch),
                 rowId: null,
                 startRowId: rowId,
                 fromPart: span.from,
@@ -1394,7 +1395,11 @@ export class TimelineRenderer extends Component {
         return {
             ...ghost,
             locked: Boolean(drag.lock),
-            className: drag.lock ? `${ghost.className} o_tl_pill_locked` : ghost.className,
+            // a finger on a locked pill makes it bounce a little, as the Community's own touch drag
+            // does (its `o_touch_bounce`)
+            className: drag.lock
+                ? `${ghost.className} o_tl_pill_locked${drag.touch ? " o_touch_bounce" : ""}`
+                : ghost.className,
             movedStyle: box(
                 inside(ghost.left + offset.x, ghost.width, grid?.offsetWidth),
                 inside(ghost.top + offset.y, ghost.height, grid?.offsetHeight)

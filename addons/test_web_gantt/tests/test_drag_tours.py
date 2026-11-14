@@ -310,6 +310,9 @@ class TestTimelineDragTours(HttpCase):
     def test_a48_tour_lock_drag_and_drop_off(self):
         self._tour('h31', 'timeline_002b2_a48_lock_drag_and_drop_off', size='390x844')
 
+    def test_a48_tour_lock_finger(self):
+        self._tour('h31', 'timeline_002b2_a48_lock_finger', size='390x844', touch=True)
+
     def test_a48_tour_lock_read_only(self):
         self._tour('h19', 'timeline_002b2_a48_lock_read_only')
 

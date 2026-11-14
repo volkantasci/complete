@@ -510,6 +510,59 @@ for (const [label, arch, edit] of [
     });
 }
 
+test("A48 R16 a finger held 500 ms on a locked pill (H31): the locked state, release writes nothing, no popover", async () => {
+    freezeTime();
+    mockTouch(true);
+    await resize({ width: 390, height: 844 });
+    await mountTimeline({ arch: timelineArch(`${BASE_ATTRS} disable_drag_drop="1"`) });
+    const rect = queryRect(pillEl("Review"));
+    const renderer = queryRect(".o_tl_renderer");
+    const x = Math.min(Math.max(rect.left + rect.width / 2, renderer.left + 5), renderer.right - 5);
+    const y = rect.top + rect.height / 2;
+    const finger = await drag(pillEl("Review"), { position: { x, y } });
+    // before the hold is over nothing is shown
+    await advanceTime(200);
+    expect(".o_tl_pill_lock").toHaveCount(0);
+    // after the 300 ms hold the locked state shows, without any move
+    await advanceTime(300);
+    await animationFrame();
+    const { raised, icon } = lockState("Review");
+    expect(icon).not.toBe(null);
+    expect(root()).toHaveClass("o_tl_drag_lock");
+    // the Community's small touch bounce
+    expect(raised.querySelector(".o_tl_pill")).toHaveClass("o_touch_bounce");
+    // moved 32 px to the left in four steps: still only the locked state
+    let at = x;
+    for (let i = 0; i < 4; i++) {
+        at -= 8;
+        const target = document.elementFromPoint(at, y) || queryOne(".o_tl_renderer");
+        await finger.moveTo(target, { position: { x: at, y } });
+        await advanceTime(120);
+        await animationFrame();
+    }
+    expect(".o_tl_pill_lock").toHaveCount(1);
+    expect(".o_tl_drop").toHaveCount(0);
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    await finger.drop();
+    await settle();
+    await advanceTime(1000);
+    expect(log).toHaveLength(0);
+    expect(".o_tl_pill_lock").toHaveCount(0);
+    expect(root()).not.toHaveClass("o_tl_dragging");
+    expect(".o_popover").toHaveCount(0);
+
+    // a release right after the hold, without any move: also no write and no popover
+    const still = await drag(pillEl("Review"), { position: { x, y } });
+    await advanceTime(500);
+    await animationFrame();
+    expect(".o_tl_pill_lock").toHaveCount(1);
+    await still.drop();
+    await settle();
+    await advanceTime(1000);
+    expect(log).toHaveLength(0);
+    expect(".o_popover").toHaveCount(0);
+});
+
 test("A49 Long task: icon at the pill's right end, outside the visible grid", async () => {
     await mountTimeline();
     const longTask = await pressPill("Long task");
