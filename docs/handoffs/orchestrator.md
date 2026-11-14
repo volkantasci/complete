@@ -34,12 +34,15 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
   - Run each container command as one plain command: no `cd`, no pipes, nothing combined with it.
   - Run module tests with the command in [isolation.md](../isolation.md#containers). Only the project's images and compose containers are allowed.
   - Never run a container as root.
+  - The output of a container run in the foreground can be cut off. Start a long run, such as a test suite, as a background command, wait for it inside the turn as "Long runs" says, and read its output file.
+  - A module that is already installed in a database runs no tests when `-i` names it again. Run its tests on a fresh database, or update it with `-u`.
   - A run that writes files through a container, such as screenshots or browser logs, leaves them owned by the container's user. Write them under one directory, and copy what you keep. If you cannot remove that directory afterwards, name it in your report: the owner's next command removes it.
 - **Long runs.** A subagent waits for its own long runs, such as screenshot batches and test suites, inside its turn, with a foreground command or a monitor. It never ends its turn while one is still running, because the harness may not wake it again. Put this rule into every dispatch that starts a long run.
 - **Names.** Use technical names only where `model.md` requires them. Give every other identifier a name of your own ([module-authoring.md](../module-authoring.md#naming)).
 - **Wording.** The spec's screenshots show the original's wording. Write every user-facing text in your own words, with the meaning the spec gives, except the texts the spec prescribes.
 - **Isolation files** (listed in [isolation.md](../isolation.md)) stay unchanged.
 - **Phase 0 infrastructure** (`tools/`, `docker/`, `.github/`): change it only if the slice needs it. Make each such change in its own commit, give the reason, and list it in your report.
+- **Other modules.** Change a file outside the slice's modules and `docs/` only if the slice needs it, for example an earlier slice's test that the slice's demo data moves. Make each such change in its own commit, and list its path and the reason in your report. The owner's next command stops on every such path that the coordinator has not allowed.
 - **Licensing:** follow [licensing.md](../licensing.md).
 
 ## Work
@@ -63,7 +66,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
 5. **Overlap report.** When every task is implemented and reviewed, and before the final review, stop.
    - Report with Status `OVERLAP_CHECK`, the module paths, and every spec question and ruling so far, in full and in spec language.
-   - The coordinator sends the spec questions to the analyst. The answers come back in the package, with a dated list of what changed, and replace your rulings on those points.
+   - The coordinator sends the spec questions to the analyst, with the rulings that fill a gap with a guess about behaviour. The answers come back in the package, with a dated list of what changed, and replace your rulings on those points.
    - The owner then runs the overlap report: the Complete paths and line numbers that match the reference, with no reference text. The coordinator resumes you with that list.
    - Rename or rewrite every listed line that `model.md` does not require. A listed line that the module's provenance record already lists as a reviewed match stays as it is. Then apply the package's changes, and continue with the next step.
 6. **Document:** the module README, the user documentation and the module's `static/description/index.html`.
@@ -90,6 +93,7 @@ Your final message is copied to the coordinator. Make it self-contained, write i
 - **Spec questions and rulings,** in spec language.
 - **Reviews:** fix rounds and the final verdict.
 - **Working tree:** the output of `git status --porcelain`, which must be empty. If a file is left that you cannot remove, give its path and the reason.
+- **Paths outside the slice's modules:** every changed file outside them and `docs/`, with its commit and the reason, or "none".
 - **For the verifier:**
   - the exact commands that create the demo database with the module and demo data, and that start Complete;
   - how the hosts of `acceptance.md` get into that database, and how a restricted user logs in;
