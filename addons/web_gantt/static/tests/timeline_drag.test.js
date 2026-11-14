@@ -53,6 +53,9 @@ beforeEach(async () => {
     onRpc("write", async ({ args }) => {
         log.push({ call: "write", ids: args[0], values: args[1] });
         await gate;
+        if (gate?.refuse) {
+            throw new Error("Access denied");
+        }
     });
     onRpc("copy", async ({ args, kwargs }) => {
         log.push({ call: "copy", ids: args[0], default: kwargs.default });
@@ -1034,6 +1037,25 @@ for (const mode of ["move", "copy"]) {
         expect(groupRow("Beta")).not.toHaveClass("o_tl_collapsed");
     });
 }
+
+test("R5 A11 a refused move leaves the closed group row closed", async () => {
+    freezeTime();
+    expect.errors(1);
+    await mountTimeline({ groupBy: ["parent_id", "x_contact"] });
+    await collapseGroup("Beta");
+    gate = Promise.resolve();
+    gate.refuse = true;
+    const review = await pressPill("Review");
+    const rect = queryRect(groupRow("Beta"));
+    await review.move(review.start.x + 2 * partWidth(), rect.top + rect.height / 2);
+    await review.drop();
+    await advanceTime(100);
+    await animationFrame();
+    expect(writes()).toHaveLength(1);
+    expect(groupRow("Beta")).toHaveClass("o_tl_collapsed");
+    expect(".o_notification").toHaveCount(0);
+    expect.verifyErrors(["RPC_ERROR: Access denied"]);
+});
 
 test("R7 R15 a refused copy leaves the closed group row closed", async () => {
     freezeTime();
