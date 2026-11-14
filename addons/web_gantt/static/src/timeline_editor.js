@@ -324,9 +324,10 @@ export class TimelineEditor {
     }
 
     /**
-     * The clicked notification stays until its Undo is answered: the Community component's own
-     * freeze (what its mouseenter does) stops the timer, and the leaving of the pointer, which
-     * would restart it, is not passed on. The element goes with the notification.
+     * The clicked notification stays until its Undo is answered. It relies on the Community's
+     * notification template, which binds `freeze` to `mouseenter` (it stops the autoclose timer)
+     * and `refresh` to `mouseleave` (it restarts it): a `mouseenter` is dispatched on the element
+     * and its `mouseleave` is not passed on. The element goes with the notification.
      */
     _holdOpen(element) {
         if (!element) {
@@ -334,6 +335,11 @@ export class TimelineEditor {
         }
         element.addEventListener("mouseleave", (event) => event.stopImmediatePropagation(), true);
         element.dispatchEvent(new MouseEvent("mouseenter"));
+        // the freeze empties the bar; a full one shows that the notification waits
+        const bar = element.querySelector(".o_notification_progress");
+        if (bar) {
+            bar.style.width = "100%";
+        }
     }
 
     /**
@@ -357,6 +363,9 @@ export class TimelineEditor {
                     name: _t("Undo"),
                     icon: "undo",
                     onClick: (ev) => {
+                        if (!ev) {
+                            return;
+                        }
                         // a second click while the undo runs does nothing; the notification stays
                         // (with its progress bar) until the server answers (R10)
                         if (!used) {

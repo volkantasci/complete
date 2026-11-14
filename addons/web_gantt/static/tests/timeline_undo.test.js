@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { queryAll, queryAllTexts, queryOne, waitFor } from "@odoo/hoot-dom";
-import { animationFrame } from "@odoo/hoot-mock";
+import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import {
     contains,
     defineWebModels,
@@ -570,4 +570,108 @@ test("A44 R10 an Undo clicked while an earlier change's write is pending is not 
     await animationFrame();
     await animationFrame();
     expect(notices()).toHaveCount(1);
+});
+
+/** Hold the replies of `get_gantt_data` from now on; `held[i]` answers the i-th one held. */
+function holdReloads() {
+    const held = [];
+    timelineMock.beforeReply = () => {
+        log.push("reload");
+        const gate = deferred();
+        held.push(gate);
+        return gate;
+    };
+    return held;
+}
+
+const MOVE_BUILD = () => ({
+    kind: "resize",
+    resId: pill("Build").id,
+    values: { date_stop: "2026-11-14 15:00:00" },
+    undo: { values: { date_stop: "2026-11-13 15:00:00" } },
+});
+
+for (const order of ["newer reload first", "undo's reload first"]) {
+    test(`R10 A44 an Undo's reload and a newer change's reload overlap (${order}): nothing hangs`, async () => {
+        await mountTimeline();
+        await editor().applyChange(MOVE());
+        await animationFrame();
+        const gate = deferred();
+        undoGate = gate;
+        await contains(".o_notification .o_notification_buttons button").click();
+        await animationFrame();
+        const held = holdReloads();
+        gate.resolve();
+        await animationFrame();
+        // the undo answered and asks for its reload
+        expect(held).toHaveLength(1);
+        const second = editor().applyChange(MOVE_BUILD());
+        await animationFrame();
+        await animationFrame();
+        // the write of the newer change answered and asks for its reload
+        expect(held).toHaveLength(2);
+        if (order === "newer reload first") {
+            held[1].resolve();
+            await animationFrame();
+            await animationFrame();
+            held[0].resolve();
+        } else {
+            held[0].resolve();
+            await animationFrame();
+            await animationFrame();
+            held[1].resolve();
+        }
+        await second;
+        await animationFrame();
+        await animationFrame();
+        // the clicked notification is gone, one stands, and the view's writes are all settled
+        expect(notices()).toHaveCount(1);
+        expect(noticeText()).toEqual([order === "newer reload first" ? "Change undone" : "Dates changed"]);
+        timelineMock.beforeReply = null;
+        await controller.model.whenWritesDone();
+        log.length = 0;
+        expect(await editor().applyChange(MOVE())).toBe(true);
+        expect(calls("write")).toHaveLength(1);
+    });
+}
+
+test("R35 a range switch while a write's reload is held does not block the next write", async () => {
+    await mountTimeline();
+    const held = holdReloads();
+    const first = editor().applyChange(MOVE());
+    await animationFrame();
+    await animationFrame();
+    expect(held).toHaveLength(1);
+    // the user switches the range: a newer load supersedes the write's reload
+    const switching = controller.model.setKind("month");
+    await animationFrame();
+    expect(held).toHaveLength(2);
+    held[1].resolve();
+    await switching;
+    held[0].resolve();
+    await first;
+    await animationFrame();
+    timelineMock.beforeReply = null;
+    log.length = 0;
+    expect(await editor().applyChange(MOVE_BUILD())).toBe(true);
+    expect(calls("write")).toHaveLength(1);
+    expect(controller.model.data.range.kind).toBe("month");
+});
+
+test("R10 the clicked notification stays while its undo is pending, even when the pointer leaves it", async () => {
+    await mountTimeline();
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    const gate = deferred();
+    undoGate = gate;
+    await contains(".o_notification .o_notification_buttons button").click();
+    await animationFrame();
+    queryOne(".o_notification").dispatchEvent(new MouseEvent("mouseleave"));
+    await advanceTime(5000);
+    await animationFrame();
+    expect(noticeText()).toEqual(["Dates changed"]);
+    gate.resolve();
+    await animationFrame();
+    await animationFrame();
+    expect(noticeText()).toEqual(["Change undone"]);
 });

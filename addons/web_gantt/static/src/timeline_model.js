@@ -9,7 +9,6 @@ import {
     serializeDateTime,
 } from "@web/core/l10n/dates";
 import { _t } from "@web/core/l10n/translation";
-import { KeepLast } from "@web/core/utils/concurrency";
 import { imageUrl } from "@web/core/utils/urls";
 import { addPropertyFieldDefs, Model } from "@web/model/model";
 import { formatFloat, formatInteger } from "@web/views/fields/formatters";
@@ -65,7 +64,6 @@ export class TimelineModel extends Model {
         this._view = null;
         this._focusVersion = 0;
         this._rangeKey = null;
-        this.keepLast = new KeepLast();
         this.displayMode = this.config.displayMode;
         if (["dense", "sparse"].includes(params.state?.displayMode)) {
             this.displayMode = params.state.displayMode;
@@ -496,25 +494,46 @@ export class TimelineModel extends Model {
         return { range, scaleId, period, offset: offset || 0, kwargs };
     }
 
+    /**
+     * Load the data of `range` and `offset` and show it. Only the newest request counts (002a R35):
+     * a request that was overtaken by a newer one settles quietly, without showing its data (a
+     * promise that never settled would hold back every caller, the writes queued behind it
+     * included).
+     */
     async _reload({ range = this.range, offset = this.offset } = {}) {
         let request = this._request(range, offset);
         this._requestedRange = range;
+        const serial = (this._reloadSerial = (this._reloadSerial || 0) + 1);
+        const latest = () => serial === this._reloadSerial;
         let result;
         try {
-            result = await this.keepLast.add(
-                this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs)
-            );
+            result = await this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs);
         } catch (error) {
+            if (!latest()) {
+                return;
+            }
             this._requestedRange = null;
             throw error;
+        }
+        if (!latest()) {
+            return;
         }
         if (request.offset > 0 && !result.groups.length) {
             // the page is past the end of what this range holds: back to the first page, so the
             // pager stays usable
             request = this._request(range, 0);
-            result = await this.keepLast.add(
-                this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs)
-            );
+            try {
+                result = await this.orm.call(this.resModel, "get_gantt_data", [], request.kwargs);
+            } catch (error) {
+                if (!latest()) {
+                    return;
+                }
+                this._requestedRange = null;
+                throw error;
+            }
+            if (!latest()) {
+                return;
+            }
         }
         this._requestedRange = null;
         this._commit(request, result);
