@@ -57,7 +57,8 @@ Hidden module, never installed in production. User documentation:
   tz_offset_hours=3)` creates the records the scenarios need, around today in a
   +3 hour browser time, among them the four **MIX** records (first, last,
   before, after) at 10:00 and 12:00 UTC on their day that exercise the mixed
-  views, including the same-day case. Demo data calls it; tests that need the records call it
+  views, including the same-day case. The administrator (`base.user_admin`) creates
+  every record, so the "Created by" rows of H30 and H32 carry that name. Demo data calls it; tests that need the records call it
   too (without demo data, as in CI).
 - **Hook override for tests**: `test.web.gantt.pill` overrides
   `_gantt_unavailability` and `_gantt_progress_bar`. When the system parameter

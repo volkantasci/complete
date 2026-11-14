@@ -89,7 +89,11 @@ class TimelineHostPill(models.Model):
 
     @api.model
     def _tl_build_host_records(self, today=None, tz_offset_hours=3):
-        """Create the records of the scratch host; times are browser-local."""
+        """Create the records of the scratch host; times are browser-local.
+
+        Every record is created by the administrator (`base.user_admin`).
+        """
+        self = self.with_user(self.env.ref('base.user_admin'))
         if today is None:
             today = (fields.Datetime.now() + timedelta(hours=tz_offset_hours)).date()
         elif isinstance(today, str):

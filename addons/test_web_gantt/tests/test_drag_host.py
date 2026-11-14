@@ -60,6 +60,13 @@ class TestTimelineDragHost(TransactionCase):
             self._context(32)['group_by'], ['parent_id', 'create_uid', 'x_contact'])
         self.assertEqual(self.env[PILL]._fields['create_uid'].readonly, True)
 
+    def test_host_records_are_created_by_the_administrator(self):
+        built = self.env[PILL]._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        admin = self.env.ref('base.user_admin')
+        pills = self.env[PILL].browse([r.id for r in built.values() if r._name == PILL])
+        self.assertTrue(pills)
+        self.assertEqual(pills.create_uid, admin)
+
     def test_rtl_user(self):
         user = self.env[PILL]._tl_rtl_user(self.env)
         admin = self.env.ref('base.user_admin')
