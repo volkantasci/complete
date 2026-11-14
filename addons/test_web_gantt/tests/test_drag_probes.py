@@ -252,6 +252,34 @@ class TimelineDragProbes(TimelineProbeCase):
             self.assertAlmostEqual(right, want, delta=0.5,
                                    msg=f'{probe} {scheme}/{viewport} right edge of {label}')
 
+    def check_notice(self, probe, scheme, viewport, label):
+        """A notification on a desktop: its width follows its message, from 288 to 600 px, and it
+        grows to the left from a fixed right edge (x 1584); the message stands on one line. Top,
+        height and colours are compared as given. On a phone the box spans 358 px whatever the
+        message and the whole row of the table is compared."""
+        if viewport != 'desktop':
+            self.check(probe, NOTIFICATION, scheme, viewport, label)
+            return
+        expected = self.probe_values(probe, scheme, viewport)
+        if expected is None:
+            return
+        rest = {k: v for k, v in expected.items() if k not in ('geometry.x', 'geometry.width')}
+        self.probe(probe, NOTIFICATION, scheme, viewport, rest, label)
+        box = self.geometry(NOTIFICATION)
+        self.assertAlmostEqual(box['geometry.x'] + box['geometry.width'], 1584, delta=0.5,
+                               msg=f'{probe} {scheme}/{viewport} right edge of {label}')
+        self.assertGreaterEqual(box['geometry.width'], 288 - 0.5,
+                                f'{probe} {scheme}/{viewport} width of {label}')
+        self.assertLessEqual(box['geometry.width'], 600 + 0.5,
+                             f'{probe} {scheme}/{viewport} width of {label}')
+        one_line = self.js("""(() => {
+            const text = document.querySelector('.o_notification .o_notification_content');
+            const line = parseFloat(getComputedStyle(text).lineHeight) ||
+                1.5 * parseFloat(getComputedStyle(text).fontSize);
+            return text.getBoundingClientRect().height <= line * 1.2;
+        })()""")
+        self.assertTrue(one_line, f'{probe} {scheme}/{viewport} message of {label} on one line')
+
     def centre(self, element_js):
         box = self.geometry(element_js)
         return (box['geometry.x'] + box['geometry.width'] / 2,
@@ -354,12 +382,12 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.check('M13', VIEW, scheme, viewport, 'pointer shape')
                 self.release(x + 192, y)
                 self.wait_notification(True)
-                self.check('M14', NOTIFICATION, scheme, viewport, 'notification')
+                self.check_notice('M14', scheme, viewport, 'notification')
                 self.check('M16', NOTIFICATION_BAR, scheme, viewport, 'notification bar')
                 self.check('M18', UNDO_BUTTON, scheme, viewport, 'Undo button')
                 self.click_js(UNDO_BUTTON)
                 self.wait_notification(False)
-                self.check('M20', NOTIFICATION, scheme, viewport, 'notification of the Undo')
+                self.check_notice('M20', scheme, viewport, 'notification of the Undo')
 
     def test_002b2_a17_m2_m4_m6_m8_m10_m12_m15_m17_m19_m21_move_phone(self):
         probes = ['M2', 'M4', 'M6', 'M8', 'M10', 'M12', 'M15', 'M17', 'M19', 'M21']
@@ -560,16 +588,9 @@ class TimelineDragProbes(TimelineProbeCase):
                 self.release(hx - 88, hy)
                 self.wait("!!document.querySelector('.o_notification')")
                 self.settle(800)
-                if vp == 'desktop':
-                    # M47: 334 px wide because of the original's longer message; Complete's own
-                    # wording is shorter, so the notice keeps the minimum width of 288 px. What
-                    # the text does not decide (right edge, top, height, colours) is compared.
-                    self.check_edge(notification_probe, NOTIFICATION, scheme, vp,
-                                    'warning notification', 'right')
-                else:
-                    # M48: the full width of the phone does not depend on the text
-                    self.check(notification_probe, NOTIFICATION, scheme, vp,
-                               'warning notification')
+                # M47 (desktop): the width follows the message, 288 to 600 px, fixed right edge;
+                # M48 (phone): the box spans 358 px whatever the message, compared in full
+                self.check_notice(notification_probe, scheme, vp, 'warning notification')
                 self.check(bar_probe, NOTIFICATION_BAR, scheme, vp, 'bar of the warning')
 
     def test_002b2_a31_m45_m47_m49_invalid_resize_desktop(self):
