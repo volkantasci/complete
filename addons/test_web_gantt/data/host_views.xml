@@ -592,6 +592,168 @@
         <field name="context">{'group_by': ['parent_id', 'create_uid', 'x_contact']}</field>
     </record>
 
+    <record id="host_form_template_one" model="ir.ui.view">
+        <field name="name">Template form of the pill</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="name" required="1"/>
+                    <field name="x_contact"/>
+                    <field name="x_tags" widget="many2many_tags"/>
+                    <field name="x_color"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <record id="host_form_template_two" model="ir.ui.view">
+        <field name="name">Template form of the dated pill</field>
+        <field name="model">test.web.gantt.pill2</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="name" required="1"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <record id="host_view_h33" model="ir.ui.view">
+        <field name="name">H33 Multi create</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" multi_create_view="test_web_gantt.host_form_template_one"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h35" model="ir.ui.view">
+        <field name="name">H35 Multi create dated</field>
+        <field name="model">test.web.gantt.pill2</field>
+        <field name="arch" type="xml">
+            <gantt string="Dated pills" date_start="date_start" date_stop="date_stop" default_range="week" plan="0" multi_create_view="test_web_gantt.host_form_template_two"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h36" model="ir.ui.view">
+        <field name="name">H36 Schedule</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" plan="0" schedule="1"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h38" model="ir.ui.view">
+        <field name="name">H38 Empty with sample and schedule</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" default_range="week" sample="1" date_start="date_start" date_stop="date_stop" schedule="1"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h39" model="ir.ui.view">
+        <field name="name">H39 Schedule without edit</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" edit="0" schedule="1"></gantt>
+        </field>
+    </record>
+
+    <record id="host_view_h40" model="ir.ui.view">
+        <field name="name">H40 Multi create and schedule</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" schedule="1" multi_create_view="test_web_gantt.host_form_template_one"></gantt>
+        </field>
+    </record>
+
+    <record id="host_action_h33" model="ir.actions.act_window">
+        <field name="name">H33 Multi create</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h33"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h34" model="ir.actions.act_window">
+        <field name="name">H34 Multi create by parent and contact</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h33"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id', 'x_contact']}</field>
+    </record>
+
+    <record id="host_action_h35" model="ir.actions.act_window">
+        <field name="name">H35 Multi create dated</field>
+        <field name="res_model">test.web.gantt.pill2</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h35"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h36" model="ir.actions.act_window">
+        <field name="name">H36 Schedule</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h37" model="ir.actions.act_window">
+        <field name="name">H37 Schedule by parent</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h38" model="ir.actions.act_window">
+        <field name="name">H38 Empty with sample and schedule</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h38"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=', 'no record has this name')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing is scheduled yet</p>
+            <p>Records with a start and a stop will show up here as bars on the timeline.</p>
+        </field>
+    </record>
+
+    <record id="host_action_h39" model="ir.actions.act_window">
+        <field name="name">H39 Schedule without edit</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h39"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h40" model="ir.actions.act_window">
+        <field name="name">H40 Multi create and schedule</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h40"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h41" model="ir.actions.act_window">
+        <field name="name">H41 Schedule by parent and creator</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id', 'create_uid']}</field>
+    </record>
+
     <menuitem id="host_menu_root" name="Gantt Host" sequence="900" groups="base.group_user"/>
     <menuitem id="host_menu_h1" name="H1 Main" parent="host_menu_root" action="host_action_h1" sequence="1"/>
     <menuitem id="host_menu_h2" name="H2 Main by parent" parent="host_menu_root" action="host_action_h2" sequence="2"/>
@@ -624,4 +786,13 @@
     <menuitem id="host_menu_h30" name="H30 By parent and creator" parent="host_menu_root" action="host_action_h30" sequence="30"/>
     <menuitem id="host_menu_h31" name="H31 No drag" parent="host_menu_root" action="host_action_h31" sequence="31"/>
     <menuitem id="host_menu_h32" name="H32 By parent, creator and contact" parent="host_menu_root" action="host_action_h32" sequence="32"/>
+    <menuitem id="host_menu_h33" name="H33 Multi create" parent="host_menu_root" action="host_action_h33" sequence="33"/>
+    <menuitem id="host_menu_h34" name="H34 Multi create by parent and contact" parent="host_menu_root" action="host_action_h34" sequence="34"/>
+    <menuitem id="host_menu_h35" name="H35 Multi create dated" parent="host_menu_root" action="host_action_h35" sequence="35"/>
+    <menuitem id="host_menu_h36" name="H36 Schedule" parent="host_menu_root" action="host_action_h36" sequence="36"/>
+    <menuitem id="host_menu_h37" name="H37 Schedule by parent" parent="host_menu_root" action="host_action_h37" sequence="37"/>
+    <menuitem id="host_menu_h38" name="H38 Empty with sample and schedule" parent="host_menu_root" action="host_action_h38" sequence="38"/>
+    <menuitem id="host_menu_h39" name="H39 Schedule without edit" parent="host_menu_root" action="host_action_h39" sequence="39"/>
+    <menuitem id="host_menu_h40" name="H40 Multi create and schedule" parent="host_menu_root" action="host_action_h40" sequence="40"/>
+    <menuitem id="host_menu_h41" name="H41 Schedule by parent and creator" parent="host_menu_root" action="host_action_h41" sequence="41"/>
 </odoo>

@@ -15,6 +15,7 @@ from . import (
     test_gantt_data,
     test_host,
     test_install,
+    test_multi_host,
     test_multi_probes,
     test_multi_tours,
     test_probes,

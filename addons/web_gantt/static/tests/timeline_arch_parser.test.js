@@ -142,3 +142,15 @@ test("002b R3: form_view_id and on_create parsed", () => {
     expect(none.formViewId).toBe(false);
     expect(none.onCreate).toBe(null);
 });
+
+test("002b3: multi_create_view and schedule are read", () => {
+    const config = parse(`multi_create_view="my_module.my_form" schedule="1"`);
+    expect(config.multiCreateView).toBe("my_module.my_form");
+    expect(config.canSchedule).toBe(true);
+    const off = parse(`schedule="0"`);
+    expect(off.canSchedule).toBe(false);
+    expect(parse(`schedule="False"`).canSchedule).toBe(false);
+    const defaults = parse("");
+    expect(defaults.multiCreateView).toBe("");
+    expect(defaults.canSchedule).toBe(false);
+});
