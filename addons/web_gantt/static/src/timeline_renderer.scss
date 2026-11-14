@@ -661,12 +661,17 @@
     position: relative;
     flex: none;
     align-self: center;
-    width: 14px;
+    // as wide as the glyph of its font (14.016 px at 14 px), 14 px tall
     height: 14px;
-    margin: 0 8px 0 0;
+    // the title ends where the icon starts: the icon takes the rest of the line (M39, M40)
+    margin: 0 8px 0 auto;
     font-size: 14px;
     line-height: 14px;
     color: #000000;
+}
+
+.o_tl_pill_locked > .o_tl_pill_title {
+    flex-grow: 0;
 }
 
 .o_tl_pill_moved {

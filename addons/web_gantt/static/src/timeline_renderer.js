@@ -1400,6 +1400,7 @@ export class TimelineRenderer extends Component {
         return {
             ...ghost,
             locked: Boolean(drag.lock),
+            className: drag.lock ? `${ghost.className} o_tl_pill_locked` : ghost.className,
             movedStyle: box(
                 inside(ghost.left + offset.x, ghost.width, grid?.offsetWidth),
                 inside(ghost.top + offset.y, ghost.height, grid?.offsetHeight)
