@@ -194,6 +194,20 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h2', 'timeline_002b2_a41_undo_copy')
         self._restored()
 
+    def test_a40_tour_undo_between_tag_rows(self):
+        self._tour('h4', 'timeline_002b2_a40_undo_between_tag_rows')
+        self.records['Design'].invalidate_recordset()
+        self.records['Build'].invalidate_recordset()
+        self.assertEqual(len(self.records['Design'].x_tags), 1)
+        self.assertEqual(len(self.records['Build'].x_tags), 2)
+
+    def test_a42_tour_undo_of_resize(self):
+        self._tour('h1', 'timeline_002b2_a42_undo_of_resize')
+        build = self.records['Build']
+        build.invalidate_recordset()
+        self.assertEqual(build.date_start.date(), self.today)
+        self.assertEqual((build.date_start.hour, build.date_start.minute), (9, 0))
+
     def test_a43_tour_undo_record_gone(self):
         self._tour('h2', 'timeline_002b2_a43_undo_record_gone')
         self.assertFalse(self.env[PILL].search([('name', 'like', '(copy)')]))

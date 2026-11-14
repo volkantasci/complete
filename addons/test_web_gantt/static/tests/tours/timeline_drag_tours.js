@@ -1478,6 +1478,44 @@ tours.add("timeline_002b2_a9_move_to_beta", {
     ],
 });
 
+tours.add("timeline_002b2_a40_undo_between_tag_rows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const tagsOf = async (name) => [...(await valuesOf(name, ["x_tags"])).x_tags].sort();
+                const sameTags = (left, right) => left.join() === right.join();
+                // Design from the first tag's row to the second tag's row, then Undo
+                const design = await tagsOf("Design");
+                assert(design.length === 1, `Design holds ${design.length} tags`);
+                let gesture = await holdAndMove("Design", { to: { y: middleOfRow("Host Tag 2") } });
+                release(gesture);
+                await until(() => noticeText()?.startsWith("Dates changed"), "the notification");
+                await gridSettled();
+                const moved = await tagsOf("Design");
+                assert(moved.length === 1 && !sameTags(moved, design), `Design holds ${moved}`);
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                await gridSettled();
+                assert(sameTags(await tagsOf("Design"), design), "Undo did not give the first tag back");
+                // Build (both tags) to the row without tags, then Undo: both tags again
+                const build = await tagsOf("Build");
+                assert(build.length === 2, `Build holds ${build.length} tags`);
+                gesture = await holdAndMove("Build", { to: { y: middleOfRow("Undefined Tags") } });
+                release(gesture);
+                await until(() => noticeText()?.startsWith("Dates changed"), "the second notification");
+                await gridSettled();
+                assert((await tagsOf("Build")).length === 0, "Build still holds tags");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the second result of Undo");
+                await gridSettled();
+                assert(sameTags(await tagsOf("Build"), build), "Undo did not give both tags back");
+            },
+        },
+    ],
+});
+
 async function closeGroupRow(name) {
     const row = groupRowNamed(name);
     $(".o_tl_row_header", row).click();
@@ -1853,6 +1891,32 @@ tours.add("timeline_002b2_a28_lengthen_at_start", {
                 assert(after.date_stop === build.date_stop, "the stop changed");
                 noticeButton("Undo").click();
                 await until(() => noticeText() === "Change undone", "the result of Undo");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b2_a42_undo_of_resize", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                const build = await recordNamed("Build");
+                const gesture = await pressHandle("Build", "start");
+                const start = pillNamed("Build").getBoundingClientRect().left - 1;
+                await dragHandleTo(gesture, start - 2 * partWidthOf() + 4);
+                release(gesture);
+                await until(() => noticeText(), "the notification");
+                await gridSettled();
+                const changed = await recordNamed("Build");
+                assert(changed.date_start !== build.date_start, "the resize wrote no start");
+                noticeButton("Undo").click();
+                await until(() => noticeText() === "Change undone", "the result of Undo");
+                await gridSettled();
+                const back = await recordNamed("Build");
+                assert(back.date_start === build.date_start, `the start is ${back.date_start}, not ${build.date_start}`);
+                assert(back.date_stop === build.date_stop, `the stop is ${back.date_stop}, not ${build.date_stop}`);
             },
         },
     ],
