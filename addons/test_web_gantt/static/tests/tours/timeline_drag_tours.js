@@ -1559,7 +1559,8 @@ tours.add("timeline_002b2_a27_shorten_at_end", {
                     const end = bodyRight("Build") + 1;
                     // 5 px before the border one day earlier than the end
                     await dragHandleTo(gesture, end - 2 * partWidthOf() - 5);
-                    assert(Math.abs(bodyRight("Build") - (end - 2 * partWidthOf() - 1)) <= 1, "the pill does not follow");
+                    // the pill held by a handle is its box, one pixel around the body
+                    assert(Math.abs(bodyRight("Build") - (end - 2 * partWidthOf())) <= 1, "the pill does not follow");
                     assert(
                         badgesNow()[0] === usBadge(today, "9:00 AM") &&
                             badgesNow()[1] === `${usBadge(addDays(today, 1), "6:00 PM")} (-24 hours)`,
@@ -1637,7 +1638,7 @@ tours.add("timeline_002b2_a31_invalid_warning", {
                     // one sub-column to the left: onto the middle border of the day
                     await dragHandleTo(gesture, rect.left - 1 + partWidthOf());
                     assert(
-                        Math.abs(pillNamed("Review").getBoundingClientRect().width - (partWidthOf() - 2)) <= 1,
+                        Math.abs(pillNamed("Review").getBoundingClientRect().width - partWidthOf()) <= 1,
                         "the pill does not show one sub-column"
                     );
                     assert(
