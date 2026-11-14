@@ -196,8 +196,10 @@ export class TimelineRenderer extends Component {
         this._gesture = null;
         this.popover = usePopover(TimelinePopover, {
             position: "bottom",
-            // the popover hangs from the box of the pill, one pixel outside its body (the pill's
-            // lane starts one pixel above the body: M5 of 002b2), as far from it as before
+            // the popover hangs from the box of the pill, one pixel around its body (the lane of
+            // a pill starts one pixel above the body: M5 of 002b2): below it, as far from the
+            // body as before; above it, two pixels higher than before (the body is one higher
+            // and the box's top one more)
             onPositioned: (element, { direction }) => {
                 const shift = { bottom: PILL_INSET, top: -PILL_INSET }[direction];
                 if (shift) {
