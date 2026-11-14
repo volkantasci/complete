@@ -1253,27 +1253,25 @@ tours.add("timeline_002b2_a44_undo_pending", {
                     assert(undosOf(network).length === 1, `${undosOf(network).length} undo calls`);
                     await gridSettled();
                     assert(reviewAt(await recordNamed("Review"), today), "Review is not back");
-                    // a change made before an Undo's answer: its notification is the one replaced
+                    // a change made after the Undo click: its notification is the one replaced
                     await moveReviewOneDay();
                     const plan = await until(() => pillNamed("Plan"), "Plan");
                     const before = await recordNamed("Plan");
-                    network.hold = true;
+                    network.log.length = 0;
+                    network.holdUndo = true;
+                    noticeButton("Undo").click();
+                    await until(() => network.held.length === 1, "the undo, sent at once");
+                    assert(noticeText() === "Dates changed", `undo pending: ${noticeText()}`);
+                    // another pill is moved while the undo is pending
                     const gesture = await holdAndMove("Plan", {
                         to: { x: centreOf(plan).x + 2 * partWidthOf() },
                     });
                     release(gesture);
-                    await sleep(300);
-                    noticeButton("Undo").click();
-                    await sleep(300);
-                    assert(noticeText() === "Dates changed", `both pending: ${noticeText()}`);
-                    network.log.length = 0;
-                    network.hold = false;
-                    network.holdUndo = true;
-                    network.release();
-                    await until(() => network.held.length === 1, "the undo sent after the write");
-                    await sleep(300);
-                    assert(noticeText() === "Dates changed", `undo pending: ${noticeText()}`);
+                    await until(() => writesOf(network).length === 1, "the write of Plan");
+                    await sleep(500);
+                    assert(noticeText() === "Dates changed", `the new notice: ${noticeText()}`);
                     assert($$(".o_notification").length === 1, "two notices while pending");
+                    assert(undosOf(network).length === 0, "the undo was answered");
                     network.holdUndo = false;
                     network.release();
                     await until(() => noticeText() === "Change undone", "the result replaces the notice");
@@ -1740,7 +1738,7 @@ tours.add("timeline_002b2_a25_handles_on_hover", {
                 await until(() => !$(".o_tl_handle"), "the handles to go");
             },
         },
-        // on Month "Review" is a 26 px pill: two 8 px handles, 10 px between them
+        // on Month "Review" fills a 26 px sub-column (a 24 px pill): two 8 px handles
         { trigger: ".o_tl_range_button", run: "click" },
         { trigger: ".o_tl_range_menu .o_tl_range_month", run: "click" },
         {
@@ -1748,8 +1746,8 @@ tours.add("timeline_002b2_a25_handles_on_hover", {
             async run() {
                 const pill = await until(() => pillNamed("Review"), "Review");
                 const body = pill.getBoundingClientRect();
-                // 26 px on the reference screen; the window of a tour is a little narrower
-                assert(body.width > 20 && body.width < 30, `Review is ${body.width} px wide`);
+                // the 26 px sub-column less the 1 px inset on each side of a pill
+                assert(Math.abs(body.width - 24) <= 0.5, `Review is ${body.width} px wide`);
                 pill.dispatchEvent(new MouseEvent("mouseenter"));
                 await until(() => $$(".o_tl_handle", pill).length === 2, "two handles");
                 for (const handle of $$(".o_tl_handle", pill)) {

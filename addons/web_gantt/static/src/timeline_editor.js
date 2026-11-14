@@ -264,6 +264,7 @@ export class TimelineEditor {
                     context: model.context,
                 }),
             reloadOnRefusal: true,
+            immediate: true,
             refused: () => this._closeIfCurrent(source),
             announce: (done) =>
                 this._notifyChange({
@@ -285,10 +286,10 @@ export class TimelineEditor {
      * `reloadOnRefusal` (errors of that reload ignored) and the rejection is passed on. Nothing
      * is reloaded or announced once the view is left.
      */
-    _queueChange({ send, reloadOnRefusal, refused, announce }) {
+    _queueChange({ send, reloadOnRefusal, refused, announce, immediate = false }) {
         const { model } = this;
         const reload = () => (model.disposed ? undefined : model.reload());
-        return model.queueWrite(async () => {
+        const task = async () => {
             let result;
             try {
                 result = await send();
@@ -305,7 +306,9 @@ export class TimelineEditor {
                 announce(result);
             }
             return result;
-        });
+        };
+        // an Undo is not one of the serialized writes (R15): it is sent at once (R10)
+        return immediate ? model.trackWrite(task()) : model.queueWrite(task);
     }
 
     /** Close the notification of the last change, if it is still shown. */
@@ -318,6 +321,19 @@ export class TimelineEditor {
         if (this._current && this._current === source) {
             this.closeNotification();
         }
+    }
+
+    /**
+     * The clicked notification stays until its Undo is answered: the Community component's own
+     * freeze (what its mouseenter does) stops the timer, and the leaving of the pointer, which
+     * would restart it, is not passed on. The element goes with the notification.
+     */
+    _holdOpen(element) {
+        if (!element) {
+            return;
+        }
+        element.addEventListener("mouseleave", (event) => event.stopImmediatePropagation(), true);
+        element.dispatchEvent(new MouseEvent("mouseenter"));
     }
 
     /**
@@ -340,11 +356,12 @@ export class TimelineEditor {
                 {
                     name: _t("Undo"),
                     icon: "undo",
-                    onClick: () => {
+                    onClick: (ev) => {
                         // a second click while the undo runs does nothing; the notification stays
                         // (with its progress bar) until the server answers (R10)
                         if (!used) {
                             used = true;
+                            this._holdOpen(ev?.currentTarget?.closest(".o_notification"));
                             this.undoChange({ ...undo, source: handle });
                         }
                     },

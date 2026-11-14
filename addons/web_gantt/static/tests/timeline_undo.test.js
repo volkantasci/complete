@@ -502,7 +502,7 @@ test("A44 R10 Undo does not close its notification: it stays with its bar until 
     await animationFrame();
     // pending: the notification of the change is still shown, with its Undo and its bar
     expect(noticeText()).toEqual(["Dates changed"]);
-    expect(".o_notification .o_notification_bar").toHaveCount(1);
+    expect(".o_notification .o_notification_progress").toHaveCount(1);
     expect(".o_notification .o_notification_buttons button").toHaveCount(1);
     // a second click on the same Undo does nothing
     await contains(".o_notification .o_notification_buttons button").click();
@@ -517,12 +517,42 @@ test("A44 R10 Undo does not close its notification: it stays with its bar until 
     expect(".o_notification .o_notification_buttons").toHaveCount(0);
 });
 
-test("A44 R10 a change made while an Undo is pending: its notification is the one the result replaces", async () => {
+test("A44 R10 a change made after the Undo click: its notification is the one the result replaces", async () => {
+    await mountTimeline();
+    await editor().applyChange(MOVE());
+    await animationFrame();
+    const gate = deferred();
+    undoGate = gate;
+    log.length = 0;
+    await contains(".o_notification .o_notification_buttons button").click();
+    await animationFrame();
+    // the undo is sent at once, outside the write queue; the clicked notification stays
+    expect(calls("undo")).toHaveLength(1);
+    expect(noticeText()).toEqual(["Dates changed"]);
+    // another pill is resized while the undo is pending: written and announced
+    await editor().applyChange({
+        kind: "resize",
+        resId: pill("Build").id,
+        values: { date_stop: "2026-11-14 15:00:00" },
+        undo: { values: { date_stop: "2026-11-13 15:00:00" } },
+    });
+    await animationFrame();
+    expect(calls("write")).toHaveLength(1);
+    expect(noticeText()).toEqual(["Dates changed"]);
+    expect(notices()).toHaveCount(1);
+    gate.resolve();
+    await animationFrame();
+    await animationFrame();
+    // the result replaced the newer change's notification: never beside a change notification
+    expect(noticeText()).toEqual(["Change undone"]);
+    expect(notices()).toHaveCount(1);
+});
+
+test("A44 R10 an Undo clicked while an earlier change's write is pending is not queued behind it", async () => {
     await mountTimeline();
     await editor().applyChange(MOVE());
     await animationFrame();
     const release = holdWrites();
-    // a second change whose write is pending, then Undo of the first one: the undo waits behind it
     const second = editor().applyChange({
         kind: "resize",
         resId: pill("Build").id,
@@ -530,25 +560,14 @@ test("A44 R10 a change made while an Undo is pending: its notification is the on
         undo: { values: { date_stop: "2026-11-13 15:00:00" } },
     });
     await animationFrame();
+    log.length = 0;
     await contains(".o_notification .o_notification_buttons button").click();
     await animationFrame();
-    // the clicked notification stays while both wait
-    expect(noticeText()).toEqual(["Dates changed"]);
-    expect(".o_notification .o_notification_buttons button").toHaveCount(1);
-    const gate = deferred();
-    undoGate = gate;
-    writeGate = null;
+    // the undo went out while the write is still held
+    expect(calls("undo")).toHaveLength(1);
     release();
     await second;
     await animationFrame();
     await animationFrame();
-    // the newer change's notification stands, the undo is pending
-    expect(noticeText()).toEqual(["Dates changed"]);
-    expect(calls("undo")).toHaveLength(1);
-    gate.resolve();
-    await animationFrame();
-    await animationFrame();
-    // the result replaced the newer notification: never beside a change notification
-    expect(noticeText()).toEqual(["Change undone"]);
     expect(notices()).toHaveCount(1);
 });
