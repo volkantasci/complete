@@ -120,6 +120,11 @@ export class Pill extends models.Model {
                 <t t-name="card"><div class="o_card_view_body"><field name="x_contact"/></div></t>
             </templates>
         </card>`,
+        "kanban,false": `<kanban>
+            <templates>
+                <t t-name="card"><div class="o_card_view_body"><field name="name"/></div></t>
+            </templates>
+        </kanban>`,
     };
 
     _records = (() => {

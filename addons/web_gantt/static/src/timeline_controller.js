@@ -97,6 +97,12 @@ export class TimelineController extends Component {
             viewId: this.env.config.viewId,
             state: this.props.state?.modelState,
         });
+        // what is picked in the grid (002b3 R9): the renderer fills `state` after every change and
+        // sets `renderer` while it is mounted (see the comment of the renderer class)
+        this.selection = {
+            state: proxy({ count: 0, cellCount: 0, drawing: false, visible: false }),
+            renderer: null,
+        };
         this.editor = new TimelineEditor({
             env: this.env,
             model: this.model,

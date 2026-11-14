@@ -519,6 +519,35 @@
     z-index: 0;
 }
 
+// A picked cell (002b3 R3, M1 to M3, M15, M16): the highlight of a selection over one sub-column of
+// a row, as tall as the row.
+.o_tl_cell_picked {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    background-color: $o-tl-selection-bg;
+    border: 0 solid $o-border-color;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-radius: 0;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+// Pointer shapes of the multi-selection mode (R15, M12 to M14): the thick plus over the cells of
+// the record rows, the hand over the headers; over pills the shapes of 002b2 stay.
+.o_tl_grid.o_tl_multi {
+    .o_tl_row:not(.o_tl_group_row):not(.o_tl_total_row) .o_tl_cell:not(.o_tl_folded_cell) {
+        cursor: cell;
+    }
+
+    .o_tl_row:not(.o_tl_total_row) .o_tl_row_header,
+    .o_tl_col {
+        cursor: pointer;
+    }
+}
+
 .o_tl_selection {
     position: absolute;
     top: 0;
@@ -577,6 +606,14 @@
     }
 
     @include o-tl-shield;
+}
+
+// Drawing over several cells (R15): the thick plus over the whole view.
+.o_timeline_view.o_tl_selecting.o_tl_drawing {
+    .o_content,
+    .o_content * {
+        cursor: cell !important; // stylelint-disable-line declaration-no-important
+    }
 }
 
 .o_tl_pill {

@@ -83,3 +83,23 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
 
     def test_a2_tour_group_header_gesture_phone(self):
         self._tour('h3', 'timeline_002b3_a2_group_header_gesture_phone', size=PHONE)
+
+    # -- selecting cells (R2 to R9, R15) ---------------------------------------------------------
+
+    def test_a9_tour_draw_over_rows(self):
+        self._tour('h34', 'timeline_002b3_a9_draw_over_rows')
+
+    def test_a12_tour_escape_cancels(self):
+        self._tour('h34', 'timeline_002b3_a12_escape_cancels')
+
+    def test_a16_tour_edge_scroll_both_axes(self):
+        self._tour('h34', 'timeline_002b3_a16_edge_scroll_both_axes', size='1600x420')
+
+    def test_a17_tour_column_headers(self):
+        self._tour('h34', 'timeline_002b3_a17_column_headers')
+
+    def test_a18_tour_row_headers(self):
+        self._tour('h34', 'timeline_002b3_a18_row_headers')
+
+    def test_a5_tour_phone(self):
+        self._tour('h34', 'timeline_002b3_a5_phone', size=PHONE)

@@ -102,3 +102,88 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.assertTrue(self.alpha_closed(), f'{scheme}: the gesture closed Alpha')
                 self.assertEqual(self.js('window.getSelection().toString()'), '')
                 self.check('M56p', ALPHA_LABEL, scheme, viewport, 'label of the Alpha header')
+
+    # -- selecting cells: M1 to M3, M12 to M16 (R3, R5, R15) ----------------------------------
+    #
+    # Elements read: M1, M2, M3, M15 and M16 read one `.o_tl_cell_picked` (the first one of the
+    # row they name, or the one under Friday 13 for M16); M12 an empty cell `.o_tl_cell` of a
+    # record row, M13 a row header `.o_tl_row_header`, M14 a column header `.o_tl_col`.
+
+    def row_after(self, title):
+        """The row that follows the group row titled ``title`` (its first sub row)."""
+        return (f"{self.row(title)}.nextElementSibling")
+
+    def picked_in(self, row_js):
+        return f"{row_js}.querySelector('.o_tl_cell_picked')"
+
+    def draw_h34(self, release):
+        """Press at (600, 470), move in steps to (790, 633) and hold; release when asked."""
+        self.mouse('mouseMoved', 600, 470)
+        self.mouse('mousePressed', 600, 470, button='left', buttons=1, clickCount=1)
+        for x, y in ((650, 500), (700, 560), (750, 600), (790, 633)):
+            self.mouse('mouseMoved', x, y, button='left', buttons=1)
+            time.sleep(.05)
+        self.settle(300)
+        if release:
+            self.mouse('mouseReleased', 790, 633, button='left', buttons=0, clickCount=1)
+            self.settle(300)
+
+    def click_at(self, x, y, modifiers=0):
+        self.mouse('mouseMoved', x, y, modifiers=modifiers)
+        self.mouse('mousePressed', x, y, button='left', buttons=1, clickCount=1,
+                   modifiers=modifiers)
+        self.mouse('mouseReleased', x, y, button='left', buttons=0, clickCount=1,
+                   modifiers=modifiers)
+        self.settle(400)
+
+    def test_002b3_m1_m3_drawing_and_selection(self):
+        probes = ['M1', 'M2', 'M3']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h34'), scheme, viewport):
+                beta = self.picked_in(self.row_after('Beta'))
+                self.draw_h34(release=False)
+                self.check('M1', beta, scheme, viewport, 'first highlight, button held')
+                self.draw_h34_release()
+                self.check('M2', beta, scheme, viewport, 'first highlight after release')
+                self.check('M3', self.picked_in(self.row('Gamma')), scheme, viewport,
+                           'highlight in the Gamma group row')
+
+    def draw_h34_release(self):
+        self.mouse('mouseReleased', 790, 633, button='left', buttons=0, clickCount=1)
+        self.settle(300)
+
+    def test_002b3_m12_m14_pointer_shapes(self):
+        for scheme, viewport in self.combos(['M12', 'M13', 'M14'], ('desktop',)):
+            with self.page(HOST.format('h34'), scheme, viewport):
+                self.click_at(452, 470)
+                picked = self.js("document.querySelectorAll('.o_tl_cell_picked').length")
+                self.assertTrue(picked > 0)
+                row = self.row_after('Beta')
+                monday = "document.querySelector('.o_tl_col[data-date=\"2026-11-09\"]')"
+                cell = f"{row}.querySelectorAll('.o_tl_cell')[{monday}.dataset.index * 1]"
+                self.check('M12', cell, scheme, viewport, 'an empty cell of a record row')
+                self.check('M13', f"{row}.querySelector('.o_tl_row_header')", scheme, viewport,
+                           'a row header')
+                self.check('M14', monday, scheme, viewport, 'the column header Monday 9')
+
+    def test_002b3_m15_column_selection(self):
+        for scheme, viewport in self.combos(['M15'], ('desktop',)):
+            with self.page(HOST.format('h34'), scheme, viewport):
+                self.click_at(452, 194)
+                self.click_at(835, 194, modifiers=8)
+                first_row = "document.querySelector('.o_tl_row[data-row-id]')"
+                self.check('M15', self.picked_in(first_row), scheme, viewport,
+                           'first highlight of the Undefined Parent group row')
+
+    def test_002b3_m16_row_selection(self):
+        for scheme, viewport in self.combos(['M16'], ('desktop',)):
+            with self.page(HOST.format('h34'), scheme, viewport):
+                self.click_at(100, 511)
+                # after the scroll of the row header click: the cell under Friday 13, first half
+                friday = "document.querySelector('.o_tl_col[data-date=\"2026-11-13\"]')"
+                row = f"({HEADERS.format(title='Host Contact 2')}.at(-1)).closest('.o_tl_row')"
+                cell = (f"[...{row}.querySelectorAll('.o_tl_cell_picked')].find((c) => "
+                        f"Math.abs(c.getBoundingClientRect().left - "
+                        f"{friday}.getBoundingClientRect().left) < 1)")
+                self.check('M16', cell, scheme, viewport,
+                           'highlight under Friday 13 of Beta / Douglas Fletcher')

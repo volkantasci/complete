@@ -203,3 +203,224 @@ tours.add("timeline_002b3_a2_group_header_gesture_phone", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Selecting cells (R2 to R9, R15)
+// ---------------------------------------------------------------------------------------------
+
+const MODIFIERS = { alt: 1, ctrl: 2, meta: 4, shift: 8 };
+const modifiersOf = (names) => names.reduce((sum, name) => sum + MODIFIERS[name], 0);
+const recordRows = () => $$(".o_tl_row[data-row-id]:not(.o_tl_group_row)");
+const allRows = () => $$(".o_tl_row[data-row-id]");
+const pickedCount = () => $$(".o_tl_cell_picked").length;
+const todayIndex = () => Number($(".o_tl_col.o_tl_is_today").dataset.index);
+/** Centre of the cell of column `index` in `row`; `half` 0 or 1 is the sub-column. */
+function cellPoint(row, index, half = 0) {
+    const rect = $$(".o_tl_cell", row)[index].getBoundingClientRect();
+    return { x: rect.left + (rect.width * (half + 0.5)) / 2, y: rect.bottom - 4 };
+}
+const centreOf = (element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+};
+
+/** A click (press and release without a move) with the keys held. */
+async function clickAt({ x, y }, keys = []) {
+    const modifiers = modifiersOf(keys);
+    await realMouse([
+        mouse("mouseMoved", x, y, { button: "none", buttons: 0, modifiers }),
+        mouse("mousePressed", x, y, { buttons: 1, clickCount: 1, modifiers }),
+        mouse("mouseReleased", x, y, { buttons: 0, clickCount: 1, modifiers }),
+    ]);
+}
+
+/** Events that press at `from`, then move in steps to every point of `path`, the button held. */
+function holdEvents(from, path) {
+    const events = [mouse("mouseMoved", from.x, from.y, { button: "none", buttons: 0 })];
+    events.push(mouse("mousePressed", from.x, from.y, { buttons: 1, clickCount: 1 }));
+    for (const point of path) {
+        events.push(mouse("mouseMoved", point.x, point.y, { buttons: 1 }));
+    }
+    return events;
+}
+const releaseAt = ({ x, y }) => [mouse("mouseReleased", x, y, { buttons: 0, clickCount: 1 })];
+
+/** Send events for real without waiting for the grid to settle (a held edge keeps it moving). */
+async function realMouseLive(events) {
+    const id = ++requests;
+    window.__tl_mouse = { id, events };
+    await until(() => window.__tl_mouse_done === id, "the real mouse events", 20000);
+}
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+tours.add("timeline_002b3_a9_draw_over_rows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const rows = allRows();
+                const first = recordRows()[0];
+                const start = rows.indexOf(first);
+                const last = rows[Math.min(start + 4, rows.length - 1)];
+                const column = todayIndex();
+                const from = cellPoint(first, column, 0);
+                const to = cellPoint(last, column + 1, 0);
+                await realMouse(holdEvents(from, [
+                    { x: from.x + 20, y: from.y },
+                    { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+                    to,
+                ]));
+                const rowsDrawn = rows.indexOf(last) - start + 1;
+                assert(pickedCount() === rowsDrawn * 3, `${pickedCount()} cells while held, wanted ${rowsDrawn * 3}`);
+                assert(!$(".o_tl_selection_badge"), "no badge while drawing");
+                assert(!$(".o_tl_pill_lock"), "no lock icon while drawing");
+                assert($(".o_timeline_view").classList.contains("o_tl_drawing"), "the drawing shape is on");
+                assert(!$(".o_multi_selection_buttons"), "no buttons while the button is held");
+                await realMouse(releaseAt(to));
+                assert(pickedCount() === rowsDrawn * 3, "the highlight stays after the release");
+                assert(!$(".o_dialog"), "no dialog opens");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a12_escape_cancels", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const first = recordRows()[0];
+                const column = todayIndex();
+                const from = cellPoint(first, column, 0);
+                const to = cellPoint(first, column + 2, 0);
+                await realMouse(holdEvents(from, [{ x: from.x + 30, y: from.y }, to]));
+                assert(pickedCount() > 0, "a drawing is held");
+                document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+                await until(() => pickedCount() === 0, "Escape clears the drawing");
+                await realMouse(releaseAt(to));
+                assert(pickedCount() === 0, "nothing is selected after the release");
+                assert(!$(".o_dialog"), "no dialog opens");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a16_edge_scroll_both_axes", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const grid = renderer();
+                assert(grid.scrollHeight > grid.clientHeight, "the grid is taller than its area");
+                const box = grid.getBoundingClientRect();
+                const row = recordRows()[0];
+                const from = cellPoint(row, todayIndex(), 0);
+                const right = box.left + grid.clientWidth;
+                const bottom = box.top + grid.clientHeight;
+                const left0 = grid.scrollLeft;
+                const top0 = grid.scrollTop;
+                // held 100 px from the right edge: the grid scrolls to the right
+                const aside = { x: right - 100, y: (box.top + bottom) / 2 };
+                await realMouseLive(holdEvents(from, [{ x: from.x + 30, y: from.y }, aside]));
+                await pause(600);
+                assert(grid.scrollLeft > left0 + 100, `it scrolled right: ${left0} to ${grid.scrollLeft}`);
+                assert(Math.abs(grid.scrollTop - top0) < 2, "not vertically yet");
+                // held 100 px above the bottom: it scrolls down
+                const down = { x: from.x + 30, y: bottom - 100 };
+                await realMouseLive([mouse("mouseMoved", down.x, down.y, { buttons: 1 })]);
+                const left1 = grid.scrollLeft;
+                await pause(600);
+                assert(grid.scrollTop > top0 + 100, `it scrolled down: ${top0} to ${grid.scrollTop}`);
+                assert(Math.abs(grid.scrollLeft - left1) < 2, "no sideways scroll away from the right edge");
+                await realMouseLive(releaseAt(down));
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a17_column_headers", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_col[data-date]",
+            async run() {
+                const headers = $$(".o_tl_col[data-date]");
+                const today = $(".o_tl_col.o_tl_is_today");
+                const at = headers.indexOf(today);
+                const rows = allRows().length;
+                await clickAt(centreOf(today));
+                assert(pickedCount() === rows * 2, `a column gives ${rows * 2} cells, got ${pickedCount()}`);
+                await clickAt(centreOf(headers[at + 2]), ["shift"]);
+                assert(pickedCount() === rows * 6, `Shift extends to three days, got ${pickedCount()}`);
+                await clickAt(centreOf(headers[at - 2]), ["ctrl"]);
+                assert(pickedCount() === rows * 8, `Ctrl adds a day, got ${pickedCount()}`);
+                await clickAt(centreOf(headers[at - 2]), ["ctrl"]);
+                assert(pickedCount() === rows * 6, "Ctrl again removes it");
+                assert($(".o_tl_col_group") && getComputedStyle(headers[at]).cursor === "pointer", "the hand over a header");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a18_row_headers", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row_header[title]",
+            async run() {
+                // the last record row with a pill outside the middle of the grid
+                const row = $$(".o_tl_pill")
+                    .find((el) => el.textContent.trim() === "Test")
+                    ?.closest(".o_tl_row");
+                assert(row, "the row of the pill Test");
+                const grid = renderer();
+                grid.scrollLeft = 0;
+                await gridSettled();
+                const pill = $(".o_tl_pill", row);
+                await clickAt(centreOf($(".o_tl_row_header", row)));
+                const index = allRows().indexOf(row);
+                assert(grid.scrollLeft > 0, "the grid scrolled to the first pill");
+                const total = $$(".o_tl_cell", row).length;
+                const picked = $$(".o_tl_cell_picked", allRows()[index]).length;
+                assert(picked > 0 && picked === pickedCount(), `only that row is selected (${picked} of ${pickedCount()})`);
+                assert(picked >= total, "the whole range of the row is selected");
+                const rect = pill.getBoundingClientRect();
+                const box = grid.getBoundingClientRect();
+                assert(rect.right > box.left && rect.left < box.right, "the pill is in view");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a5_phone", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const row = recordRows()[0];
+                const grid = renderer();
+                const today = todayIndex();
+                await clickAt(cellPoint(row, today, 0));
+                assert(pickedCount() === 0, "a cell click picks nothing on the phone");
+                await until(() => $(".o_dialog .modal-title"), "the plan dialog");
+                assert($(".o_dialog .modal-title").textContent === "Plan", "002b's plan dialog opens");
+                $(".o_dialog .btn-close, .o_dialog .o_form_button_cancel")?.click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await clickAt(centreOf($(".o_tl_col.o_tl_is_today")));
+                assert(pickedCount() === 0, "a header click picks nothing");
+                grid.scrollLeft = 0;
+                await gridSettled();
+                const withPill = $$(".o_tl_pill")
+                    .find((el) => el.textContent.trim() === "Test")
+                    .closest(".o_tl_row");
+                await clickAt(centreOf($(".o_tl_row_header", withPill)));
+                assert(pickedCount() === 0, "a row header click picks nothing");
+                assert(grid.scrollLeft > 0, "the row header click scrolled the grid");
+            },
+        },
+    ],
+});

@@ -12,6 +12,7 @@ import {
     useProps,
 } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
+import { useHotkey } from "@web/core/hotkeys/hotkey_hook";
 import { ActionHelper } from "@web/views/action_helper";
 import { usePopover } from "@web/core/popover/popover_hook";
 import { _t } from "@web/core/l10n/translation";
@@ -48,6 +49,13 @@ import {
 } from "./timeline_drag_math";
 import { TimelinePillDrag } from "./timeline_drag";
 import { badgeText, columnPeriod, partPeriod, rowValueChain } from "./timeline_editing";
+import {
+    countPickedRecords,
+    firstPickedBlock,
+    isMultiSelectMode,
+    pickedDaysByRow,
+    TimelinePickedCells,
+} from "./timeline_multi_select";
 import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
 import { TimelineSelection } from "./timeline_selection";
 
@@ -125,6 +133,23 @@ function textOfDate(date) {
  *
  * Scrolling (R39): the element that scrolls is `.o_tl_renderer`. All measures are made on
  * rectangles, so they hold in right-to-left languages, where the grid is mirrored.
+ *
+ * The selection of several cells (002b3 R2 to R9, R15), on while `isMultiSelect`:
+ * - `this.picked` is a reactive `TimelinePickedCells`: the picked cells and the two anchors. Its
+ *   cells are drawn as `.o_tl_cell_picked` elements in each row's selection layer; while a
+ *   drawing is held they are the cells of the rectangle (and of the earlier selection with Ctrl);
+ * - reading for the buttons, the panel and the creation: `pickedCount` (the number of records
+ *   whose pill covers a picked cell of a record row), `pickedRecordIds()`, `pickedDays()` (one
+ *   entry per record row and day), `firstBlock()` (the New button's block), `partPeriod(from, to)`,
+ *   `rowOf(rowId)` (`{row, values}`: the row and its grouping values chain, as 002b R6 builds
+ *   them for a creation), and `clearPicked()`;
+ * - the channel to the controller is the optional prop `selection`, an object `{state, renderer}`
+ *   the controller owns: the renderer sets `selection.renderer` to itself while it is mounted and
+ *   keeps the reactive `selection.state = {count, cellCount, drawing, visible}` up to date after
+ *   every change (`visible`: cells are picked and no drawing is held, which is when the buttons
+ *   show). The controller reads `state` in its template and calls the methods above on
+ *   `selection.renderer`. Every reload (a new `records`, `columns` or list of visible rows
+ *   published by the model) clears the selection through the model's update event.
  */
 export class TimelineRenderer extends Component {
     static template = "web_gantt.TimelineRenderer";
@@ -134,6 +159,7 @@ export class TimelineRenderer extends Component {
         archInfo: t.object(),
         editor: t.object().optional(),
         noContentHelp: t.string().optional(),
+        selection: t.object().optional(),
     });
 
     rendererRef = signal.ref();
@@ -154,15 +180,32 @@ export class TimelineRenderer extends Component {
         this._releaseCell = null;
         this._seenData = null;
         this._rowEl = null;
+        this._pressCtrl = false;
+        this._info = null;
+        this.picked = proxy(
+            new TimelinePickedCells({
+                isFolded: (part) =>
+                    Boolean(this._fold?.foldedRun(Math.floor(part / this.data.parts))),
+            })
+        );
         this._selecting = new TimelineSelection({
             partAt: (x, anchor) => this._partAt(x, anchor),
             edges: () => this._visibleBounds(),
-            scrollBy: (dx) => {
+            scrollBy: (dx, dy = 0) => {
                 const renderer = this.rendererRef();
-                const before = renderer.scrollLeft;
+                const vertical = this._verticalScroller();
+                const before = { left: renderer.scrollLeft, top: vertical.scrollTop };
                 renderer.scrollLeft += dx;
-                return { dx: renderer.scrollLeft - before, dy: 0 };
+                if (dy) {
+                    vertical.scrollTop += dy;
+                }
+                return {
+                    dx: renderer.scrollLeft - before.left,
+                    dy: vertical.scrollTop - before.top,
+                };
             },
+            axes: () => (this.isMultiSelect ? "xy" : "x"),
+            rowAt: (y, rowId) => this._rowIdAt(y, rowId),
             change: (selection) => this._setSelection(selection),
             commit: (selection) => this._commitSelection(selection),
             hold: (on) => this._hold(on),
@@ -235,12 +278,30 @@ export class TimelineRenderer extends Component {
             scroll: () => this._scrollState(),
         };
         model.setViewAccess(access);
+        // every reload clears the picked cells and their anchors (R9): the cells name rows and
+        // parts of the data that was shown
+        this._stampData();
+        const onUpdate = () => this._dropStalePicked();
+        model.bus.addEventListener("update", onUpdate);
+        const link = this.props.selection;
+        if (link) {
+            link.renderer = this;
+        }
+        // Escape while cells are picked and no drawing is held clears them (R9); during a
+        // drawing the selection's own key handler takes it
+        useHotkey("escape", () => this.clearPicked(), {
+            isAvailable: () => this.isMultiSelect && !this.picked.isEmpty && !this.picked.isDrawing,
+        });
         onMounted(() => this._syncScroll());
         onPatched(() => {
             this._syncScroll();
             this._placeBadges();
         });
         onWillUnmount(() => {
+            model.bus.removeEventListener("update", onUpdate);
+            if (link && link.renderer === this) {
+                link.renderer = null;
+            }
             this._selecting.destroy();
             this._drag.destroy();
             browser.clearTimeout(this._popoverTimer);
@@ -412,9 +473,30 @@ export class TimelineRenderer extends Component {
         return getComputedStyle(this.rendererRef()).direction === "rtl";
     }
 
-    /** A click on the header of a row that is not a group scrolls to its first pill's column (R39). */
-    onRowHeaderClick(descriptor) {
-        if (descriptor.kind !== "pills" || !descriptor.pills.length) {
+    /**
+     * A click on the header of a row that is not a group scrolls to its first pill's column (R39);
+     * in multi-selection mode it then selects the row over the whole range (R7). A group row's
+     * header only opens or closes the group (the row's own click).
+     */
+    onRowHeaderClick(descriptor, ev) {
+        if (descriptor.kind !== "pills") {
+            return;
+        }
+        this._scrollToFirstPill(descriptor);
+        if (this.isMultiSelect && !this.data.isSample && ev) {
+            const total = this.data.columns.length * this.data.parts;
+            this.picked.clickRowHeader(
+                descriptor.row.id,
+                this._modifiers(ev),
+                this._pickInfo().rowOrder,
+                Array.from({ length: total }, (_, part) => part)
+            );
+            this._publishPicked();
+        }
+    }
+
+    _scrollToFirstPill(descriptor) {
+        if (!descriptor.pills.length) {
             return;
         }
         const first = descriptor.pills.reduce((best, pill) =>
@@ -429,6 +511,11 @@ export class TimelineRenderer extends Component {
         if (pill) {
             this._centreAt(this._columnStartOf(pill));
         }
+    }
+
+    /** Ctrl (or Meta) and Shift of a pointer event: the modifiers of the selection (R4 to R7). */
+    _modifiers(ev) {
+        return { ctrl: Boolean(ev.ctrlKey || ev.metaKey), shift: Boolean(ev.shiftKey) };
     }
 
     /**
@@ -453,6 +540,11 @@ export class TimelineRenderer extends Component {
      * the new one opens, so another pill swaps the popovers.
      */
     onPillClick(ev, pill) {
+        if (this._selecting.consumeClick()) {
+            // the release of a drawing that began on a locked pill is no click on it (R5)
+            ev.stopPropagation();
+            return;
+        }
         if (this._drag.consumeClick(ev.detail) || (this._drag.justReleased && ev.detail > 1)) {
             // the release of a move or a copy (or of a cancelled one) is no click, and nor is the
             // second click of a double click that began with it (R9, R-T11-1)
@@ -575,6 +667,10 @@ export class TimelineRenderer extends Component {
             ev.stopPropagation();
             return;
         }
+        if (this.isMultiSelect && !this.data.isSample && descriptor) {
+            this._clickCellMulti(ev, cell, descriptor);
+            return;
+        }
         if (this._clickLock !== null) {
             ev.stopPropagation();
             return;
@@ -615,6 +711,205 @@ export class TimelineRenderer extends Component {
         }
     }
 
+    /**
+     * R4: a click on a cell of a record row picks the sub-columns of its column, with no click
+     * lock and no dialog; Ctrl toggles. A folded cell does nothing; a group row's cell only
+     * toggles the group (the row's own click).
+     */
+    _clickCellMulti(ev, cell, descriptor) {
+        if (descriptor.kind !== "pills") {
+            return;
+        }
+        if (cell.run !== undefined) {
+            ev.stopPropagation();
+            return;
+        }
+        if (cell.column === undefined) {
+            return;
+        }
+        this.picked.clickColumnOfRow(descriptor.row.id, this._partsOfColumn(cell.column), {
+            ctrl: this._modifiers(ev).ctrl,
+        });
+        this._publishPicked();
+    }
+
+    // ------------------------------------------------------------------------
+    // The picked cells (002b3 R2 to R9)
+    // ------------------------------------------------------------------------
+
+    /** R2: the cells of the view are picked, not created from. */
+    get isMultiSelect() {
+        return isMultiSelectMode({
+            multiCreateView: this.props.archInfo.multiCreateView,
+            isSmall: this.ui.isSmall,
+            displayMode: this.data.displayMode,
+            scale: this.data.scaleId,
+        });
+    }
+
+    _partsOfColumn(index) {
+        const parts = this.data.parts;
+        return Array.from({ length: parts }, (_, k) => index * parts + k);
+    }
+
+    /** What the picked cells need from the published data, built once per publication. */
+    _pickInfo() {
+        const data = this.data;
+        if (this._info?.data !== data) {
+            const rowsById = {};
+            for (const row of data.visibleRows) {
+                rowsById[row.id] = row;
+            }
+            this._info = {
+                data,
+                rowsById,
+                rowOrder: data.visibleRows.map((row) => row.id),
+                pillParts: (rowId) =>
+                    (rowsById[rowId]?.recordIds || [])
+                        .map((id) => data.recordsById.get(id))
+                        .filter(Boolean)
+                        .map((record) => ({
+                            resId: record.resId,
+                            from: record.span.from,
+                            to: record.span.to,
+                        })),
+            };
+        }
+        return this._info;
+    }
+
+    /** The ids of the records whose pill covers a picked cell of a record row (R8). */
+    pickedRecordIds() {
+        const { rowsById, pillParts } = this._pickInfo();
+        return [...countPickedRecords(this.picked.cells(), rowsById, pillParts)];
+    }
+
+    get pickedCount() {
+        return this.pickedRecordIds().length;
+    }
+
+    /** One entry per record row and day with a picked sub-column (R11). */
+    pickedDays() {
+        const { rowsById, rowOrder } = this._pickInfo();
+        return pickedDaysByRow(
+            this.picked.cells(),
+            rowsById,
+            (part) => this._partTime(part).toISODate(),
+            rowOrder
+        );
+    }
+
+    /** The first block of the picked cells, for the New button (R12), or null. */
+    firstBlock() {
+        const { rowsById, rowOrder } = this._pickInfo();
+        return firstPickedBlock(this.picked.cells(), rowOrder, rowsById);
+    }
+
+    /** The period of the sub-columns `fromPart` to `toPart`, both included. */
+    partPeriod(fromPart, toPart) {
+        return partPeriod(this.data, fromPart, toPart);
+    }
+
+    /** The row `rowId` and the values of its grouping fields and of its parents' (002b R6). */
+    rowOf(rowId) {
+        const row = this._pickInfo().rowsById[rowId];
+        return row
+            ? { row, values: rowValueChain(this.data.rows, rowId, this.props.model.fields) }
+            : null;
+    }
+
+    /** Clear the cells, the anchors and a drawing (R9). */
+    clearPicked() {
+        this.picked.clear();
+        this._publishPicked();
+    }
+
+    /** Tell the controller what is picked (see the class comment). */
+    _publishPicked() {
+        const link = this.props.selection;
+        if (!link) {
+            return;
+        }
+        const cellCount = this.picked.size;
+        const drawing = this.picked.isDrawing;
+        Object.assign(link.state, {
+            count: cellCount ? this.pickedCount : 0,
+            cellCount,
+            drawing,
+            visible: cellCount > 0 && !drawing,
+        });
+    }
+
+    _stampData() {
+        const data = this.data;
+        this._stamp = {
+            records: data.records,
+            columns: data.columns,
+            rows: data.visibleRows.map((row) => row.id).join("|"),
+        };
+    }
+
+    /** The model published new data: a reload, a group opened or closed (R9). */
+    _dropStalePicked() {
+        const before = this._stamp;
+        this._stampData();
+        const now = this._stamp;
+        if (
+            before.records !== now.records ||
+            before.columns !== now.columns ||
+            before.rows !== now.rows
+        ) {
+            this.clearPicked();
+        }
+    }
+
+    /** The cells to draw: the drawing's while one is held, else the picked ones, by row. */
+    get pickedByRow() {
+        const byRow = new Map();
+        if (!this.isMultiSelect) {
+            return byRow;
+        }
+        const cells = this.picked.isDrawing ? this.picked.drawnCells() : this.picked.cells();
+        for (const { rowId, part } of cells) {
+            if (!byRow.has(rowId)) {
+                byRow.set(rowId, []);
+            }
+            byRow.get(rowId).push(part);
+        }
+        return byRow;
+    }
+
+    /** The style of the highlight of one picked sub-column. */
+    pickedStyle(part) {
+        return this._overlayStyle(part, part + 1);
+    }
+
+    /**
+     * The row id under the viewport coordinate `y` for a drawing: the row at the pointer; over the
+     * headers the first row shown under them, below the last one the last row (R5).
+     */
+    _rowIdAt(y, current) {
+        const renderer = this.rendererRef();
+        const rows = [...renderer.querySelectorAll(".o_tl_row[data-row-id]")].map((element) => ({
+            id: element.dataset.rowId,
+            rect: element.getBoundingClientRect(),
+        }));
+        if (!rows.length) {
+            return current;
+        }
+        let top = renderer.getBoundingClientRect().top;
+        for (const header of renderer.querySelectorAll(".o_tl_col, .o_tl_col_group")) {
+            top = Math.max(top, header.getBoundingClientRect().bottom);
+        }
+        const bottom = this._visibleBounds().bottom;
+        const at = Math.min(Math.max(y, top), Math.max(bottom - 1, top));
+        const hit = rows.find((row) => at >= Math.max(row.rect.top, top) && at < row.rect.bottom);
+        if (hit) {
+            return hit.id;
+        }
+        return at >= rows.at(-1).rect.bottom ? rows.at(-1).id : rows[0].id;
+    }
+
     // ------------------------------------------------------------------------
     // Selection of sub-columns (R4, R5, R8)
     // ------------------------------------------------------------------------
@@ -628,6 +923,19 @@ export class TimelineRenderer extends Component {
 
     onCellPointerDown(ev, cell, descriptor) {
         this._selecting.resetClick();
+        if (this.isMultiSelect) {
+            // R5: a drawing from an empty part of a cell of a record row; a group row's cell
+            // starts none
+            if (
+                ev.button === 0 &&
+                !this.data.isSample &&
+                descriptor.kind === "pills" &&
+                cell.column !== undefined
+            ) {
+                this._pressDrawing(ev, ev.currentTarget.closest(".o_tl_row"), descriptor);
+            }
+            return;
+        }
         const { archInfo, editor } = this.props;
         if (
             ev.button !== 0 ||
@@ -640,6 +948,14 @@ export class TimelineRenderer extends Component {
             return;
         }
         this._rowEl = ev.currentTarget.closest(".o_tl_row");
+        this._rowId = descriptor.row.id;
+        this._selecting.press(ev, descriptor);
+    }
+
+    /** The press that may start a drawing in the row element `rowEl` (R5). */
+    _pressDrawing(ev, rowEl, descriptor) {
+        this._pressCtrl = this._modifiers(ev).ctrl;
+        this._rowEl = rowEl;
         this._rowId = descriptor.row.id;
         this._selecting.press(ev, descriptor);
     }
@@ -696,6 +1012,10 @@ export class TimelineRenderer extends Component {
     }
 
     _setSelection(selection) {
+        if (this.isMultiSelect) {
+            this._setDrawing(selection);
+            return;
+        }
         if (!selection) {
             this.state.selection = null;
             return;
@@ -715,6 +1035,13 @@ export class TimelineRenderer extends Component {
 
     /** The release: create for the period; the highlight stays until the dialog has closed (R4). */
     _commitSelection(selection) {
+        if (this.isMultiSelect) {
+            // R5.2: the rectangle (and, with Ctrl, the earlier cells) becomes the selection
+            this._setDrawing(selection);
+            this.picked.endDrawing();
+            this._publishPicked();
+            return;
+        }
         this._setSelection(selection);
         const shown = this.state.selection;
         // the badges belong to the drawing: once released, only the highlight stays (S2)
@@ -732,11 +1059,31 @@ export class TimelineRenderer extends Component {
         });
     }
 
+    /**
+     * R5: the cells of the rectangle from the pressed cell to the one under the pointer, over
+     * every row between; null (Escape, a cancelled press) clears the whole selection.
+     */
+    _setDrawing(selection) {
+        if (!selection) {
+            this.picked.cancelDrawing();
+            this._publishPicked();
+            return;
+        }
+        if (!this.picked.isDrawing) {
+            this.picked.startDrawing(selection.row.row.id, selection.startPart, {
+                ctrl: this._pressCtrl,
+            });
+        }
+        this.picked.drawTo(selection.rowId, selection.part, this._pickInfo().rowOrder);
+        this._publishPicked();
+    }
+
     /** While a selection is held, the view root changes the pointer and shields the buttons (R8). */
     _hold(on) {
         const root = this.rendererRef()?.closest(".o_timeline_view");
         if (root) {
             root.classList.toggle("o_tl_selecting", on);
+            root.classList.toggle("o_tl_drawing", on && this.isMultiSelect);
         }
     }
 
@@ -865,8 +1212,16 @@ export class TimelineRenderer extends Component {
         }
     }
 
-    /** A click on a folded header opens its run, on the header of an open foldable one folds it. */
-    onColumnClick(column) {
+    /**
+     * A click on a folded header opens its run, on the header of an open foldable one folds it.
+     * In multi-selection mode (R6) it selects the column in every row, and folding or opening
+     * without Ctrl clears the selection; with Shift the column is selected without folding.
+     */
+    onColumnClick(column, ev) {
+        if (this.isMultiSelect && !this.data.isSample && ev) {
+            this._clickColumnMulti(column, this._modifiers(ev));
+            return;
+        }
         if (column.folded) {
             // R23: unfolding a column starts the click lock
             this._lockClicks(CELL_CLICK_LOCK, true);
@@ -874,6 +1229,56 @@ export class TimelineRenderer extends Component {
         } else if (column.run !== null) {
             this._setRunOpen(column.run, false);
         }
+    }
+
+    _clickColumnMulti(column, { ctrl, shift }) {
+        const foldable = column.folded || column.run !== null;
+        if (foldable && !shift && (column.folded || !ctrl)) {
+            // R6: a plain click folds an open column and opens a folded one (with Ctrl a folded
+            // one opens and is picked); doing it without Ctrl clears the selection
+            const last = column.folded ? this._fold.foldedRun(column.run).last : column.run;
+            if (!ctrl) {
+                this.picked.clear();
+            }
+            if (column.folded) {
+                // R23: unfolding a column starts the click lock
+                this._lockClicks(CELL_CLICK_LOCK, true);
+            }
+            this._setRunOpen(column.run, column.folded);
+            if (column.folded && ctrl) {
+                // the cells of the run exist and can be picked once the layout shows it open
+                this._refreshLayout();
+                this.picked.clickColumnHeader(
+                    column.run,
+                    { ctrl, shift: false },
+                    this._pickInfo().rowOrder,
+                    (i) => this._partsOfColumns(i === column.run ? [column.run, last] : [i, i])
+                );
+            }
+            this._publishPicked();
+            return;
+        }
+        this.picked.clickColumnHeader(
+            column.index,
+            { ctrl, shift },
+            this._pickInfo().rowOrder,
+            (i) => this._partsOfColumns([i, i])
+        );
+        this._publishPicked();
+    }
+
+    /** The sub-columns of the columns `first` to `last` that exist. */
+    _partsOfColumns([first, last]) {
+        const parts = [];
+        for (let i = Math.max(first, 0); i <= Math.min(last, this.data.columns.length - 1); i++) {
+            parts.push(...this._partsOfColumn(i));
+        }
+        return parts;
+    }
+
+    /** Build the layout now: a change of the folded runs shows in it. */
+    _refreshLayout() {
+        return this.layout;
     }
 
     _setRunOpen(run, open) {
@@ -971,6 +1376,11 @@ export class TimelineRenderer extends Component {
         if (ev.button !== 0 || this.data.isSample) {
             return;
         }
+        if (this.isMultiSelect && !this._holdsPill(ev, pill)) {
+            // R5: a locked pill is no obstacle to a drawing, which starts at the cell under it
+            this._pressDrawing(ev, ev.currentTarget.closest(".o_tl_row"), row);
+            return;
+        }
         const element = ev.currentTarget;
         const grid = element.closest(".o_tl_grid").getBoundingClientRect();
         const rect = element.getBoundingClientRect();
@@ -990,6 +1400,13 @@ export class TimelineRenderer extends Component {
         };
         const handle = ev.target.closest?.(".o_tl_handle")?.dataset.edge || null;
         this._drag.press(ev, pill, { rowId: row.row.id, handle });
+    }
+
+    /** Whether a press on `pill` holds it: it moves, or a handle that can resize is pressed (R5). */
+    _holdsPill(ev, pill) {
+        const state = this._pillState(pill);
+        const handle = ev.target.closest?.(".o_tl_handle")?.dataset.edge || null;
+        return state.movable || Boolean(handle && ev.pointerType !== "touch" && state.resizable[handle]);
     }
 
     /** The view root takes the pointer shape of the gesture and shields the buttons (R2, M13). */
@@ -1028,9 +1445,12 @@ export class TimelineRenderer extends Component {
             }
         }
         if (mode && !this._dragMode) {
-            // the gesture starts: the popover closes
+            // the gesture starts: the popover closes, and the picked cells go (R9)
             this._cancelPopover();
             this.popover.close();
+            if (!this.picked.isEmpty) {
+                this.clearPicked();
+            }
         }
         this._dragMode = mode;
     }

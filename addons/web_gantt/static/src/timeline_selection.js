@@ -18,8 +18,15 @@ export const LONG_PRESS = 300;
  *   selection started);
  * - `edges()`: `{left, right}`, the viewport bounds of the grid area without the row header;
  * - `scrollBy(dx, dy)`: scroll the grid (positive: its content moves to the left) and return the
- *   `{dx, dy}` really scrolled; the selection only scrolls horizontally, by speed (R20);
- * - `change(selection)`: the selection `{row, from, to}` (inclusive, ordered) drawn now, or null;
+ *   `{dx, dy}` really scrolled; the selection scrolls horizontally, by speed (R20), and also
+ *   vertically when the host's `axes()` answers "xy" (the drawing of several rows, 002b3 R5.4);
+ * - `change(selection)`: the selection `{row, from, to}` (inclusive, ordered) drawn now, or null.
+ *   It also carries `startPart` (where it began), `part` (the sub-column under the pointer, not
+ *   ordered) and `rowId` (the row under the pointer: always the pressed one unless the host gives
+ *   `rowAt`, which a drawing over several rows does);
+ * - `rowAt(y, rowId)` (optional): the id of the row under the viewport coordinate `y`, `rowId`
+ *   (the row last given) when there is none;
+ * - `axes()` (optional): "x" (default) or "xy", for the edge scrolling;
  * - `commit(selection)`: the release of a selection;
  * - `hold(on)`: a selection is (no longer) held.
  */
@@ -90,6 +97,7 @@ export class TimelineSelection {
             row,
             startPart,
             part: startPart,
+            rowId: row.row.id,
         };
         this.state = "pending";
         const doc = ev.target.ownerDocument;
@@ -129,6 +137,7 @@ export class TimelineSelection {
 
     _begin() {
         this.state = "selecting";
+        this._edge.axes = this.host.axes ? this.host.axes() : "x";
         this.host.hold(true);
         this._update();
     }
@@ -241,8 +250,15 @@ export class TimelineSelection {
     }
 
     _selection() {
-        const { startPart, part, row } = this._press;
-        return { row, from: Math.min(startPart, part), to: Math.max(startPart, part) };
+        const { startPart, part, row, rowId } = this._press;
+        return {
+            row,
+            from: Math.min(startPart, part),
+            to: Math.max(startPart, part),
+            startPart,
+            part,
+            rowId,
+        };
     }
 
     _update() {
@@ -250,6 +266,9 @@ export class TimelineSelection {
         const part = this.host.partAt(press.x, press.startPart);
         if (part !== null) {
             press.part = part;
+        }
+        if (this.host.rowAt) {
+            press.rowId = this.host.rowAt(press.y, press.rowId) ?? press.rowId;
         }
         this.host.change(this._selection());
         this._edge.follow(press.x, press.y, SELECT_EDGE);
