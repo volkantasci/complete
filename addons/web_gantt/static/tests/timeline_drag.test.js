@@ -623,15 +623,19 @@ test("A17 touch: a 600 ms hold then five steps; a quick swipe scrolls", async ()
     const y = rect.top + rect.height / 2;
     const helpers = await drag(pillEl("Review"), { position: { x, y } });
     await advanceTime(600);
-    // five equal steps, 120 ms apart, ending one sub-column to the left (R-C-4)
+    // A17: four steps of 20 px and a last one of 16 px to the left (96 px), 120 ms after each,
+    // then 700 ms more before the release
+    // (the steps are scaled when the test layout's half day is not the phone's 96 px)
     let at = x;
-    for (let i = 0; i < 5; i++) {
-        at -= partWidth() / 5;
+    for (const step of [20, 20, 20, 20, 16]) {
+        at -= (step * partWidth()) / 96;
         const target = document.elementFromPoint(at, y) || queryOne(".o_tl_renderer");
         await helpers.moveTo(target, { position: { x: at, y } });
         await advanceTime(120);
         await animationFrame();
     }
+    await advanceTime(700);
+    await animationFrame();
     expect(moved()).toHaveCount(1);
     expect(badgeTexts()).toEqual(["11/12/2026, 1:00 AM", "11/12/2026, 5:00 AM"]);
     expect(

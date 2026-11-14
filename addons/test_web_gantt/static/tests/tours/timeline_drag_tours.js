@@ -755,7 +755,10 @@ const noticeButton = (text) =>
 const noticeText = () => $(".o_notification .o_notification_content")?.textContent.trim();
 
 /** Press the pill `name`, hold it when touch, and move it to (x, y) in `steps` moves. */
-async function holdAndMove(name, { to, pointerType = "mouse", ctrl = false, steps = 6, hold = 0 }) {
+async function holdAndMove(
+    name,
+    { to, pointerType = "mouse", ctrl = false, steps = 6, hold = 0, stepPx = 0, finalHold = 0 }
+) {
     const pill = await until(() => pillNamed(name), `the pill ${name}`);
     const from = centreOf(pill);
     pointer("pointerdown", from.x, from.y, { target: pill, pointerType, ctrl });
@@ -763,11 +766,25 @@ async function holdAndMove(name, { to, pointerType = "mouse", ctrl = false, step
         await sleep(hold);
     }
     const end = { x: to.x ?? from.x, y: to.y ?? from.y };
-    for (let i = 1; i <= steps; i++) {
-        const x = from.x + ((end.x - from.x) * i) / steps;
-        const y = from.y + ((end.y - from.y) * i) / steps;
-        pointer("pointermove", x, y, { pointerType, ctrl });
-        await (pointerType === "touch" ? sleep(120) : frame());
+    if (stepPx) {
+        // steps of stepPx pixels along x (the last one takes what is left), each followed by a pause
+        const sign = end.x >= from.x ? 1 : -1;
+        const total = Math.abs(end.x - from.x);
+        for (let travelled = 0; travelled < total - 1e-6; ) {
+            travelled = Math.min(travelled + stepPx, total);
+            pointer("pointermove", from.x + sign * travelled, from.y, { pointerType, ctrl });
+            await (pointerType === "touch" ? sleep(120) : frame());
+        }
+    } else {
+        for (let i = 1; i <= steps; i++) {
+            const x = from.x + ((end.x - from.x) * i) / steps;
+            const y = from.y + ((end.y - from.y) * i) / steps;
+            pointer("pointermove", x, y, { pointerType, ctrl });
+            await (pointerType === "touch" ? sleep(120) : frame());
+        }
+    }
+    if (finalHold) {
+        await sleep(finalHold);
     }
     await frame();
     return { from, end, pointerType, ctrl };
@@ -930,12 +947,14 @@ tours.add("timeline_002b2_a17_phone_move_touch", {
                 const today = todayIso();
                 const pill = await until(() => pillNamed("Review"), "Review");
                 const from = centreOf(pill);
-                // a finger held 600 ms, then five steps to one sub-column to the left
+                // A17: a finger held 600 ms, four steps of 20 px and one of 16 px to the left (96 px)
+                // with 120 ms after each, then held 700 ms more
                 const gesture = await holdAndMove("Review", {
-                    to: { x: from.x - partWidthOf() },
+                    to: { x: from.x - 96 },
                     pointerType: "touch",
                     hold: 600,
-                    steps: 5,
+                    stepPx: 20,
+                    finalHold: 700,
                 });
                 assert($(".o_tl_pill_moved"), "the pill did not lift");
                 const badges = $$(".o_tl_selection_badge");

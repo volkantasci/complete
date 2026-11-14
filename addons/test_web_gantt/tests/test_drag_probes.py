@@ -283,13 +283,20 @@ class TimelineDragProbes(TimelineProbeCase):
         if ctrl:
             self.key('keyUp', 'Control', 'ControlLeft', 0)
 
-    def touch_hold_and_move(self, x0, y0, x1, steps=5):
-        """A finger held 600 ms at (x0, y0), then moved to x1 in ``steps`` with 120 ms between."""
+    def touch_hold_and_move(self, x0, y0, x1):
+        """A17: a finger pressed at (x0, y0), held 600 ms, moved along y0 to x1 in steps of 20 px
+        (the last one takes what is left: 20, 20, 20, 20 and 16 px for 96 px), 120 ms of pause
+        after each step, then held 700 ms more before the caller releases."""
         self.touch_event('touchStart', [(x0, y0)])
         time.sleep(.6)
-        for i in range(1, steps + 1):
-            self.touch_event('touchMove', [(x0 + (x1 - x0) * i / steps, y0)])
+        sign = 1 if x1 >= x0 else -1
+        travelled = 0
+        total = abs(x1 - x0)
+        while travelled < total - 1e-6:
+            travelled = min(travelled + 20, total)
+            self.touch_event('touchMove', [(x0 + sign * travelled, y0)])
             time.sleep(.12)
+        time.sleep(.7)
         self.settle()
 
     def wait_notification(self, buttons):
