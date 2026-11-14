@@ -1661,6 +1661,44 @@ tours.add("timeline_002b2_a25_handles_on_hover", {
                 await until(() => !$(".o_tl_handle"), "the handles to go");
             },
         },
+        // on Month "Review" is a 26 px pill: two 8 px handles, 10 px between them
+        { trigger: ".o_tl_range_button", run: "click" },
+        { trigger: ".o_tl_range_menu .o_tl_range_month", run: "click" },
+        {
+            trigger: ".o_tl_renderer[data-scale=month] .o_tl_pill",
+            async run() {
+                const pill = await until(() => pillNamed("Review"), "Review");
+                const body = pill.getBoundingClientRect();
+                // 26 px on the reference screen; the window of a tour is a little narrower
+                assert(body.width > 20 && body.width < 30, `Review is ${body.width} px wide`);
+                pill.dispatchEvent(new MouseEvent("mouseenter"));
+                await until(() => $$(".o_tl_handle", pill).length === 2, "two handles");
+                for (const handle of $$(".o_tl_handle", pill)) {
+                    assert(handle.getBoundingClientRect().width === 8, "a handle is not 8 px wide");
+                }
+                const middle = centreOf(pill);
+                assert(
+                    !document.elementFromPoint(middle.x, middle.y).classList.contains("o_tl_handle"),
+                    "the press in the middle lands on a handle"
+                );
+                // a press between the handles moves the pill; released where it was, nothing is written
+                const gesture = await holdAndMove("Review", { to: { x: middle.x + 40 } });
+                assert($(".o_timeline_view").classList.contains("o_tl_drag_move"), "the press did not move");
+                assert(!$(".o_timeline_view").classList.contains("o_tl_drag_resize"), "the press resized");
+                await dragHandleTo(gesture, middle.x);
+                release(gesture);
+                await gridSettled();
+                assert(!$(".o_notification"), "a notification appeared");
+                // leaving the pill and entering it again shows the handles again
+                pill.dispatchEvent(new MouseEvent("mouseleave"));
+                await until(() => !$(".o_tl_handle"), "the handles to go");
+                pill.dispatchEvent(new MouseEvent("mouseenter"));
+                await until(() => $$(".o_tl_handle", pill).length === 2, "the handles back");
+            },
+        },
+        { trigger: ".o_tl_range_button", run: "click" },
+        { trigger: ".o_tl_range_menu .o_tl_range_week", run: "click" },
+        { trigger: ".o_tl_renderer[data-scale=week]" },
     ],
 });
 

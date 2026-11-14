@@ -603,9 +603,9 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    // 8 px, but never more than a third of a short pill: its middle third always moves it (R-C-5)
+    // always 8 px (R8): on a pill narrower than 16 px the two handles cover the whole body, the
+    // end handle (below) lying over the start handle
     width: 8px;
-    max-width: 33.333%;
     z-index: 1;
     margin: 0;
     padding: 0;
@@ -621,6 +621,7 @@
 
 .o_tl_handle_stop {
     inset-inline-end: 0;
+    z-index: 2;
 }
 
 .o_tl_handle_west {

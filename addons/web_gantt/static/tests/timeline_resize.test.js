@@ -588,7 +588,7 @@ test("R9 a press and release on a handle without movement is a click: the popove
     expect(writes()).toHaveLength(0);
 });
 
-test("R-C-5 a short pill keeps its middle third for moving: handles never exceed a third", async () => {
+test("R8, A25 a pill narrower than 16 px is covered by its two 8 px handles, the end handle on top", async () => {
     // a 15-minute sub-column of the Day scale is about 10 px wide
     await prepareReview(at(0, "13:00"), at(0, "13:15"));
     const arch = HOST_ARCHS.H1.replace(
@@ -601,30 +601,60 @@ test("R-C-5 a short pill keeps its middle third for moving: handles never exceed
     await hover(pillEl("Review"));
     await animationFrame();
     for (const handle of handles("Review")) {
-        expect(queryRect(handle).width).toBeLessThan(body.width / 2);
-        expect(queryRect(handle).width).toBeLessThan(body.width / 3 + 0.5);
+        expect(queryRect(handle).width).toBe(8);
     }
-    // a press in the middle moves the pill
-    const middle = { x: body.left + body.width / 2, y: body.top + body.height / 2 };
+    const start = queryOne(".o_tl_handle_start");
+    const stop = queryOne(".o_tl_handle_stop");
+    expect(Number(css(stop, "zIndex"))).toBeGreaterThan(Number(css(start, "zIndex")));
+    // a press anywhere on the body lands on a handle; in the middle it is the end handle
+    const y = body.top + body.height / 2;
+    for (const fraction of [0.1, 0.5, 0.9]) {
+        const x = body.left + body.width * fraction;
+        expect(document.elementFromPoint(x, y)).toHaveClass("o_tl_handle");
+    }
+    expect(document.elementFromPoint(body.left + body.width / 2, y)).toBe(stop);
+    // a press in the middle resizes the end
+    const middle = { x: body.left + body.width / 2, y };
+    const helpers = await drag(document.elementFromPoint(middle.x, middle.y), { position: middle });
+    await helpers.moveTo(queryOne(".o_tl_renderer"), { position: { x: middle.x + 30, y: middle.y } });
+    await animationFrame();
+    expect(root()).toHaveClass("o_tl_drag_resize");
+    expect(root()).not.toHaveClass("o_tl_drag_move");
+    await helpers.drop();
+    await settle();
+    expect(writes()).toHaveLength(1);
+    expect(Object.keys(writes()[0].values)).toEqual(["date_stop"]);
+});
+
+test("A25 Month: Review (a 26 px pill) shows two 8 px handles, a press between them moves; handles return after a gesture", async () => {
+    const arch = HOST_ARCHS.H1.replace('default_range="week"', 'default_range="month"');
+    await mountTimeline({ arch });
+    const body = queryRect(pillEl("Review"));
+    await hover(pillEl("Review"));
+    await animationFrame();
+    expect(handles("Review")).toHaveCount(2);
+    for (const handle of handles("Review")) {
+        expect(queryRect(handle).width).toBe(8);
+    }
+    // the free part between the handles is as wide as the body less 16 px (10 px on a 26 px pill)
+    const gap = body.width - 16;
+    expect(gap).toBeGreaterThan(0);
+    const y = body.top + body.height / 2;
+    const middle = { x: body.left + body.width / 2, y };
     expect(document.elementFromPoint(middle.x, middle.y)).not.toHaveClass("o_tl_handle");
     const helpers = await drag(pillEl("Review"), { position: middle });
-    await helpers.moveTo(queryOne(".o_tl_renderer"), { position: { x: middle.x + 30, y: middle.y } });
+    await helpers.moveTo(queryOne(".o_tl_renderer"), { position: { x: middle.x + 40, y } });
     await animationFrame();
     expect(root()).toHaveClass("o_tl_drag_move");
     await helpers.drop();
     await settle();
-    // a press at the very end resizes
+    // after the gesture the pointer leaves the pill and enters it again: the handles appear again
+    await hover(".o_tl_col");
+    await animationFrame();
+    expect(".o_tl_handle").toHaveCount(0);
     await hover(pillEl("Review"));
     await animationFrame();
-    const stop = queryOne(".o_tl_handle_stop");
-    const rect = queryRect(stop);
-    const point = { x: rect.right - 0.5, y: rect.top + rect.height / 2 };
-    const end = await drag(stop, { position: point });
-    await end.moveTo(queryOne(".o_tl_renderer"), { position: { x: point.x + 30, y: point.y } });
-    await animationFrame();
-    expect(root()).toHaveClass("o_tl_drag_resize");
-    await end.drop();
-    await settle();
+    expect(handles("Review")).toHaveCount(2);
 });
 
 // ----------------------------------------------------------------------------
