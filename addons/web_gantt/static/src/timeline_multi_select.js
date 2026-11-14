@@ -57,6 +57,7 @@ export class TimelinePickedCells {
         return this._drawing !== null;
     }
 
+    // The two anchors are read by the view and by the tests only.
     get rowAnchor() {
         return this._rowAnchor;
     }
@@ -84,10 +85,12 @@ export class TimelinePickedCells {
 
     clickColumnOfRow(rowId, parts, { ctrl } = {}) {
         const keys = this._keysOf([rowId], parts);
-        this._rowAnchor = null;
-        this._columnAnchor = null;
         if (!keys.length) {
-            return;
+            return; // a folded column: nothing happens, anchors included
+        }
+        if (!ctrl) {
+            this._rowAnchor = null;
+            this._columnAnchor = null;
         }
         this._applyKeys(keys, ctrl);
     }
@@ -148,12 +151,13 @@ export class TimelinePickedCells {
 
     // Headers (R6, R7)
 
-    clickColumnHeader(columnParts, columnIndex, { ctrl, shift } = {}, rowOrder, partsOfColumn) {
-        if (this._rowAnchor !== null && !shift) {
+    clickColumnHeader(columnIndex, { ctrl, shift } = {}, rowOrder, partsOfColumn) {
+        // Shift without a column anchor is a click without Shift
+        const useShift = Boolean(shift) && this._columnAnchor !== null;
+        if (this._rowAnchor !== null && !useShift) {
             this._keys.clear();
         }
         this._rowAnchor = null;
-        const useShift = shift && this._columnAnchor !== null;
         if (useShift) {
             const parts = [];
             for (const index of range(this._columnAnchor, columnIndex)) {
@@ -162,16 +166,17 @@ export class TimelinePickedCells {
             this._keys = new Set(this._keysOf(rowOrder, parts));
             return;
         }
-        this._applyKeys(this._keysOf(rowOrder, columnParts), ctrl);
+        this._applyKeys(this._keysOf(rowOrder, partsOfColumn(columnIndex)), ctrl);
         this._columnAnchor = columnIndex;
     }
 
     clickRowHeader(rowId, { ctrl, shift } = {}, rowOrder, allParts) {
-        if (this._columnAnchor !== null && !shift) {
+        // Shift without a row anchor is a click without Shift
+        const useShift = Boolean(shift) && this._rowAnchor !== null;
+        if (this._columnAnchor !== null && !useShift) {
             this._keys.clear();
         }
         this._columnAnchor = null;
-        const useShift = shift && this._rowAnchor !== null;
         if (useShift) {
             this._keys = new Set(
                 this._keysOf(this._rowsBetween(this._rowAnchor, rowId, rowOrder), allParts)
@@ -199,7 +204,7 @@ export class TimelinePickedCells {
         const from = rowOrder.indexOf(fromRow);
         const to = rowOrder.indexOf(toRow);
         if (from < 0 || to < 0) {
-            return [toRow];
+            return [fromRow]; // a row that is not displayed: keep the start row only
         }
         return rowOrder.slice(Math.min(from, to), Math.max(from, to) + 1);
     }
@@ -250,11 +255,11 @@ export function countPickedRecords(cells, rowsById, pillPartsOfRow) {
 }
 
 /**
- * R11: one entry per record row and day with a picked part. Rows come in the iteration order
- * of `rowsById` (the display order), days by their first part.
+ * R11: one entry per record row and day with a picked part. Rows come in `rowOrder` (the
+ * display order), days by their first part.
  * @returns {Array<{rowId: string, day: string, firstPart: number, lastPart: number}>}
  */
-export function pickedDaysByRow(cells, rowsById, dayOfPart) {
+export function pickedDaysByRow(cells, rowsById, dayOfPart, rowOrder) {
     const partsByRow = new Map();
     for (const { rowId, part } of cells) {
         if (!rowsById[rowId] || rowsById[rowId].isGroup) {
@@ -266,7 +271,7 @@ export function pickedDaysByRow(cells, rowsById, dayOfPart) {
         partsByRow.get(rowId).push(part);
     }
     const entries = [];
-    for (const rowId of Object.keys(rowsById)) {
+    for (const rowId of rowOrder) {
         const parts = partsByRow.get(rowId);
         if (!parts) {
             continue;
@@ -287,12 +292,15 @@ export function pickedDaysByRow(cells, rowsById, dayOfPart) {
 }
 
 /**
- * R12: the first picked cell by row order then part, extended to the right by the picked
- * cells that follow it without a gap. `rowOrder` lists the rows that may give a block.
+ * R12: the first picked cell of a record row by row order then part, extended to the right by
+ * the picked cells that follow it without a gap. Group rows never give a block (R3, R11).
  * @returns {{rowId: string, fromPart: number, toPart: number} | null}
  */
-export function firstPickedBlock(cells, rowOrder) {
+export function firstPickedBlock(cells, rowOrder, rowsById) {
     for (const rowId of rowOrder) {
+        if (rowsById[rowId]?.isGroup) {
+            continue;
+        }
         const parts = new Set(cells.filter((cell) => cell.rowId === rowId).map((c) => c.part));
         if (!parts.size) {
             continue;

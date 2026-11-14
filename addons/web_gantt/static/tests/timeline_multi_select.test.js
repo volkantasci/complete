@@ -47,7 +47,7 @@ const keys = (picked) =>
 const rowsOf = (picked) => [...new Set(picked.cells().map((c) => c.rowId))];
 const partsOf = (picked) => [...new Set(picked.cells().map((c) => c.part))].sort((a, b) => a - b);
 const column = (picked, index, mods = {}) =>
-    picked.clickColumnHeader(dayParts(index), index, mods, ORDER, dayParts);
+    picked.clickColumnHeader(index, mods, ORDER, dayParts);
 const rowHeader = (picked, rowId, mods = {}) =>
     picked.clickRowHeader(rowId, mods, ORDER, ALL_PARTS);
 
@@ -239,7 +239,7 @@ test("002b3 A30/A62: one entry per day and record row", () => {
     const day = (part) => `2026-11-${String(8 + Math.floor(part / 2)).padStart(2, "0")}`;
     const picked = new TimelinePickedCells();
     picked.clickColumnOfRow("beta/U", dayParts(MON), {});
-    expect(pickedDaysByRow(picked.cells(), ROWS_BY_ID, day)).toEqual([
+    expect(pickedDaysByRow(picked.cells(), ROWS_BY_ID, day, ORDER)).toEqual([
         { rowId: "beta/U", day: "2026-11-09", firstPart: 2, lastPart: 3 },
     ]);
     // A62: Tuesday second half and Wednesday first half
@@ -247,7 +247,7 @@ test("002b3 A30/A62: one entry per day and record row", () => {
     picked.startDrawing("beta/U", 5, {});
     picked.drawTo("beta/U", 6, ORDER);
     picked.endDrawing();
-    expect(pickedDaysByRow(picked.cells(), ROWS_BY_ID, day)).toEqual([
+    expect(pickedDaysByRow(picked.cells(), ROWS_BY_ID, day, ORDER)).toEqual([
         { rowId: "beta/U", day: "2026-11-10", firstPart: 5, lastPart: 5 },
         { rowId: "beta/U", day: "2026-11-11", firstPart: 6, lastPart: 6 },
     ]);
@@ -256,7 +256,7 @@ test("002b3 A30/A62: one entry per day and record row", () => {
     picked.startDrawing("gamma/U", 2, {});
     picked.drawTo("beta", 3, ORDER);
     picked.endDrawing();
-    expect(pickedDaysByRow(picked.cells(), ROWS_BY_ID, day).map((e) => e.rowId)).toEqual([
+    expect(pickedDaysByRow(picked.cells(), ROWS_BY_ID, day, ORDER).map((e) => e.rowId)).toEqual([
         "beta/U",
         "beta/C2",
         "beta/C3",
@@ -270,18 +270,18 @@ test("002b3 A35: the first block", () => {
     picked.startDrawing("beta/U", 3, ctrl);
     picked.drawTo("beta/U", 4, ORDER);
     picked.endDrawing();
-    expect(firstPickedBlock(picked.cells(), ORDER)).toEqual({
+    expect(firstPickedBlock(picked.cells(), ORDER, ROWS_BY_ID)).toEqual({
         rowId: "beta/U",
         fromPart: 3,
         toPart: 4,
     });
-    expect(firstPickedBlock([], ORDER)).toBe(null);
+    expect(firstPickedBlock([], ORDER, ROWS_BY_ID)).toBe(null);
     // a gap ends the block
     const gap = [
         { rowId: "beta/U", part: 2 },
         { rowId: "beta/U", part: 4 },
     ];
-    expect(firstPickedBlock(gap, ORDER)).toEqual({ rowId: "beta/U", fromPart: 2, toPart: 2 });
+    expect(firstPickedBlock(gap, ORDER, ROWS_BY_ID)).toEqual({ rowId: "beta/U", fromPart: 2, toPart: 2 });
 });
 
 test("002b3 A4: the mode conditions", () => {
@@ -318,4 +318,72 @@ test("002b3: Shift with Ctrl and an anchor acts as Shift", () => {
     rowHeader(picked, "beta/C3", { shift: true, ctrl: true });
     expect(rowsOf(picked)).toEqual(["beta/U", "beta/C2", "beta/C3"]);
     expect(picked.size).toBe(42);
+});
+
+test("002b3 A35: the first block skips group rows", () => {
+    const picked = new TimelinePickedCells();
+    column(picked, MON);
+    // the top cell of the column is the group row "undefP"
+    expect(firstPickedBlock(picked.cells(), ORDER, ROWS_BY_ID)).toEqual({
+        rowId: "undefP/U",
+        fromPart: 2,
+        toPart: 3,
+    });
+    const onlyGroup = [{ rowId: "beta", part: 2 }];
+    expect(firstPickedBlock(onlyGroup, ORDER, ROWS_BY_ID)).toBe(null);
+});
+
+test("002b3 A30: the days follow the given row order, numeric ids included", () => {
+    const rows = { 10: { isGroup: false }, 9: { isGroup: false }, 2: { isGroup: false } };
+    const cells = [
+        { rowId: "2", part: 0 },
+        { rowId: "9", part: 0 },
+        { rowId: "10", part: 0 },
+    ];
+    const order = ["10", "2", "9"];
+    const entries = pickedDaysByRow(cells, rows, () => "d", order);
+    expect(entries.map((e) => e.rowId)).toEqual(["10", "2", "9"]);
+});
+
+test("002b3 A20: Ctrl+click on a cell keeps the anchors, a folded click changes nothing", () => {
+    const folded = new Set([4, 5]);
+    const picked = new TimelinePickedCells({ isFolded: (part) => folded.has(part) });
+    column(picked, MON);
+    picked.clickColumnOfRow("beta/U", dayParts(FRI), ctrl);
+    expect(picked.columnAnchor).toBe(MON);
+    column(picked, WED, { shift: true });
+    expect(partsOf(picked)).toEqual([2, 3, 6, 7]);
+    const before = keys(picked);
+    picked.clickColumnOfRow("beta/U", dayParts(TUE), {});
+    picked.clickColumnOfRow("beta/U", dayParts(TUE), ctrl);
+    expect(keys(picked)).toEqual(before);
+    expect(picked.columnAnchor).toBe(MON);
+    // a click without Ctrl forgets the anchors
+    picked.clickColumnOfRow("beta/U", dayParts(THU), {});
+    expect(picked.columnAnchor).toBe(null);
+});
+
+test("002b3: Shift without the matching anchor clears when the other anchor exists", () => {
+    const picked = new TimelinePickedCells();
+    rowHeader(picked, "beta/U");
+    column(picked, WED, { shift: true });
+    expect(partsOf(picked)).toEqual([6, 7]);
+    expect(picked.size).toBe(24);
+    expect(picked.rowAnchor).toBe(null);
+    expect(picked.columnAnchor).toBe(WED);
+    column(picked, MON, { shift: true });
+    expect(partsOf(picked)).toEqual([2, 3, 4, 5, 6, 7]);
+    // and with Ctrl, from a column anchor to a row header
+    rowHeader(picked, "beta/C2", { shift: true, ctrl: true });
+    expect(rowsOf(picked)).toEqual(["beta/C2"]);
+    expect(picked.rowAnchor).toBe("beta/C2");
+    column(picked, THU, { shift: true, ctrl: true });
+    expect(picked.size).toBe(24);
+    expect(partsOf(picked)).toEqual([8, 9]);
+});
+
+test("002b3: a drawing from a row that is not displayed keeps the start row", () => {
+    const picked = new TimelinePickedCells();
+    picked.startDrawing("beta/U", 2, {});
+    expect(picked.drawTo("ghost", 3, ORDER).map((c) => c.rowId)).toEqual(["beta/U", "beta/U"]);
 });
