@@ -150,6 +150,8 @@ export class TimelineRenderer extends Component {
         this._popoverTimer = null;
         this._popoverFor = null;
         this._clickLock = null;
+        this._pressCell = null;
+        this._releaseCell = null;
         this._seenData = null;
         this._rowEl = null;
         this._selecting = new TimelineSelection({
@@ -503,11 +505,48 @@ export class TimelineRenderer extends Component {
         return this.props.model.data;
     }
 
-    /** A click on a group row (its header or a cell) folds or opens it (R22). */
-    onRowClick(descriptor) {
-        if (descriptor.kind === "group") {
-            this.props.model.toggleRow(descriptor.row.id);
+    /**
+     * The cell of a group row an event happened in: the column (or folded run) of a cell, the
+     * header, or the bare row; with the row, so a release in another row never matches.
+     */
+    _groupCellKey(ev, descriptor) {
+        const target = ev.target;
+        const cell = target.closest?.(".o_tl_cell");
+        let part = "row";
+        if (cell) {
+            part = cell.dataset.column !== undefined ? `c${cell.dataset.column}` : `r${cell.dataset.run}`;
+        } else if (target.closest?.(".o_tl_row_header")) {
+            part = "header";
         }
+        return `${descriptor.row.id}:${part}`;
+    }
+
+    /** R1, D7: the press and the release on a group row are remembered, cell by cell. */
+    onRowPointerDown(ev, descriptor) {
+        this._pressCell = descriptor.kind === "group" ? this._groupCellKey(ev, descriptor) : null;
+        this._releaseCell = null;
+    }
+
+    onRowPointerUp(ev, descriptor) {
+        this._releaseCell = descriptor.kind === "group" ? this._groupCellKey(ev, descriptor) : null;
+    }
+
+    /**
+     * A click on a group row (its header or a cell) folds or opens it (R22), only when the press
+     * and the release fell in the same cell of the row, whatever the pointer moved in between
+     * (R1, D7). Without a remembered press (a click without its pointer events) it toggles.
+     */
+    onRowClick(descriptor) {
+        const press = this._pressCell;
+        const release = this._releaseCell;
+        this._pressCell = this._releaseCell = null;
+        if (descriptor.kind !== "group") {
+            return;
+        }
+        if (press && release && press !== release) {
+            return;
+        }
+        this.props.model.toggleRow(descriptor.row.id);
     }
 
     /**

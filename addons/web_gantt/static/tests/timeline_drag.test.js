@@ -609,6 +609,96 @@ test("A13 a press on a group pill reaches the cell: a click there toggles the ro
     expect(group.classList.contains("o_tl_collapsed")).toBe(!wasCollapsed);
 });
 
+/** The cells of the first group row of H1 grouped by Parent then Contact (a press lands on one). */
+async function groupGesture(from, to, { fromRow = 0, toRow = 0, dx = 0 } = {}) {
+    const rows = queryAll(".o_tl_group_row");
+    const startCell = rows[fromRow].querySelectorAll(".o_tl_cell")[from];
+    const endCell = queryAll(".o_tl_group_row")[toRow].querySelectorAll(".o_tl_cell")[to];
+    const a = queryRect(startCell);
+    const b = queryRect(endCell);
+    const start = { x: a.left + 20, y: a.top + 10 };
+    const helpers = await drag(startCell, { position: start });
+    await helpers.moveTo(endCell, { position: { x: b.left + 20 + dx, y: b.top + 10 } });
+    await animationFrame();
+    expect(moved()).toHaveCount(0);
+    expect(".o_tl_drop").toHaveCount(0);
+    await helpers.drop();
+    await settle();
+    await advanceTime(1100);
+    expect(log).toHaveLength(0);
+}
+
+test("A13 a press and a release in two cells of a group row (on the grey pill or an empty cell) do not toggle it", async () => {
+    await mountTimeline({ arch: HOST_ARCHS.H1, groupBy: ["parent_id", "x_contact"] });
+    const group = queryAll(".o_tl_group_row")[0];
+    expect(group).not.toHaveClass("o_tl_collapsed");
+    const pills = [...group.querySelectorAll(".o_tl_group_pill")].map((bar) => queryRect(bar));
+    const cells = [...group.querySelectorAll(".o_tl_cell")].map((cell) => queryRect(cell));
+    // a cell under a grey pill, and one without
+    const onPill = cells.findIndex((c) => pills.some((p) => p.left <= c.left + 20 && p.right >= c.left + 20));
+    const empty = cells.findIndex((c) => !pills.some((p) => p.left < c.right && p.right > c.left));
+    expect(onPill).toBeGreaterThan(-1);
+    expect(empty).toBeGreaterThan(-1);
+    await groupGesture(onPill, onPill + 1);
+    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+    await groupGesture(empty, empty + 1 < cells.length ? empty + 1 : empty - 1);
+    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+    // 5 px across a border are two cells too
+    const border = queryRect(group.querySelectorAll(".o_tl_cell")[onPill]).right;
+    const startCell = group.querySelectorAll(".o_tl_cell")[onPill];
+    const endCell = group.querySelectorAll(".o_tl_cell")[onPill + 1];
+    const helpers = await drag(startCell, { position: { x: border - 2, y: cells[0].top + 10 } });
+    await helpers.moveTo(endCell, { position: { x: border + 3, y: cells[0].top + 10 } });
+    await helpers.drop();
+    await settle();
+    await advanceTime(1100);
+    expect(queryAll(".o_tl_group_row")[0]).not.toHaveClass("o_tl_collapsed");
+    expect(log).toHaveLength(0);
+});
+
+test("A13 a press and a release in one cell toggle the row, whatever the pointer moved; a plain click too", async () => {
+    await mountTimeline({ arch: HOST_ARCHS.H1, groupBy: ["parent_id", "x_contact"] });
+    const first = () => queryAll(".o_tl_group_row")[0];
+    const width = queryRect(first().querySelector(".o_tl_cell")).width;
+    const collapsed = () => first().classList.contains("o_tl_collapsed");
+    expect(collapsed()).toBe(false);
+    // 100 px (or as far as one cell allows) inside one cell
+    const dx = Math.min(100, width - 45);
+    await groupGesture(2, 2, { dx });
+    expect(collapsed()).toBe(true);
+    await groupGesture(2, 2, { dx: 5 });
+    expect(collapsed()).toBe(false);
+    await advanceTime(1100);
+    await click(first().querySelectorAll(".o_tl_cell")[2]);
+    await animationFrame();
+    expect(collapsed()).toBe(true);
+    await advanceTime(1100);
+    await click(first().querySelectorAll(".o_tl_cell")[2]);
+    await animationFrame();
+    expect(collapsed()).toBe(false);
+});
+
+test("A13 a release in another row toggles neither row", async () => {
+    await mountTimeline({ arch: HOST_ARCHS.H1, groupBy: ["parent_id", "x_contact"] });
+    const rows = queryAll(".o_tl_row:not(.o_tl_total_row)");
+    const group = rows.find((row) => row.classList.contains("o_tl_group_row"));
+    const other = rows.find((row) => row !== group);
+    const startCell = group.querySelectorAll(".o_tl_cell")[2];
+    const endCell = other.querySelectorAll(".o_tl_cell")[2];
+    const a = queryRect(startCell);
+    const b = queryRect(endCell);
+    const helpers = await drag(startCell, { position: { x: a.left + 20, y: a.top + 10 } });
+    await helpers.moveTo(endCell, { position: { x: b.left + 20, y: b.top + 10 } });
+    await helpers.drop();
+    await settle();
+    await advanceTime(1100);
+    expect(queryAll(".o_tl_group_row").map((row) => row.classList.contains("o_tl_collapsed"))).toEqual(
+        queryAll(".o_tl_group_row").map(() => false)
+    );
+    expect(moved()).toHaveCount(0);
+    expect(log).toHaveLength(0);
+});
+
 test("A14 the sample state has no pill to move: a press and a move start nothing", async () => {
     await mountTimeline({ arch: HOST_ARCHS.H8, domain: [["id", "<", 0]] });
     expect(".o_tl_pill").toHaveCount(0);

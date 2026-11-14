@@ -25,7 +25,7 @@
                         </div>
                     </t>
                     <t t-foreach="layout.rows" t-as="row" t-key="row.key">
-                        <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
+                        <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-pointerdown="(ev) => this.onRowPointerDown(ev, row)" t-on-pointerup="(ev) => this.onRowPointerUp(ev, row)" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
                             <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-class="{ o_tl_sample: layout.isSample }" t-att-title="row.row.name" t-on-click="() => this.onRowHeaderClick(row)">
                                 <i t-if="row.kind === 'group'" class="oi o_tl_caret" t-att-data-icon="row.row.collapsed ? 'arrow_right' : 'arrow_drop_down'"/>
                                 <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
