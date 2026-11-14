@@ -316,13 +316,16 @@ class TimelineDragScreens(TimelineProbeCase):
                     self.mouse('mouseMoved', x0 + (x1 - x0) * i / 8, y, button='left', buttons=1)
                     time.sleep(.03)
             else:
-                x0, x1 = 230, 160
+                # A61: 800 ms at x 230, along y 412 in four steps with 120 ms pauses, held 700 ms
+                x0, x1, y = 230, 160, 412
                 self.touch_event('touchStart', [(x0, y)])
                 time.sleep(.8)
-                for i in range(1, 5):
-                    self.touch_event('touchMove', [(x0 + (x1 - x0) * i / 4, y)])
-                    time.sleep(.03)
+                for x in (215, 195, 175, 160):
+                    self.touch_event('touchMove', [(x, y)])
+                    time.sleep(.12)
             self.wait("!!document.querySelector('.o_tl_selection')")
+            if viewport != 'desktop':
+                time.sleep(.7)
             self.settle()
             shot('49-rtl-selection')
             if viewport == 'desktop':

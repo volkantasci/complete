@@ -9,6 +9,7 @@ runs with touch emulation, the others on the phone are measured without touch.
 import contextlib
 import logging
 import time
+from datetime import date, timedelta
 
 from odoo.tests import tagged
 
@@ -31,6 +32,14 @@ UNDO_BUTTON = "document.querySelector('.o_notification .o_notification_buttons b
 RECORD_FIELDS = ('date_start', 'date_stop', 'parent_id', 'x_contact', 'x_tags')
 START_BADGE = "document.querySelector('.o_tl_badge_start')"
 STOP_BADGE = "document.querySelector('.o_tl_badge_stop')"
+
+
+def arabic_midnight(day):
+    """R19: 00:00 on a date as the Arabic user reads it (Monday 9 November 2026 is
+    ٩ RLM / ١١ RLM / ٢٠٢٦ ، ١٢:٠٠ ص): day, mark, slash, month, mark, slash, year, Arabic comma,
+    space, 12-hour time, space, the morning marker."""
+    digits = str.maketrans('0123456789', '٠١٢٣٤٥٦٧٨٩')
+    return (f'{day.day}\u200f/{day.month}\u200f/{day.year}\u060c 12:00 \u0635').translate(digits)
 
 
 @tagged('post_install', '-at_install', 'timeline_probes')
@@ -61,24 +70,28 @@ class TimelineDragProbes(TimelineProbeCase):
         if expected is not None:
             self.probe(probe, element_js, scheme, viewport, expected, label)
 
-    def check_badge(self, probe, element_js, scheme, viewport, label, edge):
-        """A badge of Arabic text: its width is the width of the digits and letters in the
-        font the machine holds for Arabic, so the width is not compared. What is compared is
-        everything else, with the edge that sits at the highlight (``right`` for the start badge
-        of a right-to-left selection, ``left`` for the stop badge) at the measured place."""
+    def check_badge(self, probe, element_js, scheme, viewport, label, edge, at, text=None):
+        """A badge of Arabic text: its width follows the machine's Arabic font, so neither the
+        width nor the edge that moves with it is compared. Compared are the anchored edge (``at``,
+        the ``right`` edge of a start badge or the ``left`` edge of a stop badge), the top, the
+        height, the colours and the other styles of the table and, when given, the text."""
         expected = DRAG_VALUES[probe].get((scheme, viewport))
         if expected is None:
             return
-        rest = {k: v for k, v in expected.items() if k != 'geometry.width'}
-        if edge == 'right':
-            rest.pop('geometry.x', None)
-        self.probe(probe, element_js, scheme, viewport, rest, label)
-        if edge == 'right':
-            box = self.geometry(element_js)
-            right = box['geometry.x'] + box['geometry.width']
-            want = float(expected['geometry.x']) + float(expected['geometry.width'])
-            self.assertAlmostEqual(right, want, delta=0.5,
-                                   msg=f'{probe} {scheme}/{viewport} right edge of {label}')
+        self.probe(probe, element_js, scheme, viewport, expected, label)
+        box = self.geometry(element_js)
+        found = box['geometry.x'] + (box['geometry.width'] if edge == 'right' else 0)
+        self.assertAlmostEqual(found, at, delta=0.5,
+                               msg=f'{probe} {scheme}/{viewport} {edge} edge of {label}')
+        if text is not None:
+            self.assertEqual(self.js(f"{element_js}.textContent"), text,
+                             f'{probe} {scheme}/{viewport} text of {label}')
+
+    def date_at(self, x, y):
+        """The date of the column under a point of the grid."""
+        cell = f'document.elementFromPoint({x}, {y}).closest("[data-column]")'
+        select = '".o_tl_col[data-index=\'" + ' + cell + '.dataset.column + "\']"'
+        return date.fromisoformat(self.js(f'document.querySelector({select}).dataset.date'))
 
     def mouse(self, kind, x, y, **extra):
         self.browser._websocket_request('Input.dispatchMouseEvent', params={
@@ -102,6 +115,9 @@ class TimelineDragProbes(TimelineProbeCase):
             with self.page(HOST.format('h1'), scheme, viewport, login='rtl'):
                 y = self.bottom_of_first_row()
                 x0, x1 = 1330, 1030
+                # the day pressed (first half) and the day where it is released (second half)
+                first = self.date_at(x0, y)
+                last = self.date_at(x1, y)
                 self.mouse('mouseMoved', x0, y)
                 self.mouse('mousePressed', x0, y, button='left', buttons=1, clickCount=1)
                 for i in range(1, 9):
@@ -113,8 +129,10 @@ class TimelineDragProbes(TimelineProbeCase):
                     "[...document.querySelectorAll('.o_tl_selection_badge')]"
                     ".map((b) => b.textContent).join(' // ')"))
                 self.check('M53', SELECTION, scheme, viewport, 'selection highlight (rtl)')
-                self.check_badge('M55', START_BADGE, scheme, viewport, 'start badge (rtl)', 'right')
-                self.check_badge('M57', STOP_BADGE, scheme, viewport, 'stop badge (rtl)', 'left')
+                self.check_badge('M55', START_BADGE, scheme, viewport, 'start badge (rtl)', 'right',
+                                 1376, arabic_midnight(first))
+                self.check_badge('M57', STOP_BADGE, scheme, viewport, 'stop badge (rtl)', 'left',
+                                 992, arabic_midnight(last + timedelta(days=1)))
                 self.mouse('mouseReleased', x1, y, button='left', buttons=0, clickCount=1)
                 self.settle(500)
 
@@ -122,20 +140,22 @@ class TimelineDragProbes(TimelineProbeCase):
         probes = ['M54', 'M56', 'M58']
         for scheme, viewport in self.combos(probes, ('phone',)):
             with self.page(HOST.format('h1'), scheme, viewport, login='rtl', touch=True):
-                y = self.bottom_of_first_row()
-                x0, x1 = 230, 160
-                self.touch_event('touchStart', [(x0, y)])
+                # A61: held 800 ms at x 230 on the empty bottom part, along y 412 in four steps
+                # with a pause of 120 ms after each, then held 700 ms
+                y = 412
+                self.touch_event('touchStart', [(230, y)])
                 time.sleep(.8)
-                for i in range(1, 5):
-                    self.touch_event('touchMove', [(x0 + (x1 - x0) * i / 4, y)])
-                    time.sleep(.03)
+                for x in (215, 195, 175, 160):
+                    self.touch_event('touchMove', [(x, y)])
+                    time.sleep(.12)
                 self.wait(f"!!{SELECTION}")
+                time.sleep(.7)
                 self.settle()
                 self.check('M54', SELECTION, scheme, viewport, 'selection highlight (rtl phone)')
                 self.check_badge('M56', START_BADGE, scheme, viewport, 'start badge (rtl phone)',
-                                 'right')
+                                 'right', 291)
                 self.check_badge('M58', STOP_BADGE, scheme, viewport, 'stop badge (rtl phone)',
-                                 'left')
+                                 'left', 99)
                 self.touch_event('touchEnd', [])
                 self.settle(500)
 

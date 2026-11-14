@@ -94,6 +94,15 @@ class TestTimelineDragTours(HttpCase):
         self._tour('h1', 'timeline_002b2_a60_rtl_selection_badges', login='rtl')
         self.assertEqual(self.env[PILL].search_count([]), count)
 
+    def test_a61_tour_rtl_selection_badges_phone(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h1', 'timeline_002b2_a61_rtl_selection_badges_phone', login='rtl',
+                   size='390x844', touch=True)
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
+    def test_a75_tour_rtl_headers(self):
+        self._tour('h1', 'timeline_002b2_a75_rtl_headers', login='rtl')
+
     # -- edge scrolling (R20) -------------------------------------------------------------------
 
     def test_a65_tour_selection_edge_speed(self):
