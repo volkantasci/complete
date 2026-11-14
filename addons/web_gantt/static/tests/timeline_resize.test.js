@@ -222,11 +222,12 @@ test("A27 shorten Build at its end: the pill follows to the border, badges, one 
     const build = await pressHandle("Build", "stop");
     const border = borderOf("2026-11-14");
     await build.to(border - 5);
-    // the end goes to the nearest border (M34): the pill ends there, one pixel inside
+    // the end goes to the nearest border (M34): the pill held is its box, one pixel around the
+    // body it has at rest, and ends there
     const rect = queryRect(pillEl("Build"));
-    expect(near(rect.right, border - 1)).toBe(true);
-    expect(near(rect.left, before.left)).toBe(true);
-    expect(near(rect.height, 23)).toBe(true);
+    expect(near(rect.right, border)).toBe(true);
+    expect(near(rect.left, before.left - 1)).toBe(true);
+    expect(near(rect.height, 25)).toBe(true);
     expect(pillEl("Build")).not.toHaveClass("o_tl_pill_origin");
     expect(".o_tl_pill_moved").toHaveCount(0);
     expect(".o_tl_pill_faded").toHaveCount(0);
@@ -234,13 +235,13 @@ test("A27 shorten Build at its end: the pill follows to the border, badges, one 
     // the badges: the stop with its difference in danger (M29), the start black (M31)
     expect(badgeTexts()).toEqual(["11/12/2026, 9:00 AM", "11/13/2026, 6:00 PM (-24 hours)"]);
     expect(badgeRoles()).toEqual(["black", "danger"]);
-    // the badges stand around the pill's box, one pixel around the body
+    // the badges stand against the pill's box
     const start = queryRect(".o_tl_badge_start");
     const stop = queryRect(".o_tl_badge_stop");
-    expect(near(start.left, rect.left - 1)).toBe(true);
-    expect(near(start.top, rect.top - 1 - 20)).toBe(true);
-    expect(near(stop.right, rect.right + 1)).toBe(true);
-    expect(near(stop.top, rect.bottom + 1)).toBe(true);
+    expect(near(start.left, rect.left)).toBe(true);
+    expect(near(start.top, rect.top - 20)).toBe(true);
+    expect(near(stop.right, rect.right)).toBe(true);
+    expect(near(stop.top, rect.bottom)).toBe(true);
     // M33: the east resize shape over the view
     expect(root()).toHaveClass("o_tl_dragging");
     expect(root()).toHaveClass("o_tl_drag_resize");
@@ -271,8 +272,8 @@ test("A28 lengthen Build at its start: success badge, the west shape, one start 
     expect(badgeRoles()).toEqual(["success", "black"]);
     expect(root()).toHaveClass("o_tl_drag_west");
     expect(css(queryOne(".o_tl_renderer"), "cursor")).toBe("w-resize");
-    expect(near(queryRect(pillEl("Build")).left, border + 1 - 0)).toBe(true);
-    expect(near(queryRect(pillEl("Build")).right, before.right, 0.5)).toBe(true);
+    expect(near(queryRect(pillEl("Build")).left, border)).toBe(true);
+    expect(near(queryRect(pillEl("Build")).right, before.right + 1, 0.5)).toBe(true);
 
     let release;
     gate = new Promise((resolve) => (release = resolve));
@@ -300,13 +301,13 @@ test("A29 the nearest border: 40 px past keeps it, 60 px goes to the next; one s
     const border = borderOf("2026-11-13");
     const build = await pressHandle("Build", "stop");
     await build.to(border + 40);
-    expect(near(queryRect(pillEl("Build")).right, border - 1)).toBe(true);
+    expect(near(queryRect(pillEl("Build")).right, border)).toBe(true);
     await build.to(border + 60);
-    expect(near(queryRect(pillEl("Build")).right, border + part - 1)).toBe(true);
+    expect(near(queryRect(pillEl("Build")).right, border + part)).toBe(true);
     // past the start: one sub-column remains, its end one sub-column after its start
     await build.to(queryRect(pillEl("Build")).left - 100);
     const rect = queryRect(pillEl("Build"));
-    expect(near(rect.width, part - 2)).toBe(true);
+    expect(near(rect.width, part)).toBe(true);
     await build.drop();
     await settle();
     // five sub-columns shorter would stop at 06:00 of Thursday, before the start at 09:00: R12
@@ -337,7 +338,7 @@ test("A31 an end before the start: one sub-column drawn, danger badge, warning, 
     const part = partWidth();
     const review = await pressHandle("Review", "stop");
     await review.to(borderOf("2026-11-12", 1));
-    expect(near(queryRect(pillEl("Review")).width, part - 2)).toBe(true);
+    expect(near(queryRect(pillEl("Review")).width, part)).toBe(true);
     expect(badgeTexts()).toEqual(["11/12/2026, 10:00 AM", "11/12/2026, 2:00 AM (-12 hours)"]);
     expect(badgeRoles()).toEqual(["black", "danger"]);
     await review.drop();
@@ -657,7 +658,7 @@ test("A59.3 half-day precision, the stop: steps at the middle of Nov 14 and of N
     expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
     await three.to(end + 30);
     expect(badgeTexts()).toEqual(["11/11/2026", "11/14/2026 (+1 days)"]);
-    expect(near(queryRect(pillEl("Three days")).right, end + day - 1)).toBe(true);
+    expect(near(queryRect(pillEl("Three days")).right, end + day)).toBe(true);
     // back: the step falls at the same place
     await three.to(end + 10);
     expect(badgeTexts()).toEqual(["11/11/2026", "11/13/2026"]);
@@ -668,7 +669,7 @@ test("A59.3 half-day precision, the stop: steps at the middle of Nov 14 and of N
     // never before the end of the start day
     await three.to(leftOf("2026-11-05"));
     expect(badgeTexts()).toEqual(["11/11/2026", "11/11/2026 (-2 days)"]);
-    expect(near(queryRect(pillEl("Three days")).width, day - 2)).toBe(true);
+    expect(near(queryRect(pillEl("Three days")).width, day)).toBe(true);
     await three.to(end - 30);
     await three.drop();
     await settle();
@@ -768,9 +769,9 @@ test("A62 Build handles: right end is start (e-resize), left end is stop (w-resi
     const rect = queryRect(pillEl("Build"));
     const startBadge = queryRect(".o_tl_badge_start");
     const stopBadge = queryRect(".o_tl_badge_stop");
-    expect(near(startBadge.top, rect.bottom + 1)).toBe(true);
-    expect(near(startBadge.right, rect.right + 1)).toBe(true);
-    expect(near(stopBadge.top, rect.top - 1 - 20)).toBe(true);
+    expect(near(startBadge.top, rect.bottom)).toBe(true);
+    expect(near(startBadge.right, rect.right)).toBe(true);
+    expect(near(stopBadge.top, rect.top - 20)).toBe(true);
     // the pill reaches past the window's left edge here: the badge is kept inside it (R6)
     expect(rect.left < 0).toBe(true);
     expect(stopBadge.left >= 1 - 0.01).toBe(true);
