@@ -583,3 +583,26 @@ class TimelineMultiProbes(TimelineProbeCase):
                 # the write is the test's own: put the record back for the next scheme
                 self.env['test.web.gantt.pill'].search([('name', '=', 'Unscheduled')]).write(
                     {'date_start': False, 'date_stop': False})
+
+    # -- the first centring (002a R39) with and without the panel ----------------------------------
+
+    CENTRE = """(() => {
+        const grid = document.querySelector('.o_tl_renderer');
+        const box = grid.getBoundingClientRect();
+        const title = grid.querySelector('.o_tl_title_cell').getBoundingClientRect();
+        const middle = (title.right + box.left + grid.clientLeft + grid.clientWidth) / 2;
+        const today = document.querySelector('.o_tl_col.o_tl_is_today').getBoundingClientRect();
+        return {middle, start: today.left};
+    })()"""
+
+    def test_002b3_centre_of_the_first_scroll(self):
+        """Today's column starts at the middle of the visible grid, panel open or not."""
+        for action in ('h37', 'h34'):
+            with self.page(HOST.format(action), 'light', 'desktop'):
+                self.wait("!!document.querySelector('.o_tl_col.o_tl_is_today')")
+                self.settle(800)
+                measured = self.js(self.CENTRE)
+                self.assertEqual(bool(self.js("!!document.querySelector('.o_tl_panel')")),
+                                 action == 'h37')
+                self.assertAlmostEqual(measured['start'], measured['middle'], delta=2,
+                                       msg=f'{action}: the day starts at the middle {measured}')

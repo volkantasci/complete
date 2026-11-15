@@ -56,9 +56,9 @@ import {
     pickedDaysByRow,
     TimelinePickedCells,
 } from "./timeline_multi_select";
+import { panelSpan } from "./timeline_panel_math";
 import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
 import { TimelineSelection } from "./timeline_selection";
-import { panelSpan } from "./timeline_panel_math";
 import { hasSidePanel, TimelineSidePanel } from "./timeline_side_panel";
 
 const { DateTime } = luxon;
