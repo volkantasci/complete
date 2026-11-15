@@ -36,7 +36,8 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
   - Never run a container as root.
   - The output of a container run in the foreground can be cut off. Start a long run, such as a test suite, as a background command, wait for it inside the turn as "Long runs" says, and read its output file.
   - A module that is already installed in a database runs no tests when `-i` names it again. Run its tests on a fresh database, or update it with `-u`.
-  - A run that writes files through a container, such as screenshots or browser logs, leaves them owned by the container's user. Write them under one directory, and copy what you keep. If you cannot remove that directory afterwards, name it in your report: the owner's next command removes it.
+  - A run that writes files through a container, such as screenshots or browser logs, leaves them owned by the container's user. Write them under `.cache/` at the repository's root, which `.gitignore` ignores, through a bind mount of the run, and copy what you keep. If you cannot remove that directory afterwards, name it in your report: the owner's next command removes it.
+  - Never add a line to the repository's local exclude file. It hides a stray file from `git status`, and so from the tree check.
 - **Long runs.** A subagent waits for its own long runs, such as screenshot batches and test suites, inside its turn, with a foreground command or a monitor. It never ends its turn while one is still running, because the harness may not wake it again. Put this rule into every dispatch that starts a long run.
 - **Names.** Use technical names only where `model.md` requires them. Give every other identifier a name of your own ([module-authoring.md](../module-authoring.md#naming)).
 - **Wording.** The spec's screenshots show the original's wording. Write every user-facing text in your own words, with the meaning the spec gives, except the texts the spec prescribes.
@@ -65,8 +66,8 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
 5. **Overlap report.** When every task is implemented and reviewed, and before the final review, stop.
-   - Report with Status `OVERLAP_CHECK`, the module paths, and every spec question and ruling so far, in full and in spec language.
-   - The coordinator sends the spec questions to the analyst, with the rulings that fill a gap with a guess about behaviour. The answers come back in the package, with a dated list of what changed, and replace your rulings on those points.
+   - Report with Status `OVERLAP_CHECK`, the module paths, and every spec question and ruling so far, in full and in spec language. Write the status line exactly as `**Status:** OVERLAP_CHECK`.
+   - The coordinator sends the spec questions to the analyst, with the rulings that fill a gap with a guess about behaviour. The answers come back in the package, with a dated list of what changed, and replace your rulings on those points. Where the analyst finds a likely defect of the original, the owner decides, and the decision reaches you in the package too.
    - The owner then runs the overlap report: the Complete paths and line numbers that match the reference, with no reference text. The coordinator resumes you with that list.
    - Rename or rewrite every listed line that `model.md` does not require. A listed line that the module's provenance record already lists as a reviewed match stays as it is. Then apply the package's changes, and continue with the next step.
 6. **Document:** the module README, the user documentation and the module's `static/description/index.html`.
@@ -83,7 +84,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
 
 Your final message is copied to the coordinator. Make it self-contained, write it in plain English, and include:
 
-- **Status:** DONE, DONE_WITH_QUESTIONS, or BLOCKED with the exact error.
+- **Status:** DONE, DONE_WITH_QUESTIONS, or BLOCKED with the exact error. Write the line exactly as `**Status:** DONE`, with the word that applies: the owner's command reads it.
   - DONE: the branch is ready for verification, even with spec questions that the verifier can judge.
   - DONE_WITH_QUESTIONS: a question must be answered before verification, such as a scenario not built, or built on a guess the verifier cannot judge. It stops the chained steps.
 - **Branch and commits,** and the plan path.
