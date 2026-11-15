@@ -100,7 +100,12 @@ desktop); the `touch` option of the probe's `page` overrides it, for example to
 read the phone without touch.
 Screenshots: `--test-tags gantt_view_screens --screenshots <dir>` (and
 `gantt_edit_screens`, `gantt_drag_screens`) on a database with
-`web_enterprise`; the files land in `<dir>/gantt_view/`. Drag tours:
+`web_enterprise`; the files land in `<dir>/gantt_view/`. Write them under the
+git-ignored `.cache/` of the checkout through a bind mount, as the
+[web_enterprise](../web_enterprise/README.md) screenshots do: `run --rm -v
+/path/to/complete/.cache/gantt_multi_screens:/mnt/cwg_shots odoo odoo ... --test-tags
+gantt_multi_screens --screenshots /mnt/cwg_shots` (images 53 to 74), then copy the
+pictures you keep into `docs/assets/gantt_view/`. Drag tours:
 `--test-tags /test_web_gantt:TestTimelineDragTours`; host and undo tests:
 `/test_web_gantt:TestTimelineDragHost` and
 `/test_web_gantt:TestTimelineUndoMethod`.

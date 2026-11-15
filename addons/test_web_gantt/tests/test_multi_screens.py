@@ -5,8 +5,11 @@
 
 One capture per screen S1 to S22 of the spec's ``screens/index.md`` of slice 002b3 (names 53 to 74
 of ``gantt_view``; light: no suffix, dark: ``-dark``, phone: ``.mobile``). Run with
-``--test-tags gantt_multi_screens`` and ``--screenshots <dir>`` on a database that has
-``web_enterprise`` (for the dark scheme); the files land in ``<dir>/gantt_view/``. The gestures are
+``--test-tags gantt_multi_screens`` and ``--screenshots /mnt/cwg_shots`` on a database that has
+``web_enterprise`` (for the dark scheme), with the git-ignored ``.cache/gantt_multi_screens`` of the
+checkout mounted there (``run --rm -v /path/to/complete/.cache/gantt_multi_screens:/mnt/cwg_shots
+odoo odoo ...``); the files land in ``.cache/gantt_multi_screens/gantt_view/`` and the ones to
+keep are copied into ``docs/assets/gantt_view/``. The gestures are
 the ones of the probes of ``test_multi_probes`` (same points, steps and pauses). The phone shows
 what the phone does: the plain view, or the dialogs of slice 002b (no state of this slice exists
 there), always taken with a mouse.
