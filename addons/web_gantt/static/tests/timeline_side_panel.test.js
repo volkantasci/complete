@@ -642,6 +642,38 @@ test("002b3 R19: lines cut long names with an ellipsis and keep the full name as
     expect(queryRect(queryAll(".o_tl_panel_line")[3]).height).toBe(29);
 });
 
+test.tags("desktop");
+test("002c A1: the name is only as wide as its text", async () => {
+    await mountPanel();
+    const line = queryAll(".o_tl_panel_line")[3];
+    const name = queryAll(".o_tl_panel_name")[3];
+    expect(name).toHaveText("Unscheduled");
+    expect(queryRect(name).width).toBeLessThan(queryRect(line).width - 60);
+    expect(queryRect(name).height).toBe(16);
+    // the handle icon's width is 14.016 px with the font loaded: the probe's value
+    expect(Math.abs(queryRect(name).left - queryRect(line).left - 14)).toBeLessThan(0.1);
+    expect(name).toHaveStyle({ cursor: "pointer" });
+    expect(line).toHaveStyle({ cursor: "grab" });
+});
+
+test.tags("desktop");
+test("002c A3: a long name is cut with an ellipsis", async () => {
+    await mountPanel();
+    const long = "A very long name of a record that cannot fit into the narrow panel of the view";
+    const record = pill("Unscheduled");
+    record.name = long;
+    record.display_name = long;
+    await controller.model.reload();
+    await animationFrame();
+    const line = queryAll(".o_tl_panel_line")[3];
+    const name = queryAll(".o_tl_panel_name")[3];
+    expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
+    expect(name).toHaveStyle({ textOverflow: "ellipsis", cursor: "pointer" });
+    // capped by the line: its right edge never passes the line's
+    expect(queryRect(name).right).not.toBeGreaterThan(queryRect(line).right + 0.5);
+    expect(queryRect(name).width).toBeGreaterThan(queryRect(line).width - 20);
+});
+
 // -- resizing by the strip (R20, A55) ---------------------------------------------------------
 
 const stripPoint = () => {

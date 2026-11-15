@@ -4,6 +4,8 @@
 from . import (
     test_access_rights,
     test_default_view,
+    test_dependency_probes,
+    test_dependency_tours,
     test_drag_host,
     test_drag_probes,
     test_drag_screens,

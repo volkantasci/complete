@@ -77,10 +77,11 @@
         color: $o-tl-panel-handle-hover;
     }
 
-    // the name reaches the line's end, cut with an ellipsis (the text-truncate class), its
-    // click opens the record
+    // the name is as wide as its text, no wider than the line, cut with an ellipsis when longer
+    // (the text-truncate class); only the name has the hand, a click anywhere on the line opens
+    // the record and a press anywhere drags it (002c R1)
     .o_tl_panel_name {
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         min-width: 0;
         position: relative;
         top: 2px;
