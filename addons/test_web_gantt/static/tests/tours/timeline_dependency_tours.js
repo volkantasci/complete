@@ -266,3 +266,105 @@ tours.add("timeline_002c_a6_negated_date_filter", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// A8, A9: folded columns in multi-selection mode (R3), on H12 with the multi-creation option and
+// two folded days (D+3 and D+4)
+// ---------------------------------------------------------------------------------------------
+
+const MODIFIERS = { alt: 1, ctrl: 2, meta: 4, shift: 8 };
+const pickedCount = () => $$(".o_tl_cell_picked").length;
+const foldedHeader = () => $(".o_tl_col.o_tl_folded");
+const recordRows = () => $$(".o_tl_row[data-row-id]");
+
+/** A click (press and release without a move) with the keys held. */
+async function clickWith({ x, y }, keys = []) {
+    const modifiers = keys.reduce((sum, name) => sum + MODIFIERS[name], 0);
+    await realMouse([
+        mouse("mouseMoved", x, y, { button: "none", buttons: 0, modifiers }),
+        mouse("mousePressed", x, y, { buttons: 1, clickCount: 1, modifiers }),
+        mouse("mouseReleased", x, y, { buttons: 0, clickCount: 1, modifiers }),
+    ]);
+}
+
+/** Bring the element to the middle of the grid, then wait for it to settle. */
+async function showElement(element) {
+    const grid = renderer().getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    renderer().scrollLeft += rect.left - grid.left - grid.width / 2;
+    await gridSettled();
+}
+
+tours.add("timeline_002c_a8_folded_headers", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_col.o_tl_folded",
+            async run() {
+                const rows = recordRows().length;
+                const foldable = () => $(".o_tl_col.o_tl_foldable");
+                // a plain click on a folded header opens its run and selects nothing
+                await showElement(foldedHeader());
+                await clickWith(centreOf(foldedHeader()));
+                assert(!foldedHeader(), "the run is open");
+                assert(pickedCount() === 0, `nothing is selected, got ${pickedCount()}`);
+                // an open column that can fold: Ctrl selects it and keeps it open, a plain click
+                // folds the run and clears the selection
+                await clickWith(centreOf(foldable()), ["ctrl"]);
+                assert(!foldedHeader(), "Ctrl keeps the column open");
+                assert(pickedCount() === rows * 2, `one column selected, got ${pickedCount()}`);
+                await clickWith(centreOf(foldable()));
+                assert(foldedHeader(), "a plain click folds the run");
+                assert(pickedCount() === 0, "and clears the selection");
+                // a folded header with Ctrl opens the run and selects it in every row
+                await clickWith(centreOf(foldedHeader()), ["ctrl"]);
+                assert(!foldedHeader(), "the run opens");
+                assert(pickedCount() > 0 && pickedCount() % rows === 0, "the run is selected");
+                await clickWith(centreOf(foldable()));
+                assert(foldedHeader() && pickedCount() === 0, "folded again, selection cleared");
+                // Shift from the day after the run to the day before: the run is left out
+                const headers = $$(".o_tl_col");
+                const at = headers.indexOf(foldedHeader());
+                await clickWith(centreOf(headers[at + 1]));
+                assert(pickedCount() === rows * 2, "the day after the run is selected");
+                // Shift on the folded header adds nothing and never unfolds
+                await clickWith(centreOf(foldedHeader()), ["shift"]);
+                assert(foldedHeader() && pickedCount() === rows * 2, "Shift on a folded header");
+                await clickWith(centreOf(headers[at - 1]), ["shift"]);
+                assert(foldedHeader(), "Shift never unfolds");
+                assert(pickedCount() === rows * 4, `two days selected, got ${pickedCount()}`);
+                assert($$(".o_tl_folded_cell.o_tl_cell_picked").length === 0, "none of the run");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002c_a9_folded_cells", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_col.o_tl_folded",
+            async run() {
+                const rows = recordRows().length;
+                const cellOf = (row) => $(".o_tl_folded_cell", row);
+                await showElement(foldedHeader());
+                // a folded cell of a record row, without and with Ctrl: nothing, still folded
+                const row = recordRows()[0];
+                await clickWith(centreOf(cellOf(row)));
+                assert(foldedHeader() && pickedCount() === 0, "a plain click does nothing");
+                await clickWith(centreOf(cellOf(row)), ["ctrl"]);
+                assert(foldedHeader() && pickedCount() === 0, "a Ctrl click does nothing");
+                // a plain click on a folded cell forgets the anchor: Shift selects one column
+                const headers = $$(".o_tl_col");
+                const at = headers.indexOf(foldedHeader());
+                await clickWith(centreOf(headers[at + 1]));
+                await clickWith(centreOf(cellOf(row)));
+                await clickWith(centreOf(headers[at - 1]), ["shift"]);
+                assert(pickedCount() === rows * 2, `only that column, got ${pickedCount()}`);
+                // the folded cell of the total row opens the run
+                await clickWith(centreOf(cellOf($(".o_tl_total_row"))));
+                assert(!foldedHeader(), "the total row's folded cell opens the run");
+            },
+        },
+    ],
+});

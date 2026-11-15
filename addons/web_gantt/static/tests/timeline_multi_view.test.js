@@ -70,6 +70,9 @@ const H12_MULTI = timelineArch(
     `${BASE} progress="x_progress" display_unavailability="1" progress_bar="x_contact" ${FORM}`,
     `<field name="x_flagged"/><field name="x_done"/>`
 );
+const H12_MULTI_TOTAL = timelineArch(
+    `${BASE} total_row="1" display_unavailability="1" progress_bar="x_contact" ${FORM}`
+);
 // ids of the records of the fixtures (4 + the index of the row in the fixtures)
 const ID = { Test: 7, "Long task": 10, "Overlap A": 11, "Color eleven": 15 };
 
@@ -614,9 +617,9 @@ describe("folded columns", () => {
             ),
         };
     };
-    async function mountFolded() {
+    async function mountFolded(arch = H12_MULTI) {
         unavailable();
-        await mountMulti({ arch: H12_MULTI, domain: [["id", "in", [4, 5, 6, 9]]] });
+        await mountMulti({ arch, domain: [["id", "in", [4, 5, 6, 9]]] });
     }
     const total = () => rows().length;
 
@@ -697,6 +700,94 @@ describe("folded columns", () => {
             .map((el) => Number(el.dataset.index))
             .filter((index) => index >= Number(header("2026-11-12").dataset.index));
         expect(rows()[1].querySelectorAll(".o_tl_cell_picked")).toHaveLength(indexes.length * 2);
+    });
+
+    /** The headers of the open columns next to the folded one, in the order of the page. */
+    function aroundFold() {
+        const cols = queryAll(".o_tl_col");
+        const at = cols.findIndex((el) => el.classList.contains("o_tl_folded"));
+        return { before: cols[at - 1], fold: cols[at], after: cols[at + 1] };
+    }
+    const foldedPicked = () => queryAll(".o_tl_folded_cell.o_tl_cell_picked");
+
+    test("002c A8: Shift from the day after a folded run to the day before leaves the run out", async () => {
+        await mountFolded();
+        const { before, after } = aroundFold();
+        await click(after);
+        await animationFrame();
+        expect(pickedCells()).toHaveCount(total() * 2);
+        await withKey("shift", () => click(before));
+        await animationFrame();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+        expect(pickedCells()).toHaveCount(total() * 4);
+        expect(foldedPicked()).toHaveCount(0);
+    });
+
+    test("002c A8: a column header with Ctrl is selected and an open foldable one stays open", async () => {
+        await mountFolded();
+        await click(".o_tl_col.o_tl_folded");
+        await animationFrame();
+        await click(header("2026-11-10"));
+        await animationFrame();
+        expect(pickedCells()).toHaveCount(total() * 2);
+        await withKey("ctrl", () => click(".o_tl_col.o_tl_foldable"));
+        await animationFrame();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+        expect(pickedCells()).toHaveCount(total() * 4);
+    });
+
+    test("002c A8: a drawing across a folded run selects both sides and none of the run", async () => {
+        await mountFolded();
+        const { before, after } = aroundFold();
+        // the cells of a row follow the headers on the page (a folded run is one cell)
+        const cols = queryAll(".o_tl_col");
+        const cell = (header) => rows()[1].querySelectorAll(".o_tl_cell")[cols.indexOf(header)];
+        const point = (header, half) => {
+            const rect = queryRect(cell(header));
+            return { x: rect.left + (rect.width * (half + 0.5)) / 2, y: rect.bottom - 4 };
+        };
+        const drawing = await drag(cell(before), { position: point(before, 0) });
+        await drawing.moveTo(cell(after), { position: point(after, 1) });
+        await animationFrame();
+        await drawing.drop();
+        await animationFrame();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+        expect(foldedPicked()).toHaveCount(0);
+        expect(rows()[1].querySelectorAll(".o_tl_cell_picked")).toHaveCount(4);
+    });
+
+    test("002c A9: a folded cell of a record row selects nothing and stays folded, with and without Ctrl", async () => {
+        await mountFolded();
+        const cell = () => rows()[1].querySelector(".o_tl_folded_cell");
+        await click(cell());
+        await animationFrame();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+        expect(pickedCells()).toHaveCount(0);
+        await withKey("ctrl", () => click(cell()));
+        await animationFrame();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+        expect(pickedCells()).toHaveCount(0);
+    });
+
+    test("002c A9: the folded cell of the total row opens the run in multi-selection mode", async () => {
+        await mountFolded(H12_MULTI_TOTAL);
+        expect(".o_tl_total_row .o_tl_folded_cell").toHaveCount(1);
+        await click(".o_tl_total_row .o_tl_folded_cell");
+        await animationFrame();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+        expect(pickedCells()).toHaveCount(0);
+    });
+
+    test("002c A9: after a plain folded-cell click the anchor is gone, Shift on a header selects only that column", async () => {
+        await mountFolded();
+        await click(header("2026-11-10"));
+        await animationFrame();
+        expect(picked().columnAnchor).not.toBe(null);
+        await click(rows()[1].querySelector(".o_tl_folded_cell"));
+        await animationFrame();
+        await withKey("shift", () => click(header("2026-11-12")));
+        await animationFrame();
+        expect(pickedCells()).toHaveCount(total() * 2);
     });
 });
 

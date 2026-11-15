@@ -766,10 +766,7 @@ export class TimelineRenderer extends Component {
             // the total row starts no lock and plans nothing, but a folded cell still opens
             if (cell.run !== undefined) {
                 ev.stopPropagation();
-                // in multi-selection mode a folded cell does nothing (R6): only a header opens it
-                if (!this.isMultiSelect) {
-                    this._setRunOpen(cell.run, true);
-                }
+                this._setRunOpen(cell.run, true);
             }
             return;
         }

@@ -9,10 +9,12 @@ inside the test's own savepoint, which is rolled back after it.
 A tour that needs real pointer events asks for them through ``window.__tl_mouse`` (see
 ``timeline_real_pointer``).
 """
+import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from lxml import etree
 from odoo.tests import HttpCase, tagged
 
 from .timeline_real_pointer import RealPointerMixin
@@ -90,3 +92,40 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
 
     def test_a6_tour_negated_date_filter(self):
         self._tour('h53', 'timeline_002c_a6_negated_date_filter')
+
+    # -- folded columns in multi-selection mode (R3) ---------------------------------------------
+
+    def _tl_folded_action(self):
+        """H12 (unavailability) with 002b3 H33's multi-creation option, every contact unavailable
+        on D+3 and D+4 and no pill on these days, so that the two days fold into one column."""
+        pill = self.env[PILL]
+        start, stop = (D0 + timedelta(days=3), D0 + timedelta(days=5))
+        text = {
+            'start': start.strftime('%Y-%m-%d 00:00:00'),
+            'stop': stop.strftime('%Y-%m-%d 00:00:00'),
+        }
+        pill.search([('date_start', '<', text['stop']), ('date_stop', '>', text['start'])]).unlink()
+        contacts = [self.records[f'C{i}'] for i in (1, 2, 3)]
+        self.env['ir.config_parameter'].set_str('test_web_gantt.hook_answers', json.dumps({
+            'unavailability': {'x_contact': {str(c.id): [text] for c in contacts}},
+        }))
+        arch = etree.fromstring(self.env.ref('test_web_gantt.host_view_h12').arch)
+        arch.set('multi_create_view', 'test_web_gantt.host_form_template_one')
+        view = self.env['ir.ui.view'].create({
+            'name': 'H12 folded multi', 'model': PILL, 'type': 'gantt',
+            'arch': etree.tostring(arch, encoding='unicode'),
+        })
+        action = self.env['ir.actions.act_window'].create({
+            'name': 'H12 folded multi',
+            'res_model': PILL,
+            'view_mode': 'gantt,list,form',
+            'view_id': view.id,
+            'context': "{'group_by': ['x_contact']}",
+        })
+        return f'/odoo/action-{action.id}'
+
+    def test_a8_tour_folded_headers(self):
+        self._tour(self._tl_folded_action(), 'timeline_002c_a8_folded_headers')
+
+    def test_a9_tour_folded_cells(self):
+        self._tour(self._tl_folded_action(), 'timeline_002c_a9_folded_cells')
