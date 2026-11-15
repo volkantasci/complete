@@ -132,6 +132,7 @@ class TimelineMultiScreens(TimelineProbeCase):
     # -- S6: the popover; on the phone 002b's create dialog opened by New (58) ----------
 
     def test_s06_popover(self):
+        """Scenario A42: the template form (S6)."""
         def prepare(viewport, shot):
             if viewport == 'desktop':
                 self.click_xy(452, 470)
@@ -147,6 +148,7 @@ class TimelineMultiScreens(TimelineProbeCase):
     # -- S7 to S9: Add, the delete confirmation, the deletion (59 to 61) ----------------
 
     def test_s07_s09_create_and_delete(self):
+        """Scenario A42: the template form and the deletion (S7 to S9)."""
         def prepare(viewport, shot):
             if viewport == 'phone':
                 self.rest(('59-created', '60-delete-confirm', '61-deleted'), shot)
@@ -175,6 +177,7 @@ class TimelineMultiScreens(TimelineProbeCase):
     # -- S10: the popover of a date-only model (62) -------------------------------------
 
     def test_s10_popover_dated(self):
+        """Scenario A42: the template form with dated fields (S10)."""
         def prepare(viewport, shot):
             if viewport == 'desktop':
                 column = self.geometry(
@@ -189,6 +192,7 @@ class TimelineMultiScreens(TimelineProbeCase):
     # -- S11 to S17: the side panel, from rest to closed (63 to 69) ---------------------
 
     def test_s11_s17_panel(self):
+        """Scenario A59: the panel (S11 to S17)."""
         def prepare(viewport, shot):
             if viewport == 'phone':
                 self.rest(('63-panel', '64-panel-handle', '65-panel-dragging',
@@ -239,6 +243,7 @@ class TimelineMultiScreens(TimelineProbeCase):
     # -- S18, S19: Load more (70, 71) ----------------------------------------------------
 
     def test_s18_s19_load_more(self):
+        """Scenario A59: the panel's Load more (S18, S19)."""
         queue = self.env['test.web.gantt.pill'].create(
             [{'name': f'Queue {i:02d}'} for i in range(1, 23)])
         # the records are part of the host for the visits (no restore deletes them)
@@ -267,6 +272,7 @@ class TimelineMultiScreens(TimelineProbeCase):
     # -- S20, S21: a gesture on a row header, twice (72, 73) ----------------------------
 
     def test_s20_s21_row_header(self):
+        """Scenario A3: the row header after the gesture (S20, S21)."""
         def prepare(viewport, shot):
             x0, x1 = (60, 200) if viewport == 'desktop' else (20, 110)
             self.header_gesture(x0, x1)
@@ -278,6 +284,7 @@ class TimelineMultiScreens(TimelineProbeCase):
     # -- S22: sample data, no panel (74) --------------------------------------------------
 
     def test_s22_sample_no_panel(self):
+        """Scenario A59: sample data, no panel (S22)."""
         def prepare(viewport, shot):
             self.wait("!!document.querySelector('.o_tl_box_sample')")
             self.settle(500)

@@ -559,6 +559,16 @@ copy or resize of a pill, at the start of a drag from the side panel, by Load
 more and by folding or opening a column without Ctrl. Closing the plan dialog
 or the popover keeps it. A click on Today that only scrolls keeps it too.
 
+### Pressing inside a row header
+
+With text selection off in the view, a press, a move and a release inside one
+row header is a click on it, with or without the side panel, and three of them
+in a row open and fold a group again each time.
+
+![A gesture inside a row header, light](../assets/gantt_view/72-row-header-drag.png)
+
+![The same gesture again, light](../assets/gantt_view/73-row-header-again.png)
+
 ### The selection buttons
 
 As soon as the selection holds a cell, a row of buttons appears over the grid:
@@ -744,16 +754,6 @@ edges; with the panel closed it does.
 ![The drop zone, dark](../assets/gantt_view/67-unschedule-zone-dark.png)
 
 ![The record back in the list, light](../assets/gantt_view/68-unscheduled.png)
-
-### Row headers with a panel
-
-Row headers keep working as before with the panel: a press, a move and a
-release inside one header is a click, and three of them in a row open and fold a
-group again each time.
-
-![A gesture inside a row header, light](../assets/gantt_view/72-row-header-drag.png)
-
-![The same gesture again, light](../assets/gantt_view/73-row-header-again.png)
 
 ## Moving, copying and resizing pills
 

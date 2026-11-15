@@ -18,7 +18,7 @@ Hidden module, never installed in production. User documentation:
   fourteen Gantt views H1 to H12, H14 and H15 (main, grouped by parent, by
   parent and contact, by tags, minimal, labels in sparse mode, custom popover,
   empty with and without sample data, dated, colour by contact, unavailability,
-  and the two mixed-type views), the editing hosts H16 to H29 the drag hosts H30 to H32 and the multi-create hosts H33 to H41 (below), their
+  and the two mixed-type views), the editing hosts H16 to H29, the drag hosts H30 to H32 and the multi-create hosts H33 to H41 (below), their
   window actions (view modes
   `gantt,list,form`) and a top menu **Gantt Host**.
 - **H16 to H29, the editing hosts** (slice 002b). H16: the default form view
