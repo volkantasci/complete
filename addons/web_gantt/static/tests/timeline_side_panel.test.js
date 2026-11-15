@@ -184,6 +184,20 @@ test("002b3 A54: closed shows the count text before the button", async () => {
 });
 
 test.tags("desktop");
+test("002b3 A54: growing from a phone with the panel remembered closed reads the count", async () => {
+    browser.localStorage.setItem(KEY, "false");
+    await resize({ width: 390, height: 844 });
+    await mountPanel();
+    expect(".o_tl_panel_toggle").toHaveCount(0);
+    expect(".o_tl_panel_count").toHaveCount(0);
+    await resize({ width: 1600, height: 900 });
+    await animationFrame();
+    await animationFrame();
+    expect(".o_tl_panel").toHaveCount(0);
+    expect(".o_tl_panel_count").toHaveText("Unscheduled: 4");
+});
+
+test.tags("desktop");
 test("002b3 R18: the grid's columns follow the panel", async () => {
     // a wide screen and the year range (36 months) without row headers (they take a part of the
     // width): the months share the width of the box
@@ -334,6 +348,26 @@ test("002b3 A44: a name search narrows the list", async () => {
 });
 
 test.tags("desktop");
+test("002b3 A44: R19.1 strips the date conditions of the search, not those of the action's domain", async () => {
+    const reads = watchLists();
+    await mountPanel(HOST_ARCHS.H36, {
+        domain: [["date_stop", "!=", "1999-01-01"]],
+        searchViewArch: `<search>
+            <filter name="late" string="Late" domain="[('date_start', '&gt;', '2000-01-01')]"/>
+        </search>`,
+    });
+    const listRead = () => reads.filter(({ kwargs }) => kwargs.limit === 20).at(-1).domain;
+    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(true);
+    await toggleSearchBarMenu();
+    await toggleMenuItem("Late");
+    await advanceTime(600);
+    await animationFrame();
+    // the action's condition on the stop stays, the search's condition on the start is gone
+    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(true);
+    expect(JSON.stringify(listRead()).includes("2000-01-01")).toBe(false);
+});
+
+test.tags("desktop");
 test("002b3 A44: a record with only a start is not listed", async () => {
     await mountPanel();
     pill("Unscheduled").date_start = at(0, "09:00");
@@ -352,10 +386,12 @@ test.tags("desktop");
 test("002b3 A45: date conditions of the search are left out", async () => {
     const reads = watchLists();
     await mountPanel(HOST_ARCHS.H36, {
-        domain: [
-            ["date_start", "!=", false],
-            ["name", "ilike", "a"],
-        ],
+        searchViewArch: `<search>
+            <filter name="dated" string="Dated" domain="[('date_start', '!=', False)]"/>
+            <separator/>
+            <filter name="named" string="Named" domain="[('name', 'ilike', 'a')]"/>
+        </search>`,
+        context: { search_default_dated: 1, search_default_named: 1 },
     });
     // the conditions on the start stay in the grid's own read but not in the list's
     expect(reads.at(-1).domain).toEqual([
@@ -372,7 +408,12 @@ test.tags("desktop");
 test("002b3 A45: a negated or alternative date condition is left out as well", async () => {
     const reads = watchLists();
     await mountPanel(HOST_ARCHS.H36, {
-        domain: ["|", ["date_stop", "!=", false], ["name", "=", "Beta"]],
+        searchViewArch: `<search>
+            <filter name="either" string="Either" domain="['|', ('date_stop', '!=', False), ('name', '=', 'Beta')]"/>
+            <separator/>
+            <filter name="never" string="Never" domain="['!', ('date_start', '=', False)]"/>
+        </search>`,
+        context: { search_default_either: 1 },
     });
     expect(reads.at(-1).domain).toEqual([
         "&",
@@ -382,7 +423,10 @@ test("002b3 A45: a negated or alternative date condition is left out as well", a
         ["date_stop", "=", false],
     ]);
     expect(names()).toEqual(["Beta"]);
-    await controller.model.load({ domain: ["!", ["date_start", "=", false]], context: {} });
+    await toggleSearchBarMenu();
+    await toggleMenuItem("Either");
+    await toggleMenuItem("Never");
+    await advanceTime(600);
     await animationFrame();
     // "!" of a left-out condition is left out: the list is not emptied
     expect(reads.at(-1).domain).toEqual(["&", ["date_start", "=", false], ["date_stop", "=", false]]);

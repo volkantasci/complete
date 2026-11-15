@@ -595,8 +595,16 @@ export class TimelineModel extends Model {
             return;
         }
         const serial = (this._panelSerial = (this._panelSerial || 0) + 1);
+        // R19.1: the date conditions go from the current search only; the action's own domain
+        // stays as it is
+        const searchModel = this.env.searchModel;
+        const actionDomain = searchModel ? searchModel.globalDomain || [] : [];
+        const searchDomain = searchModel
+            ? searchModel._getDomain({ withGlobal: false })
+            : this.domain;
         const domain = Domain.and([
-            stripDateConditions(this.domain, startField, stopField),
+            actionDomain,
+            stripDateConditions(searchDomain, startField, stopField),
             [
                 [startField, "=", false],
                 [stopField, "=", false],
