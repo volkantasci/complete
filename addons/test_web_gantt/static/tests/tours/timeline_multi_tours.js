@@ -1820,3 +1820,136 @@ tours.add("timeline_002b3_a61_writes_in_order", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// The drop zone and the edge scrolling with the panel (R22, R23; A51, A52, A56)
+// ---------------------------------------------------------------------------------------------
+
+/** The pill titled `name` that stands in the grid (not the moved copy). */
+const pillNamed = (name) =>
+    $$(".o_tl_pill").find(
+        (el) => el.textContent.trim() === name && !el.closest(".o_tl_pill_moved")
+    );
+const zoneEl = () => $(".o_tl_panel_dropzone");
+const controlKey = (type) =>
+    document.dispatchEvent(
+        new KeyboardEvent(type, { key: "Control", ctrlKey: type === "keydown", bubbles: true, cancelable: true })
+    );
+
+// H37 with "Unscheduled" scheduled by the test: the pill pressed 40 px left of its centre and
+// held over the panel: the list is replaced by the drop zone (M48), the pill keeps its look (M49),
+// no highlight and no badge; the release unschedules it, no notification
+tours.add("timeline_002b3_a51_drop_zone", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const pill = await until(() => pillNamed("Unscheduled"), "the pill Unscheduled");
+                const from = centreOf(pill);
+                from.x -= 40;
+                const panel = $(".o_tl_panel").getBoundingClientRect();
+                const to = { x: panel.left + panel.width / 2, y: 420 };
+                await realMouse(holdEvents(from, stepsTo(from, to)));
+                const zone = zoneEl();
+                assert(zone, "the drop zone replaces the list");
+                assert(!$(".o_tl_panel_line") && !$(".o_tl_panel_title"), "the list is gone");
+                assert(zone.textContent.trim() === "Drop here to remove the dates", "the zone's text");
+                const box = zone.getBoundingClientRect();
+                assert(near(box.top, panel.top + 16) && near(panel.bottom - box.bottom, 16), "16 px margins");
+                assert(box.width === 262, `the zone is ${box.width} wide`);
+                assert(!$(".o_tl_drop") && !$(".o_tl_selection_badge"), "no highlight or badge over the zone");
+                const moved = $(".o_tl_pill_moved");
+                assert(moved && getComputedStyle(moved).opacity === "0.8", "the moved pill keeps its look");
+                await realMouse(releaseAt(to));
+                await until(() => !zoneEl(), "the zone goes");
+                await until(() => panelTitle() === "Unscheduled: 4", `the title is ${panelTitle()}`);
+                assert(panelNames().includes("Unscheduled"), "the record is listed again");
+                assert(!pillNamed("Unscheduled"), "the pill is gone");
+                assert(!$(".o_notification"), "no notification");
+            },
+        },
+    ],
+});
+
+// H36: "Review" moved, Ctrl pressed, released over the zone: the original loses its dates, no copy
+tours.add("timeline_002b3_a52_copy_on_zone", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const pill = await until(() => pillNamed("Review"), "the pill Review");
+                const from = centreOf(pill);
+                const panel = $(".o_tl_panel").getBoundingClientRect();
+                const to = { x: panel.left + panel.width / 2, y: 420 };
+                await realMouseLive(holdEvents(from, stepsTo(from, { x: from.x - 40, y: from.y + 10 }, 3)));
+                controlKey("keydown");
+                await realMouseLive(stepsTo(from, to).map((p) => mouse("mouseMoved", p.x, p.y, { buttons: 1 })));
+                await until(zoneEl, "the drop zone");
+                assert(!$(".o_tl_drop"), "no highlight over the zone");
+                await realMouse(releaseAt(to));
+                controlKey("keyup");
+                await until(() => panelNames().includes("Review"), "Review is listed");
+                assert(!pillNamed("Review"), "the pill is gone, no copy");
+                assert(!$(".o_notification"), "no notification");
+            },
+        },
+    ],
+});
+
+/** A point 10 px inside the edge of the grid where it can still scroll. */
+function edgePoint(y) {
+    const grid = renderer();
+    const box = grid.getBoundingClientRect();
+    const room = grid.scrollWidth - grid.clientWidth;
+    assert(room > 0, "the grid is wider than its area");
+    const right = grid.scrollLeft + 1 < room;
+    const title = $(".o_tl_title_cell");
+    const left = title ? title.getBoundingClientRect().right : box.left;
+    return { x: right ? box.right - 10 : left + 10, y };
+}
+
+// H36 week: a pill move held near the edge does not scroll with the panel open and does with it
+// closed; a resize held near the edge scrolls with the panel open
+tours.add("timeline_002b3_a56_edge_scroll_with_panel", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const hold = async (name, handle) => {
+                    const pill = await until(() => pillNamed(name), `the pill ${name}`);
+                    // the pill in the middle of the grid's area: an earlier hold may have scrolled
+                    const area = renderer().getBoundingClientRect();
+                    renderer().scrollLeft += centreOf(pill).x - (area.left + area.width / 2);
+                    await gridSettled();
+                    let from = centreOf(pill);
+                    if (handle) {
+                        await realMouseLive([mouse("mouseMoved", from.x, from.y, { button: "none", buttons: 0 })]);
+                        const grip = await until(() => $(".o_tl_handle[data-edge='stop']", pill), "the handle");
+                        from = centreOf(grip);
+                    }
+                    const to = edgePoint(from.y);
+                    const before = renderer().scrollLeft;
+                    await realMouseLive(holdEvents(from, stepsTo(from, to)));
+                    await pause(700);
+                    const after = renderer().scrollLeft;
+                    escape();
+                    await realMouseLive(releaseAt(to));
+                    await gridSettled();
+                    return after - before;
+                };
+                assert((await hold("Build", false)) === 0, "a move does not scroll with the panel open");
+                assert((await hold("Build", true)) !== 0, "a resize scrolls with the panel open");
+                panelButton().click();
+                await until(() => !$(".o_tl_panel"), "the panel closes");
+                await gridSettled();
+                assert((await hold("Build", false)) !== 0, "a move scrolls with the panel closed");
+            },
+        },
+    ],
+});

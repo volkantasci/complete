@@ -513,6 +513,29 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         self.assertFalse(record.date_start)
         self.assertFalse(record.date_stop)
 
+    def test_a51_tour_drop_zone(self):
+        record = self._tl_pill('Unscheduled')
+        record.write({
+            'date_start': self._tl_utc_on(self.today, 12),
+            'date_stop': self._tl_utc_on(self.today + timedelta(days=1), 12),
+            'parent_id': self._tl_pill('Beta').id,
+        })
+        self._tour('h37', 'timeline_002b3_a51_drop_zone')
+        self.assertFalse(record.date_start)
+        self.assertFalse(record.date_stop)
+
+    def test_a52_tour_copy_on_zone(self):
+        review = self._tl_pill('Review')
+        count = self.env[PILL].search_count([])
+        self.assertTrue(review.date_start)
+        self._tour('h36', 'timeline_002b3_a52_copy_on_zone')
+        self.assertFalse(review.date_start)
+        self.assertFalse(review.date_stop)
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
+    def test_a56_tour_edge_scroll_with_panel(self):
+        self._tour('h36', 'timeline_002b3_a56_edge_scroll_with_panel')
+
     def test_a57_tour_clears_selection(self):
         record = self._tl_pill('Unscheduled')
         self._tour('h40', 'timeline_002b3_a57_clears_selection')

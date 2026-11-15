@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odo
 import {
     click,
     drag,
+    hover,
+    keyDown,
+    keyUp,
     press,
     queryAll,
     queryAllTexts,
@@ -424,4 +427,185 @@ test("002b3 R19: a click anywhere on a line opens the record, the end of a drag 
     await held.drop();
     await settle();
     expect(".o_dialog").toHaveCount(0);
+});
+
+// ---- the drop zone and the edge scrolling with the panel (002b3 R22, R23) ----
+
+const PILLS = { Build: 5, Review: 6, Plan: 9 };
+const pillElement = (name) =>
+    queryOne(`.o_tl_pill[data-pill-id="${PILLS[name]}"]:not(.o_tl_pill_moved)`);
+
+/** Press the pill `name` at its centre (or `dx` px from it); `move(x, y)` moves to a point. */
+async function pressPill(name, { dx = 0, element = pillElement(name) } = {}) {
+    const rect = queryRect(element);
+    const start = { x: rect.left + rect.width / 2 + dx, y: rect.top + rect.height / 2 };
+    const helpers = await drag(element, { position: start });
+    const move = async (x, y) => {
+        const target = document.elementFromPoint(x, y) || queryOne(".o_tl_renderer");
+        await helpers.moveTo(target, { position: { x, y } });
+        await animationFrame();
+    };
+    return { ...helpers, start, move };
+}
+
+const panelCentre = () => {
+    const rect = queryRect(".o_tl_panel");
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+};
+
+test("002b3 A51: a moved pill shows the drop zone; release unschedules, no notification", async () => {
+    await mountPanel();
+    expect(".o_tl_panel_dropzone").toHaveCount(0);
+    const held = await pressPill("Review", { dx: -20 });
+    // a first move over the grid: the list is replaced by the zone
+    await held.move(held.start.x - 30, held.start.y + 5);
+    expect(".o_tl_panel_dropzone").toHaveCount(1);
+    expect(".o_tl_panel_line, .o_tl_panel_title").toHaveCount(0);
+    expect(".o_tl_panel_dropzone").toHaveText("Drop here to remove the dates");
+    const zone = queryRect(".o_tl_panel_dropzone");
+    const panel = queryRect(".o_tl_panel");
+    expect(zone.top - panel.top).toBe(16);
+    expect(panel.bottom - zone.bottom).toBe(16);
+    expect(zone.width).toBe(262);
+    expect(".o_tl_panel_dropzone").toHaveStyle({
+        borderTopWidth: "1px",
+        borderTopLeftRadius: "12px",
+    });
+    // bold in the theme's sense (its bold weight is above the normal one)
+    expect(parseInt(getComputedStyle(queryOne(".o_tl_panel_dropzone_text")).fontWeight, 10)).toBeGreaterThan(400);
+    expect(".o_tl_panel_dropzone_text").toHaveStyle({ textAlign: "center" });
+    // over the zone: no highlight, no badge
+    const at = panelCentre();
+    await held.move(at.x, at.y);
+    expect(".o_tl_drop").toHaveCount(0);
+    expect(".o_tl_selection_badge").toHaveCount(0);
+    expect(".o_tl_pill_moved").toHaveCount(1);
+    await held.drop();
+    await settle();
+    expect(writes()).toEqual([
+        {
+            model: "pill",
+            ids: [pill("Review").id],
+            values: { date_start: false, date_stop: false },
+        },
+    ]);
+    expect(".o_notification").toHaveCount(0);
+    expect(".o_tl_panel_dropzone").toHaveCount(0);
+    expect(".o_tl_pill_moved").toHaveCount(0);
+    expect(names().includes("Review")).toBe(true);
+});
+
+test("002b3 A51: closed panel: no zone; a resize keeps the list", async () => {
+    await mountPanel();
+    // a resize: the list stays
+    await hover(pillElement("Review"));
+    await animationFrame();
+    const handle = queryOne(
+        `.o_tl_pill[data-pill-id="${PILLS.Review}"] .o_tl_handle[data-edge="stop"]`
+    );
+    const hr = queryRect(handle);
+    const resizing = await drag(handle, { position: { x: hr.left + hr.width / 2, y: hr.top + hr.height / 2 } });
+    await resizing.moveTo(document.elementFromPoint(hr.left + hr.width / 2 + 40, hr.top + 5) || handle, {
+        position: { x: hr.left + hr.width / 2 + 40, y: hr.top + 5 },
+    });
+    await animationFrame();
+    expect(".o_tl_pill_resizing").toHaveCount(1);
+    expect(".o_tl_panel_dropzone").toHaveCount(0);
+    expect(".o_tl_panel_line").toHaveCount(4);
+    await press("Escape");
+    await resizing.drop();
+    await settle();
+    log.length = 0;
+
+    // a closed panel: a moved pill shows no zone
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    expect(".o_tl_panel").toHaveCount(0);
+    const held = await pressPill("Review");
+    await held.move(held.start.x + 40, held.start.y);
+    expect(".o_tl_pill_moved").toHaveCount(1);
+    expect(".o_tl_panel_dropzone").toHaveCount(0);
+    await held.drop();
+    await settle();
+});
+
+test("002b3 A52: a copy dropped on the zone unschedules the original and copies nothing", async () => {
+    const copies = [];
+    onRpc("copy", ({ args }) => {
+        copies.push(args);
+    });
+    await mountPanel();
+    const held = await pressPill("Review");
+    await held.move(held.start.x - 40, held.start.y + 5);
+    await keyDown("Control");
+    await animationFrame();
+    const at = panelCentre();
+    await held.move(at.x, at.y);
+    expect(".o_tl_panel_dropzone").toHaveCount(1);
+    expect(".o_tl_drop").toHaveCount(0);
+    await held.drop();
+    await keyUp("Control");
+    await settle();
+    expect(copies).toEqual([]);
+    expect(writes()).toEqual([
+        { model: "pill", ids: [pill("Review").id], values: { date_start: false, date_stop: false } },
+    ]);
+    expect(pill("Review").date_start).toBe(false);
+});
+
+test("002b3 A56: no edge scroll during a move with the panel open; scroll with it closed; resizes scroll", async () => {
+    const arch = timelineArch(`string="Pills" default_range="month" schedule="1" plan="0"`);
+    await mountPanel(arch);
+    const renderer = queryOne(".o_tl_renderer");
+    expect(renderer.scrollWidth).toBeGreaterThan(renderer.clientWidth);
+    const edgeMove = async (held) => {
+        const box = queryRect(renderer);
+        await held.move(box.right - 10, held.start.y);
+        await advanceTime(800);
+        await animationFrame();
+    };
+    // a move with the panel open: the grid stays
+    renderer.scrollLeft = 0;
+    await animationFrame();
+    let before = renderer.scrollLeft;
+    let held = await pressPill("Build");
+    await edgeMove(held);
+    expect(renderer.scrollLeft).toBe(before);
+    await press("Escape");
+    await held.drop();
+    await settle();
+
+    // a resize with it open: the grid scrolls
+    renderer.scrollLeft = 0;
+    await animationFrame();
+    before = renderer.scrollLeft;
+    await hover(pillElement("Build"));
+    await animationFrame();
+    const handle = queryOne(`.o_tl_pill[data-pill-id="${PILLS.Build}"] .o_tl_handle[data-edge="stop"]`);
+    const hr = queryRect(handle);
+    const y = hr.top + hr.height / 2;
+    held = await drag(handle, { position: { x: hr.left + hr.width / 2, y } });
+    const box = queryRect(renderer);
+    await held.moveTo(document.elementFromPoint(box.right - 10, y) || renderer, {
+        position: { x: box.right - 10, y },
+    });
+    await advanceTime(800);
+    await animationFrame();
+    expect(renderer.scrollLeft).toBeGreaterThan(before);
+    await press("Escape");
+    await held.drop();
+    await settle();
+
+    // a move with the panel closed: the grid scrolls
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    renderer.scrollLeft = 0;
+    await animationFrame();
+    before = renderer.scrollLeft;
+    held = await pressPill("Build");
+    await edgeMove(held);
+    expect(renderer.scrollLeft).toBeGreaterThan(before);
+    await press("Escape");
+    await held.drop();
+    await settle();
 });

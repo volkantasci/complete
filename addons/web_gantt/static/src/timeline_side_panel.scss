@@ -99,3 +99,21 @@
     pointer-events: none;
     color: $body-color;
 }
+
+// the drop zone (M48): replaces the panel's content while a pill is moved or copied; between 16 px
+// margins above and below, the action colour at 40 % as border and 10 % of it in the view's
+// background as fill
+.o_tl_panel.o_tl_panel_zoned {
+    display: flex;
+    flex-direction: column;
+
+    .o_tl_panel_dropzone {
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 16px 0;
+        border: 1px solid rgba($o-action, .4);
+        border-radius: 12px;
+        background-color: mix($o-action, $o-view-background-color, 10%);
+        color: $body-color;
+    }
+}

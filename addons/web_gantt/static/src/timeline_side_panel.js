@@ -43,6 +43,7 @@ export class TimelineSidePanel extends Component {
         model: t.object(),
         renderer: t.object().optional(),
         width: t.number(),
+        zone: t.boolean().optional(),
     });
 
     setup() {

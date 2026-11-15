@@ -56,6 +56,8 @@ const MODES = {
  *   abscissa `x` for the edge `edge` of `pill` (kept one sub-column from the other edge), or
  *   `undefined` to keep the previous one (a folded column); the drawing's `target` is then
  *   `{part: border}`, or `null` while the pointer has not given one;
+ * - `panelOpen()` (optional): the side panel is open, a pill move does not scroll the grid
+ *   (002b3 R23);
  * - `hold(mode)`: the gesture in `mode` is held (the view root takes the pointer shape), or `null`
  *   when it is over.
  *
@@ -441,8 +443,9 @@ export class TimelinePillDrag {
             offset: { x: press.x - press.x0, y: press.y - press.y0 },
             touch: press.type === "touch",
         });
-        if ((mode.follows && !mode.fixed) || mode.edge) {
-            // R14: a move scrolls on both axes near an edge; a resize like a selection, on x
+        if ((mode.follows && !mode.fixed && !this.host.panelOpen?.()) || mode.edge) {
+            // R14: a move scrolls on both axes near an edge; a resize like a selection, on x;
+            // with the side panel open a move does not scroll (002b3 R23)
             this._edge.axes = mode.edge ? "x" : "xy";
             this._edge.follow(press.x, press.y, mode.edge ? SELECT_EDGE : MOVE_EDGE);
         }

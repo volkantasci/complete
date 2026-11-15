@@ -584,6 +584,42 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.env['test.web.gantt.pill'].search([('name', '=', 'Unscheduled')]).write(
                     {'date_start': False, 'date_stop': False})
 
+    # -- the drop zone while a pill is moved: M48, M49 (R22) ---------------------------------------
+    #
+    # Elements read: M48 the drop zone `.o_tl_panel_dropzone`, M49 the moved pill
+    # `.o_tl_pill_moved`. "Unscheduled" is scheduled by a write of the probe (Thursday 12 from
+    # 12:00, Parent Beta), pressed 40 px left of its centre and moved to (1450, 420), held.
+
+    def test_002b3_m48_m49_drop_zone(self):
+        probes = ['M48', 'M49']
+        record = self.env['test.web.gantt.pill'].search([('name', '=', 'Unscheduled')])
+        beta = self.env['test.web.gantt.pill'].search([('name', '=', 'Beta')], limit=1)
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            # Thursday 12, 12:00 to Friday 13, 12:00 on the host's clock (zone three hours ahead)
+            record.write({'date_start': '2026-11-12 09:00:00', 'date_stop': '2026-11-13 09:00:00',
+                          'parent_id': beta.id})
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait(f"!!({self.pill('Unscheduled')})")
+                box = self.geometry(self.pill('Unscheduled'))
+                x0 = box['geometry.x'] + box['geometry.width'] / 2 - 40
+                y0 = box['geometry.y'] + box['geometry.height'] / 2
+                self.mouse('mouseMoved', x0, y0)
+                self.mouse('mousePressed', x0, y0, button='left', buttons=1, clickCount=1)
+                for i in range(1, 7):
+                    self.mouse('mouseMoved', x0 + (1450 - x0) * i / 6, y0 + (420 - y0) * i / 6,
+                               button='left', buttons=1)
+                    time.sleep(.05)
+                self.settle(300)
+                self.wait("!!document.querySelector('.o_tl_panel_dropzone')")
+                self.check('M48', "document.querySelector('.o_tl_panel_dropzone')", scheme,
+                           viewport, 'the drop zone')
+                self.check_keys('M49', "document.querySelector('.o_tl_pill_moved')", scheme,
+                                viewport, 'the moved pill over the panel',
+                                lambda k: k != 'geometry.x')
+                self.mouse('mouseReleased', 1450, 420, button='left', buttons=0, clickCount=1)
+                self.settle(800)
+            record.write({'date_start': False, 'date_stop': False})
+
     # -- the first centring (002a R39) with and without the panel ----------------------------------
 
     CENTRE = """(() => {

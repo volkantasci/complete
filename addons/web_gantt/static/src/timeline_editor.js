@@ -137,6 +137,30 @@ export class TimelineEditor {
     }
 
     /**
+     * 002b3 R22: empty the start and the stop of the record of a pill dropped on the drop zone,
+     * sent at once (it does not wait for the writes before it), then the view reloads; no
+     * notification and no Undo. A refused call reloads the view (E2) and is passed on.
+     * @param {Object} params
+     * @param {number} params.resId
+     */
+    unscheduleRecord({ resId }) {
+        const { model, services } = this;
+        const { startField, stopField } = model.placement;
+        return this._queueChange({
+            send: () =>
+                services.orm.write(
+                    model.resModel,
+                    [resId],
+                    { [startField]: false, [stopField]: false },
+                    { context: model.context }
+                ),
+            reloadOnRefusal: true,
+            announce: () => {},
+            immediate: true,
+        });
+    }
+
+    /**
      * 002b3 R14: delete `ids` in one Community deletion call, sent at once (002b2 R21: a deletion
      * is never queued behind the writes before it), then reload. A refused call deletes nothing
      * (E2): the view is not reloaded, so the selection stays, and the rejection is passed on, so

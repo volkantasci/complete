@@ -236,6 +236,7 @@ export class TimelineRenderer extends Component {
             commit: (result) => this._commitDrag(result),
             borderAt: (x, pill, edge) => this._borderAt(x, pill, edge),
             hold: (mode) => this._holdDrag(mode),
+            panelOpen: () => this.hasPanel && this.panel.open,
         });
         // where the pressed pill stood (grid coordinates) and how far the grid had scrolled
         this._pressed = null;
@@ -608,6 +609,34 @@ export class TimelineRenderer extends Component {
 
     get panel() {
         return this.props.model.panel;
+    }
+
+    /**
+     * 002b3 R22: the drop zone replaces the panel's content while a pill is moved or copied and
+     * the panel is open; a resize, a locked pill and a line of the panel never show it.
+     */
+    get showsDropZone() {
+        const mode = this.state.drag?.mode;
+        return this.hasPanel && this.panel.open && (mode === "move" || mode === "copy");
+    }
+
+    /**
+     * Whether the pointer of the drawing `drawing` is over the drop zone (R22): the zone when it
+     * is drawn, the panel's box before (the first drawing of a move comes before the zone is).
+     */
+    _overDropZone(drawing) {
+        const element =
+            document.querySelector(".o_tl_panel_dropzone") || document.querySelector(".o_tl_panel");
+        if (!element || !this.panel.open) {
+            return false;
+        }
+        const rect = element.getBoundingClientRect();
+        return (
+            drawing.x >= rect.left &&
+            drawing.x < rect.right &&
+            drawing.y >= rect.top &&
+            drawing.y < rect.bottom
+        );
     }
 
     get data() {
@@ -1775,6 +1804,10 @@ export class TimelineRenderer extends Component {
             this.state.drag = null;
             return;
         }
+        if (drawing.mode === "move" || drawing.mode === "copy") {
+            // kept for the release: `change(null)` comes before `commit` (R22)
+            this._zoneHit = this._overDropZone(drawing);
+        }
         if (drawing.mode === "panel") {
             this._setPanelDrag(drawing);
             return;
@@ -2051,6 +2084,12 @@ export class TimelineRenderer extends Component {
      * returned promise rejects with the server error.
      */
     _commitDrag({ mode, pill, rowId, target, line }) {
+        const overZone = this._zoneHit;
+        this._zoneHit = false;
+        if (overZone && (mode === "move" || mode === "copy")) {
+            // 002b3 R22: over the drop zone, with Ctrl too (D2): the record loses its dates
+            return this.props.editor.unscheduleRecord({ resId: pill.record.resId });
+        }
         if (!target) {
             return undefined;
         }
