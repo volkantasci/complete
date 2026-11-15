@@ -15,9 +15,6 @@ function createGroupValue(field, value) {
         const ids = Array.isArray(value) ? value : value ? [value] : [];
         return [[6, 0, ids]];
     }
-    if (field?.type === "one2many") {
-        return [[6, 0, Array.isArray(value) ? value : value ? [value] : []]];
-    }
     return value === undefined || value === null ? false : value;
 }
 

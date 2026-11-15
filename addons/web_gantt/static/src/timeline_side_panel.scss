@@ -35,10 +35,8 @@
     flex: none;
     margin-right: 16px;
     overflow-y: auto;
-    // no text can be selected in the panel either: a press on a line starts a drag, never a
-    // selection (the grid box has the same rule, 002b3 R1)
-    -webkit-user-select: none; // stylelint-disable-line property-no-vendor-prefix
-    user-select: none;
+    // no text can be selected in the panel either (a press on a line starts a drag): the rule
+    // of the view's root is inherited here (002b3 R1)
 
     .o_tl_panel_title {
         margin: 0 0 8px;

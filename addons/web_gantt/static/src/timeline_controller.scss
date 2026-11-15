@@ -3,7 +3,7 @@
 .o_timeline_view {
     min-height: 0;
     // no text can be selected in the whole view, the control panel (breadcrumb, buttons, range
-    // text, search field) included (002b3 R1, M71, M72); the side panel has the same rule
+    // text, search field) included (002b3 R1, M71, M72); the grid box and the side panel inherit it
     -webkit-user-select: none; // stylelint-disable-line property-no-vendor-prefix
     user-select: none;
 

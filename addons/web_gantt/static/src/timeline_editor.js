@@ -115,7 +115,6 @@ export class TimelineEditor {
                 services.orm.create(model.resModel, valuesList, {
                     context: { ...model.context, multi_create: true },
                 }),
-            announce: () => {},
         });
     }
 
@@ -132,7 +131,6 @@ export class TimelineEditor {
         return this._queueChange({
             send: () => services.orm.write(model.resModel, [resId], values, { context: model.context }),
             reloadOnRefusal: true,
-            announce: () => {},
         });
     }
 
@@ -155,7 +153,6 @@ export class TimelineEditor {
                     { context: model.context }
                 ),
             reloadOnRefusal: true,
-            announce: () => {},
             immediate: true,
         });
     }
@@ -171,7 +168,6 @@ export class TimelineEditor {
         const { model, services } = this;
         return this._queueChange({
             send: () => services.orm.unlink(model.resModel, ids, { context: model.context }),
-            announce: () => {},
             immediate: true,
         });
     }
@@ -357,7 +353,7 @@ export class TimelineEditor {
 
     /**
      * The one pattern of a write of this view (R15): `send` after the writes queued before, then
-     * reload and `announce(result)`; when `send` rejects, `refused` runs, the view reloads when
+     * reload and `announce(result)` when given; when `send` rejects, `refused` runs, the view reloads when
      * `reloadOnRefusal` (errors of that reload ignored) and the rejection is passed on. Nothing
      * is reloaded or announced once the view is left.
      */
@@ -378,7 +374,7 @@ export class TimelineEditor {
             try {
                 await reload();
             } finally {
-                announce(result);
+                announce?.(result);
             }
             return result;
         };
