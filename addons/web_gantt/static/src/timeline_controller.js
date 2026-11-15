@@ -246,14 +246,17 @@ export class TimelineController extends Component {
     }
 
     /**
-     * Delete, after the Community confirmation's Ok (R14): one deletion call of the counted
-     * records, then the reload (which clears the selection, R9). A refusal changes nothing.
+     * Delete, after the Community confirmation's Ok (R14): the selection is cleared at once,
+     * whatever the server answers, then one deletion call of the counted records and the reload.
+     * A refusal deletes nothing, shows the Community error and loads nothing again (E2).
      */
     async _onPickedDelete() {
-        const ids = this.selection.renderer?.pickedRecordIds() || [];
+        const renderer = this.selection.renderer;
+        const ids = renderer?.pickedRecordIds() || [];
         if (!ids.length) {
             return;
         }
+        renderer.clearPicked();
         // awaited here: the write tracking marks the editor's promise as handled and the
         // Community confirmation does not wait for this call, so the refusal is raised again by
         // this promise, which nobody handles: it reaches the Community error handler

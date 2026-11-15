@@ -314,6 +314,25 @@ test("002b3 A26: Add opens the Community popover; Escape closes it and keeps the
     expect(pickedCells()).toHaveCount(0);
 });
 
+test("002b3 A63: a refused default load shows the error at the click on Add; no popover, the selection stays", async () => {
+    expect.errors(1);
+    onRpc("pill", "onchange", () => {
+        throw new Error("access refused");
+    });
+    await mountMulti();
+    await drawA9();
+    const cells = pickedCells().length;
+    await contains(".o_multi_selection_buttons [data-tooltip='Add']").click();
+    await animationFrame();
+    await animationFrame();
+    expect.verifyErrors(["access refused"]);
+    expect(".o_multi_create_popover").toHaveCount(0);
+    expect(".o_popover").toHaveCount(0);
+    expect(pickedCells()).toHaveCount(cells);
+    expect(".o_multi_selection_buttons").toHaveCount(1);
+    expect(countText()).toBe("1");
+});
+
 test("002b3 A26: Delete shows the Community confirmation, the selection stays", async () => {
     await mountMulti();
     await drawA9();
@@ -412,14 +431,19 @@ test("002b3 A41: locked and cut pills are deleted too", async () => {
     expect(calls[0].ids).toEqual(ids);
 });
 
-test("002b3 A63: a refused deletion shows the error and keeps the selection", async () => {
+test("002b3 A63: a refused deletion shows the error, clears the selection and loads nothing again", async () => {
     expect.errors(1);
+    let loads = 0;
+    onRpc("pill", "get_gantt_data", () => {
+        loads++;
+    });
     onRpc("pill", "unlink", () => {
         throw new Error("refused by the server");
     });
     await mountMulti();
     await drawA9();
-    const cells = pickedCells().length;
+    expect(pickedCells().length).toBeGreaterThan(0);
+    const before = loads;
     await contains(deleteButton).click();
     await animationFrame();
     await contains(".o_dialog .modal-footer .btn-primary").click();
@@ -427,8 +451,24 @@ test("002b3 A63: a refused deletion shows the error and keeps the selection", as
     await animationFrame();
     // the refusal reaches the error handler (the Community error), not a silent promise
     expect.verifyErrors(["refused by the server"]);
-    expect(pickedCells()).toHaveCount(cells);
-    expect(countText()).toBe("1");
+    expect(pickedCells()).toHaveCount(0);
+    expect(".o_multi_selection_buttons").toHaveCount(0);
+    expect(loads).toBe(before);
+});
+
+test("002b3 R14: Ok clears the selection at once, before the server answers", async () => {
+    const answer = Promise.withResolvers();
+    onRpc("pill", "unlink", () => answer.promise);
+    await mountMulti();
+    await drawA9();
+    await contains(deleteButton).click();
+    await animationFrame();
+    await contains(".o_dialog .modal-footer .btn-primary").click();
+    await animationFrame();
+    expect(pickedCells()).toHaveCount(0);
+    expect(".o_multi_selection_buttons").toHaveCount(0);
+    answer.resolve(true);
+    await animationFrame();
 });
 
 test("002b3 A25: the state is reset when the view goes away", async () => {

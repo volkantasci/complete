@@ -163,8 +163,8 @@ export class TimelineEditor {
     /**
      * 002b3 R14: delete `ids` in one Community deletion call, sent at once (002b2 R21: a deletion
      * is never queued behind the writes before it), then reload. A refused call deletes nothing
-     * (E2): the view is not reloaded, so the selection stays, and the rejection is passed on, so
-     * that the Community error shows when the caller does not catch it.
+     * (E2): the view is not reloaded and the rejection is passed on, so that the Community error
+     * shows when the caller does not catch it.
      * @param {Array<number>} ids
      */
     deleteMany(ids) {
