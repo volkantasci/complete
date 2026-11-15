@@ -321,6 +321,7 @@ export class TimelineRenderer extends Component {
             this._wasMulti = multi;
             this._syncScroll();
             this._placeBadges();
+            this._observeArrowGrid?.();
             this.refreshArrows();
         });
         onWillUnmount(() => {
@@ -366,14 +367,24 @@ export class TimelineRenderer extends Component {
     _watchArrows() {
         const refresh = () => this.refreshArrows();
         browser.addEventListener("resize", refresh);
-        const grid = this.rendererRef()?.querySelector(".o_tl_grid");
-        const observer =
-            grid && typeof ResizeObserver !== "undefined" ? new ResizeObserver(refresh) : null;
-        observer?.observe(grid);
+        const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(refresh) : null;
+        this._arrowGrid = null;
         this._unwatchArrows = () => {
             browser.removeEventListener("resize", refresh);
             observer?.disconnect();
         };
+        // the grid element may be replaced (no-content help, sample state): observe the current one
+        this._observeArrowGrid = () => {
+            const grid = this.rendererRef()?.querySelector(".o_tl_grid") || null;
+            if (observer && grid !== this._arrowGrid) {
+                observer.disconnect();
+                this._arrowGrid = grid;
+                if (grid) {
+                    observer.observe(grid);
+                }
+            }
+        };
+        this._observeArrowGrid();
     }
 
     // ------------------------------------------------------------------------

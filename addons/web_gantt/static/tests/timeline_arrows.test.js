@@ -384,3 +384,17 @@ test("002c A20: the arrows follow a pill that moved when they are drawn again", 
     await animationFrame();
     expect(line()).not.toBe(before);
 });
+
+test("002c A20: group row pills and the origin copy lie over the arrows at rest", async () => {
+    await mountDependencies({ groupBy: ["parent_id", "x_contact"] });
+    const arrowZ = Number(getComputedStyle(arrowEls()[0]).zIndex);
+    expect(queryAll(".o_tl_group_pill").length).toBeGreaterThan(0);
+    for (const pill of queryAll(".o_tl_group_pill")) {
+        expect(Number(getComputedStyle(pill).zIndex)).toBeGreaterThan(arrowZ);
+    }
+    const faded = document.createElement("div");
+    faded.className = "o_tl_pill_faded";
+    queryOne(".o_tl_grid").appendChild(faded);
+    expect(Number(getComputedStyle(faded).zIndex)).toBeGreaterThan(arrowZ);
+    faded.remove();
+});

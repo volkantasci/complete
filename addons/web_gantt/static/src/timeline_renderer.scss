@@ -447,6 +447,8 @@
 // consolidated pill: a thin line with the count on the view background at its left
 .o_tl_group_pill {
     position: absolute;
+    // over the arrows at rest, like the pills of record rows (R8)
+    z-index: 10;
     top: 19px;
     height: 2px;
     // no width, but the colour of the line is the brand colour (M32)
@@ -751,6 +753,8 @@
 }
 
 .o_tl_pill_faded {
+    // over the arrows at rest, like the pill it copies
+    z-index: 10;
     opacity: .5;
 }
 
