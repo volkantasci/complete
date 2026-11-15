@@ -15,7 +15,7 @@
                     <path class="o_tl_arrow_band" t-att-d="item.d"/>
                     <g t-if="this.lit(item) and this.arrows.canRemove" class="o_tl_arrow_remove" role="button" t-att-aria-label="this.removeLabel" t-att-transform="`translate(${item.mid.x} ${item.mid.y})`" t-on-click="() => this.onRemove(item)">
                         <title t-out="this.removeLabel"/>
-                        <circle class="o_tl_arrow_remove_ring" cx="0" cy="0" r="6.875"/>
+                        <circle class="o_tl_arrow_remove_ring" cx="0" cy="0" r="7.375"/>
                         <rect class="o_tl_arrow_cross" x="-4" y="-0.75" width="8" height="1.5" transform="rotate(45)"/>
                         <rect class="o_tl_arrow_cross" x="-4" y="-0.75" width="8" height="1.5" transform="rotate(-45)"/>
                     </g>

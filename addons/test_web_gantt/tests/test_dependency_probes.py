@@ -57,3 +57,95 @@ class TimelineDependencyProbes(TimelineProbeCase):
                 self.check('M47', f"{line}.querySelector('.o_tl_panel_name')", scheme, viewport,
                            'the name of Unscheduled in the side panel')
                 self.check('M48', line, scheme, viewport, 'the line of Unscheduled')
+
+    # -- arrows (R4 to R10, R13) ------------------------------------------------------
+
+    @staticmethod
+    def arrow(source, target):
+        """The layer (``svg.o_tl_arrow``) of the arrow between two pills."""
+        return (
+            f"(() => {{ const source = ({TimelineProbeCase.pill(source)}).dataset.pillId;"
+            f" const target = ({TimelineProbeCase.pill(target)}).dataset.pillId;"
+            " return [...document.querySelectorAll('.o_tl_arrow')].find((a) =>"
+            " a.dataset.arrow.includes('|' + source + '>')"
+            " && a.dataset.arrow.endsWith('|' + target)); })()")
+
+    def part(self, source, target, selector):
+        return f"{self.arrow(source, target)}.querySelector({selector!r})"
+
+    def pointer_at(self, x, y):
+        self.browser._websocket_request('Input.dispatchMouseEvent', params={
+            'type': 'mouseMoved', 'x': x, 'y': y,
+        })
+        self.settle()
+
+    def test_002c_m1_m8_arrows_at_rest(self):
+        probes = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h42'), scheme, viewport):
+                self.pointer_away()
+                self.check('M1', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
+                           viewport, 'line Design to Build')
+                self.check('M2', self.part('Build', 'Test', '.o_tl_arrow_line'), scheme, viewport,
+                           'line Build to Test')
+                self.check('M3', self.part('Review', 'Overlap A', '.o_tl_arrow_line'), scheme,
+                           viewport, 'line Review to Overlap A')
+                self.check('M4', self.part('Design', 'Build', '.o_tl_arrow_halo'), scheme,
+                           viewport, 'outline Design to Build')
+                self.check('M5', self.part('Build', 'Test', '.o_tl_arrow_band'), scheme, viewport,
+                           'band Build to Test')
+                self.check('M6', self.part('Build', 'Test', '.o_tl_arrow_head'), scheme, viewport,
+                           'head Build to Test')
+                self.check('M7', self.arrow('Design', 'Build'), scheme, viewport,
+                           'layer Design to Build')
+                self.check('M8', self.pill('Build'), scheme, viewport, 'pill Build')
+
+    def test_002c_m9_m14_arrows_highlighted_by_a_pill(self):
+        probes = ['M9', 'M10', 'M11', 'M12', 'M13', 'M14']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h42'), scheme, viewport):
+                self.pointer_at(1300, 260)
+                self.check('M9', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
+                           viewport, 'line Design to Build lit')
+                self.check('M10', self.part('Build', 'Test', '.o_tl_arrow_line'), scheme,
+                           viewport, 'line Build to Test lit')
+                self.check('M11', self.part('Design', 'Build', '.o_tl_arrow_halo'), scheme,
+                           viewport, 'outline Design to Build lit')
+                self.check('M12', self.arrow('Build', 'Test'), scheme, viewport,
+                           'layer Build to Test lit')
+                self.check('M13', self.part('Build', 'Test', '.o_tl_arrow_remove_ring'), scheme,
+                           viewport, 'remove button of Build to Test')
+                self.check('M14', self.part('Build', 'Test', '.o_tl_arrow_cross'), scheme,
+                           viewport, 'cross of the remove button')
+
+    def test_002c_m20_m21_remove_button_under_the_pointer(self):
+        for scheme, viewport in self.combos(['M20', 'M21'], ('desktop',)):
+            with self.page(HOST.format('h42'), scheme, viewport):
+                self.pointer_at(1300, 260)
+                self.pointer_at(1317, 293)
+                self.check('M20', self.part('Build', 'Test', '.o_tl_arrow_remove_ring'), scheme,
+                           viewport, 'remove button under the pointer')
+                self.check('M21', self.part('Build', 'Test', '.o_tl_arrow_cross'), scheme,
+                           viewport, 'bar of its cross')
+
+    def test_002c_m33_m35_hidden_arrows(self):
+        probes = ['M33', 'M34', 'M35']
+        view = self.env.ref('test_web_gantt.host_view_h42').id
+        action = self.env.ref('test_web_gantt.host_action_h42').id
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h42'), scheme, viewport):
+                # "Show dependencies" off: the choice of the method menu is stored per view+action
+                self.js(f"localStorage.setItem('gantt_show_connectors,{view},{action}', 'false')")
+                self.js("location.reload()")
+                self.wait("document.readyState === 'complete'")
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 3", timeout=60)
+                self.settle()
+                self.pointer_away()
+                self.check('M33', self.arrow('Design', 'Build'), scheme, viewport,
+                           'hidden layer Design to Build')
+                self.pointer_at(1300, 260)
+                self.check('M34', self.arrow('Design', 'Build'), scheme, viewport,
+                           'layer Design to Build with the pointer on Build')
+                self.check('M35', self.arrow('Review', 'Overlap A'), scheme, viewport,
+                           'layer Review to Overlap A, not connected to Build')
+                self.js(f"localStorage.removeItem('gantt_show_connectors,{view},{action}')")

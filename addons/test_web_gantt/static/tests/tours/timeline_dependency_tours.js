@@ -368,3 +368,419 @@ tours.add("timeline_002c_a9_folded_cells", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Arrows (R4 to R10, R13): A11, A13 to A15, A17, A20 to A22, A24, A25, A75, A76
+// ---------------------------------------------------------------------------------------------
+
+const pillNamed = (name) =>
+    $$(".o_tl_pill").find(
+        (pill) =>
+            !pill.closest(".o_tl_pill_moved") &&
+            $(".o_tl_pill_title", pill)?.textContent.trim() === name
+    );
+const arrows = () => $$(".o_tl_arrow");
+const litArrows = () => $$(".o_tl_arrow.o_tl_arrow_lit");
+const buttons = (root = document) => $$(".o_tl_arrow_remove", root);
+const idOf = (name) => pillNamed(name).dataset.pillId;
+/** The layer of the arrow from the pill `source` to the pill `target` (the first row holding both). */
+const arrowBetween = (source, target) =>
+    arrows().find(
+        (arrow) =>
+            arrow.dataset.arrow.includes(`|${idOf(source)}>`) &&
+            arrow.dataset.arrow.endsWith(`|${idOf(target)}`)
+    );
+const lineOfArrow = (arrow) => $(".o_tl_arrow_line", arrow);
+const strokeOf = (arrow) => getComputedStyle(lineOfArrow(arrow)).stroke;
+/** A point of the line of `arrow` (a fraction of its length), in the page's coordinates. */
+function pointOnArrow(arrow, fraction) {
+    const line = lineOfArrow(arrow);
+    const at = line.getPointAtLength(line.getTotalLength() * fraction);
+    const box = arrow.getBoundingClientRect();
+    return { x: box.left + at.x, y: box.top + at.y };
+}
+const insidePill = ({ x, y }, pill) => {
+    const rect = pill.getBoundingClientRect();
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+};
+/** A point of the line that lies inside no pill (`only`: inside this pill and no other). */
+function freePointOn(arrow, { inside = null } = {}) {
+    for (let fraction = 0.02; fraction < 1; fraction += 0.01) {
+        const point = pointOnArrow(arrow, fraction);
+        const pills = $$(".o_tl_pill[data-pill-id]").filter((pill) => insidePill(point, pill));
+        if (inside ? pills.length === 1 && pills[0] === inside : pills.length === 0) {
+            return point;
+        }
+    }
+    throw new Error("no point of the line");
+}
+const moveTo = ({ x, y }) =>
+    realMouse([mouse("mouseMoved", x, y, { button: "none", buttons: 0 })]);
+const pointerAway = () => moveTo({ x: 2, y: 2 });
+/** The right part of a pill (the pointer of A21 rests at 65 % of Build's width). */
+const rightPartOf = (name) => {
+    const rect = pillNamed(name).getBoundingClientRect();
+    return { x: rect.left + rect.width * 0.65, y: rect.top + rect.height / 2 };
+};
+const kindsOfArrows = () =>
+    arrows()
+        .map((arrow) => ["none", "warning", "error"].find((k) => arrow.classList.contains(`o_tl_arrow_${k}`)))
+        .sort()
+        .join();
+
+// A11, A18: three arrows on H42, one in each colour at rest
+tours.add("timeline_002c_a11_arrows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await pointerAway();
+                assert(arrows().length === 3, `three arrows, got ${arrows().length}`);
+                assert(arrowBetween("Design", "Build"), "Design to Build");
+                assert(arrowBetween("Build", "Test"), "Build to Test");
+                assert(arrowBetween("Review", "Overlap A"), "Review to Overlap A");
+                assert(strokeOf(arrowBetween("Design", "Build")) === "rgba(143, 143, 143, 0.5)", "grey");
+                assert(strokeOf(arrowBetween("Build", "Test")) === "rgba(236, 151, 31, 0.5)", "orange");
+                assert(strokeOf(arrowBetween("Review", "Overlap A")) === "rgba(211, 65, 59, 0.5)", "red");
+                assert(litArrows().length === 0, "none is lit at rest");
+                assert(buttons().length === 0, "no button at rest");
+            },
+        },
+    ],
+});
+
+// A11: no dependency field (H1): no arrow, no layer
+tours.add("timeline_002c_a11_no_dependency_field", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                await gridSettled();
+                assert(arrows().length === 0 && !$(".o_tl_arrows"), "H1 draws no arrow");
+            },
+        },
+    ],
+});
+
+// A11: no arrow on a phone (390 x 844)
+tours.add("timeline_002c_a11_phone", {
+    steps: () => [
+        { trigger: ".o_tl_renderer .o_tl_pill" },
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                await gridSettled();
+                assert(arrows().length === 0, "no arrow on a phone");
+            },
+        },
+    ],
+});
+
+// A13: the next range keeps no arrow whose end is not loaded
+tours.add("timeline_002c_a13_next_range", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                $(".o_tl_next").click();
+                await gridSettled();
+                for (const arrow of arrows()) {
+                    const [source, target] = arrow.dataset.arrow.split(">").map((end) => end.split("|").pop());
+                    assert(
+                        $(`.o_tl_pill[data-pill-id="${source}"]`) && $(`.o_tl_pill[data-pill-id="${target}"]`),
+                        `the arrow ${arrow.dataset.arrow} has both its pills`
+                    );
+                }
+                if (!pillNamed("Build")) {
+                    assert(pillNamed("Test"), "Test is shown");
+                    assert(arrows().every((a) => !a.dataset.arrow.includes(`|${idOf("Test")}`)), "none for Test");
+                }
+                $(".o_tl_previous").click();
+                await gridSettled();
+                assert(arrows().length === 3, `three arrows again, got ${arrows().length}`);
+            },
+        },
+    ],
+});
+
+// A15: scrolled 600 px towards earlier dates, "Test" lies beyond the right edge: the arrow is still
+// drawn, and scrolling back shows it entering "Test"
+tours.add("timeline_002c_a15_arrow_out_of_view", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                const before = lineOfArrow(arrowBetween("Build", "Test")).getAttribute("d");
+                const scroll = renderer().scrollLeft;
+                renderer().scrollLeft = scroll - 600;
+                await gridSettled();
+                const box = renderer().getBoundingClientRect();
+                assert(pillNamed("Test").getBoundingClientRect().left > box.right, "Test is out of view");
+                const arrow = arrowBetween("Build", "Test");
+                assert(arrow, "the arrow Build to Test is still drawn");
+                assert(lineOfArrow(arrow).getAttribute("d") === before, "the same route");
+                assert(arrow.getBoundingClientRect().width > 0, "the layer has its size");
+                renderer().scrollLeft = scroll;
+                await gridSettled();
+                const end = pointOnArrow(arrow, 1);
+                const test = pillNamed("Test").getBoundingClientRect();
+                assert(Math.abs(end.x - test.left) <= 1.5, `it enters Test (${end.x} vs ${test.left})`);
+            },
+        },
+    ],
+});
+
+// A17: for the right-to-left user each arrow leaves its source's left edge and enters its
+// target's right edge
+tours.add("timeline_002c_a17_rtl_arrows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await pointerAway();
+                assert(arrows().length === 3, `three arrows, got ${arrows().length}`);
+                for (const [source, target] of [
+                    ["Design", "Build"],
+                    ["Build", "Test"],
+                    ["Review", "Overlap A"],
+                ]) {
+                    const arrow = arrowBetween(source, target);
+                    const from = pointOnArrow(arrow, 0);
+                    const to = pointOnArrow(arrow, 1);
+                    const a = pillNamed(source).getBoundingClientRect();
+                    const b = pillNamed(target).getBoundingClientRect();
+                    assert(Math.abs(from.x - a.left) <= 1.5, `${source} leaves its left edge (${from.x} vs ${a.left})`);
+                    assert(Math.abs(to.x - b.right) <= 1.5, `${target} is entered at its right edge (${to.x} vs ${b.right})`);
+                }
+            },
+        },
+    ],
+});
+
+// A20: a click on "Review" where the orange line passes behind it opens Review's popover
+tours.add("timeline_002c_a20_arrows_under_pills", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await pointerAway();
+                const review = pillNamed("Review");
+                const arrow = arrowBetween("Build", "Test");
+                const point = freePointOn(arrow, { inside: review });
+                assert(
+                    getComputedStyle(arrow).zIndex === "2" &&
+                        getComputedStyle(pillNamed("Build")).zIndex === "10",
+                    "the layer is under the pills"
+                );
+                assert(
+                    document.elementFromPoint(point.x, point.y).closest(".o_tl_pill") === review,
+                    "the pill is on top at that point"
+                );
+                await clickAt(point);
+                await until(() => $(".o_tl_popover"), "Review's popover");
+                assert(
+                    $(".o_tl_popover").textContent.includes("Review"),
+                    "the popover is Review's"
+                );
+            },
+        },
+    ],
+});
+
+// A21: the pointer on "Build" lights its two arrows with a button each
+tours.add("timeline_002c_a21_pointer_over_a_pill", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                assert(litArrows().length === 2, `two lit arrows, got ${litArrows().length}`);
+                assert(arrowBetween("Design", "Build").classList.contains("o_tl_arrow_lit"), "Design to Build");
+                assert(arrowBetween("Build", "Test").classList.contains("o_tl_arrow_lit"), "Build to Test");
+                assert(!arrowBetween("Review", "Overlap A").classList.contains("o_tl_arrow_lit"), "Review stays");
+                assert(strokeOf(arrowBetween("Build", "Test")).startsWith("rgb"), "a colour");
+                assert(
+                    ["rgb(236, 151, 31)", "rgba(236, 151, 31, 1)"].includes(strokeOf(arrowBetween("Build", "Test"))),
+                    "full opacity"
+                );
+                assert(getComputedStyle(arrowBetween("Build", "Test")).zIndex === "20", "over the pills");
+                assert(buttons().length === 2, `two buttons, got ${buttons().length}`);
+                // the buttons stand in the middle of the anchors: at Design's joint with Build, and
+                // half way from Build's end to Test's start
+                const build = pillNamed("Build").getBoundingClientRect();
+                const test = pillNamed("Test").getBoundingClientRect();
+                const middle = buttons(arrowBetween("Build", "Test"))[0].getBoundingClientRect();
+                assert(
+                    Math.abs(middle.left + middle.width / 2 - (build.right + test.left) / 2) <= 1,
+                    "the button of Build to Test is in the middle"
+                );
+                await pointerAway();
+                assert(litArrows().length === 0 && buttons().length === 0, "back to rest");
+            },
+        },
+    ],
+});
+
+// A22: the pointer on the red line outside every pill lights that arrow only
+tours.add("timeline_002c_a22_pointer_over_an_arrow", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                const arrow = arrowBetween("Review", "Overlap A");
+                await moveTo(freePointOn(arrow));
+                assert(litArrows().length === 1 && litArrows()[0] === arrow, "only that arrow is lit");
+                assert(buttons().length === 1, "with its button");
+                await pointerAway();
+                assert(litArrows().length === 0, "back to rest");
+            },
+        },
+    ],
+});
+
+// A24: the remove button writes once and the arrow goes (the test restores the link)
+tours.add("timeline_002c_a24_remove_dependency", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                const button = buttons(arrowBetween("Build", "Test"))[0];
+                assert(button, "the button of Build to Test");
+                await clickAt(centreOf(button));
+                await until(() => arrows().length === 2, "the arrow to go");
+                await gridSettled();
+                assert(!arrowBetween("Build", "Test"), "Build to Test is gone");
+                assert(!$(".o_notification"), "no notification");
+            },
+        },
+    ],
+});
+
+// A25: the restricted user on H42 (edit off): the arrows light, no button, no handle
+tours.add("timeline_002c_a25_read_only", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                assert(litArrows().length === 2, `two lit arrows, got ${litArrows().length}`);
+                assert(buttons().length === 0, "no remove button");
+                assert($$(".o_tl_handle").length === 0, "no handle");
+            },
+        },
+    ],
+});
+
+// A25: on H54 (edit set to yes) the restricted user gets the button; the write is refused with the
+// access error, the dependency stays and the arrow is drawn again after the reload
+tours.add("timeline_002c_a25_refused_removal", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                assert($$(".o_tl_handle").length === 2, "the handles show");
+                const button = buttons(arrowBetween("Build", "Test"))[0];
+                assert(button, "the button shows");
+                await clickAt({ x: centreOf(button).x, y: centreOf(button).y });
+                await until(() => $(".o_error_dialog"), "the access error");
+                $(".o_error_dialog .btn-close, .o_error_dialog .modal-header .btn-close, .o_error_dialog button")?.click();
+                await until(() => !$(".o_error_dialog"), "the error to close");
+                await gridSettled();
+                await pointerAway();
+                assert(arrows().length === 3 && arrowBetween("Build", "Test"), "the arrow is drawn again");
+            },
+        },
+    ],
+});
+
+// A75: from "Build" onto "Review" on the lit orange line: both stay lit
+// A76: a click there opens no popover
+tours.add("timeline_002c_a75_a76_lit_arrow_over_a_pill", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                const arrow = arrowBetween("Build", "Test");
+                const point = freePointOn(arrow, { inside: pillNamed("Review") });
+                await moveTo(point);
+                assert(arrow.classList.contains("o_tl_arrow_lit"), "the orange arrow stays lit");
+                assert(
+                    arrowBetween("Review", "Overlap A").classList.contains("o_tl_arrow_lit"),
+                    "Review's own arrow is lit"
+                );
+                assert(buttons(arrowBetween("Review", "Overlap A")).length === 1, "with its button");
+                assert(
+                    document.elementFromPoint(point.x, point.y).closest(".o_tl_arrow") === arrow,
+                    "the lit band is over the pill"
+                );
+                await clickAt(point);
+                await new Promise((resolve) => setTimeout(resolve, 700));
+                assert(!$(".o_tl_popover"), "no popover opened");
+                assert(!$(".o_dialog"), "no dialog opened");
+            },
+        },
+    ],
+});
+
+// A14: H43 (by tags) draws Design to two Builds and each Build to Test (four arrows), and the
+// arrow Review to Overlap A inside the row of no tag
+tours.add("timeline_002c_a14_records_in_several_rows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                const names = (key) =>
+                    key.split(">").map((end) => {
+                        const id = end.split("|").pop();
+                        const pill = $(`.o_tl_pill[data-pill-id="${id}"]`);
+                        return `${$(".o_tl_pill_title", pill)?.textContent.trim()} in ${end.slice(0, end.lastIndexOf("|"))}`;
+                    });
+                // the four of A14, and Review to Overlap A (both in the row "Undefined Tags": R5 a)
+                assert(
+                    arrows().length === 5,
+                    `five arrows, got ${arrows().length}: ${arrows().map((a) => names(a.dataset.arrow).join(" to ")).join("; ")}`
+                );
+                const ids = {};
+                for (const name of ["Design", "Build", "Test"]) {
+                    ids[name] = idOf(name);
+                }
+                const between = (source, target) =>
+                    arrows().filter(
+                        (a) =>
+                            a.dataset.arrow.includes(`|${ids[source]}>`) &&
+                            a.dataset.arrow.endsWith(`|${ids[target]}`)
+                    ).length;
+                assert(between("Design", "Build") === 2, "Design has two arrows to Build");
+                assert(between("Build", "Test") === 2, "each Build has an arrow to Test");
+            },
+        },
+    ],
+});

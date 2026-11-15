@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta
 
 from lxml import etree
+from odoo import Command
 from odoo.tests import HttpCase, tagged
 
 from .timeline_real_pointer import RealPointerMixin
@@ -23,6 +24,7 @@ HOST_ACTION = '/odoo/action-test_web_gantt.host_action_{}'
 PILL = 'test.web.gantt.pill'
 DESKTOP = '1600x900'
 D0 = datetime(2026, 11, 12, 12)
+RESTRICTED = 'restricted_editor'
 LONG_NAME = 'A very long name of a record that cannot fit into the narrow panel of the view'
 
 
@@ -49,6 +51,14 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
         pill.with_context(active_test=False).search([]).unlink()
         cls.env['test.web.gantt.pill2'].with_context(active_test=False).search([]).unlink()
         cls.records = pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=0)
+        cls.rtl_user = pill._tl_rtl_user()
+        cls.restricted = cls.env['res.users'].search([('login', '=', RESTRICTED)]) or \
+            cls.env['res.users'].create({
+                'name': 'Restricted editor',
+                'login': RESTRICTED,
+                'password': RESTRICTED,
+                'group_ids': [Command.set([cls.env.ref('base.group_user').id])],
+            })
 
     def setUp(self):
         super().setUp()
@@ -129,3 +139,55 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
 
     def test_a9_tour_folded_cells(self):
         self._tour(self._tl_folded_action(), 'timeline_002c_a9_folded_cells')
+
+    # -- arrows (R4 to R10) ----------------------------------------------------------------------
+
+    def test_a11_tour_arrows(self):
+        self._tour('h42', 'timeline_002c_a11_arrows')
+
+    def test_a11_tour_no_dependency_field(self):
+        self._tour('h1', 'timeline_002c_a11_no_dependency_field')
+
+    def test_a11_tour_phone(self):
+        self._tour('h42', 'timeline_002c_a11_phone', size='390x844', touch=True)
+
+    def test_a13_tour_next_range(self):
+        self._tour('h42', 'timeline_002c_a13_next_range')
+
+    def test_a14_tour_records_in_several_rows(self):
+        self._tour('h43', 'timeline_002c_a14_records_in_several_rows')
+
+    def test_a15_tour_arrow_out_of_view(self):
+        self._tour('h42', 'timeline_002c_a15_arrow_out_of_view')
+
+    def test_a17_tour_rtl_arrows(self):
+        self._tour('h42', 'timeline_002c_a17_rtl_arrows', login='rtl')
+
+    def test_a20_tour_arrows_under_pills(self):
+        self._tour('h42', 'timeline_002c_a20_arrows_under_pills')
+
+    def test_a21_tour_pointer_over_a_pill(self):
+        self._tour('h42', 'timeline_002c_a21_pointer_over_a_pill')
+
+    def test_a22_tour_pointer_over_an_arrow(self):
+        self._tour('h42', 'timeline_002c_a22_pointer_over_an_arrow')
+
+    def test_a24_tour_remove_dependency(self):
+        build, test = self.records['Build'], self.records['Test']
+        self.assertIn(build, test.dependency_field)
+        self._tour('h42', 'timeline_002c_a24_remove_dependency')
+        # one write took Build out of Test's blockers; restore the link
+        self.assertNotIn(build, test.dependency_field)
+        test.write({'dependency_field': [Command.link(build.id)]})
+        self.assertIn(build, test.dependency_field)
+
+    def test_a25_tour_read_only(self):
+        self._tour('h42', 'timeline_002c_a25_read_only', login=RESTRICTED)
+
+    def test_a25_tour_refused_removal(self):
+        build, test = self.records['Build'], self.records['Test']
+        self._tour('h54', 'timeline_002c_a25_refused_removal', login=RESTRICTED)
+        self.assertIn(build, test.dependency_field)
+
+    def test_a75_a76_tour_lit_arrow_over_a_pill(self):
+        self._tour('h42', 'timeline_002c_a75_a76_lit_arrow_over_a_pill')

@@ -80,7 +80,8 @@ export class TimelineArrows {
         if (!rowEls.length) {
             return { items: [], box: null };
         }
-        const gridRect = grid.getBoundingClientRect();
+        // the layers are placed against their wrapper, whichever side of the grid it stands on
+        const origin = (grid.querySelector(":scope > .o_tl_arrows") || grid).getBoundingClientRect();
         // the area of the cells: from the first row to the last, right of the row headers
         const cells = rowEls[0].querySelector(":scope > .o_tl_pills")?.getBoundingClientRect();
         const last = rowEls.at(-1).getBoundingClientRect();
@@ -132,8 +133,8 @@ export class TimelineArrows {
         return {
             items,
             box: {
-                left: layer.left - gridRect.left,
-                top: layer.top - gridRect.top,
+                left: layer.left - origin.left,
+                top: layer.top - origin.top,
                 width: layer.width,
                 height: layer.height,
             },
