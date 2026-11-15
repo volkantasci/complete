@@ -61,6 +61,32 @@ test("002b3 A45: a condition left out of & | ! keeps the domain valid", () => {
     }
 });
 
+test("002b3 A45: R19.1 removal rules, negations included (D5)", () => {
+    const name = ["name", "ilike", "Gam"];
+    const start = ["date_start", "!=", false];
+    const stop = ["date_stop", "!=", false];
+    // "not (start is set)": removed with its condition, at the top level, under "and", under "or"
+    expect(strip(["!", start])).toEqual([]);
+    expect(strip(["&", "!", start, name])).toEqual([name]);
+    expect(strip(["|", "!", start, name])).toEqual([name]);
+    // "not (start is set and name contains)": the date condition goes first, the negation stays
+    expect(strip(["!", "&", start, name])).toEqual(["!", name]);
+    expect(strip(["!", "|", start, name])).toEqual(["!", name]);
+    // nothing left of the group: the negation goes too, as the condition would
+    expect(strip(["!", "&", start, stop])).toEqual([]);
+    expect(strip(["&", name, "!", "|", start, stop])).toEqual([name]);
+    expect(strip(["|", name, "!", "&", start, stop])).toEqual([name]);
+    // an "or" of two date conditions is always true, whatever the other side of its parent says
+    expect(strip(["|", name, "|", start, stop])).toEqual([]);
+    expect(strip(["&", name, "|", start, stop])).toEqual([name]);
+    // an "and" of date conditions is true, so its "or" with another condition is true too
+    expect(strip(["|", name, "&", start, stop])).toEqual([]);
+    // a sub-search on another field is kept whole
+    const sub = ["parent_id.date_x", "!=", false];
+    expect(strip(["|", start, sub])).toEqual([sub]);
+    expect(strip(["!", "&", start, sub])).toEqual(["!", sub]);
+});
+
 test("002b3 A45: the Community's removeDomainLeaves turns a negation into never", () => {
     // documents why the panel does not use it: "!" of a left-out leaf is "!" TRUE
     const removed = Domain.removeDomainLeaves(["!", ["date_start", "=", false]], ["date_start"]);

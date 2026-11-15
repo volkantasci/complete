@@ -60,21 +60,50 @@ function parseTree(items, at) {
     return item;
 }
 
-/** The tree without the conditions on `fields`; null when nothing is left of it. */
-function stripTree(node, fields) {
+const ALWAYS_TRUE = "true";
+const ALWAYS_FALSE = "false";
+const isConstant = (side) => side === ALWAYS_TRUE || side === ALWAYS_FALSE;
+
+/**
+ * The tree without the conditions on `fields` (002b3 R19.1, decision D5): a condition on them
+ * becomes "always true" (in an "and", at the top level) or "always false" (directly under an
+ * "or"); a negation around one condition goes with it and is replaced as that condition would
+ * be; a negation around a group applies to what is left of the group, and goes too when nothing
+ * is left; an "or" whose two sides are both left out is "always true". What comes back is a tree
+ * or one of the two constants, which the parent folds away.
+ * @param {Object|Array} node
+ * @param {string[]} fields
+ * @param {string} under the operator directly above: "&", "|", "!" or "" at the top level
+ */
+function stripTree(node, fields, under) {
+    const outcome = under === "|" ? ALWAYS_FALSE : ALWAYS_TRUE;
     if (!node.op) {
-        return isOnFields(node, fields) ? null : node;
+        return isOnFields(node, fields) ? outcome : node;
     }
-    const args = node.args.map((arg) => stripTree(arg, fields));
     if (node.op === "!") {
-        // the negation of a condition left out leaves out the whole negation
-        return args[0] ? { op: "!", args } : null;
+        const inner = stripTree(node.args[0], fields, "!");
+        return isConstant(inner) ? outcome : { op: "!", args: [inner] };
     }
-    // a left-out side leaves the other side alone, in an "and" as in an "or"
-    if (!args[0] || !args[1]) {
-        return args[0] || args[1];
+    const [left, right] = node.args.map((arg) => stripTree(arg, fields, node.op));
+    if (node.op === "&") {
+        if (left === ALWAYS_FALSE || right === ALWAYS_FALSE) {
+            return ALWAYS_FALSE;
+        }
+        if (isConstant(left) || isConstant(right)) {
+            return isConstant(left) ? right : left;
+        }
+        return { op: "&", args: [left, right] };
     }
-    return { op: node.op, args };
+    if (left === ALWAYS_TRUE || right === ALWAYS_TRUE) {
+        return ALWAYS_TRUE;
+    }
+    if (left === ALWAYS_FALSE && right === ALWAYS_FALSE) {
+        return ALWAYS_TRUE; // an "or" of two conditions that are both left out
+    }
+    if (left === ALWAYS_FALSE) {
+        return right;
+    }
+    return right === ALWAYS_FALSE ? left : { op: "|", args: [left, right] };
 }
 
 function flatten(node, out) {
@@ -88,9 +117,8 @@ function flatten(node, out) {
 
 /**
  * The domain without every condition on the start or the stop field (002b3 R19), as a list
- * that stays valid: a condition left out of an `&` or `|` leaves its sibling; the negation of a
- * condition left out is left out as a whole (the Community's `Domain.removeDomainLeaves` turns it
- * into "never", which would empty the list of the records to schedule).
+ * that stays valid, by the rules of `stripTree` (the Community's `Domain.removeDomainLeaves`
+ * turns a negated condition into "never", which would empty the list of the records to schedule).
  * @param {Array|string|Domain} domain
  * @param {string} startField
  * @param {string} stopField
@@ -101,8 +129,8 @@ export function stripDateConditions(domain, startField, stopField) {
     const at = { i: 0 };
     const kept = [];
     while (at.i < items.length) {
-        const node = stripTree(parseTree(items, at), [startField, stopField]);
-        if (node) {
+        const node = stripTree(parseTree(items, at), [startField, stopField], "");
+        if (node !== ALWAYS_TRUE) {
             kept.push(node);
         }
     }
