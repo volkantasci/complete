@@ -1,0 +1,40 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The strip and the panel are two boxes of the row the renderer lays out beside the grid box.
+.o_tl_panel_frame {
+    display: contents;
+}
+
+// the resize strip: 18 px, a 2 px line of the primary colour in its middle, seen only under the
+// pointer (M34 to M36)
+.o_tl_panel_strip {
+    flex: none;
+    width: 18px;
+    padding: 0 8px;
+    opacity: 0;
+    cursor: col-resize;
+
+    &:hover {
+        opacity: 1;
+    }
+
+    .o_tl_panel_strip_line {
+        height: 100%;
+        border-left: 2px solid $o-brand-primary;
+    }
+}
+
+// the panel: no background nor border, 16 px from the screen's edge, scrolls vertically (M29)
+.o_tl_panel {
+    flex: none;
+    margin-right: 16px;
+    overflow-y: auto;
+
+    .o_tl_panel_title {
+        margin: 0 0 8px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: $headings-color;
+    }
+}

@@ -58,6 +58,7 @@ import {
 } from "./timeline_multi_select";
 import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
 import { TimelineSelection } from "./timeline_selection";
+import { hasSidePanel, TimelineSidePanel } from "./timeline_side_panel";
 
 const { DateTime } = luxon;
 
@@ -153,7 +154,7 @@ function textOfDate(date) {
  */
 export class TimelineRenderer extends Component {
     static template = "web_gantt.TimelineRenderer";
-    static components = { ActionHelper };
+    static components = { ActionHelper, TimelineSidePanel };
     props = useProps({
         model: t.object(),
         archInfo: t.object(),
@@ -593,6 +594,19 @@ export class TimelineRenderer extends Component {
             this._popoverFor !== null &&
             Boolean(target.closest?.(`.o_tl_pill[data-pill-id="${this._popoverFor}"]`))
         );
+    }
+
+    /** The side panel stands beside the grid box (002b3 R17, R18), open or closed. */
+    get hasPanel() {
+        return hasSidePanel({
+            archInfo: this.props.archInfo,
+            isSmall: this.ui.isSmall,
+            isSample: this.data.isSample,
+        });
+    }
+
+    get panel() {
+        return this.props.model.panel;
     }
 
     get data() {

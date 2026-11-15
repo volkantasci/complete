@@ -16,6 +16,36 @@
     container-type: inline-size;
 }
 
+// The frame around the grid box (and the side panel when there is one, 002b3 R18). Without a
+// panel it takes no box of its own: the grid box lays out exactly as before.
+.o_tl_frame {
+    display: contents;
+
+    // with the panel (open or closed): the grid box has a 16 px margin and the border and the
+    // rounded top corners of its own (M28, M52); the panel and its strip take the right of the row
+    &.o_tl_with_panel {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+
+        > .o_tl_box {
+            flex: 1 1 0;
+            min-width: 0;
+            margin-left: 16px;
+            border: 1px solid $o-border-color;
+            border-bottom: 0;
+            border-radius: 12px 12px 0 0;
+            background-color: $o-view-background-color;
+
+            // the line above the headers is the box's own, and the scroll area keeps its corners
+            > .o_tl_renderer {
+                border-top: 0;
+                border-radius: 11px 11px 0 0;
+            }
+        }
+    }
+}
+
 // The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
 // grid of its own on the same tracks (subgrid); its pills sit in a layer over the cells.
 .o_tl_renderer {

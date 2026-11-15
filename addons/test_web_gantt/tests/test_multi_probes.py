@@ -353,3 +353,93 @@ class TimelineMultiProbes(TimelineProbeCase):
                                  'a date-only model shows no time fields')
                 self.check('M27', self.POPOVER, scheme, viewport,
                            'the popover without time fields')
+
+    # -- the side panel: M28, M29, M37, M38, M50 to M52, M54, M55 (R17, R18) ---------------------
+    #
+    # Elements read: M28 and M52 the grid box `.o_tl_box`, M29 the panel `.o_tl_panel`, M37 and
+    # M51 the panel button `.o_tl_panel_toggle`, M38 its icon, M50 the count text
+    # `.o_tl_panel_count`. Without a panel (M54d, M54p, M55p) the box carries the geometry, the
+    # margins and the padding, and its scroll area `.o_tl_renderer` the line above the headers
+    # (002a puts that line on the scroll area, not on the box), so those probes read both.
+
+    PANEL_BOX = "document.querySelector('.o_tl_box')"
+    TOGGLE = "document.querySelector('.o_tl_panel_toggle')"
+
+    def check_keys(self, probe, element_js, scheme, viewport, label, keep):
+        """The expected values of ``probe`` whose property satisfies ``keep``."""
+        expected = MEASURED[probe].get((scheme, viewport))
+        if expected is not None:
+            self.probe(probe, element_js, scheme, viewport,
+                       {k: v for k, v in expected.items() if keep(k)}, label)
+
+    def test_002b3_m28_m38_panel_open(self):
+        probes = ['M28', 'M29', 'M37', 'M38']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("!!document.querySelector('.o_tl_panel')")
+                self.settle(500)
+                self.check('M28', self.PANEL_BOX, scheme, viewport, 'the grid box, panel open')
+                self.check('M29', "document.querySelector('.o_tl_panel')", scheme, viewport,
+                           'the side panel')
+                self.check('M37', self.TOGGLE, scheme, viewport, 'the panel button, open')
+                self.check('M38', f"{self.TOGGLE}.querySelector('i')", scheme, viewport,
+                           'the icon of the panel button, open')
+
+    def test_002b3_m50_m52_panel_closed(self):
+        probes = ['M50', 'M51', 'M52']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("!!document.querySelector('.o_tl_panel')")
+                self.js(f"{self.TOGGLE}.click()")
+                self.wait("!document.querySelector('.o_tl_panel')")
+                self.wait("!!document.querySelector('.o_tl_panel_count')")
+                self.settle(500)
+                # the text follows the count and the language: its right edge is anchored (8 px
+                # before the button), its width is not compared
+                count = "document.querySelector('.o_tl_panel_count')"
+                self.check_keys('M50', count, scheme, viewport, 'the count text before the button',
+                                lambda k: k not in ('geometry.x', 'geometry.width'))
+                text = self.geometry(count)
+                want = MEASURED['M50'][(scheme, viewport)]
+                self.assertAlmostEqual(
+                    text['geometry.x'] + text['geometry.width'],
+                    float(want['geometry.x']) + float(want['geometry.width']), delta=.5,
+                    msg='the right edge of the count text')
+                self.check('M51', self.TOGGLE, scheme, viewport, 'the panel button, closed')
+                self.check('M52', self.PANEL_BOX, scheme, viewport, 'the grid box, panel closed')
+
+    def check_without_panel(self, probe, scheme, viewport, sample):
+        """The box of a view without panel: in the sample state the box fills the page while the
+        grid's scroll area is 92 px tall (M66), so the measured box is the scroll area there."""
+        line = "document.querySelector('.o_tl_renderer')"
+        around = ('margin-', 'padding-')
+        self.check_keys(probe, self.PANEL_BOX, scheme, viewport, 'the grid box, no panel',
+                        lambda k: k.startswith(around) or (not sample and k.startswith('geometry')))
+        self.check_keys(probe, line, scheme, viewport, 'the scroll area, no panel',
+                        lambda k: not k.startswith(around)
+                        and (sample or k.startswith('border-top-width')
+                             or k.startswith('border-top-style')))
+        self.assertFalse(self.js("!!document.querySelector('.o_tl_panel_toggle')"),
+                         'no panel button')
+        self.assertFalse(self.js("!!document.querySelector('.o_tl_panel')"), 'no panel')
+
+    def test_002b3_m54d_sample_no_panel_desktop(self):
+        for scheme, viewport in self.combos(['M54d'], ('desktop',)):
+            with self.page(HOST.format('h38'), scheme, viewport):
+                self.wait("!!document.querySelector('.o_tl_box_sample')")
+                self.settle(500)
+                self.check_without_panel('M54d', scheme, viewport, sample=True)
+
+    def test_002b3_m54p_sample_no_panel_phone(self):
+        for scheme, viewport in self.combos(['M54p'], ('phone',)):
+            with self.page(HOST.format('h38'), scheme, viewport, touch=False):
+                self.wait("!!document.querySelector('.o_tl_box_sample')")
+                self.settle(500)
+                self.check_without_panel('M54p', scheme, viewport, sample=True)
+
+    def test_002b3_m55p_no_panel_phone(self):
+        for scheme, viewport in self.combos(['M55p'], ('phone',)):
+            with self.page(HOST.format('h37'), scheme, viewport, touch=False):
+                self.wait("!!document.querySelector('.o_tl_row[data-row-id]')")
+                self.settle(500)
+                self.check_without_panel('M55p', scheme, viewport, sample=False)

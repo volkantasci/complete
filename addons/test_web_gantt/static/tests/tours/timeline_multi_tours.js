@@ -1218,3 +1218,99 @@ tours.add("timeline_002b3_a63_server_refuses_delete", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// The side panel: when it shows, and its remembered state (R17, R18; A43, A54)
+// ---------------------------------------------------------------------------------------------
+
+const panelShown = () => Boolean($(".o_tl_panel")) && Boolean($(".o_tl_panel_toggle"));
+const panelButton = () => $(".o_tl_panel_toggle");
+const boxLeft = () => $(".o_tl_box").getBoundingClientRect().left;
+
+// a host that gives no panel: none of the panel, its strip, its button, its count text; the grid
+// box reaches both edges of the screen
+tours.add("timeline_002b3_a43_conditions", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id], .o_tl_sample_grid",
+            async run() {
+                await gridSettled();
+                assert(!$(".o_tl_panel"), "no panel");
+                assert(!$(".o_tl_panel_strip"), "no strip");
+                assert(!panelButton(), "no panel button");
+                assert(!$(".o_tl_panel_count"), "no count text");
+                const box = $(".o_tl_box").getBoundingClientRect();
+                assert(
+                    Math.round(box.width) === window.innerWidth,
+                    `the grid box is ${box.width} wide on a ${window.innerWidth} px screen`
+                );
+            },
+        },
+    ],
+});
+
+// H36 on a desktop screen: the panel and its button, open
+tours.add("timeline_002b3_a43_shown", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel",
+            async run() {
+                await gridSettled();
+                assert(panelShown(), "the panel and its button");
+                assert(panelButton().classList.contains("active"), "the button is active");
+                assert($(".o_tl_panel_strip"), "the strip");
+                assert(Math.round(boxLeft()) === 16, `the box starts at ${boxLeft()}`);
+                assert(!$(".o_tl_panel_count"), "no count text while open");
+            },
+        },
+    ],
+});
+
+const panelKeys = () =>
+    Object.keys(window.localStorage).filter((key) => key.startsWith("timelinePanelOpen-view-"));
+
+// close, reload the page: still closed (the browser keeps it under the key of this view and
+// action only); reopen, reload: open
+tours.add("timeline_002b3_a54_open_close_remembered", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_toggle.active",
+            expectUnloadPage: true,
+            async run() {
+                await gridSettled();
+                panelButton().click();
+                await until(() => !$(".o_tl_panel"), "the panel closes");
+                assert(!$(".o_tl_panel_strip"), "the strip goes with it");
+                assert(!panelButton().classList.contains("active"), "the button is not active");
+                assert(Math.round(boxLeft()) === 16, "the box keeps its margin");
+                const keys = panelKeys();
+                assert(keys.length === 1, `one stored state, got ${keys}`);
+                assert(/^timelinePanelOpen-view-\d+-action-\d+$/.test(keys[0]), keys[0]);
+                assert(window.localStorage.getItem(keys[0]) === "false", "stored as closed");
+                window.location.reload();
+            },
+        },
+        {
+            trigger: ".o_tl_panel_toggle:not(.active)",
+            expectUnloadPage: true,
+            async run() {
+                await gridSettled();
+                assert(!$(".o_tl_panel"), "the panel is still closed after the reload");
+                panelButton().click();
+                await until(() => $(".o_tl_panel"), "the panel opens");
+                assert(panelButton().classList.contains("active"), "the button is active");
+                window.location.reload();
+            },
+        },
+        {
+            trigger: ".o_tl_panel_toggle.active",
+            async run() {
+                await gridSettled();
+                assert($(".o_tl_panel"), "open after the reload");
+            },
+        },
+    ],
+});

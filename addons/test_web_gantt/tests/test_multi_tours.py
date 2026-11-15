@@ -405,3 +405,19 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         with patch.object(model, 'unlink', refuse):
             self._tour('h34', 'timeline_002b3_a63_server_refuses_delete')
         self.assertTrue(sprint.exists())
+
+    # -- the side panel (R17, R18) -----------------------------------------------------------------
+
+    def test_a43_tour_shown(self):
+        self._tour('h36', 'timeline_002b3_a43_shown')
+        self._tour('h37', 'timeline_002b3_a43_shown')
+
+    def test_a43_tour_conditions(self):
+        # no option; edit off; sample data with the option; the phone with the option
+        self._tour('h18', 'timeline_002b3_a43_conditions')
+        self._tour('h39', 'timeline_002b3_a43_conditions')
+        self._tour('h38', 'timeline_002b3_a43_conditions')
+        self._tour('h36', 'timeline_002b3_a43_conditions', size=PHONE)
+
+    def test_a54_tour_open_close_remembered(self):
+        self._tour('h36', 'timeline_002b3_a54_open_close_remembered')

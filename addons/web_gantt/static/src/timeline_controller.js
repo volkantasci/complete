@@ -25,6 +25,7 @@ import { TimelineEditor } from "./timeline_editor";
 import { TimelineSelectionButtons } from "./timeline_selection_buttons";
 import { newButtonPeriod } from "./timeline_editing";
 import { buildMultiCreateValues } from "./timeline_multi_create";
+import { hasSidePanel, panelTitleText } from "./timeline_side_panel";
 
 const KIND_LABELS = {
     day: _t("Day"),
@@ -98,6 +99,7 @@ export class TimelineController extends Component {
             fields: this.props.fields,
             config: this.props.archInfo,
             viewId: this.env.config.viewId,
+            actionId: this.env.config.actionId,
             state: this.props.state?.modelState,
         });
         // what is picked in the grid (002b3 R9): the renderer fills `state` after every change and
@@ -268,6 +270,25 @@ export class TimelineController extends Component {
     /** The range shown in the bar: the target of a pending step, else the loaded one. */
     get shownRange() {
         return this.data.pendingRange || this.data.range;
+    }
+
+    /** The side panel and its button exist (002b3 R17); none on a phone. */
+    get hasPanel() {
+        return hasSidePanel({
+            archInfo: this.props.archInfo,
+            isSmall: this.ui.isSmall,
+            isSample: this.data.isSample,
+        });
+    }
+
+    /** The count text before the panel button while the panel is closed (E6). */
+    get panelCountText() {
+        const { open, count } = this.model.panel;
+        return open ? "" : panelTitleText(count);
+    }
+
+    togglePanel() {
+        this.model.togglePanel();
     }
 
     get canCreate() {

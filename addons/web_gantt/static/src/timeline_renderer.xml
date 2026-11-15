@@ -12,6 +12,7 @@
     <t t-name="web_gantt.TimelineRenderer">
         <t t-set="layout" t-value="this.layout"/>
         <t t-set="picked" t-value="this.pickedByRow"/>
+        <div class="o_tl_frame" t-att-class="{ o_tl_with_panel: this.hasPanel }">
         <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
             <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId" t-on-scroll="this.onScroll" t-on-pointerdown="this.onGridPointerDown">
                 <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample, o_tl_multi: this.isMultiSelect }" t-attf-style="grid-template-columns: {{layout.template}}">
@@ -102,6 +103,8 @@
                 </div>
             </div>
             <ActionHelper t-if="layout.isSample and this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
+        </div>
+        <TimelineSidePanel t-if="this.hasPanel and this.panel.open" model="this.props.model" renderer="this" width="this.panel.width"/>
         </div>
     </t>
 </templates>

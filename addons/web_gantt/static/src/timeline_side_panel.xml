@@ -1,0 +1,14 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineSidePanel">
+        <div class="o_tl_panel_frame">
+            <div class="o_tl_panel_strip d-print-none" t-on-pointerdown="this.onStripPointerDown">
+                <div class="o_tl_panel_strip_line"/>
+            </div>
+            <div class="o_tl_panel d-print-none" t-attf-style="width: {{this.props.width}}px">
+                <h6 class="o_tl_panel_title" t-out="this.title"/>
+            </div>
+        </div>
+    </t>
+</templates>

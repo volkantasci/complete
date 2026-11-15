@@ -1,5 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { proxy } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { Domain } from "@web/core/domain";
 import {
@@ -28,6 +29,7 @@ import {
     partsFor,
 } from "./timeline_dates";
 import { orderPills, pillSpan } from "./timeline_layout";
+import { PANEL_WIDTH } from "./timeline_side_panel";
 
 const { DateTime } = luxon;
 
@@ -36,6 +38,8 @@ const NUMBER_TYPES = ["integer", "float", "monetary"];
 const RELATIONAL_TYPES = ["many2one", "many2many", "one2many"];
 
 const storageKey = (viewId) => `rangeOf-viewId-${viewId}`;
+// whether the side panel is open, kept per view and action (002b3 R17)
+const panelKey = (viewId, actionId) => `timelinePanelOpen-view-${viewId}-action-${actionId}`;
 
 function groupByFieldName(groupBy) {
     return groupBy.split(":")[0];
@@ -52,12 +56,22 @@ export class TimelineModel extends Model {
      * @param {Object} params.fields field descriptions of the model
      * @param {Object} params.config result of `parseTimelineArch`
      * @param {number|false} [params.viewId]
+     * @param {number|false} [params.actionId]
      */
     setup(params) {
         this.resModel = params.resModel;
         this.fields = { ...params.fields };
         this.config = params.config;
         this.viewId = params.viewId;
+        this.actionId = params.actionId;
+        // the side panel (002b3 R17, R20): open by default, as the browser kept it for this view
+        // and action; `count` is the number of records to schedule (null until it is known);
+        // `width` is kept while the view stays open
+        this.panel = proxy({
+            open: browser.localStorage.getItem(this._panelKey) !== "false",
+            count: null,
+            width: PANEL_WIDTH,
+        });
         // what the action kept when the user left this view (range, display mode, scroll)
         this._restored = params.state || null;
         this.restoredScroll = this._restored?.scroll || null;
@@ -99,6 +113,16 @@ export class TimelineModel extends Model {
     // ------------------------------------------------------------------------
     // Public API
     // ------------------------------------------------------------------------
+
+    get _panelKey() {
+        return panelKey(this.viewId, this.actionId);
+    }
+
+    /** Closes or opens the side panel and keeps the state in the browser (R17). */
+    togglePanel() {
+        this.panel.open = !this.panel.open;
+        browser.localStorage.setItem(this._panelKey, String(this.panel.open));
+    }
 
     /** Placement options `pillSpan` needs for the start and stop fields. */
     get placement() {
@@ -545,6 +569,31 @@ export class TimelineModel extends Model {
         this._requestedRange = null;
         this._requestedOffset = null;
         this._commit(request, result);
+        this._refreshPanelCount();
+    }
+
+    /**
+     * The number of records to schedule, read with every load (002b3 R19): those of the action's
+     * domain and the search, without the conditions on the start or the stop field, whose start
+     * and stop are both empty. The list of the panel is read the same way.
+     */
+    async _refreshPanelCount() {
+        const { canSchedule, canEdit, startField, stopField } = this.config;
+        if (!canSchedule || !canEdit || this.isSample) {
+            return;
+        }
+        const serial = (this._countSerial = (this._countSerial || 0) + 1);
+        const domain = Domain.and([
+            Domain.removeDomainLeaves(this.domain, [startField, stopField]),
+            [
+                [startField, "=", false],
+                [stopField, "=", false],
+            ],
+        ]).toList();
+        const count = await this.orm.searchCount(this.resModel, domain, { context: this.context });
+        if (serial === this._countSerial && !this.disposed) {
+            this.panel.count = count;
+        }
     }
 
     _commit(request, result) {
