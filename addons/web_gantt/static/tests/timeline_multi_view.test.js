@@ -551,6 +551,23 @@ test("002b3 A20: switching between a row anchor and a column anchor", async () =
     expect(pickedCells()).toHaveCount(count * 2);
 });
 
+test("002b3 A20: a finished drawing keeps the column anchor, a Ctrl cell click too", async () => {
+    await mountMulti();
+    const count = rows().length;
+    await click(header("2026-11-09"));
+    const beta = rowIndex("Beta", "Host Contact 2");
+    const drawing = await draw([beta, "2026-11-13", 0], [beta, "2026-11-13", 1]);
+    await drawing.drop();
+    await animationFrame();
+    expect(picked().columnAnchor).not.toBe(null);
+    await withKey("shift", () => click(header("2026-11-11")));
+    await animationFrame();
+    // from the first header's column to the clicked one, in every row
+    expect(pickedCells()).toHaveCount(count * 6);
+    await withKey("ctrl", () => clickCell(beta, "2026-11-14"));
+    expect(picked().columnAnchor).not.toBe(null);
+});
+
 describe("folded columns", () => {
     const unavailable = () => {
         timelineMock.unavailability = {
@@ -592,6 +609,21 @@ describe("folded columns", () => {
         expect(pickedCells()).toHaveCount(0);
     });
 
+    test("002b3 A20: a plain click on a folded cell forgets the anchors, a Ctrl click keeps them", async () => {
+        await mountFolded();
+        await click(header("2026-11-12"));
+        await animationFrame();
+        expect(picked().columnAnchor).not.toBe(null);
+        // a record row's folded cell (the first row is a group row)
+        await withKey("ctrl", () => click(rows()[1].querySelector(".o_tl_folded_cell")));
+        await animationFrame();
+        expect(picked().columnAnchor).not.toBe(null);
+        await click(rows()[1].querySelector(".o_tl_folded_cell"));
+        await animationFrame();
+        expect(picked().columnAnchor).toBe(null);
+        expect(pickedCells()).toHaveCount(total() * 2);
+    });
+
     test("002b3 A21: Shift selects a column that can fold without folding it", async () => {
         await mountFolded();
         await click(".o_tl_col.o_tl_folded");
@@ -600,6 +632,15 @@ describe("folded columns", () => {
         await animationFrame();
         expect(".o_tl_col.o_tl_folded").toHaveCount(0);
         expect(pickedCells()).toHaveCount(total() * 2);
+    });
+
+    test("002b3 A21: Shift on a folded header neither unfolds it nor selects it", async () => {
+        await mountFolded();
+        const folded = queryAll(".o_tl_col.o_tl_folded").length;
+        await withKey("shift", () => click(".o_tl_col.o_tl_folded"));
+        await animationFrame();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(folded);
+        expect(pickedCells()).toHaveCount(0);
     });
 
     test("002b3 A21: a click on a folded cell does nothing and a drawing skips folded cells", async () => {
@@ -636,6 +677,38 @@ test("002b3 A25: Escape clears the selection, the range change reloads", async (
     await animationFrame();
     expect(pickedCells()).toHaveCount(0);
     expect(state().cellCount).toBe(0);
+});
+
+test("002b3 A25: Today inside the displayed period keeps the selection; Escape with none does nothing", async () => {
+    await mountMulti();
+    // Escape with no selection does nothing
+    await press("Escape");
+    await animationFrame();
+    expect(pickedCells()).toHaveCount(0);
+    expect(state().visible).toBe(false);
+    const row = rowIndex("Beta", "Host Contact 2");
+    await clickCell(row, "2026-11-10");
+    expect(pickedCells()).toHaveCount(2);
+    await contains(".o_tl_today").click();
+    await advanceTime(600);
+    await animationFrame();
+    expect(pickedCells()).toHaveCount(2);
+    expect(state().visible).toBe(true);
+    // a Today that changes the period reloads and clears
+    for (let i = 0; i < 2; i++) {
+        await contains(".o_tl_next").click();
+        await advanceTime(600);
+        await animationFrame();
+    }
+    const later = queryAll(".o_tl_col[data-date]")[3].dataset.date;
+    await clickCell(rowIndex("Beta", "Host Contact 2"), later);
+    expect(pickedCells()).toHaveCount(2);
+    await contains(".o_tl_today").click();
+    for (let i = 0; i < 3; i++) {
+        await advanceTime(600);
+        await animationFrame();
+    }
+    expect(pickedCells()).toHaveCount(0);
 });
 
 test("002b3 A25: a reload clears the cells and the anchors", async () => {

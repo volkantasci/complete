@@ -84,13 +84,14 @@ export class TimelinePickedCells {
     // Cell click (R4)
 
     clickColumnOfRow(rowId, parts, { ctrl } = {}) {
-        const keys = this._keysOf([rowId], parts);
-        if (!keys.length) {
-            return; // a folded column: nothing happens, anchors included
-        }
+        // without Ctrl the anchors go before the folded column is recognised (R4)
         if (!ctrl) {
             this._rowAnchor = null;
             this._columnAnchor = null;
+        }
+        const keys = this._keysOf([rowId], parts);
+        if (!keys.length) {
+            return; // a folded column: nothing is selected
         }
         this._applyKeys(keys, ctrl);
     }
@@ -140,8 +141,7 @@ export class TimelinePickedCells {
         for (const key of drawing.rectangle) {
             this._keys.add(key);
         }
-        this._rowAnchor = null;
-        this._columnAnchor = null;
+        // a finished drawing leaves the anchors alone (R4)
     }
 
     /** Escape during a drawing: the whole selection goes (R5.3). */

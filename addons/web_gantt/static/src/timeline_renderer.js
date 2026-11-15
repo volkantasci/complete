@@ -794,6 +794,10 @@ export class TimelineRenderer extends Component {
             return;
         }
         if (cell.run !== undefined) {
+            // a folded cell selects nothing, but without Ctrl it forgets the anchors (R4)
+            this.picked.clickColumnOfRow(descriptor.row.id, [], {
+                ctrl: this._modifiers(ev).ctrl,
+            });
             ev.stopPropagation();
             return;
         }

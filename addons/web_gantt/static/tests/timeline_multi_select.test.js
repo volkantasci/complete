@@ -345,7 +345,7 @@ test("002b3 A30: the days follow the given row order, numeric ids included", () 
     expect(entries.map((e) => e.rowId)).toEqual(["10", "2", "9"]);
 });
 
-test("002b3 A20: Ctrl+click on a cell keeps the anchors, a folded click changes nothing", () => {
+test("002b3 A20: Ctrl+click on a cell keeps the anchors, a folded click changes nothing but forgets them", () => {
     const folded = new Set([4, 5]);
     const picked = new TimelinePickedCells({ isFolded: (part) => folded.has(part) });
     column(picked, MON);
@@ -354,13 +354,37 @@ test("002b3 A20: Ctrl+click on a cell keeps the anchors, a folded click changes 
     column(picked, WED, { shift: true });
     expect(partsOf(picked)).toEqual([2, 3, 6, 7]);
     const before = keys(picked);
-    picked.clickColumnOfRow("beta/U", dayParts(TUE), {});
+    // a Ctrl click on a folded cell changes nothing, anchors included
     picked.clickColumnOfRow("beta/U", dayParts(TUE), ctrl);
     expect(keys(picked)).toEqual(before);
     expect(picked.columnAnchor).toBe(MON);
-    // a click without Ctrl forgets the anchors
+    // a click without Ctrl forgets the anchors, also on a folded column (R4)
+    picked.clickColumnOfRow("beta/U", dayParts(TUE), {});
+    expect(keys(picked)).toEqual(before);
+    expect(picked.columnAnchor).toBe(null);
+    column(picked, MON);
     picked.clickColumnOfRow("beta/U", dayParts(THU), {});
     expect(picked.columnAnchor).toBe(null);
+});
+
+test("002b3 A20: a finished drawing keeps the anchors (R4)", () => {
+    const picked = new TimelinePickedCells();
+    column(picked, MON);
+    picked.startDrawing("beta/U", 8, {});
+    picked.drawTo("beta/C2", 9, ORDER);
+    picked.endDrawing();
+    expect(picked.size).toBe(4);
+    expect(picked.columnAnchor).toBe(MON);
+    column(picked, WED, { shift: true });
+    expect(partsOf(picked)).toEqual([2, 3, 4, 5, 6, 7]);
+    // a drawing that never moved keeps them too, and so does a row anchor
+    rowHeader(picked, "beta/U");
+    picked.startDrawing("beta/C2", 8, {});
+    picked.drawTo("beta/C3", 8, ORDER);
+    picked.endDrawing();
+    expect(picked.rowAnchor).toBe("beta/U");
+    rowHeader(picked, "beta/C3", { shift: true });
+    expect(rowsOf(picked)).toEqual(["beta/U", "beta/C2", "beta/C3"]);
 });
 
 test("002b3: Shift without the matching anchor clears when the other anchor exists", () => {
