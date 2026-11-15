@@ -77,6 +77,37 @@ test("every option is read", () => {
     ]);
 });
 
+test("002c: dependency and buffer attributes", () => {
+    const fields = {
+        ...FIELDS,
+        blocked_by: { type: "many2many" },
+        blocks: { type: "many2many" },
+        x_before: { type: "float" },
+        x_after: { type: "float" },
+    };
+    const none = parse("", "", fields);
+    expect(none.dependencyField).toBe(null);
+    expect(none.dependencyInvertedField).toBe(null);
+    expect(none.bufferBeforeField).toBe(null);
+    expect(none.bufferAfterField).toBe(null);
+    const config = parse(
+        `dependency_field="blocked_by" dependency_inverted_field="blocks" buffer_start="x_before" buffer_stop="x_after"`,
+        "",
+        fields
+    );
+    expect(config.dependencyField).toBe("blocked_by");
+    expect(config.dependencyInvertedField).toBe("blocks");
+    expect(config.bufferBeforeField).toBe("x_before");
+    expect(config.bufferAfterField).toBe("x_after");
+    expect(config.extraFieldNames).toEqual([
+        "blocked_by",
+        "blocks",
+        "x_before",
+        "x_after",
+        "allocated_hours",
+    ]);
+});
+
 test("old default_scale values", () => {
     expect(parse(`default_scale="month"`).defaultKind).toBe("month");
     expect(parse(`default_scale="week_2"`).defaultKind).toBe(null);

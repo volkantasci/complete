@@ -327,6 +327,28 @@ test("A85: server call period", async () => {
     expect(lastCall().read_specification.parent_id).toEqual({ fields: { display_name: {} } });
 });
 
+test("002c: dependency and buffer fields are read", async () => {
+    const { model } = await makeTimelineModel({
+        arch: timelineArch(
+            `dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field" buffer_start="x_buffer_before" buffer_stop="x_buffer_after"`
+        ),
+    });
+    await model.load({});
+    const spec = lastCall().read_specification;
+    for (const name of [
+        "dependency_field",
+        "dependency_inverted_field",
+        "x_buffer_before",
+        "x_buffer_after",
+    ]) {
+        expect(spec[name]).toEqual({});
+    }
+    expect(model.config.dependencyField).toBe("dependency_field");
+    const { model: plain } = await makeTimelineModel();
+    await plain.load({});
+    expect("dependency_field" in lastCall().read_specification).toBe(false);
+});
+
 test("A56: a date property group-by is dropped", async () => {
     const { model } = await makeTimelineModel();
     await model.load({ groupBy: ["pill_properties.when_prop"] });
