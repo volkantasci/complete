@@ -1460,3 +1460,82 @@ tours.add("timeline_002b3_a58_hover", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Resizing the panel by its strip (R20; A55)
+// ---------------------------------------------------------------------------------------------
+
+const panelWidthNow = () => Math.round($(".o_tl_panel").getBoundingClientRect().width);
+
+/** Press on the strip's middle, move `dx` px in eight steps on the same line, release. */
+async function dragStrip(dx) {
+    const rect = $(".o_tl_panel_strip").getBoundingClientRect();
+    const x0 = rect.left + rect.width / 2;
+    const y = rect.top + 200;
+    const events = [mouse("mouseMoved", x0, y, { button: "none", buttons: 0 })];
+    events.push(mouse("mousePressed", x0, y, { buttons: 1, clickCount: 1 }));
+    for (let step = 1; step <= 8; step++) {
+        events.push(mouse("mouseMoved", x0 + (dx * step) / 8, y, { buttons: 1 }));
+    }
+    events.push(mouse("mouseReleased", x0 + dx, y, { buttons: 0, clickCount: 1 }));
+    await realMouse(events);
+}
+
+// drag the strip 300 px left: 562; far right: 150; far left: 800; closing and opening the panel
+// keeps the width; opening the action anew from its menu gives 262 again
+tours.add("timeline_002b3_a55_resize", {
+    steps: () => [
+        gridReady,
+        {
+            // the strip is invisible at rest (opacity 0): wait for the panel beside it
+            trigger: ".o_tl_panel",
+            async run() {
+                await gridSettled();
+                assert(panelWidthNow() === 262, `262 at first, got ${panelWidthNow()}`);
+                await dragStrip(-300);
+                assert(panelWidthNow() === 562, `562 after 300 px left, got ${panelWidthNow()}`);
+                await dragStrip(1000);
+                assert(panelWidthNow() === 150, `150 far right, got ${panelWidthNow()}`);
+                await dragStrip(-1500);
+                assert(panelWidthNow() === 800, `800 far left, got ${panelWidthNow()}`);
+                // 800 back to 562: 238 px to the right
+                await dragStrip(238);
+                assert(panelWidthNow() === 562, `562 again, got ${panelWidthNow()}`);
+                // the grid's box follows
+                const box = $(".o_tl_box").getBoundingClientRect();
+                assert(
+                    Math.round(box.right + 18 + 562 + 16) === window.innerWidth,
+                    `the box ends at ${box.right}`
+                );
+                // closing and opening keeps the width
+                panelButton().click();
+                await until(() => !$(".o_tl_panel"), "the panel closes");
+                panelButton().click();
+                await until(() => $(".o_tl_panel"), "the panel opens");
+                assert(panelWidthNow() === 562, `562 after reopening, got ${panelWidthNow()}`);
+            },
+        },
+        {
+            // opening the action anew from its menu: the width is 262 again
+            trigger: ".o_main_navbar",
+            async run() {
+                const label = "H37 Schedule by parent";
+                const entries = () => $$(".o_main_navbar a, .o_main_navbar button, .dropdown-item");
+                const item = () => entries().find((el) => el.textContent.trim() === label);
+                if (!item()) {
+                    const toggle = entries().find((el) =>
+                        el.textContent.trim().startsWith("Gantt Host")
+                    );
+                    assert(toggle, "the Gantt Host menu");
+                    toggle.click();
+                    await until(item, `the menu item ${label}`);
+                }
+                item().click();
+                await frame();
+                await gridSettled();
+                await until(() => $(".o_tl_panel"), "the panel of the new view");
+                await until(() => panelWidthNow() === 262, `262 after opening anew, got ${panelWidthNow()}`);
+            },
+        },
+    ],
+});

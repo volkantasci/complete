@@ -481,6 +481,31 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.pointer_to(handle)
                 self.check('M39', handle, scheme, viewport, 'the handle of Gamma under the pointer')
 
+    # -- the resize strip: M34 to M36 (R20) -------------------------------------------------------
+    #
+    # Elements read: M34 and M36 the strip `.o_tl_panel_strip`, M35 its line
+    # `.o_tl_panel_strip_line`; M36 with the pointer at (1313, 520).
+
+    STRIP = "document.querySelector('.o_tl_panel_strip')"
+
+    def test_002b3_m34_m35_strip_at_rest(self):
+        for scheme, viewport in self.combos(['M34', 'M35'], ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("!!document.querySelector('.o_tl_panel_strip')")
+                self.pointer_away()
+                self.check('M34', self.STRIP, scheme, viewport, 'the resize strip at rest')
+                self.check('M35', f"{self.STRIP}.querySelector('.o_tl_panel_strip_line')", scheme,
+                           viewport, 'the line in the resize strip at rest')
+
+    def test_002b3_m36_strip_hover(self):
+        for scheme, viewport in self.combos(['M36'], ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("!!document.querySelector('.o_tl_panel_strip')")
+                self.mouse('mouseMoved', 1313, 520)
+                self.settle(500)
+                self.check('M36', self.STRIP, scheme, viewport,
+                           'the resize strip under the pointer')
+
     def test_002b3_m53_load_more(self):
         queue = self.env['test.web.gantt.pill'].create(
             [{'name': f'Queue {i:02d}'} for i in range(1, 23)])

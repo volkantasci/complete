@@ -3,6 +3,9 @@
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import {
     click,
+    drag,
+    hover,
+    press,
     queryAll,
     queryAllTexts,
     queryFirst,
@@ -519,4 +522,121 @@ test("002b3 R19: lines cut long names with an ellipsis and keep the full name as
     expect(name).toHaveStyle({ textOverflow: "ellipsis", overflowX: "hidden", whiteSpace: "nowrap" });
     expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
     expect(queryRect(queryAll(".o_tl_panel_line")[3]).height).toBe(29);
+});
+
+// -- resizing by the strip (R20, A55) ---------------------------------------------------------
+
+const stripPoint = () => {
+    const rect = queryRect(".o_tl_panel_strip");
+    return { x: rect.left + rect.width / 2, y: rect.top + 200 };
+};
+
+/** Press on the strip and move the pointer `dx` pixels; the button stays down. */
+async function dragStrip(dx) {
+    const start = stripPoint();
+    const helpers = await drag(".o_tl_panel_strip", { position: start });
+    await helpers.moveTo(".o_tl_panel_strip", { position: { x: start.x + dx, y: start.y } });
+    await animationFrame();
+    return helpers;
+}
+
+const panelWidth = () => queryRect(".o_tl_panel").width;
+
+test.tags("desktop");
+test("002b3 A55: dragging the strip 300 px left gives 562 px", async () => {
+    await mountPanel();
+    const boxBefore = queryRect(".o_tl_box").width;
+    const helpers = await dragStrip(-300);
+    expect(".o_tl_panel_strip").toHaveClass("o_tl_panel_resizing");
+    expect(panelWidth()).toBe(562);
+    // the grid box gives way, its columns follow
+    expect(queryRect(".o_tl_box").width).toBe(boxBefore - 300);
+    await helpers.drop();
+    await animationFrame();
+    expect(".o_tl_panel_strip").not.toHaveClass("o_tl_panel_resizing");
+    expect(panelWidth()).toBe(562);
+    expect(controller.model.panel.width).toBe(562);
+    // after the release the pointer moves nothing
+    await hover(".o_tl_box", { position: { x: 100, y: 100 } });
+    await animationFrame();
+    expect(panelWidth()).toBe(562);
+});
+
+test.tags("desktop");
+test("002b3 A55: dragging the strip far right stops at 150, far left at 800", async () => {
+    await mountPanel();
+    const right = await dragStrip(1000);
+    expect(panelWidth()).toBe(150);
+    await right.drop();
+    await animationFrame();
+    const left = await dragStrip(-1500);
+    expect(panelWidth()).toBe(800);
+    await left.drop();
+    await animationFrame();
+    expect(controller.model.panel.width).toBe(800);
+});
+
+test.tags("desktop");
+test("002b3 A55: a key press ends the resize", async () => {
+    await mountPanel();
+    const helpers = await dragStrip(-100);
+    expect(panelWidth()).toBe(362);
+    await press("a");
+    await animationFrame();
+    expect(".o_tl_panel_strip").not.toHaveClass("o_tl_panel_resizing");
+    const start = stripPoint();
+    await helpers.moveTo(".o_tl_panel_strip", { position: { x: start.x - 200, y: start.y } });
+    await animationFrame();
+    expect(panelWidth()).toBe(362);
+    await helpers.drop();
+});
+
+test.tags("desktop");
+test("002b3 A55: a reload keeps the width, closing and opening the panel as well", async () => {
+    await mountPanel();
+    const helpers = await dragStrip(-300);
+    await helpers.drop();
+    await animationFrame();
+    await controller.model.reload();
+    await animationFrame();
+    expect(panelWidth()).toBe(562);
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    expect(".o_tl_panel").toHaveCount(0);
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    expect(panelWidth()).toBe(562);
+});
+
+test.tags("desktop");
+test("002b3 A55: a view that opens anew has 262 px again", async () => {
+    await mountPanel();
+    const helpers = await dragStrip(-300);
+    await helpers.drop();
+    await animationFrame();
+    expect(controller.model.panel.width).toBe(562);
+    await mountPanel();
+    expect(controller.model.panel.width).toBe(262);
+    // the second view is drawn next to the first one: its panel is the last one
+    expect(queryRect(queryAll(".o_tl_panel").at(-1)).width).toBe(262);
+});
+
+test.tags("desktop");
+test("002b3 A55: the strip shows on hover", async () => {
+    await mountPanel();
+    expect(".o_tl_panel_strip").toHaveStyle({ opacity: "0", cursor: "col-resize" });
+    const rules = [...document.styleSheets].flatMap((sheet) => {
+        try {
+            return [...sheet.cssRules];
+        } catch {
+            return [];
+        }
+    });
+    const hoverRule = rules.find((rule) => rule.selectorText?.includes(".o_tl_panel_strip:hover"));
+    expect(hoverRule.style.opacity).toBe("1");
+    expect(".o_tl_panel_strip_line").toHaveStyle({ borderLeftWidth: "2px" });
+    // while resizing it shows as well
+    const helpers = await dragStrip(-10);
+    expect(".o_tl_panel_strip").toHaveStyle({ opacity: "1" });
+    await helpers.drop();
 });

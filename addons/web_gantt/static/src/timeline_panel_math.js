@@ -4,6 +4,25 @@ import { Domain } from "@web/core/domain";
 
 const OPERATORS = ["&", "|", "!"];
 
+/** The narrowest the side panel gets when it is resized, in pixels (002b3 R20). */
+export const PANEL_MIN_WIDTH = 150;
+
+/**
+ * The width of the panel while its strip is dragged (002b3 R20): the width at the press minus the
+ * pointer's horizontal move, never below 150 px and never above the larger of half the window and
+ * the width at the press.
+ * @param {number} startWidth
+ * @param {number} dx pointer move since the press, negative to the left
+ * @param {number} windowWidth
+ * @returns {number}
+ */
+export function clampPanelWidth(startWidth, dx, windowWidth) {
+    return Math.min(
+        Math.max(startWidth - dx, PANEL_MIN_WIDTH),
+        Math.max(windowWidth / 2, startWidth)
+    );
+}
+
 /** Whether `leaf` constrains `field` or a field reached through it (`date_start`, `date_start.x`). */
 function isOnFields(leaf, fields) {
     const path = String(leaf[0]);

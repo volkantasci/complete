@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, test } from "@odoo/hoot";
 import { Domain } from "@web/core/domain";
-import { stripDateConditions } from "@web_gantt/timeline_panel_math";
+import { clampPanelWidth, stripDateConditions } from "@web_gantt/timeline_panel_math";
 
 const strip = (domain) => stripDateConditions(domain, "date_start", "date_stop");
 
@@ -66,4 +66,19 @@ test("002b3 A45: the Community's removeDomainLeaves turns a negation into never"
     const removed = Domain.removeDomainLeaves(["!", ["date_start", "=", false]], ["date_start"]);
     expect(removed.toList()).toEqual(["!", [1, "=", 1]]);
     expect(strip(["!", ["date_start", "=", false]])).toEqual([]);
+});
+
+test("002b3 A55: the width is clamped between 150 and the larger of half the window and the start", () => {
+    // moving left (a negative move) widens
+    expect(clampPanelWidth(262, -300, 1600)).toBe(562);
+    expect(clampPanelWidth(262, 0, 1600)).toBe(262);
+    expect(clampPanelWidth(262, 100, 1600)).toBe(162);
+    expect(clampPanelWidth(262, 200, 1600)).toBe(150);
+    expect(clampPanelWidth(262, -1500, 1600)).toBe(800);
+    // a start wider than half the window never grows, and may shrink
+    expect(clampPanelWidth(900, 500, 1600)).toBe(400);
+    expect(clampPanelWidth(900, 0, 1600)).toBe(900);
+    expect(clampPanelWidth(900, -100, 1600)).toBe(900);
+    // a start under the minimum is lifted to it
+    expect(clampPanelWidth(100, 0, 1600)).toBe(150);
 });

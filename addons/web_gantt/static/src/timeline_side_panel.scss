@@ -15,12 +15,16 @@
     opacity: 0;
     cursor: col-resize;
 
-    &:hover {
+    &:hover,
+    &.o_tl_panel_resizing {
         opacity: 1;
     }
 
     .o_tl_panel_strip_line {
         height: 100%;
+        // every side carries the primary colour, only the left one has a width (M35)
+        border: 0 none;
+        border-color: $o-brand-primary;
         border-left: 2px solid $o-brand-primary;
     }
 }

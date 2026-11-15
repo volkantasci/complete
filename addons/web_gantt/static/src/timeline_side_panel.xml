@@ -3,7 +3,7 @@
 <templates xml:space="preserve">
     <t t-name="web_gantt.TimelineSidePanel">
         <div class="o_tl_panel_frame">
-            <div class="o_tl_panel_strip d-print-none" t-on-pointerdown="this.onStripPointerDown">
+            <div class="o_tl_panel_strip d-print-none" t-att-class="{ o_tl_panel_resizing: this.resizing.on }" t-on-pointerdown="this.onStripPointerDown">
                 <div class="o_tl_panel_strip_line"/>
             </div>
             <div class="o_tl_panel d-print-none" t-attf-style="width: {{this.props.width}}px">

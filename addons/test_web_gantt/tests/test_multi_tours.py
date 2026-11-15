@@ -422,6 +422,9 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
     def test_a54_tour_open_close_remembered(self):
         self._tour('h36', 'timeline_002b3_a54_open_close_remembered')
 
+    def test_a55_tour_resize(self):
+        self._tour('h37', 'timeline_002b3_a55_resize')
+
     # -- the list of the records to schedule (R19) -------------------------------------------------
 
     def _tl_queue(self):

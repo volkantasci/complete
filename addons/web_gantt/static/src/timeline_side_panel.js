@@ -1,7 +1,9 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, onMounted, t, useProps } from "@odoo/owl";
+import { Component, onMounted, onWillUnmount, proxy, t, useProps } from "@odoo/owl";
+import { browser } from "@web/core/browser/browser";
 import { _t } from "@web/core/l10n/translation";
+import { clampPanelWidth } from "./timeline_panel_math";
 
 /** Width of the panel when the view opens, in pixels (M29). */
 export const PANEL_WIDTH = 262;
@@ -41,11 +43,13 @@ export class TimelineSidePanel extends Component {
         model: t.object(),
         renderer: t.object().optional(),
         width: t.number(),
-        onResizeStart: t.function().optional(),
     });
 
     setup() {
+        this.resizing = proxy({ on: false });
+        this._resize = null;
         onMounted(() => this.props.model.ensurePanel());
+        onWillUnmount(() => this._endResize());
     }
 
     get title() {
@@ -73,7 +77,63 @@ export class TimelineSidePanel extends Component {
         this.props.model.loadMorePanel();
     }
 
+    /**
+     * Pressing the left button on the strip resizes the panel while it is held (R20): the width
+     * follows the pointer, kept on the model so that it outlives reloads and a closed panel.
+     */
     onStripPointerDown(ev) {
-        this.props.onResizeStart?.(ev);
+        if (ev.button !== 0 || this._resize) {
+            return;
+        }
+        ev.preventDefault();
+        const model = this.props.model;
+        const startWidth = model.panel.width;
+        const startX = ev.clientX;
+        const move = (event) => {
+            model.panel.width = clampPanelWidth(
+                startWidth,
+                event.clientX - startX,
+                window.innerWidth
+            );
+        };
+        // any key, or a press of another button, ends it like the release does
+        const end = () => this._endResize(true);
+        const press = (event) => {
+            if (event.button !== 0) {
+                end();
+            }
+        };
+        const listeners = [
+            ["pointermove", move],
+            ["pointerup", end],
+            ["pointercancel", end],
+            ["keydown", end],
+            ["pointerdown", press],
+            ["blur", end],
+        ];
+        for (const [type, handler] of listeners) {
+            browser.addEventListener(type, handler, true);
+        }
+        this._resize = { listeners };
+        this.resizing.on = true;
+    }
+
+    /** Ends the resize; the focus leaves the panel when `blur` says so. */
+    _endResize(blur = false) {
+        const resize = this._resize;
+        if (!resize) {
+            return;
+        }
+        this._resize = null;
+        for (const [type, handler] of resize.listeners) {
+            browser.removeEventListener(type, handler, true);
+        }
+        this.resizing.on = false;
+        if (blur) {
+            const active = document.activeElement;
+            if (active && active !== document.body && active.closest?.(".o_tl_panel_frame, .o_tl_panel")) {
+                active.blur();
+            }
+        }
     }
 }
