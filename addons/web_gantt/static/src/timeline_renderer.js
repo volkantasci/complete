@@ -39,15 +39,13 @@ import {
     dragBadges,
     dragStep,
     hasDateOnlyBound,
-    moveWriteValues,
     movedBounds,
     resizedBound,
-    resizeIsInvalid,
     rowAcceptsDrop,
-    serializeBound,
-    undoValues,
 } from "./timeline_drag_math";
 import { TimelinePillDrag } from "./timeline_drag";
+import { commitDrag, commitResize } from "./timeline_drag_commit";
+import { TimelinePillPointer } from "./timeline_pill_pointer";
 import { badgeText, columnPeriod, partPeriod, rowValueChain } from "./timeline_editing";
 import {
     countPickedRecords,
@@ -215,6 +213,7 @@ export class TimelineRenderer extends Component {
             commit: (selection) => this._commitSelection(selection),
             hold: (on) => this._hold(on),
         });
+        this._pillPointer = new TimelinePillPointer(this);
         this._drag = new TimelinePillDrag({
             pillState: (pill) => this._pillState(pill),
             targetAt: (x, y, grab) => this._targetAt(x, y, grab),
@@ -1418,71 +1417,26 @@ export class TimelineRenderer extends Component {
 
     /** R1: a pill moves when the view edits, drag and drop is on, and it is not cut. */
     _pillState(pill) {
-        const { archInfo, editor } = this.props;
-        const { cutStart, cutStop } = pill.record.span;
-        const editable = Boolean(editor) && !this.data.isSample && archInfo.canEdit;
-        const movable = editable && !archInfo.disableDragDrop && !cutStart && !cutStop;
-        // R8: an end is resizable when it lies inside the range; the drag-and-drop option does
-        // not matter
-        return { movable, resizable: { start: editable && !cutStart, stop: editable && !cutStop } };
+        return this._pillPointer.pillState(pill);
     }
 
     /** The pointer enters a pill: its handles show, unless a gesture is on (R8). */
     onPillEnter(pill, row) {
-        if (!this.state.drag && this._drag.state === "idle") {
-            this.state.hover = `${row.row.id}|${pill.id}`;
-        }
+        this._pillPointer.enter(pill, row);
     }
 
     onPillLeave() {
-        this.state.hover = null;
+        this._pillPointer.leave();
     }
 
-    /**
-     * The resize handles drawn in `pill` (R8, S4): none unless the pointer rests on the pill and
-     * nothing is held. Each handle sits at one end; the pointer shape is the west or east one
-     * (in a mirrored grid the start is on the right).
-     */
+    /** The resize handles drawn in `pill` (R8, S4); see `TimelinePillPointer`. */
     handlesOf(pill, row) {
-        if (this.state.hover !== `${row.row.id}|${pill.id}` || this.state.drag || this._drag.state !== "idle") {
-            return [];
-        }
-        const { resizable } = this._pillState(pill);
-        const rtl = this._isRtl();
-        return ["start", "stop"]
-            .filter((edge) => resizable[edge])
-            .map((edge) => ({ edge, side: (edge === "start") !== rtl ? "west" : "east" }));
+        return this._pillPointer.handlesOf(pill, row);
     }
 
     /** The press on a pill (R2): a move may follow. `row` is the row descriptor of the pill. */
     onPillPointerDown(ev, pill, row) {
-        if (ev.button !== 0 || this.data.isSample) {
-            return;
-        }
-        if (this.isMultiSelect && !this._holdsPill(ev, pill)) {
-            // R5: a locked pill is no obstacle to a drawing, which starts at the cell under it
-            this._pressDrawing(ev, ev.currentTarget.closest(".o_tl_row"), row);
-            return;
-        }
-        const element = ev.currentTarget;
-        const grid = element.closest(".o_tl_grid").getBoundingClientRect();
-        const rect = element.getBoundingClientRect();
-        const renderer = this.rendererRef();
-        this._pressed = {
-            scroll: { left: renderer.scrollLeft, top: this._verticalScroller().scrollTop },
-            ghost: {
-                label: pill.label,
-                className: pill.className,
-                progress: pill.progress,
-                mark: pill.mark,
-                left: rect.left - grid.left,
-                top: rect.top - grid.top,
-                width: rect.width,
-                height: rect.height,
-            },
-        };
-        const handle = ev.target.closest?.(".o_tl_handle")?.dataset.edge || null;
-        this._drag.press(ev, pill, { rowId: row.row.id, handle });
+        this._pillPointer.press(ev, pill, row);
     }
 
     /** Whether a press on `pill` holds it: it moves, or a handle that can resize is pressed (R5). */
@@ -2129,66 +2083,8 @@ export class TimelineRenderer extends Component {
      * the press, not from what a reload brought since (R15). A refusal is the caller's: the
      * returned promise rejects with the server error.
      */
-    _commitDrag({ mode, pill, rowId, target, line }) {
-        const overZone = this._zoneHit;
-        this._zoneHit = false;
-        if (overZone && (mode === "move" || mode === "copy")) {
-            // 002b3 R22: over the drop zone, with Ctrl too (D2): the record loses its dates
-            return this.props.editor.unscheduleRecord({ resId: pill.record.resId });
-        }
-        if (!target) {
-            return undefined;
-        }
-        if (mode === "panel") {
-            return this._commitPanel({ target, line });
-        }
-        if (mode.startsWith("resize-")) {
-            return this._commitResize({ mode, pill, target });
-        }
-        const { model, editor } = this.props;
-        const data = this.data;
-        const { placement } = data;
-        const fields = model.fields;
-        const record = pill.record;
-        const n = target.n ?? target.part - record.span.from;
-        const bounds = movedBounds(
-            { start: record.start, stop: record.stop },
-            n,
-            dragStep(data, { dateOnly: hasDateOnlyBound(placement) }),
-            placement
-        );
-        const targetChain = rowValueChain(data.rows, target.rowId, fields);
-        let change;
-        if (mode === "copy") {
-            change = {
-                kind: "copy",
-                resId: record.resId,
-                values: copyDefaults({ bounds, targetChain, fields, placement }),
-            };
-        } else {
-            change = {
-                kind: "move",
-                resId: record.resId,
-                values: moveWriteValues({ record, bounds, n, targetChain, fields, placement }),
-                undo: {
-                    values: undoValues({
-                        kind: "move",
-                        record,
-                        fromChain: rowValueChain(data.rows, rowId, fields),
-                        fields,
-                        placement,
-                    }),
-                },
-            };
-        }
-        // a closed group row that received the record opens once the server accepted (R5, R7, R15)
-        return editor.applyChange(change).then((done) => {
-            const row = done && model.data.visibleRows.find((item) => item.id === target.rowId);
-            if (row?.isGroup && row.collapsed) {
-                model.toggleRow(row.id);
-            }
-            return done;
-        });
+    _commitDrag(result) {
+        return commitDrag(this, result);
     }
 
     /**
@@ -2213,46 +2109,8 @@ export class TimelineRenderer extends Component {
      * the sub-columns the edge moved. Nothing happens when it did not move (D3); an impossible
      * result writes nothing and raises a warning. A refusal is the caller's, as for a move.
      */
-    _commitResize({ mode, pill, target }) {
-        const edge = mode.slice("resize-".length);
-        const { model, editor } = this.props;
-        const data = this.data;
-        const { placement } = data;
-        const record = pill.record;
-        const n = this._resizeSteps(pill, edge, target.part);
-        if (!n) {
-            return undefined;
-        }
-        const value = resizedBound(
-            record,
-            edge,
-            n,
-            dragStep(data, { dateOnly: hasDateOnlyBound(placement) }),
-            placement
-        );
-        if (resizeIsInvalid(record, edge, value, placement)) {
-            editor.warn(
-                edge === "start"
-                    ? _t("The start cannot come after the end.")
-                    : _t("The end cannot come before the start.")
-            );
-            return undefined;
-        }
-        const field = edge === "start" ? placement.startField : placement.stopField;
-        const isDate = edge === "start" ? placement.startIsDate : placement.stopIsDate;
-        return editor.applyChange({
-            kind: "resize",
-            resId: record.resId,
-            values: { [field]: serializeBound(value, isDate ? "date" : "datetime") },
-            undo: {
-                values: undoValues({
-                    kind: "resize",
-                    record,
-                    fields: model.fields,
-                    placement,
-                }),
-            },
-        });
+    _commitResize(result) {
+        return commitResize(this, result);
     }
 
     // ------------------------------------------------------------------------
