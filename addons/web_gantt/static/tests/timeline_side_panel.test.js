@@ -404,9 +404,10 @@ test("002b3 A54: a view and an action without ids store the state under a key wi
 test.tags("desktop");
 test("002b3 A46: a line opens the record dialog; closing reloads", async () => {
     const reloads = [];
-    onRpc("get_gantt_data", () => {
+    const noteReload = () => {
         reloads.push(1);
-    });
+    };
+    onRpc("get_gantt_data", noteReload);
     await mountPanel();
     const before = reloads.length;
     await contains(".o_tl_panel_line[data-record-id='2'] .o_tl_panel_name").click();

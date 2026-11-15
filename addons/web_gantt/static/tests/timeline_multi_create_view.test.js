@@ -84,12 +84,19 @@ function pointOf(rowIdx, date, half = 0, dx = 0) {
 }
 const pickedCells = () => queryAll(".o_tl_cell_picked");
 const popover = ".o_popover .o_multi_create_popover";
-const ADD = ".o_multi_selection_buttons [data-tooltip='Add']";
+const DIALOG_FORM = ".modal-body .o_form_view";
+const ADD =".o_multi_selection_buttons [data-tooltip='Add']";
 
 async function settle() {
     for (let i = 0; i < 4; i++) {
         await animationFrame();
     }
+}
+
+// the new-record dialog is up and its onchange had time to answer
+async function dialogFormReady() {
+    await waitFor(DIALOG_FORM);
+    await settle();
 }
 
 async function clickCell(rowIdx, date, half = 0) {
@@ -261,8 +268,7 @@ test("002b3 A35: New with a selection opens the create dialog for the first bloc
     await keyUp("Control");
     expect(pickedCells()).toHaveCount(4);
     await contains(".o_tl_button_add").click();
-    await waitFor(".o_dialog .o_form_view");
-    await settle();
+    await dialogFormReady();
     // Monday 9, 12:00 to Tuesday 10, 12:00 local, Parent Beta: the first block only
     expect(context.default_date_start).toBe("2026-11-09 09:00:00");
     expect(context.default_date_stop).toBe("2026-11-10 09:00:00");
@@ -280,8 +286,7 @@ test("002b3 A36: New without a selection proposes the focus week", async () => {
     });
     await mountMulti();
     await contains(".o_tl_button_add").click();
-    await waitFor(".o_dialog .o_form_view");
-    await settle();
+    await dialogFormReady();
     // Sunday 8 to Sunday 15 local
     expect(context.default_date_start).toBe("2026-11-07 21:00:00");
     expect(context.default_date_stop).toBe("2026-11-14 21:00:00");

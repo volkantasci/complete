@@ -12,10 +12,12 @@ import { MultiSelectionButtons } from "@web/views/view_components/multi_selectio
 export class TimelineSelectionButtons extends MultiSelectionButtons {
     static template = "web_gantt.TimelineSelectionButtons";
 
-    /** The template form is only loaded when Add is offered (no request for nothing). */
-    async loadMultiCreateView() {
-        if (this.props.reactive.canAdd) {
-            await super.loadMultiCreateView();
-        }
+    setup() {
+        super.setup();
+        // The template form is only loaded when Add is offered (no request for nothing): the
+        // Community loader is kept as it is and only gated, on this instance.
+        const loadForm = this.loadMultiCreateView.bind(this);
+        this.loadMultiCreateView = () =>
+            this.props.reactive.canAdd ? loadForm() : Promise.resolve();
     }
 }

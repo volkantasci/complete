@@ -25,7 +25,8 @@
         // every side carries the primary colour, only the left one has a width (M35)
         border: 0 none;
         border-color: $o-brand-primary;
-        border-left: 2px solid $o-brand-primary;
+        border-left-width: 2px;
+        border-left-style: solid;
     }
 }
 

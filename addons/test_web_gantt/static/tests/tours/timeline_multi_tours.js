@@ -935,14 +935,7 @@ tours.add("timeline_002b3_a35_new_with_selection", {
                 // a drawing over two half days, a click on a day: four cells
                 assert(pickedCount() === 4, `four cells, got ${pickedCount()}`);
                 // the defaults of the dialog travel in the context of its first request
-                const bodies = [];
-                const send = XMLHttpRequest.prototype.send;
-                XMLHttpRequest.prototype.send = function (body) {
-                    if (typeof body === "string") {
-                        bodies.push(body);
-                    }
-                    return send.apply(this, arguments);
-                };
+                const { bodies, stop } = recordRequestBodies();
                 let context;
                 try {
                     $(".o_tl_button_add").click();
@@ -953,7 +946,7 @@ tours.add("timeline_002b3_a35_new_with_selection", {
                     );
                     context = JSON.parse(body).params.kwargs.context;
                 } finally {
-                    XMLHttpRequest.prototype.send = send;
+                    stop();
                 }
                 const day = todayIso();
                 const next = new Date(Date.parse(`${day}T00:00:00Z`) + 86400000)
@@ -1544,16 +1537,31 @@ tours.add("timeline_002b3_a55_resize", {
 // Scheduling a record by dragging its line onto the grid (R21; A47 to A50, A57, A60, A61)
 // ---------------------------------------------------------------------------------------------
 
+/** Collects the text bodies of the requests sent from now on; `stop()` puts the sender back. */
+function recordRequestBodies() {
+    const proto = XMLHttpRequest.prototype;
+    const original = proto.send;
+    const bodies = [];
+    proto.send = function (...args) {
+        if (typeof args[0] === "string") {
+            bodies.push(args[0]);
+        }
+        return original.apply(this, args);
+    };
+    return { bodies, stop: () => (proto.send = original) };
+}
 const lineOf = (name) =>
     $$(".o_tl_panel_line").find((line) => $(".o_tl_panel_name", line).textContent.trim() === name);
 /** The line `name` pressed at its centre, then the pointer moved to each point of `path`. */
 const lineHold = (name, path) => holdEvents(centreOf(lineOf(name)), path);
 /** Steps from the point `from` to `to` (a straight line in `count` steps). */
 function stepsTo(from, to, count = 6) {
-    return Array.from({ length: count }, (_, i) => ({
-        x: from.x + ((to.x - from.x) * (i + 1)) / count,
-        y: from.y + ((to.y - from.y) * (i + 1)) / count,
-    }));
+    const points = [];
+    for (let step = 1; step <= count; step++) {
+        const share = step / count;
+        points.push({ x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share });
+    }
+    return points;
 }
 const near = (a, b, tolerance = 1.5) => Math.abs(a - b) <= tolerance;
 const escape = () =>

@@ -241,8 +241,8 @@ export class TimelineController extends Component {
 
     get _pickedShowsTimes() {
         const { startField, stopField } = this.model.config;
-        const fields = this.props.fields;
-        return fields[startField]?.type === "datetime" && fields[stopField]?.type === "datetime";
+        const typeOf = (name) => this.props.fields[name]?.type;
+        return typeOf(startField) === "datetime" && typeOf(stopField) === "datetime";
     }
 
     /**
