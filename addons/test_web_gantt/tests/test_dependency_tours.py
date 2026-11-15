@@ -79,3 +79,14 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
         long.unlink()
         self.assertFalse(record.date_start)
         self.assertFalse(long.exists())
+
+    # -- the action's own filter in the side panel's list (R2) -----------------------------------
+
+    def test_a4_tour_and_date_filter(self):
+        self._tour('h51', 'timeline_002c_a4_and_date_filter')
+
+    def test_a5_tour_or_date_filter(self):
+        self._tour('h52', 'timeline_002c_a5_or_date_filter')
+
+    def test_a6_tour_negated_date_filter(self):
+        self._tour('h53', 'timeline_002c_a6_negated_date_filter')

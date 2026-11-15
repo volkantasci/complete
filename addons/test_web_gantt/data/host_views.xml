@@ -792,6 +792,36 @@
         <field name="context">{'group_by': ['parent_id', 'create_uid']}</field>
     </record>
 
+    <record id="host_action_h51" model="ir.actions.act_window">
+        <field name="name">H51 Schedule, date filter</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="domain">[('date_start', '&gt;', '2026-11-01 00:00:00')]</field>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h52" model="ir.actions.act_window">
+        <field name="name">H52 Schedule, date filter or name</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="domain">['|', ('date_start', '&gt;', '2026-11-01 00:00:00'), ('name', '=', 'Alpha')]</field>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h53" model="ir.actions.act_window">
+        <field name="name">H53 Schedule, negated date filter</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="domain">['!', ('date_stop', '=', False)]</field>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
     <menuitem id="host_menu_root" name="Gantt Host" sequence="900" groups="base.group_user"/>
     <menuitem id="host_menu_h1" name="H1 Main" parent="host_menu_root" action="host_action_h1" sequence="1"/>
     <menuitem id="host_menu_h2" name="H2 Main by parent" parent="host_menu_root" action="host_action_h2" sequence="2"/>
@@ -833,4 +863,7 @@
     <menuitem id="host_menu_h39" name="H39 Schedule without edit" parent="host_menu_root" action="host_action_h39" sequence="39"/>
     <menuitem id="host_menu_h40" name="H40 Multi create and schedule" parent="host_menu_root" action="host_action_h40" sequence="40"/>
     <menuitem id="host_menu_h41" name="H41 Schedule by parent and creator" parent="host_menu_root" action="host_action_h41" sequence="41"/>
+    <menuitem id="host_menu_h51" name="H51 Schedule, date filter" parent="host_menu_root" action="host_action_h51" sequence="51"/>
+    <menuitem id="host_menu_h52" name="H52 Schedule, date filter or name" parent="host_menu_root" action="host_action_h52" sequence="52"/>
+    <menuitem id="host_menu_h53" name="H53 Schedule, negated date filter" parent="host_menu_root" action="host_action_h53" sequence="53"/>
 </odoo>

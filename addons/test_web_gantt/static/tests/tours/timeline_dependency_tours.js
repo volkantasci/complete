@@ -201,3 +201,68 @@ tours.add("timeline_002c_a2_line_drag_and_open", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// A4, A5, A6: the action's own filter in the side panel's list (R2), on H51, H52 and H53
+// ---------------------------------------------------------------------------------------------
+
+const panelNames = () => $$(".o_tl_panel_name").map((el) => el.textContent.trim());
+const pillTitles = () => $$(".o_tl_pill_title").map((el) => el.textContent.trim());
+
+// H51: the action keeps the records starting after 1 November 2026; the list still shows the four
+// records without dates; the grid does not show "Long task", which starts in October
+tours.add("timeline_002c_a4_and_date_filter", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                assert(panelTitle() === "Unscheduled: 4", `the title is ${panelTitle()}`);
+                const names = panelNames();
+                for (const name of ["Alpha", "Beta", "Gamma", "Unscheduled"]) {
+                    assert(names.includes(name), `${name} is listed (${names})`);
+                }
+                assert(names.length === 4, `four lines (${names})`);
+                const titles = pillTitles();
+                assert(titles.includes("Build"), "a dated record the filter keeps is drawn");
+                assert(!titles.includes("Long task"), "Long task (October start) is not drawn");
+            },
+        },
+    ],
+});
+
+// H52: "starts after 1 November or is named Alpha": the list holds Alpha only
+tours.add("timeline_002c_a5_or_date_filter", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                assert(panelTitle() === "Unscheduled: 1", `the title is ${panelTitle()}`);
+                assert(panelNames().join() === "Alpha", `the list is ${panelNames()}`);
+                assert(!pillTitles().includes("Long task"), "Long task is not drawn");
+            },
+        },
+    ],
+});
+
+// H53: the negation of "stop is not set": the four records without dates are listed; the grid
+// shows the records whose stop is set
+tours.add("timeline_002c_a6_negated_date_filter", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                assert(panelTitle() === "Unscheduled: 4", `the title is ${panelTitle()}`);
+                assert(panelNames().length === 4, `four lines (${panelNames()})`);
+                const titles = pillTitles();
+                assert(titles.includes("Build"), "a record with a stop is drawn");
+                assert(titles.includes("Long task"), "Long task (stop set) is drawn");
+            },
+        },
+    ],
+});
