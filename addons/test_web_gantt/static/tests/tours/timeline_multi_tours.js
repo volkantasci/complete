@@ -1305,7 +1305,8 @@ tours.add("timeline_002b3_a41_delete_cut_pills", {
             async run() {
                 const row = subRow("Gamma", "Host Contact 3");
                 assert(row, "the row Gamma / Host Contact 3");
-                const index = todayIndex();
+                // the test moves the clock to Thursday 12: Friday 13 is the day after today
+                const index = todayIndex() + 1;
                 const from = cellPoint(row, index, 0);
                 const to = cellPoint(row, index, 1);
                 await realMouse([
@@ -1317,19 +1318,20 @@ tours.add("timeline_002b3_a41_delete_cut_pills", {
                 ]);
                 await until(deleteButton, "the Delete button");
                 assert(pickedCount() === 2, `two cells, got ${pickedCount()}`);
-                assert(countShown() === "4", `the count is ${countShown()}`);
+                assert(countShown() === "3", `the count is ${countShown()}`);
                 deleteButton().click();
                 await until(confirmation, "the confirmation");
                 assert(
-                    confirmation() === "Are you sure you want to delete the 4 selected records?",
+                    confirmation() === "Are you sure you want to delete the 3 selected records?",
                     `the dialog asks "${confirmation()}"`
                 );
                 dialogButton("Ok").click();
                 await until(() => !$(".o_dialog"), "the dialog closes");
                 await gridSettled();
-                for (const title of ["Long task", "Overlap A", "Overlap B", "Overlap C"]) {
+                for (const title of ["Long task", "Overlap B", "Overlap C"]) {
                     assert(pillsTitled(title).length === 0, `${title} is gone`);
                 }
+                assert(pillsTitled("Overlap A").length > 0, "Overlap A, not on Friday 13, stays");
             },
         },
     ],

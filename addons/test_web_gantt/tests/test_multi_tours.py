@@ -71,11 +71,11 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
 
     # -- helpers --------------------------------------------------------------------------------
 
-    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False):
+    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False, now=None):
         self.browser_size = size
         self.touch_enabled = touch
         path = host if host.startswith('/') else HOST_ACTION.format(host)
-        self.start_tour_with_pointer(path, name, login=login)
+        self.start_tour_with_pointer(path, name, login=login, now=now)
 
     # -- notes on the earlier parts (R1) ---------------------------------------------------------
 
@@ -399,12 +399,17 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         self.assertTrue(sprint.exists())
 
     def test_a41_tour_delete_cut_pills(self):
-        """The cut pills of the row go too (the savepoint of the test gives the host back)."""
-        self._tl_sprint()
+        """Both halves of Friday 13 in Gamma / Host Contact 3 count 3: the cut pills go too.
+
+        The package's fixed date: the browser's clock is Thursday 12 November 2026 at noon (UTC)
+        and the records move there; the savepoint of the test gives the host back.
+        """
+        self.env[PILL]._tl_build_host_records(today='2026-11-12', tz_offset_hours=0)
         names = ['Long task', 'Overlap A', 'Overlap B', 'Overlap C']
         self.assertEqual(len(self.env[PILL].search([('name', 'in', names)])), 4)
-        self._tour('h34', 'timeline_002b3_a41_delete_cut_pills')
-        self.assertFalse(self.env[PILL].search([('name', 'in', names)]))
+        self._tour('h34', 'timeline_002b3_a41_delete_cut_pills', now=datetime(2026, 11, 12, 12))
+        self.assertEqual(
+            self.env[PILL].search([('name', 'in', names)]).mapped('name'), ['Overlap A'])
 
     def test_a63_server_refuses_delete(self):
         """The deletion call itself refused: the Community error, nothing deleted (E2)."""
