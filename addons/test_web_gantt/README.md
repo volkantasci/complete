@@ -48,6 +48,24 @@ Hidden module, never installed in production. User documentation:
   with `edit="0"`. H40: template form and scheduling together. H41: H36's view
   grouped by Parent and Created by (a read-only field, so no row accepts a
   panel drop).
+- **H42 to H54, the dependency hosts** (slice 002c). Two float host fields,
+  **Buffer before** and **Buffer after** (`x_buffer_before`, `x_buffer_after`),
+  and links between existing records written by the builder (Design blocks
+  Build, Build blocks Test, Review blocks Overlap A, and on the date-only model
+  Three days blocks Day one; buffers 24/12 on Design and 12/24 on Review). H42:
+  dependency arrows, grouped by Parent. H43: the same view grouped by Tags.
+  H44: adds the two buffer fields. H45: the date-only model with dependencies.
+  H46 and H47: H42's and H45's views opened on 12 June 2030 for the prepared
+  records below. H48: dependencies with a template form (multi-create). H49:
+  `edit="0"`. H50: an empty sample view with dependencies. H51 to H53: H36's
+  scheduling view with a date filter in the action's domain (plain, under "or",
+  negated). H54: `edit="1"` explicitly, for the restricted user.
+- **The prepared rescheduling records**:
+  `test.web.gantt.pill._tl_build_reschedule_records()` deletes any leftover and
+  creates Chain A, B, C and the cyclic Loop 1 and 2 on the first model and Chain
+  A and B on the date-only model (June 2030, created by the administrator); it
+  returns them by name (`dated Chain A` and `dated Chain B` for the second
+  model). `_tl_drop_reschedule_records()` deletes them by name on both models.
 - **The template forms**: two small forms with priority 99, one per model
   (`host_form_template_one`: name required, contact, tags, colour;
   `host_form_template_two`: name required). The date-only model also gets an
@@ -98,6 +116,7 @@ Hidden module, never installed in production. User documentation:
 | `tests/test_drag_host.py` | Backend tests: H30 to H32 views, actions and menus, the `rtl` user helper (and the Arabic unit words reaching the browser), and the undo method `gantt_undo_drag_drop` (reschedule, copy, missing record, empty mapping, unknown kind, access error). |
 | `tests/test_drag_probes.py` + `tests/timeline_drag_probe_values.py` (tag `timeline_probes`, class `TimelineDragProbes`) | Probes M1 to M61 of slice 002b2 in a real Chrome, light and dark, desktop and phone: move, copy, handles, resize, locks, notifications, right-to-left badges, the plan dialog's search bar. Run only these with `--test-tags timeline_probes/test_web_gantt:TimelineDragProbes`. |
 | `static/tests/tours/timeline_multi_tours.js`, `tests/test_multi_tours.py` (class `TestTimelineMultiTours`) | Tours of slice 002b3 for the scenarios that need the live client: selecting by click, drawing and headers, the buttons, the template form popover, the stored records after Add and Delete (checked by the Python test after the tour), the side panel, Load more, dragging onto the grid and onto the drop zone, resizing, closing and reopening, the phone. Real pointer events come from `tests/timeline_real_pointer.py`. |
+| `tests/test_dependency_host.py` | Backend tests: H42 to H54 load with their attributes, actions and contexts, the buffer fields, the dependency links and buffers kept by a rebuild, the prepared rescheduling records, the restricted user's edit flag. |
 | `tests/test_multi_host.py` | Backend tests: H33 to H41 load with their options, the template forms, the explicit default form, and the builder that moves records in place and keeps their ids. |
 | `tests/test_multi_probes.py` + `tests/timeline_multi_probe_values.py` (tag `timeline_probes`, class `TimelineMultiProbes`) | Probes M1 to M74 of slice 002b3 in a real Chrome, light and dark, desktop and phone: selection tint, buttons, popover, panel, strip, drop zone, row header widths, text selection. Only these: `--test-tags timeline_probes/test_web_gantt:TimelineMultiProbes`. |
 | `tests/test_multi_screens.py` (tag `gantt_multi_screens`) | The documentation screenshots 53 to 74 of `gantt_view`, on demand, not part of the normal run. |

@@ -55,4 +55,18 @@
         <field name="ttype">date</field>
         <field name="state">manual</field>
     </record>
+    <record id="host_field_x_buffer_before" model="ir.model.fields">
+        <field name="name">x_buffer_before</field>
+        <field name="field_description">Buffer before</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">float</field>
+        <field name="state">manual</field>
+    </record>
+    <record id="host_field_x_buffer_after" model="ir.model.fields">
+        <field name="name">x_buffer_after</field>
+        <field name="field_description">Buffer after</field>
+        <field name="model_id" ref="model_test_web_gantt_pill"/>
+        <field name="ttype">float</field>
+        <field name="state">manual</field>
+    </record>
 </odoo>
