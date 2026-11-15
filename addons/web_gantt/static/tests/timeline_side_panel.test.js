@@ -348,23 +348,57 @@ test("002b3 A44: a name search narrows the list", async () => {
 });
 
 test.tags("desktop");
-test("002b3 A44: R19.1 strips the date conditions of the search, not those of the action's domain", async () => {
+test("002b3 A44: R19.1 strips the date conditions of the search; 002c R2 also those of the action's domain", async () => {
     const reads = watchLists();
     await mountPanel(HOST_ARCHS.H36, {
-        domain: [["date_stop", "!=", "1999-01-01"]],
+        domain: [["date_stop", "!=", "1999-01-01"], ["name", "!=", "Nobody"]],
         searchViewArch: `<search>
             <filter name="late" string="Late" domain="[('date_start', '&gt;', '2000-01-01')]"/>
         </search>`,
     });
     const listRead = () => reads.filter(({ kwargs }) => kwargs.limit === 20).at(-1).domain;
-    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(true);
+    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(false);
+    expect(JSON.stringify(listRead()).includes("Nobody")).toBe(true);
     await toggleSearchBarMenu();
     await toggleMenuItem("Late");
     await advanceTime(600);
     await animationFrame();
-    // the action's condition on the stop stays, the search's condition on the start is gone
-    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(true);
+    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(false);
     expect(JSON.stringify(listRead()).includes("2000-01-01")).toBe(false);
+    expect(JSON.stringify(listRead()).includes("Nobody")).toBe(true);
+});
+
+test.tags("desktop");
+test("002c A4: a date condition joined by and in the action's filter is removed", async () => {
+    const reads = watchLists();
+    await mountPanel(HOST_ARCHS.H36, { domain: [["date_start", ">", "2026-11-01 00:00:00"]] });
+    expect(reads.at(-1).domain).toEqual(["&", ["date_start", "=", false], ["date_stop", "=", false]]);
+    expect(".o_tl_panel_title").toHaveText("Unscheduled: 4");
+    expect(names()).toEqual(["Alpha", "Beta", "Gamma", "Unscheduled"]);
+});
+
+test.tags("desktop");
+test("002c A5: a date condition under or in the action's filter leaves the other side", async () => {
+    const reads = watchLists();
+    await mountPanel(HOST_ARCHS.H36, {
+        domain: ["|", ["date_start", ">", "2026-11-01 00:00:00"], ["name", "=", "Alpha"]],
+    });
+    expect(reads.at(-1).domain).toEqual([
+        "&",
+        ["name", "=", "Alpha"],
+        "&",
+        ["date_start", "=", false],
+        ["date_stop", "=", false],
+    ]);
+    expect(names()).toEqual(["Alpha"]);
+    expect(".o_tl_panel_title").toHaveText("Unscheduled: 1");
+});
+
+test.tags("desktop");
+test("002c A6: a negated date condition in the action's filter lists the undated records", async () => {
+    await mountPanel(HOST_ARCHS.H36, { domain: ["!", ["date_stop", "=", false]] });
+    expect(".o_tl_panel_title").toHaveText("Unscheduled: 4");
+    expect(names()).toEqual(["Alpha", "Beta", "Gamma", "Unscheduled"]);
 });
 
 test.tags("desktop");

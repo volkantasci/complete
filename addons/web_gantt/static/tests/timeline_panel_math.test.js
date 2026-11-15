@@ -129,3 +129,30 @@ test("002b3 A47: the span stays inside the grid and keeps its length", () => {
     // a grid shorter than the span: the span is cut at the grid's end
     expect(panelSpan({ part: 1, partsPerColumn: 4, gridParts: 3 })).toEqual({ from: 0, to: 2 });
 });
+
+test("002c A7: the panel filter from the action's filter and the search", () => {
+    const X = "2026-11-01 00:00:00";
+    const Y = "2026-12-01 00:00:00";
+    const panelFilter = (action, search = []) =>
+        strip(Domain.and([action, search]).toList());
+    // [start after X], empty search: every record
+    expect(panelFilter([["date_start", ">", X]])).toEqual([]);
+    // [start after X or name = Alpha]: name = Alpha
+    expect(panelFilter(["|", ["date_start", ">", X], ["name", "=", "Alpha"]])).toEqual([
+        ["name", "=", "Alpha"],
+    ]);
+    // [not (stop is not set)]: every record
+    expect(panelFilter(["!", ["date_stop", "=", false]])).toEqual([]);
+    // [not (start after X and name = Alpha)]: not (name = Alpha)
+    expect(
+        panelFilter(["!", "&", ["date_start", ">", X], ["name", "=", "Alpha"]])
+    ).toEqual(["!", ["name", "=", "Alpha"]]);
+    // N2: [(start after X and stop before Y) or name = Alpha]: every record
+    expect(
+        panelFilter(["|", "&", ["date_start", ">", X], ["date_stop", "<", Y], ["name", "=", "Alpha"]])
+    ).toEqual([]);
+    // action [name = Alpha] with search [start after X]: name = Alpha
+    expect(panelFilter([["name", "=", "Alpha"]], [["date_start", ">", X]])).toEqual([
+        ["name", "=", "Alpha"],
+    ]);
+});

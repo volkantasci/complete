@@ -595,16 +595,15 @@ export class TimelineModel extends Model {
             return;
         }
         const serial = (this._panelSerial = (this._panelSerial || 0) + 1);
-        // R19.1: the date conditions go from the current search only; the action's own domain
-        // stays as it is
+        // R2: the action's own filter and the search are joined first, then the conditions on
+        // the start and stop fields go from the whole (002b3 R19.1, D5, N2)
         const searchModel = this.env.searchModel;
         const actionDomain = searchModel ? searchModel.globalDomain || [] : [];
         const searchDomain = searchModel
             ? searchModel._getDomain({ withGlobal: false })
             : this.domain;
         const domain = Domain.and([
-            actionDomain,
-            stripDateConditions(searchDomain, startField, stopField),
+            stripDateConditions(Domain.and([actionDomain, searchDomain]).toList(), startField, stopField),
             [
                 [startField, "=", false],
                 [stopField, "=", false],
