@@ -76,6 +76,8 @@ const BADGE_HEIGHT = 20;
 
 /** Width of a folded column, in pixels (M45). */
 const FOLDED_WIDTH = 36;
+/** The space between the side panel's box and the drop zone, above and below it (002b3 R22). */
+const DROP_ZONE_MARGIN = 16;
 /** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
 export const CELL_CLICK_LOCK = 1000;
 /** ... and this long after the popover closes, unless a lock already runs (R7). */
@@ -645,21 +647,24 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * Whether the pointer of the drawing `drawing` is over the drop zone (R22): the zone when it
-     * is drawn, the panel's box before (the first drawing of a move comes before the zone is).
+     * Whether the pointer of the drawing `drawing` is over the drop zone (R22): the zone's box
+     * when it is drawn; before (the first drawing of a move comes before the zone is) the panel's
+     * box without the 16 px margins the zone leaves above and below it. The margins themselves
+     * never count.
      */
     _overDropZone(drawing) {
-        const element =
-            document.querySelector(".o_tl_panel_dropzone") || document.querySelector(".o_tl_panel");
+        const zone = document.querySelector(".o_tl_panel_dropzone");
+        const element = zone || document.querySelector(".o_tl_panel");
         if (!element || !this.panel.open) {
             return false;
         }
         const rect = element.getBoundingClientRect();
+        const margin = zone ? 0 : DROP_ZONE_MARGIN;
         return (
             drawing.x >= rect.left &&
             drawing.x < rect.right &&
-            drawing.y >= rect.top &&
-            drawing.y < rect.bottom
+            drawing.y >= rect.top + margin &&
+            drawing.y < rect.bottom - margin
         );
     }
 

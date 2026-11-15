@@ -500,6 +500,35 @@ test("002b3 A51: a moved pill shows the drop zone; release unschedules, no notif
     expect(names().includes("Review")).toBe(true);
 });
 
+test("002b3 A51: a release over the panel's margin above or below the zone writes nothing", async () => {
+    await mountPanel();
+    const held = await pressPill("Review", { dx: -20 });
+    await held.move(held.start.x - 30, held.start.y + 5);
+    expect(".o_tl_panel_dropzone").toHaveCount(1);
+    const panel = queryRect(".o_tl_panel");
+    const x = panel.left + panel.width / 2;
+    // 8 px below the panel's top: inside the 16 px margin, outside the zone's box
+    await held.move(x, panel.top + 8);
+    expect(".o_tl_pill_moved").toHaveCount(1);
+    await held.drop();
+    await settle();
+    expect(writes()).toEqual([]);
+    expect(".o_notification").toHaveCount(0);
+    // the record keeps its dates: its pill stays and it is not listed
+    expect(names().includes("Review")).toBe(false);
+    expect(pillElement("Review")).not.toBe(null);
+});
+
+test("002b3 A51: a first move straight into the margin writes nothing either", async () => {
+    await mountPanel();
+    const held = await pressPill("Review", { dx: -20 });
+    const panel = queryRect(".o_tl_panel");
+    await held.move(panel.left + panel.width / 2, panel.bottom - 8);
+    await held.drop();
+    await settle();
+    expect(writes()).toEqual([]);
+});
+
 test("002b3 A51: closed panel: no zone; a resize keeps the list", async () => {
     await mountPanel();
     // a resize: the list stays
