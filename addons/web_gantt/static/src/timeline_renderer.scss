@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // The box measures the width of the view (without the scrollbar of the grid) for the width of
-// the row header column. No text can be selected anywhere in it (002b3 R1): the property is
+// the row header column; with a side panel the frame around it does (see below). No text can be selected anywhere in it (002b3 R1): the property is
 // inherited, so the headers, the cells, the total row and the pills all take it, and a press, a
 // move and a release inside one row header never select text nor start the drag of a selection.
 .o_tl_box {
@@ -27,8 +27,12 @@
         display: flex;
         flex: 1 1 auto;
         min-height: 0;
+        // the row header column is a sixth of the whole width of the view, the panel, its strip
+        // and the margins included, whether the panel is open, closed or resized (R18 point 1)
+        container-type: inline-size;
 
         > .o_tl_box {
+            container-type: normal;
             flex: 1 1 0;
             min-width: 0;
             margin-left: 16px;

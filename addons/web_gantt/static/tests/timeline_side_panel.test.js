@@ -9,6 +9,7 @@ import {
     queryAll,
     queryAllTexts,
     queryFirst,
+    queryOne,
     queryRect,
     resize,
     waitFor,
@@ -195,6 +196,78 @@ test("002b3 R18: the grid's columns follow the panel", async () => {
     await click(".o_tl_panel_toggle");
     await animationFrame();
     expect(open).toBeLessThan(header().width);
+});
+
+// the row header and the first scroll (R18 points 1 to 5; A65)
+const fromView = (element) => queryRect(element).left - queryRect(".o_timeline_view").left;
+const thursday = () => fromView(".o_tl_col[data-date='2026-11-12']");
+const headerWidths = () => [
+    queryRect(".o_tl_title_cell").width,
+    ...queryAll(".o_tl_row_header").map((el) => queryRect(el).width),
+];
+
+test.tags("desktop");
+test("002b3 R18: the row header is a sixth of the whole view, the panel open, closed or resized", async () => {
+    await mountPanel();
+    expect(headerWidths().every((width) => width === 267)).toBe(true);
+    expect(fromView(".o_tl_title_cell")).toBe(17);
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    expect(headerWidths().every((width) => width === 267)).toBe(true);
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    controller.model.panel.width = 562;
+    await animationFrame();
+    expect(headerWidths().every((width) => width === 267)).toBe(true);
+    // the columns come from the width left (the hosts' week columns stay at their 192 px)
+    expect(queryRect(queryFirst(".o_tl_col[data-index]")).width).toBeGreaterThan(191.9);
+});
+
+test.tags("desktop");
+test("002b3 R18: the first scroll puts Thursday 12 at half of the width left of the row header and the open panel", async () => {
+    await mountPanel();
+    // (1600 - 267 - 262) / 2 = 535.5 from the cells' left edge (17 + 267)
+    expect(Math.abs(thursday() - (284 + 535.5))).toBeLessThan(1);
+    expect(controller.model.visibleMiddleDate().toISODate()).toBe("2026-11-12");
+});
+
+test.tags("desktop");
+test("002b3 R18: a panel remembered as closed gives half of the width left of the row header", async () => {
+    browser.localStorage.setItem(KEY, "false");
+    await mountPanel();
+    expect(".o_tl_panel").toHaveCount(0);
+    // (1600 - 267) / 2 = 666.5
+    expect(Math.abs(thursday() - (284 + 666.5))).toBeLessThan(1);
+});
+
+test.tags("desktop");
+test("002b3 R18: opening, closing and resizing the panel move neither the row header nor the columns", async () => {
+    await mountPanel();
+    const place = thursday();
+    const left = fromView(".o_tl_title_cell");
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    expect(thursday()).toBe(place);
+    expect(fromView(".o_tl_title_cell")).toBe(left);
+    await click(".o_tl_panel_toggle");
+    await animationFrame();
+    expect(thursday()).toBe(place);
+    controller.model.panel.width = 562;
+    await animationFrame();
+    expect(thursday()).toBe(place);
+    expect(fromView(".o_tl_title_cell")).toBe(left);
+});
+
+test.tags("desktop");
+test("002b3 R18: without a panel the focus day starts at the middle of the visible cells", async () => {
+    // narrow enough for the grid to overflow, so that the day can reach the middle
+    await resize({ width: 1000, height: 900 });
+    await mountPanel(HOST_ARCHS.H5);
+    const title = queryRect(".o_tl_title_cell");
+    const grid = queryRect(".o_tl_renderer");
+    const renderer = queryOne(".o_tl_renderer");
+    const middle = (title.right + grid.left + renderer.clientLeft + renderer.clientWidth) / 2;
+    expect(Math.abs(queryRect(".o_tl_col.o_tl_is_today").left - middle)).toBeLessThan(1);
 });
 
 // ----------------------------------------------------------------------------

@@ -131,7 +131,7 @@ function textOfDate(date) {
  *   row, folded columns and capacity bars plug into `_buildRows` and the row branches of the
  *   template;
  * - `pillOf(record, line)` builds the description of one pill;
- * - `visibleMiddleDate()` answers the date in the middle of the visible part of the grid.
+ * - `visibleMiddleDate()` answers the date at the focus place of the grid (`_focusX`).
  *
  * Scrolling (R39): the element that scrolls is `.o_tl_renderer`. All measures are made on
  * rectangles, so they hold in right-to-left languages, where the grid is mirrored.
@@ -410,8 +410,28 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * The date in the middle of the visible part of the grid; the focus date without a grid (R39).
-     * It is a linear share of the displayed period (R18): the column under the middle point and
+     * The viewport coordinate where the focus date stands (002b3 R18 point 3): half of the content
+     * width of the view, less the row header and the open panel, from the visible left edge of the
+     * cells (the right edge in a mirrored grid). The content width is that of the whole view, the
+     * side panel, its strip and the margins included; without a panel it is the grid's own width,
+     * so the place is the middle of the visible cells as before (002a R39).
+     */
+    _focusX() {
+        const element = this.rendererRef();
+        const { left, right } = this._visibleBounds();
+        const title = element.querySelector(".o_tl_title_cell");
+        const header = title ? title.getBoundingClientRect().width : 0;
+        const frame = this.hasPanel ? element.closest(".o_tl_frame") : null;
+        const width = frame ? frame.clientWidth : element.clientWidth;
+        const panel = this.hasPanel && this.panel.open ? this.panel.width : 0;
+        const share = (width - header - panel) / 2;
+        return this._isRtl() ? right - share : left + share;
+    }
+
+    /**
+     * The date at the focus place of the visible grid (`_focusX`: the middle of the visible cells
+     * without a side panel); the focus date without a grid (R39).
+     * It is a linear share of the displayed period (R18): the column under that point and
      * the place of that point inside it give the day and the time, so on the year scale the
      * middle of a month column is a day of that month, not its first day.
      */
@@ -421,10 +441,9 @@ export class TimelineRenderer extends Component {
         if (!headers.length) {
             return this.data.range.focus;
         }
-        const { left, right } = this._visibleBounds();
-        // the focus day starts at the middle (R39); a pixel of slack keeps the rounding of the
-        // scroll offset from picking the day before
-        const x = (left + right) / 2 + (this._isRtl() ? -1 : 1);
+        // the focus day starts at the focus place (R39, 002b3 R18); a pixel of slack keeps the
+        // rounding of the scroll offset from picking the day before
+        const x = this._focusX() + (this._isRtl() ? -1 : 1);
         let best = null;
         let distance = Infinity;
         for (const header of headers) {
@@ -450,8 +469,8 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * Put the start of the day of `date` in the middle of the visible part (R39: the focus is the
-     * start of the focus day, so on the week scale the focus column starts at the middle; on the
+     * Put the start of the day of `date` at the focus place (R39: the focus is the start of the
+     * focus day, so on the week scale the focus column starts at that place; on the
      * year scale the focus lies inside its month column); false when it is not shown.
      */
     _centreDate(date) {
@@ -474,7 +493,8 @@ export class TimelineRenderer extends Component {
         const fraction = exact ? (from - column.start) / (column.stop - column.start) : 0;
         // the day starts at the right in a mirrored grid
         const shift = rect.width * fraction;
-        this._centreAt(this._isRtl() ? rect.right - shift : rect.left + shift);
+        const x = this._isRtl() ? rect.right - shift : rect.left + shift;
+        this.rendererRef().scrollLeft += x - this._focusX();
         return true;
     }
 
