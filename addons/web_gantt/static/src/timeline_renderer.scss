@@ -780,6 +780,11 @@
         cursor: move !important; // stylelint-disable-line declaration-no-important
     }
 
+    &.o_tl_drag_panel,
+    &.o_tl_drag_panel * {
+        cursor: move !important; // stylelint-disable-line declaration-no-important
+    }
+
     &.o_tl_drag_copy,
     &.o_tl_drag_copy * {
         cursor: copy !important; // stylelint-disable-line declaration-no-important

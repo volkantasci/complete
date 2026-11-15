@@ -58,6 +58,7 @@ import {
 } from "./timeline_multi_select";
 import { POPOVER_DELAY, TimelinePopover } from "./timeline_popover";
 import { TimelineSelection } from "./timeline_selection";
+import { panelSpan } from "./timeline_panel_math";
 import { hasSidePanel, TimelineSidePanel } from "./timeline_side_panel";
 
 const { DateTime } = luxon;
@@ -1186,6 +1187,8 @@ export class TimelineRenderer extends Component {
         const selector = drag
             ? drag.resize
                 ? ".o_tl_pill_resizing"
+                : drag.mode === "panel"
+                ? ".o_tl_drop"
                 : ".o_tl_pill_moved"
             : this.state.selection && ".o_tl_selection";
         const element = selector && this.rendererRef()?.querySelector(selector);
@@ -1552,6 +1555,9 @@ export class TimelineRenderer extends Component {
             return { rowId, part: hit.part };
         }
         const data = this.data;
+        if (grab.panel) {
+            return this._panelTarget(rowId, hit.part);
+        }
         const accepts = rowAcceptsDrop({
             rows: data.rows,
             rowId,
@@ -1578,6 +1584,34 @@ export class TimelineRenderer extends Component {
         const total = data.columns.length * data.parts;
         const part = Math.min(Math.max(hit.part - grab.offset, 0), Math.max(total - grab.length, 0));
         return { rowId, part };
+    }
+
+    /**
+     * 002b3 R21.2, R21.3: the target of a line of the panel over the sub-column `part` of the row
+     * `rowId`: `{rowId, part, length}` (one column's length), or null when the row refuses. The
+     * line starts on no row, so every row at and below a read-only grouping level refuses. On a
+     * model whose bounds are both days the span is the whole day (month).
+     */
+    _panelTarget(rowId, part) {
+        const data = this.data;
+        const accepts = rowAcceptsDrop({
+            rows: data.rows,
+            rowId,
+            startRowId: null,
+            groupBy: data.groupBy,
+            fields: this.props.model.fields,
+        });
+        if (!accepts) {
+            return null;
+        }
+        const { placement, parts } = data;
+        const gridParts = data.columns.length * parts;
+        let { from, to } = panelSpan({ part, partsPerColumn: parts, gridParts });
+        if (placement.startIsDate && placement.stopIsDate) {
+            from = Math.floor(part / parts) * parts;
+            to = from + parts - 1;
+        }
+        return { rowId, part: from, length: to - from + 1 };
     }
 
     /** The bounds are held in whole days (months on the year scale), R17. */
@@ -1741,6 +1775,10 @@ export class TimelineRenderer extends Component {
             this.state.drag = null;
             return;
         }
+        if (drawing.mode === "panel") {
+            this._setPanelDrag(drawing);
+            return;
+        }
         if (drawing.mode.startsWith("resize-")) {
             this._setResize(drawing);
             return;
@@ -1813,6 +1851,86 @@ export class TimelineRenderer extends Component {
     }
 
     /**
+     * The bounds a line of the panel dropped on `target` gets (002b3 R21.3, R21.6): the span's start
+     * and end. A date-only stop takes the day of the start (002b D1).
+     */
+    _panelBounds(target) {
+        const { placement } = this.data;
+        const start = this._partTime(target.part);
+        return {
+            start,
+            stop: placement.stopIsDate ? start : this._partTime(target.part + target.length),
+        };
+    }
+
+    /** What is drawn while a line of the panel is held (R21): the highlight, the badges. */
+    _setPanelDrag({ line, x, y, target }) {
+        const data = this.data;
+        const { placement } = data;
+        let badges = null;
+        if (target) {
+            const { start, stop } = this._panelBounds(target);
+            badges = dragBadges({
+                start,
+                stop,
+                kind: "move",
+                n: 0,
+                data,
+                dateOnlyStart: placement.startIsDate,
+                dateOnlyStop: placement.stopIsDate,
+            });
+        }
+        this.state.drag = {
+            pillId: null,
+            mode: "panel",
+            rowId: target ? target.rowId : null,
+            startRowId: null,
+            fromPart: null,
+            toPart: target ? target.part : null,
+            length: target ? target.length : 0,
+            badges,
+            offset: { x: 0, y: 0 },
+            ghost: null,
+            panel: { name: line.display_name, x, y },
+        };
+    }
+
+    /**
+     * A press on a line of the side panel (R21): the drag starts once the pointer moved 10 px.
+     * The line is copied under the pointer, keeping the place where it was grabbed.
+     */
+    pressLine(ev, line) {
+        if (ev.button !== 0 || this.data.isSample) {
+            return;
+        }
+        const rect = ev.currentTarget.getBoundingClientRect();
+        this._linePress = {
+            grabX: ev.clientX - rect.left,
+            grabY: ev.clientY - rect.top,
+            width: rect.width,
+        };
+        this._drag.pressLine(ev, { id: line.id, display_name: line.display_name });
+    }
+
+    /** The release of a drag ended a moment ago: a click on a line is its end, not an opening. */
+    swallowsClick() {
+        return this._drag.consumeClick();
+    }
+
+    /** The copy of the line that follows the pointer (R21.1), or null. */
+    get panelGhost() {
+        const drag = this.state.drag;
+        if (drag?.mode !== "panel" || !this._linePress) {
+            return null;
+        }
+        const { grabX, grabY, width } = this._linePress;
+        return {
+            name: drag.panel.name,
+            style: `left: ${drag.panel.x - grabX}px; top: ${drag.panel.y - grabY}px; width: ${width}px`,
+        };
+    }
+
+    /**
      * What is drawn while a handle is held (R6, R8): the pill with its new length, and the
      * badges, the one of the moved bound with its difference. The bounds are the record's own,
      * moved by the number of sub-columns the edge moved; an invalid result shows too (R12).
@@ -1863,7 +1981,7 @@ export class TimelineRenderer extends Component {
      */
     get dragGhost() {
         const drag = this.state.drag;
-        if (!drag || drag.resize) {
+        if (!drag || drag.resize || drag.mode === "panel") {
             return null;
         }
         const { ghost, offset } = drag;
@@ -1932,9 +2050,12 @@ export class TimelineRenderer extends Component {
      * the press, not from what a reload brought since (R15). A refusal is the caller's: the
      * returned promise rejects with the server error.
      */
-    _commitDrag({ mode, pill, rowId, target }) {
+    _commitDrag({ mode, pill, rowId, target, line }) {
         if (!target) {
             return undefined;
+        }
+        if (mode === "panel") {
+            return this._commitPanel({ target, line });
         }
         if (mode.startsWith("resize-")) {
             return this._commitResize({ mode, pill, target });
@@ -1983,6 +2104,23 @@ export class TimelineRenderer extends Component {
             }
             return done;
         });
+    }
+
+    /**
+     * The release of a line of the panel over a row (002b3 R21.6): one write of the span's start
+     * and stop and every grouping value of the row and its parents, after the writes sent before;
+     * the view reloads, no notification, no Undo. The values are not compared with the record's.
+     */
+    _commitPanel({ target, line }) {
+        const { model, editor } = this.props;
+        const data = this.data;
+        const values = copyDefaults({
+            bounds: this._panelBounds(target),
+            targetChain: rowValueChain(data.rows, target.rowId, model.fields),
+            fields: model.fields,
+            placement: data.placement,
+        });
+        return editor.scheduleRecord({ resId: line.id, values });
     }
 
     /**

@@ -23,6 +23,24 @@ export function clampPanelWidth(startWidth, dx, windowWidth) {
     );
 }
 
+/**
+ * The span a line of the panel covers over the grid (002b3 R21.3): one column's length, that is
+ * `partsPerColumn` sub-columns, its first one the sub-column under the pointer moved back by
+ * round(p / 2) - 1 (p = 1 or 2: the sub-column under the pointer; p = 4: the one before it), kept
+ * inside the grid with its length when it can be.
+ * @param {Object} params
+ * @param {number} params.part the sub-column under the pointer
+ * @param {number} params.partsPerColumn
+ * @param {number} params.gridParts the number of sub-columns of the grid
+ * @returns {{from: number, to: number}} first and last sub-column
+ */
+export function panelSpan({ part, partsPerColumn, gridParts }) {
+    const length = Math.max(partsPerColumn, 1);
+    const wanted = part - (Math.round(length / 2) - 1);
+    const from = Math.min(Math.max(wanted, 0), Math.max(gridParts - length, 0));
+    return { from, to: Math.min(from + length - 1, Math.max(gridParts - 1, 0)) };
+}
+
 /** Whether `leaf` constrains `field` or a field reached through it (`date_start`, `date_start.x`). */
 function isOnFields(leaf, fields) {
     const path = String(leaf[0]);

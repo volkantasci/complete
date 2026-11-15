@@ -469,3 +469,99 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
 
     def test_a58_tour_hover(self):
         self._tour('h37', 'timeline_002b3_a58_hover')
+
+    # -- scheduling a record by dragging its line (R21) ------------------------------------------
+
+    def _tl_pill(self, name):
+        return self.env[PILL].search([('name', '=', name)], limit=1)
+
+    def _tl_utc_on(self, day, hour=0):
+        return datetime.combine(day, clock(hour))
+
+    def test_a47_tour_schedule(self):
+        record = self._tl_pill('Unscheduled')
+        beta = self._tl_pill('Beta')
+        self._tour('h37', 'timeline_002b3_a47_schedule')
+        # one write: today from 12:00 to the next day's 12:00 (UTC, offset 0) and Parent Beta
+        self.assertEqual(record.date_start, self._tl_utc_on(self.today, 12))
+        self.assertEqual(record.date_stop, self._tl_utc_on(self.today + timedelta(days=1), 12))
+        self.assertEqual(record.parent_id, beta)
+
+    def test_a48_tour_ungrouped_and_group_row(self):
+        gamma = self._tl_pill('Gamma')
+        self.assertFalse(gamma.parent_id)
+        self._tour('h36', 'timeline_002b3_a48_ungrouped_and_group_row')
+        yesterday = self.today - timedelta(days=1)
+        # the first half of the day before today: a day from 00:00, no grouping value
+        self.assertEqual(gamma.date_start, self._tl_utc_on(yesterday))
+        self.assertEqual(gamma.date_stop, self._tl_utc_on(self.today))
+        self.assertFalse(gamma.parent_id)
+        gamma.write({'date_start': False, 'date_stop': False})
+        self._tour('h41', 'timeline_002b3_a48_ungrouped_and_group_row')
+        self.assertEqual(gamma.date_start, self._tl_utc_on(self.today, 12))
+        self.assertEqual(gamma.parent_id, self._tl_pill('Beta'))
+
+    def test_a49_tour_readonly_rows(self):
+        record = self._tl_pill('Unscheduled')
+        self._tour('h41', 'timeline_002b3_a49_readonly_rows')
+        self.assertEqual(record.date_start, self._tl_utc_on(self.today, 12))
+        self.assertEqual(record.parent_id, self._tl_pill('Beta'))
+
+    def test_a50_tour_cancel(self):
+        record = self._tl_pill('Unscheduled')
+        self._tour('h37', 'timeline_002b3_a50_cancel')
+        self.assertFalse(record.date_start)
+        self.assertFalse(record.date_stop)
+
+    def test_a57_tour_clears_selection(self):
+        record = self._tl_pill('Unscheduled')
+        self._tour('h40', 'timeline_002b3_a57_clears_selection')
+        self.assertFalse(record.date_start)
+
+    def test_a60_tour_date_only(self):
+        """H25's view with the scheduling option, and one record of its model without dates."""
+        base = self.env.ref('test_web_gantt.host_view_h25')
+        arch = etree.fromstring(base.arch)
+        arch.set('schedule', '1')
+        view = self.env['ir.ui.view'].create({
+            'name': 'H25 schedule',
+            'model': 'test.web.gantt.pill2',
+            'type': 'gantt',
+            'arch': etree.tostring(arch, encoding='unicode'),
+        })
+        action = self.env['ir.actions.act_window'].create({
+            'name': 'H25 schedule',
+            'res_model': 'test.web.gantt.pill2',
+            'view_mode': 'gantt,list,form',
+            'view_id': view.id,
+        })
+        record = self.env['test.web.gantt.pill2'].create({'name': 'Undated'})
+        self._tour(f'/odoo/action-{action.id}', 'timeline_002b3_a60_date_only')
+        # by 002b D1 the day is both the start and the stop (the original wrote the next day)
+        self.assertEqual(record.date_start, self.today)
+        self.assertEqual(record.date_stop, self.today)
+
+    def test_a61_tour_writes_in_order(self):
+        model = type(self.env[PILL])
+        original = model.write
+        events = []
+
+        def slow(records, vals):
+            if 'date_start' in vals and records.name in ('Unscheduled', 'Gamma'):
+                events.append(('start', records.name, time.monotonic()))
+                if not any(kind == 'end' for kind, _name, _stamp in events):
+                    time.sleep(2)
+                result = original(records, vals)
+                events.append(('end', records.name, time.monotonic()))
+                return result
+            return original(records, vals)
+
+        with patch.object(model, 'write', slow):
+            self._tour('h37', 'timeline_002b3_a61_writes_in_order')
+        self.assertEqual(
+            [(kind, name) for kind, name, _stamp in events],
+            [('start', 'Unscheduled'), ('end', 'Unscheduled'),
+             ('start', 'Gamma'), ('end', 'Gamma')])
+        self.assertGreaterEqual(events[2][2], events[1][2])
+        self.assertTrue(self._tl_pill('Unscheduled').date_start)
+        self.assertTrue(self._tl_pill('Gamma').date_start)

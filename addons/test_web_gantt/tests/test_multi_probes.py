@@ -520,3 +520,66 @@ class TimelineMultiProbes(TimelineProbeCase):
                                viewport, 'the Load more button, the panel scrolled to its end')
         finally:
             queue.unlink()
+
+    # -- dragging a line onto the grid: M40 to M47 (R21) -------------------------------------------
+    #
+    # Elements read: M40 the highlight `.o_tl_selection.o_tl_drop`, M41 the copy that follows the
+    # pointer `.o_tl_panel_ghost`, M42 its handle, M43 the line left in the list, M44 and M45 the
+    # badges `.o_tl_badge_start` and `.o_tl_badge_stop`, M46 the cursor of the view root
+    # `.o_timeline_view`, M47 the new pill "Unscheduled" (after the release). The line is pressed
+    # at its centre (the copy's x is 1000 - 131) and moved in steps to (1000, 335).
+
+    def hold_line(self, name='Unscheduled', to=(1000, 335)):
+        box = self.geometry(self.panel_line(name))
+        x0 = box['geometry.x'] + box['geometry.width'] / 2
+        y0 = box['geometry.y'] + box['geometry.height'] / 2
+        self.mouse('mouseMoved', x0, y0)
+        self.mouse('mousePressed', x0, y0, button='left', buttons=1, clickCount=1)
+        for i in range(1, 7):
+            self.mouse('mouseMoved', x0 + (to[0] - x0) * i / 6, y0 + (to[1] - y0) * i / 6,
+                       button='left', buttons=1)
+            time.sleep(.05)
+        self.settle(300)
+
+    def test_002b3_m40_m47_schedule_drag(self):
+        probes = ['M40', 'M41', 'M42', 'M43', 'M44', 'M45', 'M46', 'M47']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("document.querySelectorAll('.o_tl_panel_line').length === 4")
+                self.hold_line()
+                self.wait("!!document.querySelector('.o_tl_panel_ghost')")
+                # the left border has no width (M40 measured a colour nobody sees); the
+                # x of the highlight and the badges follows the grid's scroll (see the report)
+                self.check_keys('M40', "document.querySelector('.o_tl_selection.o_tl_drop')",
+                                scheme, viewport, 'the target highlight',
+                                lambda k: k not in ('border-left-color', 'geometry.x'))
+                ghost = "document.querySelector('.o_tl_panel_ghost')"
+                self.check('M41', ghost, scheme, viewport, 'the line that follows the pointer')
+                self.check('M42', f"{ghost}.querySelector('.o_tl_panel_handle')", scheme,
+                           viewport, 'the handle of the line that follows the pointer')
+                self.check('M43', self.panel_line('Unscheduled'), scheme, viewport,
+                           'the line left in the list')
+                self.check_keys('M44', "document.querySelector('.o_tl_badge_start')", scheme,
+                                viewport, 'the start badge', lambda k: k != 'geometry.x')
+                self.check_keys('M45', "document.querySelector('.o_tl_badge_stop')", scheme,
+                                viewport, 'the stop badge', lambda k: k != 'geometry.x')
+                self.check('M46', "document.querySelector('.o_timeline_view')", scheme, viewport,
+                           'the pointer shape over the view')
+                self.mouse('mouseReleased', 1000, 335, button='left', buttons=0, clickCount=1)
+                self.settle(800)
+                self.wait("!!document.querySelector('.o_tl_pill')")
+                # M47 measured the pill's slot: the pill's box with the 1 px inset added back
+                pill = self.geometry(self.pill('Unscheduled'))
+                slot = {
+                    'geometry.y': pill['geometry.y'] - 1,
+                    'geometry.width': pill['geometry.width'] + 2,
+                    'geometry.height': pill['geometry.height'] + 2,
+                }
+                for prop, want in MEASURED['M47'][(scheme, viewport)].items():
+                    if prop in slot:
+                        with self.subTest(probe='M47', scheme=scheme, prop=prop):
+                            self.assertAlmostEqual(float(slot[prop]), float(want), delta=1,
+                                                   msg='the new pill Unscheduled in the Beta row')
+                # the write is the test's own: put the record back for the next scheme
+                self.env['test.web.gantt.pill'].search([('name', '=', 'Unscheduled')]).write(
+                    {'date_start': False, 'date_stop': False})

@@ -105,6 +105,11 @@
             <ActionHelper t-if="layout.isSample and this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
         </div>
         <TimelineSidePanel t-if="this.hasPanel and this.panel.open" model="this.props.model" renderer="this" width="this.panel.width"/>
+        <t t-set="line" t-value="this.panelGhost"/>
+        <div t-if="line" class="o_tl_panel_ghost o_tl_panel_line o_tl_panel_dragged d-flex d-print-none" t-att-style="line.style">
+            <i class="oi o_tl_panel_handle" data-icon="drag_indicator"/>
+            <span class="o_tl_panel_name text-truncate" t-out="line.name"/>
+        </div>
         </div>
     </t>
 </templates>

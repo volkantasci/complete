@@ -1539,3 +1539,284 @@ tours.add("timeline_002b3_a55_resize", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Scheduling a record by dragging its line onto the grid (R21; A47 to A50, A57, A60, A61)
+// ---------------------------------------------------------------------------------------------
+
+const lineOf = (name) =>
+    $$(".o_tl_panel_line").find((line) => $(".o_tl_panel_name", line).textContent.trim() === name);
+/** The line `name` pressed at its centre, then the pointer moved to each point of `path`. */
+const lineHold = (name, path) => holdEvents(centreOf(lineOf(name)), path);
+/** Steps from the point `from` to `to` (a straight line in `count` steps). */
+function stepsTo(from, to, count = 6) {
+    return Array.from({ length: count }, (_, i) => ({
+        x: from.x + ((to.x - from.x) * (i + 1)) / count,
+        y: from.y + ((to.y - from.y) * (i + 1)) / count,
+    }));
+}
+const near = (a, b, tolerance = 1.5) => Math.abs(a - b) <= tolerance;
+const escape = () =>
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+/** The point over today's column (`half` 0 or 1) in `row`, `shift` days from today. */
+const todayPoint = (row, half = 1, shift = 0) => cellPoint(row, todayIndex() + shift, half);
+const textOfBadges = () => $$(".o_tl_selection_badge").map((el) => el.textContent.trim());
+const badgeTimeText = (date, hour) => {
+    const [year, month, day] = date.split("-").map(Number);
+    const moment = new Date(Date.UTC(year, month - 1, day));
+    return `${moment.getUTCMonth() + 1}/${moment.getUTCDate()}/${moment.getUTCFullYear()}, ${hour}`;
+};
+const todayDate = () => $(".o_tl_col.o_tl_is_today").dataset.date;
+const nextDate = (date, n = 1) => {
+    const moment = new Date(`${date}T00:00:00Z`);
+    moment.setUTCDate(moment.getUTCDate() + n);
+    return moment.toISOString().slice(0, 10);
+};
+
+// H37: "Unscheduled" pressed at its centre and held over the Beta row, today's second half: the
+// line follows the pointer, the list keeps its line, the highlight covers one day from 12:00, the
+// badges read the two times; the release writes (the test reads it) and the view reloads
+tours.add("timeline_002b3_a47_schedule", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const beta = rowOf("Beta");
+                const before = lineOf("Unscheduled").getBoundingClientRect();
+                const from = centreOf(lineOf("Unscheduled"));
+                const to = todayPoint(beta, 1);
+                to.x -= 20;
+                to.y = beta.getBoundingClientRect().top + beta.getBoundingClientRect().height / 2;
+                await realMouse(holdEvents(from, stepsTo(from, to)));
+                // M41: the copy keeps the grabbed place, at the line's size
+                const ghost = $(".o_tl_panel_ghost");
+                assert(ghost, "a copy of the line follows the pointer");
+                const rect = ghost.getBoundingClientRect();
+                assert(near(rect.left, to.x - 131), `the copy's left ${rect.left}, wanted ${to.x - 131}`);
+                assert(near(rect.top, to.y - 14.5), `the copy's top ${rect.top}, wanted ${to.y - 14.5}`);
+                assert(rect.width === 262 && rect.height === 29, `the copy is ${rect.width}x${rect.height}`);
+                assert(getComputedStyle(ghost).position === "fixed", "the copy is fixed");
+                assert(
+                    getComputedStyle($(".o_tl_panel_handle", ghost)).color === "rgb(102, 102, 102)",
+                    "its handle is dark"
+                );
+                // M43: the line stays
+                const after = lineOf("Unscheduled").getBoundingClientRect();
+                assert(after.left === before.left && after.top === before.top, "the line stays");
+                // M40: one day from 12:00 over the Beta row
+                const drop = $(".o_tl_drop");
+                assert(drop, "the target highlight");
+                const cell = $$(".o_tl_cell", beta)[todayIndex()].getBoundingClientRect();
+                const box = drop.getBoundingClientRect();
+                assert(near(box.left, cell.left + cell.width / 2), `highlight left ${box.left}`);
+                assert(near(box.width, cell.width), `highlight width ${box.width}`);
+                assert(near(box.height, beta.getBoundingClientRect().height), "the row's height");
+                // M44, M45
+                const date = todayDate();
+                const texts = textOfBadges();
+                assert(
+                    texts[0] === badgeTimeText(date, "12:00 PM") &&
+                        texts[1] === badgeTimeText(nextDate(date), "12:00 PM"),
+                    `the badges read ${JSON.stringify(texts)}`
+                );
+                // M46
+                assert(
+                    getComputedStyle($(".o_timeline_view")).cursor === "move",
+                    "the move shape over the view"
+                );
+                await realMouse(releaseAt(to));
+                assert(!$(".o_tl_panel_ghost") && !$(".o_tl_drop"), "ghost and highlight are gone");
+                assert(panelTitle() === "Unscheduled: 3", `the title is ${panelTitle()}`);
+                assert(!panelNames().includes("Unscheduled"), "the record left the list");
+                assert(!$(".o_notification"), "no notification");
+                const pill = $$(".o_tl_pill", rowOf("Beta")).find(
+                    (el) => el.textContent.trim() === "Unscheduled"
+                );
+                assert(pill, "the pill stands in the Beta row");
+            },
+        },
+    ],
+});
+
+/** Hold "Gamma" over `row` at today's column and release. */
+async function scheduleGammaOn(row, half = 1, shift = 0) {
+    const from = centreOf(lineOf("Gamma"));
+    const to = todayPoint(row, half, shift);
+    await realMouse(holdEvents(from, stepsTo(from, to)));
+    assert($(".o_tl_drop"), "the highlight shows");
+    await realMouse(releaseAt(to));
+}
+
+// H36 (no grouping): the first half of the day before today; H41: a Parent group row
+tours.add("timeline_002b3_a48_ungrouped_and_group_row", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const group = $$(".o_tl_group_row").find(
+                    (row) => $(".o_tl_row_header", row).getAttribute("title") === "Beta"
+                );
+                if (group) {
+                    await scheduleGammaOn(group, 1, 0);
+                } else {
+                    await scheduleGammaOn(recordRows()[0], 0, -1);
+                }
+                assert(panelTitle() === "Unscheduled: 3", `the title is ${panelTitle()}`);
+            },
+        },
+    ],
+});
+
+// H41: no row below the read-only Created by level takes the record; a Parent row does
+tours.add("timeline_002b3_a49_readonly_rows", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const leaf = recordRows()[0];
+                assert(leaf, "a Created by row");
+                const from = centreOf(lineOf("Unscheduled"));
+                const over = todayPoint(leaf, 1);
+                await realMouse(holdEvents(from, stepsTo(from, over)));
+                assert($(".o_tl_panel_ghost"), "the copy follows");
+                assert(!$(".o_tl_drop"), "no highlight over a Created by row");
+                assert(!$(".o_tl_selection_badge"), "no badge over a Created by row");
+                await realMouse(releaseAt(over));
+                assert(panelTitle() === "Unscheduled: 4", "nothing was written");
+                // a Parent row shows the highlight
+                const group = $$(".o_tl_group_row").find(
+                    (row) => $(".o_tl_row_header", row).getAttribute("title") === "Beta"
+                );
+                const onParent = todayPoint(group, 1);
+                await realMouse(holdEvents(from, stepsTo(from, onParent)));
+                assert($(".o_tl_drop"), "the highlight over a Parent row");
+                await realMouse(releaseAt(onParent));
+                assert(panelTitle() === "Unscheduled: 3", `the title is ${panelTitle()}`);
+            },
+        },
+    ],
+});
+
+// Escape, the grid's right edge (no scrolling), a release over the control bar: nothing written
+tours.add("timeline_002b3_a50_cancel", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const beta = rowOf("Beta");
+                const from = centreOf(lineOf("Unscheduled"));
+                const over = todayPoint(beta, 1);
+                await realMouse(holdEvents(from, stepsTo(from, over)));
+                assert($(".o_tl_drop"), "the highlight shows first");
+                escape();
+                await until(
+                    () => !$(".o_tl_panel_ghost") && !$(".o_tl_drop"),
+                    "Escape puts the line back"
+                );
+                await realMouse(releaseAt(over));
+                assert(panelTitle() === "Unscheduled: 4", "Escape wrote nothing");
+                assert(!$$(".o_tl_pill", beta).some((el) => el.textContent.trim() === "Unscheduled"), "no pill");
+                // the right edge of the grid: no scrolling while held
+                const grid = renderer().getBoundingClientRect();
+                const edge = { x: grid.right - 10, y: beta.getBoundingClientRect().top + 10 };
+                const left = renderer().scrollLeft;
+                const top = renderer().scrollTop;
+                await realMouseLive(holdEvents(from, stepsTo(from, edge)));
+                await pause(700);
+                assert(renderer().scrollLeft === left && renderer().scrollTop === top, "no edge scrolling");
+                // released over the control bar
+                const bar = centreOf($(".o_control_panel"));
+                await realMouseLive([mouse("mouseMoved", bar.x, bar.y, { buttons: 1 })]);
+                assert(!$(".o_tl_drop"), "no highlight over the control bar");
+                await realMouse(releaseAt(bar));
+                assert(!$(".o_tl_panel_ghost"), "the copy is gone");
+                assert(panelTitle() === "Unscheduled: 4", "the release over the bar wrote nothing");
+            },
+        },
+    ],
+});
+
+// H40: a cell selected, then a line pressed and moved: the selection is cleared at once
+tours.add("timeline_002b3_a57_clears_selection", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                await clickAt(cellPoint(recordRows()[0], todayIndex(), 0));
+                await until(() => pickedCount() > 0, "a picked cell");
+                assert($(".o_multi_selection_buttons"), "the buttons show");
+                const from = centreOf(lineOf("Unscheduled"));
+                await realMouse(holdEvents(from, stepsTo(from, { x: from.x - 150, y: from.y + 60 })));
+                assert($(".o_tl_panel_ghost"), "the copy follows");
+                assert(pickedCount() === 0, "the highlight is cleared");
+                assert(!$(".o_multi_selection_buttons"), "the buttons are gone");
+                escape();
+                await realMouse(releaseAt({ x: from.x - 150, y: from.y + 60 }));
+            },
+        },
+    ],
+});
+
+// the date-only view the test made: the record without dates dropped on today
+tours.add("timeline_002b3_a60_date_only", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const row = $(".o_tl_row[data-row-id]");
+                const from = centreOf($(".o_tl_panel_line"));
+                const to = todayPoint(row, 0);
+                await realMouse(holdEvents(from, stepsTo(from, to)));
+                const date = todayDate();
+                const day = badgeTimeText(date, "").replace(/, $/, "");
+                const texts = textOfBadges();
+                assert(
+                    texts[0] === day && texts[1] === day,
+                    `both badges show the day: ${JSON.stringify(texts)}`
+                );
+                await realMouse(releaseAt(to));
+                assert(panelTitle() === "All records are scheduled", `the title is ${panelTitle()}`);
+            },
+        },
+    ],
+});
+
+// two drops in one go: the second is sent after the first write returned (the test delays it)
+tours.add("timeline_002b3_a61_writes_in_order", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const beta = rowOf("Beta");
+                const alpha = rowOf("Alpha");
+                const a = centreOf(lineOf("Unscheduled"));
+                const b = centreOf(lineOf("Gamma"));
+                const onBeta = todayPoint(beta, 1);
+                const onAlpha = todayPoint(alpha, 1, 1);
+                await realMouseLive([
+                    ...holdEvents(a, stepsTo(a, onBeta, 4)),
+                    ...releaseAt(onBeta),
+                    ...holdEvents(b, stepsTo(b, onAlpha, 4)),
+                    ...releaseAt(onAlpha),
+                ]);
+                await gridSettled();
+                await until(() => panelTitle() === "Unscheduled: 2", `the title is ${panelTitle()}`, 15000);
+                assert(!panelNames().includes("Gamma"), "Gamma is scheduled too");
+            },
+        },
+    ],
+});

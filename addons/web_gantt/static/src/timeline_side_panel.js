@@ -34,8 +34,8 @@ export function panelTitleText(count) {
  * The side panel of the records to schedule (002b3 R16 to R20): the resize strip on its left and
  * the panel itself. The renderer draws it beside the grid box while `model.panel.open` holds.
  * The title with the count and the list of the records to schedule, twenty lines at a time; the
- * resizing and the drag of a line come with later tasks and extend this component (`renderer` is the renderer's own object, for
- * the drag onto the grid).
+ * resize strip (R20); a click on a line, which opens the record, and the press of a line, which
+ * the renderer turns into a drag onto the grid (R21; `renderer` is the renderer's own object).
  */
 export class TimelineSidePanel extends Component {
     static template = "web_gantt.TimelineSidePanel";
@@ -66,9 +66,21 @@ export class TimelineSidePanel extends Component {
         return records.length < count;
     }
 
-    /** A click on a line: 002b's record dialog of the record; closing it reloads the view. */
+    /**
+     * A click anywhere on a line, a press and release without the move of a drag (R19.4): 002b's
+     * record dialog of the record; closing it reloads the view. The click that ends a drag opens
+     * nothing.
+     */
     onLineClick(record) {
+        if (this.props.renderer?.swallowsClick()) {
+            return;
+        }
         this.props.renderer?.props.editor?.openRecord(record.id);
+    }
+
+    /** A press on a line starts a drag onto the grid after a move of 10 px (R21). */
+    onLinePointerDown(ev, record) {
+        this.props.renderer?.pressLine(ev, record);
     }
 
     /** Load more: the selection of the grid is cleared (R9), then twenty more lines are read. */
@@ -109,7 +121,8 @@ export class TimelineSidePanel extends Component {
             ["pointercancel", end],
             ["keydown", end],
             ["pointerdown", press],
-            ["blur", end],
+            // only the window losing the focus ends it: `blur` of an element is captured here too
+            ["blur", (event) => event.target === window && end()],
         ];
         for (const [type, handler] of listeners) {
             browser.addEventListener(type, handler, true);

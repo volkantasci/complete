@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, test } from "@odoo/hoot";
 import { Domain } from "@web/core/domain";
-import { clampPanelWidth, stripDateConditions } from "@web_gantt/timeline_panel_math";
+import { clampPanelWidth, panelSpan, stripDateConditions } from "@web_gantt/timeline_panel_math";
 
 const strip = (domain) => stripDateConditions(domain, "date_start", "date_stop");
 
@@ -81,4 +81,25 @@ test("002b3 A55: the width is clamped between 150 and the larger of half the win
     expect(clampPanelWidth(900, -100, 1600)).toBe(900);
     // a start under the minimum is lifted to it
     expect(clampPanelWidth(100, 0, 1600)).toBe(150);
+});
+
+test("002b3 A47: the span of a line is one column long, its start under the pointer for p = 1 and 2", () => {
+    // one sub-column per column: the span is the sub-column under the pointer
+    expect(panelSpan({ part: 5, partsPerColumn: 1, gridParts: 14 })).toEqual({ from: 5, to: 5 });
+    // half days: the sub-column under the pointer, a day long
+    expect(panelSpan({ part: 7, partsPerColumn: 2, gridParts: 14 })).toEqual({ from: 7, to: 8 });
+    expect(panelSpan({ part: 6, partsPerColumn: 2, gridParts: 14 })).toEqual({ from: 6, to: 7 });
+});
+
+test("002b3 A47: with quarter precision the span starts one sub-column before the pointer", () => {
+    expect(panelSpan({ part: 10, partsPerColumn: 4, gridParts: 28 })).toEqual({ from: 9, to: 12 });
+});
+
+test("002b3 A47: the span stays inside the grid and keeps its length", () => {
+    expect(panelSpan({ part: 0, partsPerColumn: 4, gridParts: 28 })).toEqual({ from: 0, to: 3 });
+    expect(panelSpan({ part: 27, partsPerColumn: 4, gridParts: 28 })).toEqual({ from: 24, to: 27 });
+    expect(panelSpan({ part: 13, partsPerColumn: 2, gridParts: 14 })).toEqual({ from: 12, to: 13 });
+    expect(panelSpan({ part: 13, partsPerColumn: 1, gridParts: 14 })).toEqual({ from: 13, to: 13 });
+    // a grid shorter than the span: the span is cut at the grid's end
+    expect(panelSpan({ part: 1, partsPerColumn: 4, gridParts: 3 })).toEqual({ from: 0, to: 2 });
 });

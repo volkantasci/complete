@@ -120,6 +120,23 @@ export class TimelineEditor {
     }
 
     /**
+     * 002b3 R21.6: write the dates and row values of a record scheduled from the side panel, after
+     * the writes sent before; the view reloads; no notification and no Undo follow. A refused call
+     * is passed on (the view reloads to read the list again).
+     * @param {Object} params
+     * @param {number} params.resId
+     * @param {Object} params.values
+     */
+    scheduleRecord({ resId, values }) {
+        const { model, services } = this;
+        return this._queueChange({
+            send: () => services.orm.write(model.resModel, [resId], values, { context: model.context }),
+            reloadOnRefusal: true,
+            announce: () => {},
+        });
+    }
+
+    /**
      * 002b3 R14: delete `ids` in one Community deletion call, sent at once (002b2 R21: a deletion
      * is never queued behind the writes before it), then reload. A refused call deletes nothing
      * (E2): the view is not reloaded, so the selection stays, and the rejection is passed on, so
