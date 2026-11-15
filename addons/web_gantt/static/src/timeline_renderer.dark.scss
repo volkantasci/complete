@@ -20,3 +20,9 @@
         );
     }
 }
+
+// The time fields of the template form popover (M18, M19) draw their line in the colour of the
+// popover's border in the dark scheme.
+.o_multi_create_popover .o_time_picker_input {
+    border-color: $o-tl-popover-input-border;
+}

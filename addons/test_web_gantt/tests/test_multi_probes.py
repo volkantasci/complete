@@ -9,6 +9,7 @@ needs ``web_enterprise``; without it the dark probes are skipped. The values are
 Elements read (the names of the plan's table): M56d, M56p, M57d, M58d and M59d read the row header
 label ``.o_tl_row_label`` or the row header ``.o_tl_row_header``.
 """
+import json
 import time
 
 from odoo.tests import tagged
@@ -230,3 +231,116 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.assertEqual(picked, 1)
                 self.check('M11', f"{self.BUTTONS}.querySelector('.o_tl_multi_plan')", scheme,
                            viewport, 'the Plan button')
+
+    # -- the template form popover and the new pill: M17 to M27 (R10, R11) -----------------------
+    #
+    # Elements read: M17 the popover `.o_popover` holding `.o_multi_create_popover`; M18 and M19
+    # its two time inputs `.o_time_picker_input`; M20 the arrow icon `i.oi`; M21 `.o_form_renderer`;
+    # M22 and M23 the footer buttons `.btn-primary` and `.btn-secondary`; M24 `.popover-footer`;
+    # M25 the new pill titled "Sprint" (M26's place must stay empty); M27 the popover of H35.
+
+    POPOVER = "document.querySelector('.o_multi_create_popover').closest('.o_popover')"
+
+    def open_popover(self):
+        """Click the Add button of the selection buttons and wait for the popover."""
+        box = self.geometry(f"{self.BUTTONS}.querySelector('[data-tooltip=\"Add\"]')")
+        self.click_at(box['geometry.x'] + box['geometry.width'] / 2,
+                      box['geometry.y'] + box['geometry.height'] / 2)
+        self.wait("!!document.querySelector('.o_multi_create_popover .o_form_renderer')")
+        self.settle(500)
+
+    def type_name(self, name):
+        self.js(f"""(() => {{
+            const input = document.querySelector(
+                '.o_multi_create_popover .o_field_widget[name="name"] input');
+            input.focus();
+            input.value = {json.dumps(name)};
+            input.dispatchEvent(new Event('input', {{bubbles: true}}));
+            input.dispatchEvent(new Event('change', {{bubbles: true}}));
+        }})()""")
+        self.settle(200)
+
+    def test_002b3_m17_m24_template_popover(self):
+        probes = ['M17', 'M18', 'M19', 'M20', 'M21', 'M22', 'M23', 'M24']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h34'), scheme, viewport):
+                self.click_at(452, 470)
+                self.open_popover()
+                popover = self.POPOVER
+                self.check('M17', popover, scheme, viewport, 'the popover')
+                inputs = f"{popover}.querySelectorAll('.o_time_picker_input')"
+                self.check('M18', f"{inputs}[0]", scheme, viewport, 'the start time')
+                self.check('M19', f"{inputs}[1]", scheme, viewport, 'the end time')
+                self.check('M20', f"{popover}.querySelector('i.oi')", scheme, viewport,
+                           'the arrow between the times')
+                self.check('M21', f"{popover}.querySelector('.o_form_renderer')", scheme,
+                           viewport, 'the template form')
+                self.check('M22', f"{popover}.querySelector('.popover-footer .btn-primary')",
+                           scheme, viewport, 'the Add button of the popover')
+                self.check('M23', f"{popover}.querySelector('.popover-footer .btn-secondary')",
+                           scheme, viewport, 'the Discard button of the popover')
+                self.check('M24', f"{popover}.querySelector('.popover-footer')", scheme,
+                           viewport, 'the footer of the popover')
+
+    def test_002b3_m25_new_pill(self):
+        for scheme, viewport in self.combos(['M25', 'M26'], ('desktop',)):
+            # the record of the scheme before is not part of this one's picture
+            self.env['test.web.gantt.pill'].search([('name', '=', 'Sprint')]).unlink()
+            with self.page(HOST.format('h34'), scheme, viewport):
+                self.click_at(452, 470)
+                self.open_popover()
+                self.type_name('Sprint')
+                box = self.geometry(f"{self.POPOVER}.querySelector('.popover-footer .btn-primary')")
+                self.click_at(box['geometry.x'] + box['geometry.width'] / 2,
+                              box['geometry.y'] + box['geometry.height'] / 2)
+                self.wait("!document.querySelector('.o_multi_create_popover')")
+                self.settle(800)
+                sprints = self.js("[...document.querySelectorAll('.o_tl_pill')].filter("
+                                  "(p) => p.textContent.trim() === 'Sprint').length")
+                self.assertEqual(sprints, 1, 'decision D1: one record for the clicked day')
+                # M25 measured the pill's slot: the pill (96 wide, 25 high there) with the 1 px
+                # inset of 002a's pills (94 by 23, drawn at 454, 451) added back on each side
+                pill = self.geometry(self.pill('Sprint'))
+                slot = {
+                    'geometry.x': pill['geometry.x'] - 1, 'geometry.y': pill['geometry.y'] - 1,
+                    'geometry.width': pill['geometry.width'] + 2,
+                    'geometry.height': pill['geometry.height'] + 2,
+                }
+                for prop, want in MEASURED['M25'][(scheme, viewport)].items():
+                    with self.subTest(probe='M25', scheme=scheme, viewport=viewport, prop=prop):
+                        self.assertAlmostEqual(float(slot[prop]), float(want), delta=1,
+                                               msg='the one new pill in Beta / Undefined Contact')
+                # M26 (the original's second pill, a defect) has no element in Complete
+                expected = MEASURED['M26'][(scheme, viewport)]
+                at_lower = self.js(f"""[...document.querySelectorAll('.o_tl_pill')].some((p) => {{
+                    const r = p.getBoundingClientRect();
+                    return Math.abs(r.left - {expected['geometry.x']}) < 1
+                        && Math.abs(r.top - {expected['geometry.y']}) < 1;
+                }})""")
+                self.assertFalse(at_lower, "no second pill at M26's place")
+
+    def test_002b3_m27_date_only_popover(self):
+        for scheme, viewport in self.combos(['M27'], ('desktop',)):
+            with self.page(HOST.format('h35'), scheme, viewport):
+                # Saturday 14 of the first row: the column's place depends on the host's layout
+                column = self.geometry(
+                    "document.querySelector('.o_tl_col[data-date=\"2026-11-14\"]')")
+                row = self.geometry("document.querySelector('.o_tl_row[data-row-id]')")
+                self.click_at(column['geometry.x'] + column['geometry.width'] / 2,
+                              row['geometry.y'] + row['geometry.height'] - 4)
+                self.assertEqual(
+                    self.js("document.querySelectorAll('.o_tl_cell_picked').length"), 2)
+                # no record under the day: the count 0 and no Delete, as in the capture (the
+                # popover is centred under Add, whose place depends on the group of buttons)
+                self.assertEqual(
+                    self.js("[...document.querySelectorAll('.o_multi_selection_buttons button')]"
+                            ".map((b) => b.dataset.tooltip || b.textContent.trim())"),
+                    ['Unselect All', 'Add'],
+                    self.js("JSON.stringify([...document.querySelectorAll('.o_tl_pill')].map("
+                            "(p) => [p.textContent.trim(), p.getBoundingClientRect().left, "
+                            "p.getBoundingClientRect().right]))"))
+                self.open_popover()
+                self.assertFalse(self.js("!!document.querySelector('.o_time_picker_input')"),
+                                 'a date-only model shows no time fields')
+                self.check('M27', self.POPOVER, scheme, viewport,
+                           'the popover without time fields')

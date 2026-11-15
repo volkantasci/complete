@@ -17,3 +17,7 @@ $o-tl-date-line: $o-gray-400 !default;
 // palette gives in one channel: green of index 2 and blue of index 5 (60 % of 156 over white is
 // 195.6 but reads 195; 60 % of 236 is 243.6 but reads 243).
 $o-tl-pill-nudges: (2: (0, -1, 0), 5: (0, 0, -1)) !default;
+
+// The border of the time fields of the template form popover in the dark scheme (M18): the colour
+// of the popover's own border (M17), one step lighter than the grey of the other borders.
+$o-tl-popover-input-border: #56575E !default;

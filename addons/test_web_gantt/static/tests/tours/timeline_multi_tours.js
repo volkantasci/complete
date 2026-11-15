@@ -85,7 +85,9 @@ const gridReady = {
     },
 };
 
-let requests = 0;
+// numbered from the time of the page, so that a tour that reloads the page never repeats a number
+// the test already answered
+let requests = Math.floor(Date.now() / 1000) * 1000;
 /** Ask the test to send these mouse events for real, and wait until it did. */
 async function realMouse(events) {
     const id = ++requests;
@@ -574,13 +576,17 @@ tours.add("timeline_002b3_a37_restricted", {
  * One tour of A63 for each set of options: a click on a cell under a pill, then a drawing inside
  * one half day of the same cell; `many` and `one` are the buttons expected after each.
  */
-function optionsTour(name, { many, one }) {
+function optionsTour(name, { many, one, noNew = false }) {
     tours.add(name, {
         steps: () => [
             gridReady,
             {
                 trigger: ".o_tl_row[data-row-id]",
                 async run() {
+                    assert(
+                        noNew === !$(".o_tl_button_add"),
+                        `the New button is ${noNew ? "shown" : "absent"}, against the view's create option`
+                    );
                     const point = oneCellUnderOnePill();
                     assert(point, "a cell under the only pill of a row");
                     await clickAt(point);
@@ -603,7 +609,495 @@ function optionsTour(name, { many, one }) {
     });
 }
 
-optionsTour("timeline_002b3_a63_create_delete_off", { many: "", one: "Plan" });
+optionsTour("timeline_002b3_a63_create_delete_off", { many: "", one: "Plan", noNew: true });
 optionsTour("timeline_002b3_a63_delete_off", { many: "Add", one: "Add,Plan" });
 optionsTour("timeline_002b3_a63_explicit_yes", { many: "Add,Delete", one: "Add,Plan,Delete" });
 optionsTour("timeline_002b3_a63_no_unlink_right", { many: "Add", one: "Add,Plan" });
+
+// ---------------------------------------------------------------------------------------------
+// The template form popover and the creation (R10 to R12; A28 to A36, A62 to A64)
+// ---------------------------------------------------------------------------------------------
+
+const popoverEl = () => $(".o_popover .o_multi_create_popover");
+const addButton = () => $(".o_multi_selection_buttons [data-tooltip='Add']");
+const formInput = (name) => $(`.o_field_widget[name='${name}'] input`, popoverEl());
+const timeInput = (index) => $$(".o_time_picker_input", popoverEl())[index];
+const pillsTitled = (title) => $$(".o_tl_pill").filter((el) => el.textContent.trim() === title);
+const notificationShows = (text) =>
+    $$(".o_notification").some((element) => element.textContent.includes(text));
+const todayIso = () => $(".o_tl_col.o_tl_is_today").dataset.date;
+/** The text of a time input without its spaces and case: the user's format shows "12:00pm". */
+const timeText = (input) => input.value.replace(/\s/g, "").toLowerCase();
+const closePopover = async () => {
+    $(".popover-footer .btn-secondary", popoverEl()).click();
+    await until(() => !popoverEl(), "Discard closes the popover");
+};
+
+/** The record row `sub` under the group row `group`. */
+function subRow(group, sub) {
+    const groupRow = allRows().find(
+        (element) =>
+            element.classList.contains("o_tl_group_row") &&
+            $(".o_tl_row_label", element)?.textContent === group
+    );
+    for (
+        let row = groupRow?.nextElementSibling;
+        row && !row.classList.contains("o_tl_group_row");
+        row = row.nextElementSibling
+    ) {
+        if ($(".o_tl_row_label", row)?.textContent === sub) {
+            return row;
+        }
+    }
+    return null;
+}
+
+/** Type into an input as a user does, then let the view settle. */
+async function typeText(input, text) {
+    input.focus();
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await frame();
+    await frame();
+}
+
+/** Choose `text` in the autocomplete of a relation field of the popover. */
+async function chooseRelation(name, text) {
+    const input = formInput(name);
+    input.focus();
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    const item = await until(
+        () =>
+            $$(".o-autocomplete--dropdown-item").find((element) =>
+                element.textContent.includes(text)
+            ),
+        `the choice "${text}" of ${name}`
+    );
+    (item.querySelector("a") || item).click();
+    await frame();
+    await frame();
+}
+
+async function openPopover() {
+    await until(addButton, "the Add button");
+    addButton().click();
+    await until(
+        () => popoverEl() && $(".o_form_renderer .o_field_widget[name='name']", popoverEl()),
+        "the popover with its form"
+    );
+}
+
+async function submitPopover() {
+    $(".popover-footer .btn-primary", popoverEl()).click();
+    await until(() => !popoverEl(), "the popover closes");
+    await gridSettled();
+}
+
+/** A drawing inside one half day of a row, with the keys held. */
+async function drawHalf(row, index, half, keys = []) {
+    const modifiers = modifiersOf(keys);
+    const centre = cellPoint(row, index, half);
+    const from = { x: centre.x - 15, y: centre.y };
+    const to = { x: centre.x + 15, y: centre.y };
+    await realMouse([
+        mouse("mouseMoved", from.x, from.y, { button: "none", buttons: 0, modifiers }),
+        mouse("mousePressed", from.x, from.y, { buttons: 1, clickCount: 1, modifiers }),
+        mouse("mouseMoved", from.x + 10, from.y, { buttons: 1, modifiers }),
+        mouse("mouseMoved", to.x, to.y, { buttons: 1, modifiers }),
+        mouse("mouseReleased", to.x, to.y, { buttons: 0, clickCount: 1, modifiers }),
+    ]);
+}
+
+const betaUndefined = () => subRow("Beta", "Undefined Contact");
+
+tours.add("timeline_002b3_a29_create_one_record", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const row = betaUndefined();
+                const index = todayIndex();
+                await clickAt(cellPoint(row, index, 0));
+                assert(pickedCount() === 2, `a click picks two cells, got ${pickedCount()}`);
+                await openPopover();
+                assert(
+                    timeText(timeInput(0)) === "12:00pm" && timeText(timeInput(1)) === "1:00pm",
+                    `the times are ${timeInput(0).value} and ${timeInput(1).value}`
+                );
+                await typeText(formInput("name"), "Sprint");
+                await submitPopover();
+                assert(pickedCount() === 0, "the selection is cleared");
+                const pills = pillsTitled("Sprint");
+                assert(pills.length === 1, `${pills.length} pills named Sprint, wanted one`);
+                const pill = pills[0].getBoundingClientRect();
+                const fresh = betaUndefined();
+                const cell = $$(".o_tl_cell", fresh)[index].getBoundingClientRect();
+                // the exact size is the probe's (M25): here the pill is a half day wide, drawn
+                // over the second half of that day
+                assert(
+                    Math.abs(pill.left - (cell.left + cell.width / 2)) <= 3 &&
+                        Math.abs(pill.width - cell.width / 2) <= 4 &&
+                        pill.height >= 20 &&
+                        pill.height <= 30,
+                    `the pill is ${pill.left},${pill.width}x${pill.height} for a cell at ${cell.left}`
+                );
+                assert(
+                    pill.top >= fresh.getBoundingClientRect().top - 1 &&
+                        pill.bottom <= fresh.getBoundingClientRect().bottom + 1,
+                    "the pill is in Beta / Undefined Contact"
+                );
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a30_rows_win", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const first = betaUndefined();
+                const last = subRow("Beta", "Host Contact 3");
+                const index = todayIndex();
+                const from = cellPoint(first, index, 0);
+                const to = cellPoint(last, index, 0);
+                await realMouse([
+                    ...holdEvents(from, [{ x: from.x + 10, y: from.y }, { x: from.x + 12, y: to.y }, to]),
+                    ...releaseAt(to),
+                ]);
+                assert(pickedCount() === 3, `three cells, got ${pickedCount()}`);
+                assert(!$(".o_tl_multi_plan"), "no Plan with three cells");
+                await openPopover();
+                await typeText(formInput("name"), "Row test");
+                await submitPopover();
+                assert(pillsTitled("Row test").length === 3, "three new pills");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a31_tags_row", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const labelOfRow = (row) => $(".o_tl_row_label", row).textContent;
+                const tagRow = () => recordRows().find((row) => labelOfRow(row) === "Host Tag 1");
+                const none = () => recordRows().find((row) => !/Host Tag/.test(labelOfRow(row)));
+                assert(tagRow() && none(), "the row of Host Tag 1 and the undefined row");
+                const index = todayIndex() + 3;
+                // the form's Tags left empty, a cell of the Host Tag 1 row
+                await clickAt(cellPoint(tagRow(), index, 0));
+                await openPopover();
+                await typeText(formInput("name"), "Tag empty");
+                await submitPopover();
+                // Host Tag 2 chosen in the form, the cells of the Host Tag 1 row and the undefined row
+                await clickAt(cellPoint(tagRow(), index, 0));
+                await clickAt(cellPoint(none(), index, 0), ["ctrl"]);
+                assert(pickedCount() === 4, `four cells, got ${pickedCount()}`);
+                await openPopover();
+                await typeText(formInput("name"), "Tag two");
+                await chooseRelation("x_tags", "Host Tag 2");
+                await submitPopover();
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a32_date_only", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const row = recordRows()[0];
+                const index = todayIndex() + 2;
+                await clickAt(cellPoint(row, index, 0));
+                await openPopover();
+                assert(!timeInput(0), "no time fields on a date-only model");
+                assert(formInput("name"), "the template form is shown");
+                await typeText(formInput("name"), "Day test");
+                await submitPopover();
+                const pills = pillsTitled("Day test");
+                assert(pills.length === 1, `${pills.length} pills named Day test, wanted one`);
+                const pill = pills[0].getBoundingClientRect();
+                const cell = $$(".o_tl_cell", recordRows()[0])[index].getBoundingClientRect();
+                assert(
+                    pill.left >= cell.left - 1 && pill.right <= cell.right + 1,
+                    "the pill covers that day only"
+                );
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a33_validation", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                await clickAt(cellPoint(betaUndefined(), todayIndex(), 0));
+                await openPopover();
+                const add = () => $(".popover-footer .btn-primary", popoverEl()).click();
+                add();
+                await until(() => notificationShows("Missing required fields"), "the missing field message");
+                assert(popoverEl(), "the popover stays after a missing field");
+                await typeText(formInput("name"), "Checks");
+                await typeText(timeInput(0), "15:00");
+                add();
+                await until(
+                    () => notificationShows("Start time should be before end time"),
+                    "the start after end warning"
+                );
+                assert(popoverEl(), "the popover stays after a start after the end");
+                await typeText(timeInput(1), "nonsense");
+                add();
+                await until(() => notificationShows("Invalid time range"), "the invalid range warning");
+                assert(popoverEl(), "the popover stays after an unreadable time");
+                await closePopover();
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a34_kept_values", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            // the step reloads the page and runs again on the new one
+            expectUnloadPage: true,
+            async run() {
+                const pickAndOpen = async () => {
+                    await clickAt(cellPoint(betaUndefined(), todayIndex(), 0));
+                    await openPopover();
+                };
+                const discard = closePopover;
+                const keptValues = () =>
+                    `${timeText(timeInput(0))}|${formInput("name").value}|${formInput("x_color").value}`;
+                await pickAndOpen();
+                await typeText(timeInput(0), "15:00");
+                await typeText(formInput("name"), "Kept");
+                await typeText(formInput("x_color"), "4");
+                await discard();
+                assert(pickedCount() === 2, "Discard keeps the selection");
+                await openPopover();
+                assert(keptValues() === "3:00pm|Kept|4", `after Discard: ${keptValues()}`);
+                await discard();
+                // another view of the action and back
+                $(".o_switch_view.o_list").click();
+                await until(() => $(".o_list_view"), "the list view");
+                $(".o_switch_view.o_gantt").click();
+                await until(() => $(".o_tl_renderer .o_tl_col.o_tl_is_today"), "the timeline again");
+                await gridSettled();
+                await pickAndOpen();
+                assert(keptValues() === "3:00pm|Kept|4", `after the list view: ${keptValues()}`);
+                await discard();
+                window.location.reload();
+            },
+        },
+        // a new page: the start time is kept by the browser, the form's values are not
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                await clickAt(cellPoint(betaUndefined(), todayIndex(), 0));
+                await openPopover();
+                const kept = `${timeText(timeInput(0))}|${formInput("name").value}|${formInput("x_color").value}`;
+                assert(kept === "3:00pm||0", `after the reload: ${kept}`);
+                await closePopover();
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a35_new_with_selection", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const row = betaUndefined();
+                const index = todayIndex();
+                const from = cellPoint(row, index, 1);
+                const to = cellPoint(row, index + 1, 0);
+                await realMouse([
+                    ...holdEvents(from, [{ x: from.x + 10, y: from.y }, to]),
+                    ...releaseAt(to),
+                ]);
+                await clickAt(cellPoint(subRow("Beta", "Host Contact 3"), index + 3, 0), ["ctrl"]);
+                // a drawing over two half days, a click on a day: four cells
+                assert(pickedCount() === 4, `four cells, got ${pickedCount()}`);
+                // the defaults of the dialog travel in the context of its first request
+                const bodies = [];
+                const send = XMLHttpRequest.prototype.send;
+                XMLHttpRequest.prototype.send = function (body) {
+                    if (typeof body === "string") {
+                        bodies.push(body);
+                    }
+                    return send.apply(this, arguments);
+                };
+                let context;
+                try {
+                    $(".o_tl_button_add").click();
+                    await until(() => $(".o_dialog .o_form_view"), "the create dialog");
+                    const body = await until(
+                        () => bodies.find((b) => b.includes('"onchange"') && b.includes("default_date_start")),
+                        "the first request of the dialog"
+                    );
+                    context = JSON.parse(body).params.kwargs.context;
+                } finally {
+                    XMLHttpRequest.prototype.send = send;
+                }
+                const day = todayIso();
+                const next = new Date(Date.parse(`${day}T00:00:00Z`) + 86400000)
+                    .toISOString()
+                    .slice(0, 10);
+                assert(
+                    context.default_date_start === `${day} 12:00:00` &&
+                        context.default_date_stop === `${next} 12:00:00`,
+                    `the period is ${context.default_date_start} to ${context.default_date_stop}`
+                );
+                assert(
+                    Number.isInteger(context.default_parent_id) && context.default_x_contact === false,
+                    `the row is ${context.default_parent_id}, ${context.default_x_contact}`
+                );
+                assert(pickedCount() === 4, "the selection stays while the dialog is open");
+                $(".o_dialog .o_form_button_cancel").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await gridSettled();
+                assert(pickedCount() === 0, "the reload clears the selection");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a62_halves_and_mixed", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const row = betaUndefined();
+                const index = todayIndex();
+                await drawHalf(row, index, 1);
+                await drawHalf(row, index + 1, 0, ["ctrl"]);
+                assert(pickedCount() === 2, `two half days, got ${pickedCount()}`);
+                assert(!$(".o_tl_multi_plan"), "no Plan with two cells");
+                await openPopover();
+                await typeText(formInput("name"), "Halves");
+                await submitPopover();
+                assert(pillsTitled("Halves").length === 2, "two new pills");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a62_mixed_model", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const row = recordRows()[0];
+                const index = todayIndex();
+                // the first half of the day alone: the stop is the end of that half
+                await drawHalf(row, index, 0);
+                assert(pickedCount() === 1 && $(".o_tl_multi_plan"), "one half-day cell shows Plan");
+                await openPopover();
+                assert(!timeInput(0), "no time fields on a mixed model");
+                await typeText(formInput("name"), "Mixed one");
+                await submitPopover();
+                // both halves of the next day: the stop is the end of the second half
+                await clickAt(cellPoint(recordRows()[0], index + 1, 0));
+                await openPopover();
+                await typeText(formInput("name"), "Mixed two");
+                await submitPopover();
+            },
+        },
+    ],
+});
+
+/** A64: the Contact chosen in the form, Color 5, and with dates typed in a form that shows them. */
+function cellWinsTour(name, { withDates }) {
+    tours.add(name, {
+        steps: () => [
+            gridReady,
+            {
+                trigger: ".o_tl_row[data-row-id]",
+                async run() {
+                    await clickAt(cellPoint(betaUndefined(), todayIndex(), 0));
+                    await openPopover();
+                    await typeText(formInput("name"), "Cell wins");
+                    await chooseRelation("x_contact", "Host Contact 2");
+                    await typeText(formInput("x_color"), "5");
+                    if (withDates) {
+                        await typeText(formInput("date_start"), "01/01/2031 08:00:00");
+                        await typeText(formInput("date_stop"), "01/02/2031 08:00:00");
+                    }
+                    await submitPopover();
+                    const pills = pillsTitled("Cell wins");
+                    assert(pills.length === 1, `${pills.length} pills named Cell wins, wanted one`);
+                    const row = betaUndefined();
+                    assert(
+                        pills[0].getBoundingClientRect().top >= row.getBoundingClientRect().top - 1 &&
+                            pills[0].getBoundingClientRect().bottom <= row.getBoundingClientRect().bottom + 1,
+                        "the pill is in Beta / Undefined Contact"
+                    );
+                },
+            },
+        ],
+    });
+}
+cellWinsTour("timeline_002b3_a64_cell_wins", { withDates: false });
+cellWinsTour("timeline_002b3_a64_cell_wins_dates", { withDates: true });
+
+const dialogText = () => $$(".o_dialog").map((element) => element.textContent).join("|");
+
+// the restricted user: the Community error
+tours.add("timeline_002b3_a63_server_refuses_create", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const point = oneCellUnderOnePill();
+                assert(point, "a cell under the only pill of a row");
+                await clickAt(point);
+                await until(addButton, "the Add button");
+                addButton().click();
+                // the form of the popover cannot even get its defaults: the Community error
+                await until(
+                    () => /not allowed to create/.test(dialogText()),
+                    "the Community access error"
+                );
+                assert(!popoverEl() || !$(".o_form_renderer", popoverEl()), "no form is shown");
+            },
+        },
+    ],
+});
+
+// a refusal of the create call itself (a constraint): the Community error, nothing created
+tours.add("timeline_002b3_a63_server_refuses_constraint", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                await clickAt(cellPoint(betaUndefined(), todayIndex(), 0));
+                await openPopover();
+                await typeText(formInput("name"), "Refused");
+                await submitPopover();
+                await until(() => /Multi-creation refused/.test(dialogText()), "the Community error");
+                assert(pickedCount() === 0, "the selection was cleared when Add was accepted");
+                assert(pillsTitled("Refused").length === 0, "nothing was created");
+            },
+        },
+    ],
+});

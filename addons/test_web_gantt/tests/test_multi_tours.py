@@ -10,11 +10,16 @@ is rolled back after it: every test starts from the records of `setUpClass`.
 A tour that needs real pointer events asks for them through ``window.__tl_mouse`` (see
 ``timeline_real_pointer``).
 """
+import functools
 import os
 import time
+from datetime import datetime, timedelta
+from datetime import time as clock
+from unittest.mock import patch
 
 from lxml import etree
 from odoo import Command, fields
+from odoo.exceptions import ValidationError
 from odoo.tests import HttpCase, tagged
 
 from .timeline_real_pointer import RealPointerMixin
@@ -118,9 +123,12 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
 
     # -- A63: the view's create and delete options (decision D3) ---------------------------------
 
-    def _tl_option_action(self, options):
+    def _tl_option_action(
+        self, options, base_view='test_web_gantt.host_view_h33', domain='[]',
+        context="{'group_by': ['parent_id', 'x_contact']}",
+    ):
         """An action like H34 on a copy of H33's view with ``options`` set on the root tag."""
-        base = self.env.ref('test_web_gantt.host_view_h33')
+        base = self.env.ref(base_view)
         arch = etree.fromstring(base.arch)
         for key, value in options.items():
             arch.set(key, value)
@@ -136,7 +144,8 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
             'view_mode': 'gantt,list,form',
             'view_id': view.id,
             'search_view_id': self.env.ref('test_web_gantt.host_view_h13').id,
-            'context': "{'group_by': ['parent_id', 'x_contact']}",
+            'context': context,
+            'domain': domain,
         })
         return f'/odoo/action-{action.id}'
 
@@ -168,3 +177,174 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         })
         path = self._tl_option_action({})
         self._tour(path, 'timeline_002b3_a63_no_unlink_right', login='creator_no_unlink')
+
+    # -- creating from the template form (R10 to R12) --------------------------------------------
+
+    def _tl_utc(self, days, hour, minute=0):
+        """The record value of ``hour`` o'clock, ``days`` from today, in a UTC browser."""
+        return datetime.combine(self.today + timedelta(days=days), clock(hour, minute))
+
+    def _tl_created(self, name):
+        return self.env[PILL].search([('name', '=', name)], order='id')
+
+    def _tl_template_action(self, template, base_view='test_web_gantt.host_view_h33', **kwargs):
+        """H34 (or another host) whose view names ``template`` as its template form."""
+        return self._tl_option_action(
+            {'multi_create_view': template}, base_view=base_view, **kwargs)
+
+    def test_a29_create_one_record(self):
+        """One create call, with the multi-creation key, holding one record for the clicked day."""
+        model = type(self.env[PILL])
+        original = model.create
+        calls = []
+
+        @functools.wraps(original)
+        def spy(records, vals_list):
+            calls.append((records.env.context.get('multi_create'), len(vals_list)))
+            return original(records, vals_list)
+
+        with patch.object(model, 'create', spy):
+            self._tour('h34', 'timeline_002b3_a29_create_one_record')
+        self.assertEqual(calls, [(True, 1)])
+        sprint = self._tl_created('Sprint')
+        self.assertEqual(len(sprint), 1)
+        self.assertEqual(sprint.date_start, self._tl_utc(0, 12))
+        self.assertEqual(sprint.date_stop, self._tl_utc(0, 13))
+        self.assertEqual(sprint.parent_id, self.records['Beta'])
+        self.assertFalse(sprint.x_contact)
+
+    def test_a30_rows_win(self):
+        self._tour('h34', 'timeline_002b3_a30_rows_win')
+        rows = self._tl_created('Row test')
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows.parent_id, self.records['Beta'])
+        self.assertEqual(
+            sorted(rows.mapped(lambda r: r.x_contact.id or 0)),
+            sorted([0, self.records['C2'].id, self.records['C3'].id]),
+        )
+        for record in rows:
+            self.assertEqual(
+                (record.date_start, record.date_stop), (self._tl_utc(0, 12), self._tl_utc(0, 13)))
+
+    def test_a31_tags_row(self):
+        """H4's view with H33's option added: the row's tag replaces the form's tags."""
+        path = self._tl_template_action(
+            'test_web_gantt.host_form_template_one',
+            base_view='test_web_gantt.host_view_h4',
+            domain="[('name', 'in', ['Design', 'Build', 'Review'])]",
+            context="{'group_by': ['x_tags']}",
+        )
+        self._tour(path, 'timeline_002b3_a31_tags_row')
+        tag1 = self.records['T1']
+        empty = self._tl_created('Tag empty')
+        self.assertEqual(len(empty), 1)
+        self.assertEqual(empty.x_tags, tag1)
+        two = self._tl_created('Tag two')
+        self.assertEqual(len(two), 2)
+        self.assertEqual(
+            sorted(two.mapped(lambda r: tuple(sorted(r.x_tags.ids)))),
+            sorted([(tag1.id,), ()]),
+        )
+
+    def test_a32_date_only(self):
+        self._tour('h35', 'timeline_002b3_a32_date_only')
+        day = self.env['test.web.gantt.pill2'].search([('name', '=', 'Day test')])
+        self.assertEqual(len(day), 1)
+        self.assertEqual(day.date_start, self.today + timedelta(days=2))
+        self.assertEqual(day.date_stop, self.today + timedelta(days=2))
+
+    def test_a33_validation(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h34', 'timeline_002b3_a33_validation')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
+    def test_a34_kept_values(self):
+        count = self.env[PILL].search_count([])
+        # the tour reloads the page itself: the start time is kept by the browser, the values not
+        self._tour('h34', 'timeline_002b3_a34_kept_values')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
+    def test_a35_new_with_selection(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h34', 'timeline_002b3_a35_new_with_selection')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
+    def test_a62_halves(self):
+        self._tour('h34', 'timeline_002b3_a62_halves_and_mixed')
+        halves = self._tl_created('Halves').sorted('date_start')
+        self.assertEqual(len(halves), 2)
+        self.assertEqual(halves.mapped('date_start'), [self._tl_utc(0, 12), self._tl_utc(1, 12)])
+        self.assertEqual(halves.mapped('date_stop'), [self._tl_utc(0, 13), self._tl_utc(1, 13)])
+        self.assertEqual(halves.parent_id, self.records['Beta'])
+
+    def test_a62_mixed_model(self):
+        """H14 (start field date-only, stop field date and time) with H33's option added."""
+        path = self._tl_template_action(
+            'test_web_gantt.host_form_template_one',
+            base_view='test_web_gantt.host_view_h14',
+            domain="['|', ('name', '=like', 'MIX%'), ('name', '=like', 'Mixed%')]",
+            context='{}',
+        )
+        self._tour(path, 'timeline_002b3_a62_mixed_model')
+        one = self._tl_created('Mixed one')
+        self.assertEqual((len(one), one.x_day, one.date_stop), (1, self.today, self._tl_utc(0, 12)))
+        two = self._tl_created('Mixed two')
+        self.assertEqual(
+            (len(two), two.x_day, two.date_stop),
+            (1, self.today + timedelta(days=1), self._tl_utc(2, 0)),
+        )
+
+    def test_a64_cell_wins(self):
+        self._tour('h34', 'timeline_002b3_a64_cell_wins')
+        record = self._tl_created('Cell wins')
+        self.assertEqual(len(record), 1)
+        self.assertFalse(record.x_contact)
+        self.assertEqual(record.parent_id, self.records['Beta'])
+        self.assertEqual(record.x_color, 5)
+
+    def test_a64_cell_wins_over_dates(self):
+        """A template form showing the dates: the cell's days replace the typed ones."""
+        form = self.env['ir.ui.view'].create({
+            'name': 'Template form with dates',
+            'model': PILL,
+            'type': 'form',
+            'arch': '<form><group><field name="name" required="1"/><field name="x_contact"/>'
+                    '<field name="x_color"/><field name="date_start"/><field name="date_stop"/>'
+                    '</group></form>',
+        })
+        self.env['ir.model.data'].create({
+            'module': 'test_web_gantt', 'name': 'tl_template_with_dates',
+            'model': 'ir.ui.view', 'res_id': form.id,
+        })
+        path = self._tl_template_action('test_web_gantt.tl_template_with_dates')
+        self._tour(path, 'timeline_002b3_a64_cell_wins_dates')
+        record = self._tl_created('Cell wins')
+        self.assertEqual(len(record), 1)
+        self.assertEqual(
+            (record.date_start, record.date_stop), (self._tl_utc(0, 12), self._tl_utc(0, 13)))
+        self.assertFalse(record.x_contact)
+        self.assertEqual(record.x_color, 5)
+
+    def test_a63_server_refuses_create(self):
+        """Create set explicitly to yes: Add shows and the server refuses (E1)."""
+        count = self.env[PILL].search_count([])
+        path = self._tl_option_action({'create': '1', 'edit': '1', 'delete': '1'})
+        self._tour(path, 'timeline_002b3_a63_server_refuses_create', login=RESTRICTED)
+        self.assertEqual(self.env[PILL].search_count([]), count)
+        self.assertFalse(self._tl_created('Refused'))
+
+    def test_a63_server_refuses_constraint(self):
+        """The create call itself refused (a constraint): the Community error, nothing created."""
+        model = type(self.env[PILL])
+        original = model.create
+
+        @functools.wraps(original)
+        def refuse(records, vals_list):
+            if records.env.context.get('multi_create'):
+                raise ValidationError('Multi-creation refused by a constraint')
+            return original(records, vals_list)
+
+        count = self.env[PILL].search_count([])
+        with patch.object(model, 'create', refuse):
+            self._tour('h34', 'timeline_002b3_a63_server_refuses_constraint')
+        self.assertEqual(self.env[PILL].search_count([]), count)
