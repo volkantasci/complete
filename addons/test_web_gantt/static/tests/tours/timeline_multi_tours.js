@@ -1101,3 +1101,120 @@ tours.add("timeline_002b3_a63_server_refuses_constraint", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Deleting a selection (R14; A38 to A41, A63)
+// ---------------------------------------------------------------------------------------------
+
+const deleteButton = () => $(".o_multi_selection_buttons [data-tooltip='Delete']");
+const confirmation = () => $(".o_dialog .modal-body")?.textContent.trim();
+const dialogButton = (label) =>
+    $$(".o_dialog .modal-footer button").find((element) => element.textContent.trim() === label);
+
+/** Click the one day of the "Sprint" record (the test created it), then Delete. */
+async function pickSprintAndDelete() {
+    const row = betaUndefined();
+    assert(pillsTitled("Sprint").length === 1, "the Sprint pill is shown");
+    await clickAt(cellPoint(row, todayIndex(), 0));
+    await until(deleteButton, "the Delete button");
+    assert(countShown() === "1", `the count is ${countShown()}`);
+    deleteButton().click();
+    await until(confirmation, "the confirmation");
+    assert(
+        confirmation() === "Are you sure you want to delete the selected record?",
+        `the dialog asks "${confirmation()}"`
+    );
+    assert(dialogButton("Ok") && dialogButton("Discard"), "the dialog offers Ok and Discard");
+}
+
+tours.add("timeline_002b3_a38_a39_delete", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                await pickSprintAndDelete();
+                dialogButton("Ok").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await gridSettled();
+                assert(pillsTitled("Sprint").length === 0, "the Sprint pill is gone");
+                assert(pickedCount() === 0 && !buttonsBox(), "the selection is cleared");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a40_discard", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                await pickSprintAndDelete();
+                dialogButton("Discard").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                assert(pillsTitled("Sprint").length === 1, "the Sprint pill stays");
+                assert(pickedCount() === 2 && countShown() === "1", "the selection stays");
+                assert(deleteButton(), "the buttons stay");
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a41_delete_cut_pills", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const row = subRow("Gamma", "Host Contact 3");
+                assert(row, "the row Gamma / Host Contact 3");
+                const index = todayIndex();
+                const from = cellPoint(row, index, 0);
+                const to = cellPoint(row, index, 1);
+                await realMouse([
+                    mouse("mouseMoved", from.x, from.y, { button: "none", buttons: 0 }),
+                    mouse("mousePressed", from.x, from.y, { buttons: 1, clickCount: 1 }),
+                    mouse("mouseMoved", from.x + 20, from.y + 5, { buttons: 1 }),
+                    mouse("mouseMoved", to.x, to.y, { buttons: 1 }),
+                    mouse("mouseReleased", to.x, to.y, { buttons: 0, clickCount: 1 }),
+                ]);
+                await until(deleteButton, "the Delete button");
+                assert(pickedCount() === 2, `two cells, got ${pickedCount()}`);
+                assert(countShown() === "4", `the count is ${countShown()}`);
+                deleteButton().click();
+                await until(confirmation, "the confirmation");
+                assert(
+                    confirmation() === "Are you sure you want to delete the 4 selected records?",
+                    `the dialog asks "${confirmation()}"`
+                );
+                dialogButton("Ok").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await gridSettled();
+                for (const title of ["Long task", "Overlap A", "Overlap B", "Overlap C"]) {
+                    assert(pillsTitled(title).length === 0, `${title} is gone`);
+                }
+            },
+        },
+    ],
+});
+
+// the server refuses the deletion: the Community error, nothing deleted, the selection stays
+tours.add("timeline_002b3_a63_server_refuses_delete", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                await pickSprintAndDelete();
+                dialogButton("Ok").click();
+                await until(
+                    () => /Deletion refused by the server/.test(dialogText()),
+                    "the Community error"
+                );
+                assert(pillsTitled("Sprint").length === 1, "the Sprint pill stays");
+                assert(pickedCount() === 2, "the selection stays after the refusal");
+            },
+        },
+    ],
+});

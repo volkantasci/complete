@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from lxml import etree
 from odoo import Command, fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import HttpCase, tagged
 
 from .timeline_real_pointer import RealPointerMixin
@@ -348,3 +348,60 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         with patch.object(model, 'create', refuse):
             self._tour('h34', 'timeline_002b3_a63_server_refuses_constraint')
         self.assertEqual(self.env[PILL].search_count([]), count)
+
+    # -- deleting a selection (R14) --------------------------------------------------------------
+
+    def _tl_sprint(self):
+        """The one "Sprint" record of A29, today 12:00 to 13:00 in Beta without contact."""
+        return self.env[PILL].create({
+            'name': 'Sprint',
+            'parent_id': self.records['Beta'].id,
+            'date_start': self._tl_utc(0, 12),
+            'date_stop': self._tl_utc(0, 13),
+        })
+
+    def test_a38_a39_tour_delete(self):
+        """Ok sends one deletion call of the counted record (A39)."""
+        sprint = self._tl_sprint()
+        model = type(self.env[PILL])
+        original = model.unlink
+        calls = []
+
+        @functools.wraps(original)
+        def spy(records):
+            calls.append(records.ids)
+            return original(records)
+
+        with patch.object(model, 'unlink', spy):
+            self._tour('h34', 'timeline_002b3_a38_a39_delete')
+        self.assertEqual(calls, [sprint.ids])
+        self.assertFalse(sprint.exists())
+
+    def test_a40_tour_discard(self):
+        sprint = self._tl_sprint()
+        self._tour('h34', 'timeline_002b3_a40_discard')
+        self.assertTrue(sprint.exists())
+
+    def test_a41_tour_delete_cut_pills(self):
+        """The cut pills of the row go too (the savepoint of the test gives the host back)."""
+        self._tl_sprint()
+        names = ['Long task', 'Overlap A', 'Overlap B', 'Overlap C']
+        self.assertEqual(len(self.env[PILL].search([('name', 'in', names)])), 4)
+        self._tour('h34', 'timeline_002b3_a41_delete_cut_pills')
+        self.assertFalse(self.env[PILL].search([('name', 'in', names)]))
+
+    def test_a63_server_refuses_delete(self):
+        """The deletion call itself refused: the Community error, nothing deleted (E2)."""
+        sprint = self._tl_sprint()
+        model = type(self.env[PILL])
+        original = model.unlink
+
+        @functools.wraps(original)
+        def refuse(records):
+            if 'Sprint' in records.mapped('name'):
+                raise UserError('Deletion refused by the server')
+            return original(records)
+
+        with patch.object(model, 'unlink', refuse):
+            self._tour('h34', 'timeline_002b3_a63_server_refuses_delete')
+        self.assertTrue(sprint.exists())

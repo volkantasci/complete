@@ -19,6 +19,7 @@ import {
     contains,
     defineWebModels,
     mountView,
+    onRpc,
     patchWithCleanup,
 } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
@@ -324,6 +325,110 @@ test("002b3 A26: Delete shows the Community confirmation, the selection stays", 
     await contains(".o_dialog .btn-secondary").click();
     await animationFrame();
     expect(pickedCells().length).toBeGreaterThan(0);
+});
+
+/** Records the deletion calls; the mock server answers them. */
+function watchUnlinks() {
+    const calls = [];
+    onRpc("pill", "unlink", ({ args, kwargs }) => {
+        calls.push({ ids: args[0], kwargs });
+    });
+    return calls;
+}
+const deleteButton = ".o_multi_selection_buttons [data-tooltip='Delete']";
+
+test("002b3 A38: Delete asks with the Community confirmation for one record", async () => {
+    const calls = watchUnlinks();
+    await mountMulti();
+    await drawA9();
+    expect(countText()).toBe("1");
+    await contains(deleteButton).click();
+    await animationFrame();
+    expect(".o_dialog .modal-body").toHaveText(
+        "Are you sure you want to delete the selected record?"
+    );
+    expect(queryAllTexts(".o_dialog .modal-footer button")).toEqual(["Ok", "Discard"]);
+    expect(calls).toHaveLength(0);
+});
+
+test("002b3 A39: Ok sends one unlink of the counted records and reloads", async () => {
+    const calls = watchUnlinks();
+    await mountMulti();
+    await click(header("2026-11-09"));
+    await animationFrame();
+    await animationFrame();
+    expect(countText()).toBe("3");
+    const ids = controller.selection.renderer.pickedRecordIds();
+    expect(ids).toHaveLength(3);
+    await contains(deleteButton).click();
+    await animationFrame();
+    expect(".o_dialog .modal-body").toHaveText(
+        "Are you sure you want to delete the 3 selected records?"
+    );
+    await contains(".o_dialog .modal-footer .btn-primary").click();
+    await animationFrame();
+    await animationFrame();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].ids).toEqual(ids);
+    expect(calls[0].kwargs.context).toBeOfType("object");
+    // the reload cleared the selection and the buttons
+    expect(pickedCells()).toHaveCount(0);
+    expect(".o_multi_selection_buttons").toHaveCount(0);
+    expect(".o_dialog").toHaveCount(0);
+});
+
+test("002b3 A40: Discard keeps the selection", async () => {
+    const calls = watchUnlinks();
+    await mountMulti();
+    await drawA9();
+    const cells = pickedCells().length;
+    await contains(deleteButton).click();
+    await animationFrame();
+    await contains(".o_dialog .modal-footer .btn-secondary").click();
+    await animationFrame();
+    expect(calls).toHaveLength(0);
+    expect(".o_dialog").toHaveCount(0);
+    expect(pickedCells()).toHaveCount(cells);
+    expect(countText()).toBe("1");
+    expect(deleteButton).toHaveCount(1);
+});
+
+test("002b3 A41: locked and cut pills are deleted too", async () => {
+    const calls = watchUnlinks();
+    // a week whose first range cuts pills (the header click counts every record of the day)
+    await mountMulti();
+    await click(header("2026-11-12"));
+    await animationFrame();
+    await animationFrame();
+    const ids = controller.selection.renderer.pickedRecordIds();
+    expect(ids.length).toBeGreaterThan(0);
+    expect(countText()).toBe(String(ids.length));
+    await contains(deleteButton).click();
+    await animationFrame();
+    await contains(".o_dialog .modal-footer .btn-primary").click();
+    await animationFrame();
+    await animationFrame();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].ids).toEqual(ids);
+});
+
+test("002b3 A63: a refused deletion shows the error and keeps the selection", async () => {
+    expect.errors(1);
+    onRpc("pill", "unlink", () => {
+        throw new Error("refused by the server");
+    });
+    await mountMulti();
+    await drawA9();
+    const cells = pickedCells().length;
+    await contains(deleteButton).click();
+    await animationFrame();
+    await contains(".o_dialog .modal-footer .btn-primary").click();
+    await animationFrame();
+    await animationFrame();
+    // the refusal reaches the error handler (the Community error), not a silent promise
+    expect.verifyErrors(["refused by the server"]);
+    expect(pickedCells()).toHaveCount(cells);
+    expect(countText()).toBe("1");
 });
 
 test("002b3 A25: the state is reset when the view goes away", async () => {

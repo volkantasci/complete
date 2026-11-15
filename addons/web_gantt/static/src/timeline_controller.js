@@ -242,8 +242,20 @@ export class TimelineController extends Component {
         return fields[startField]?.type === "datetime" && fields[stopField]?.type === "datetime";
     }
 
-    /** Hook of the deletion (after the confirmation), filled in by the deletion step. */
-    _onPickedDelete() {}
+    /**
+     * Delete, after the Community confirmation's Ok (R14): one deletion call of the counted
+     * records, then the reload (which clears the selection, R9). A refusal changes nothing.
+     */
+    async _onPickedDelete() {
+        const ids = this.selection.renderer?.pickedRecordIds() || [];
+        if (!ids.length) {
+            return;
+        }
+        // awaited here: the write tracking marks the editor's promise as handled and the
+        // Community confirmation does not wait for this call, so the refusal is raised again by
+        // this promise, which nobody handles: it reaches the Community error handler
+        await this.editor.deleteMany(ids);
+    }
 
     // ------------------------------------------------------------------------
     // State read by the template

@@ -306,6 +306,15 @@ class TimelineMultiProbes(TimelineProbeCase):
                     'geometry.width': pill['geometry.width'] + 2,
                     'geometry.height': pill['geometry.height'] + 2,
                 }
+                # and the pill's own box directly, so that a size regression cannot hide
+                # behind the delta above
+                for prop, want in {
+                    'geometry.x': 454, 'geometry.y': 451,
+                    'geometry.width': 94, 'geometry.height': 23,
+                }.items():
+                    with self.subTest(probe='M25', scheme=scheme, prop=prop, own_box=True):
+                        self.assertAlmostEqual(float(pill[prop]), float(want), delta=1,
+                                               msg='the new pill drawn as 002a\'s pills')
                 for prop, want in MEASURED['M25'][(scheme, viewport)].items():
                     with self.subTest(probe='M25', scheme=scheme, viewport=viewport, prop=prop):
                         self.assertAlmostEqual(float(slot[prop]), float(want), delta=1,
