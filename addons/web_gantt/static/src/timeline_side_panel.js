@@ -109,7 +109,8 @@ export class TimelineSidePanel extends Component {
                 window.innerWidth
             );
         };
-        // any key, or a press of another button, ends it like the release does
+        // any key, or a press of another button, ends it like the release does; the window
+        // losing the focus does not (R20)
         const end = () => this._endResize(true);
         const press = (event) => {
             if (event.button !== 0) {
@@ -122,8 +123,6 @@ export class TimelineSidePanel extends Component {
             ["pointercancel", end],
             ["keydown", end],
             ["pointerdown", press],
-            // only the window losing the focus ends it: `blur` of an element is captured here too
-            ["blur", (event) => event.target === window && end()],
         ];
         for (const [type, handler] of listeners) {
             browser.addEventListener(type, handler, true);

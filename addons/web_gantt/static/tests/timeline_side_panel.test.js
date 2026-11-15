@@ -666,6 +666,24 @@ test("002b3 A55: a key press ends the resize", async () => {
 });
 
 test.tags("desktop");
+test("002b3 A55: the window losing the focus does not end the resize (R20)", async () => {
+    await mountPanel();
+    const helpers = await dragStrip(-100);
+    expect(panelWidth()).toBe(362);
+    window.dispatchEvent(new Event("blur"));
+    await animationFrame();
+    expect(".o_tl_panel_strip").toHaveClass("o_tl_panel_resizing");
+    const start = stripPoint();
+    await helpers.moveTo(".o_tl_panel_strip", { position: { x: start.x - 200, y: start.y } });
+    await animationFrame();
+    // the strip had moved 100 px left with the first move: 200 px more is 300 px from the press
+    expect(panelWidth()).toBe(562);
+    await helpers.drop();
+    await animationFrame();
+    expect(".o_tl_panel_strip").not.toHaveClass("o_tl_panel_resizing");
+});
+
+test.tags("desktop");
 test("002b3 A55: a reload keeps the width, closing and opening the panel as well", async () => {
     await mountPanel();
     const helpers = await dragStrip(-300);
