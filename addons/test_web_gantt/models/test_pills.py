@@ -89,9 +89,12 @@ class TimelineHostPill(models.Model):
 
     @api.model
     def _tl_build_host_records(self, today=None, tz_offset_hours=3):
-        """Create the records of the scratch host; times are browser-local.
+        """Create or move the records of the scratch host; times are browser-local.
 
-        Every record is created by the administrator (`base.user_admin`).
+        Records are found by their (unique) name, archived ones included: an existing one gets
+        the full values of the table written, so a second call moves everything to the new date
+        and keeps every id; a missing one is created. Records that are not in the table are
+        left alone. Every record is created by the administrator (`base.user_admin`).
         """
         self = self.with_user(self.env.ref('base.user_admin'))
         if today is None:
@@ -105,18 +108,33 @@ class TimelineHostPill(models.Model):
             local = datetime.combine(today + timedelta(days=days), time(hour, minute))
             return fields.Datetime.to_string(local - offset)
 
+        def put(model, values):
+            """Write `values` on the record of that name, or create it."""
+            records = self.env[model].with_context(active_test=False)
+            found = records.search([('name', '=', values['name'])], order='id', limit=1)
+            if found:
+                found.write(values)
+                return found
+            return records.create(values)
+
+        # what a fresh create leaves empty, written too so a rebuild equals a fresh build
+        neutral = {
+            'parent_id': False, 'x_contact': False, 'x_color': 0, 'x_progress': 0,
+            'x_tags': [(6, 0, [])], 'x_flagged': False, 'x_done': False, 'x_day': False,
+            'date_start': False, 'date_stop': False,
+        }
         built = {}
         palette = ((200, 60, 60), (60, 160, 90), (60, 100, 200))
         for index, rgb in enumerate(palette, start=1):
-            built[f'C{index}'] = self.env['res.partner'].create({
+            built[f'C{index}'] = put('res.partner', {
                 'name': f'Host Contact {index}',
                 'image_1920': base64.b64encode(_tl_solid_png(*rgb)).decode(),
+                'active': True,
             })
         for index in (1, 2):
-            built[f'T{index}'] = self.env['res.partner.category'].create(
-                {'name': f'Host Tag {index}'})
+            built[f'T{index}'] = put('res.partner.category', {'name': f'Host Tag {index}'})
         for name in ('Alpha', 'Beta', 'Gamma'):
-            built[name] = self.create({'name': name})
+            built[name] = put(self._name, {**neutral, 'name': name, 'active': True})
         rows = [
             # name, parent, contact, start, stop, colour, progress, tags, extra
             ('Design', 'Alpha', 'C1', (-3, '09:00'), (-1, '18:00'), 1, 40, ('T1',), {}),
@@ -136,7 +154,9 @@ class TimelineHostPill(models.Model):
         ]
         for name, parent, contact, start, stop, color, progress, tags, extra in rows:
             values = {
+                **neutral,
                 'name': name,
+                'active': True,
                 'parent_id': built[parent].id if parent else False,
                 'x_contact': built[contact].id if contact else False,
                 'date_start': at(*start) if start else False,
@@ -146,7 +166,7 @@ class TimelineHostPill(models.Model):
                 'x_tags': [(6, 0, [built[tag].id for tag in tags])],
             }
             values.update(extra)
-            built[name] = self.create(values)
+            built[name] = put(self._name, values)
         # H14 and H15: the first and last displayed days of the week range of today (the week
         # starts on Sunday, as in US English), and the days around them; 10:00 to 12:00 UTC
         first_day = today - timedelta(days=(today.weekday() + 1) % 7 + 7)
@@ -156,8 +176,10 @@ class TimelineHostPill(models.Model):
             ('MIX before', first_day - timedelta(days=1)),
             ('MIX after', last_day + timedelta(days=1)),
         ):
-            built[name] = self.create({
+            built[name] = put(self._name, {
+                **neutral,
                 'name': name,
+                'active': True,
                 'x_day': day,
                 'date_start': datetime.combine(day, time(10, 0)),
                 'date_stop': datetime.combine(day, time(12, 0)),
@@ -167,12 +189,13 @@ class TimelineHostPill(models.Model):
         if action:
             action.sudo().context = str(
                 {'group_by': ['parent_id'], 'default_parent_id': built['Gamma'].id})
-        pill2 = self.env['test.web.gantt.pill2']
         for name, first, last in (
             ('Day one', 0, 0), ('Three days', -1, 1), ('Next month', 25, 40),
         ):
-            built[name] = pill2.create({
+            built[name] = put('test.web.gantt.pill2', {
                 'name': name,
+                'active': True,
+                'parent_id': False,
                 'date_start': today + timedelta(days=first),
                 'date_stop': today + timedelta(days=last),
             })

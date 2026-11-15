@@ -102,6 +102,77 @@ export class TimelineEditor {
     }
 
     /**
+     * 002b3 R11: create every record of `valuesList` in one Community create call, with the
+     * action's and search context and the multi-creation key (`model.md`), after the writes sent
+     * before; the view reloads when the call returns. A refused call creates nothing (E1): the
+     * rejection is passed on, so that the Community error shows when the caller does not catch it.
+     * @param {Array<Object>} valuesList
+     */
+    createMany(valuesList) {
+        const { model, services } = this;
+        return this._queueChange({
+            send: () =>
+                services.orm.create(model.resModel, valuesList, {
+                    context: { ...model.context, multi_create: true },
+                }),
+        });
+    }
+
+    /**
+     * 002b3 R21.6: write the dates and row values of a record scheduled from the side panel, after
+     * the writes sent before; the view reloads; no notification and no Undo follow. A refused call
+     * is passed on (the view reloads to read the list again).
+     * @param {Object} params
+     * @param {number} params.resId
+     * @param {Object} params.values
+     */
+    scheduleRecord({ resId, values }) {
+        const { model, services } = this;
+        return this._queueChange({
+            send: () => services.orm.write(model.resModel, [resId], values, { context: model.context }),
+            reloadOnRefusal: true,
+        });
+    }
+
+    /**
+     * 002b3 R22: empty the start and the stop of the record of a pill dropped on the drop zone,
+     * sent at once (it does not wait for the writes before it), then the view reloads; no
+     * notification and no Undo. A refused call reloads the view (E2) and is passed on.
+     * @param {Object} params
+     * @param {number} params.resId
+     */
+    unscheduleRecord({ resId }) {
+        const { model, services } = this;
+        const { startField, stopField } = model.placement;
+        return this._queueChange({
+            send: () =>
+                services.orm.write(
+                    model.resModel,
+                    [resId],
+                    { [startField]: false, [stopField]: false },
+                    { context: model.context }
+                ),
+            reloadOnRefusal: true,
+            immediate: true,
+        });
+    }
+
+    /**
+     * 002b3 R14: delete `ids` in one Community deletion call, sent at once (002b2 R21: a deletion
+     * is never queued behind the writes before it), then reload. A refused call deletes nothing
+     * (E2): the view is not reloaded and the rejection is passed on, so that the Community error
+     * shows when the caller does not catch it.
+     * @param {Array<number>} ids
+     */
+    deleteMany(ids) {
+        const { model, services } = this;
+        return this._queueChange({
+            send: () => services.orm.unlink(model.resModel, ids, { context: model.context }),
+            immediate: true,
+        });
+    }
+
+    /**
      * R9: the plan dialog for `period`, in `row` when given. Resolves after the dialog (and the
      * create action started from it) has closed and the view has reloaded, if anything changed.
      * @param {{period: {start, stop}, row?: Object|null}} params
@@ -282,7 +353,7 @@ export class TimelineEditor {
 
     /**
      * The one pattern of a write of this view (R15): `send` after the writes queued before, then
-     * reload and `announce(result)`; when `send` rejects, `refused` runs, the view reloads when
+     * reload and `announce(result)` when given; when `send` rejects, `refused` runs, the view reloads when
      * `reloadOnRefusal` (errors of that reload ignored) and the rejection is passed on. Nothing
      * is reloaded or announced once the view is left.
      */
@@ -303,7 +374,7 @@ export class TimelineEditor {
             try {
                 await reload();
             } finally {
-                announce(result);
+                announce?.(result);
             }
             return result;
         };

@@ -6,7 +6,7 @@
 
 $o-tl-today-bg: rgba($o-warning, .15) !default;
 $o-tl-today-border: rgba($o-warning, .5) !default;
-$o-tl-group-gradient-start: #1F1F23 !default;
+$o-tl-group-gradient-start: $o-gray-100 !default;
 $o-tl-group-gradient-end: #131315 !default;
 $o-tl-group-today-bg: rgba(46, 40, 38, .576) !default;
 $o-tl-unavailable-bg: $o-gray-400 !default;
@@ -17,3 +17,18 @@ $o-tl-date-line: $o-gray-400 !default;
 // palette gives in one channel: green of index 2 and blue of index 5 (60 % of 156 over white is
 // 195.6 but reads 195; 60 % of 236 is 243.6 but reads 243).
 $o-tl-pill-nudges: (2: (0, -1, 0), 5: (0, 0, -1)) !default;
+
+// The border of the time fields of the template form popover in the dark scheme (M18): the colour
+// of the popover's own border (M17), one step lighter than the grey of the other borders.
+$o-tl-popover-input-border: $o-gray-400 !default;
+
+// The panel button in the dark scheme: the open look is a dark teal with a light teal border
+// (M37); the closed one the grey 300 fill (M51) and the page's text colour.
+$o-tl-panel-button-active-bg: #1F3738 !default;
+$o-tl-panel-button-active-border: #2CE0D3 !default;
+$o-tl-panel-button-closed-bg: $o-gray-300 !default;
+$o-tl-panel-button-closed-color: $o-main-text-color !default;
+
+// The drag handle of a line of the panel in the dark scheme: the same greys as in the light one.
+$o-tl-panel-handle: #ADB5BD !default;
+$o-tl-panel-handle-hover: #666666 !default;

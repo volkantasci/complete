@@ -1,0 +1,123 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The strip and the panel are two boxes of the row the renderer lays out beside the grid box.
+.o_tl_panel_frame {
+    display: contents;
+}
+
+// the resize strip: 18 px, a 2 px line of the primary colour in its middle, seen only under the
+// pointer (M34 to M36)
+.o_tl_panel_strip {
+    flex: none;
+    width: 18px;
+    padding: 0 8px;
+    opacity: 0;
+    cursor: col-resize;
+
+    &:hover,
+    &.o_tl_panel_resizing {
+        opacity: 1;
+    }
+
+    .o_tl_panel_strip_line {
+        height: 100%;
+        // every side carries the primary colour, only the left one has a width (M35)
+        border: 0 none;
+        border-color: $o-brand-primary;
+        border-left-width: 2px;
+        border-left-style: solid;
+    }
+}
+
+// the panel: no background nor border, 16 px from the screen's edge, scrolls vertically (M29)
+.o_tl_panel {
+    flex: none;
+    margin-right: 16px;
+    overflow-y: auto;
+    // no text can be selected in the panel either (a press on a line starts a drag): the rule
+    // of the view's root is inherited here (002b3 R1)
+
+    .o_tl_panel_title {
+        margin: 0 0 8px;
+        font-size: $font-size-base * 1.1;
+        line-height: 1.2;
+        font-weight: 500;
+        color: $headings-color;
+    }
+
+    .o_tl_panel_more {
+        font-weight: 500;
+        box-shadow: $o-tl-panel-more-shadow;
+    }
+}
+
+// a line: 4 px above and below its text, grabbed to be dragged; the handle is grey, darker
+// under the pointer and while the line is dragged (M31 to M33, M39)
+.o_tl_panel_line {
+    padding: 4px 0;
+    min-height: 29px;
+    align-items: flex-start;
+    cursor: grab;
+
+    .o_tl_panel_handle {
+        flex: none;
+        position: relative;
+        top: 3px;
+        font-size: 14px;
+        line-height: 14px;
+        color: $o-tl-panel-handle;
+
+        &:hover {
+            color: $o-tl-panel-handle-hover;
+        }
+    }
+
+    &.o_tl_panel_dragged .o_tl_panel_handle {
+        color: $o-tl-panel-handle-hover;
+    }
+
+    // the name reaches the line's end, cut with an ellipsis (the text-truncate class), its
+    // click opens the record
+    .o_tl_panel_name {
+        flex: 1 1 auto;
+        min-width: 0;
+        position: relative;
+        top: 2px;
+        padding-left: 4px;
+        line-height: 16px;
+        cursor: pointer;
+    }
+}
+
+// the copy of a line that follows the pointer while it is dragged onto the grid (M41): the line's
+// own look at its full size, over everything, never under the pointer
+.o_tl_panel_ghost {
+    position: fixed;
+    z-index: $zindex-popover;
+    pointer-events: none;
+    color: $body-color;
+}
+
+// the drop zone (M48): replaces the panel's content while a pill is moved or copied; between 16 px
+// margins above and below, the action colour at 40 % as border and 10 % of it in the view's
+// background as fill
+.o_tl_panel.o_tl_panel_zoned {
+    display: flex;
+    flex-direction: column;
+
+    .o_tl_panel_dropzone {
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 16px 0;
+        border: 1px solid rgba($o-action, .4);
+        border-radius: 12px;
+        background-color: mix($o-action, $o-view-background-color, 10%);
+        color: $body-color;
+    }
+
+    // bold as the count of a selection is (the theme's `fw-bold` is only a medium weight)
+    .o_tl_panel_dropzone_text {
+        font-weight: 700;
+    }
+}

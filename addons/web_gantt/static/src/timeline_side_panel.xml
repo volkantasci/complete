@@ -1,0 +1,24 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineSidePanel">
+        <div class="o_tl_panel_frame">
+            <div class="o_tl_panel_strip d-print-none" t-att-class="{ o_tl_panel_resizing: this.resizing.on }" t-on-pointerdown="this.onStripPointerDown">
+                <div class="o_tl_panel_strip_line"/>
+            </div>
+            <div class="o_tl_panel d-print-none" t-att-class="{ o_tl_panel_zoned: this.props.zone }" t-attf-style="width: {{this.props.width}}px">
+                <div t-if="this.props.zone" class="o_tl_panel_dropzone d-flex align-items-center justify-content-center"><span class="o_tl_panel_dropzone_text text-center">Drop here to remove the dates</span></div>
+                <t t-else="">
+                    <h6 class="o_tl_panel_title" t-out="this.title"/>
+                    <div class="o_tl_panel_list">
+                        <div t-foreach="this.records" t-as="record" t-key="record.id" class="o_tl_panel_line d-flex" t-att-data-record-id="record.id" t-on-pointerdown="(ev) => this.onLinePointerDown(ev, record)" t-on-click="() => this.onLineClick(record)">
+                            <i class="oi o_tl_panel_handle" data-icon="drag_indicator"/>
+                            <span class="o_tl_panel_name text-truncate" t-att-title="record.display_name" t-out="record.display_name"/>
+                        </div>
+                    </div>
+                    <button t-if="this.hasMore" type="button" class="o_tl_panel_more btn btn-link" t-on-click="this.onLoadMore">Load more</button>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

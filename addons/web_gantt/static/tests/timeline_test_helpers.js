@@ -112,6 +112,7 @@ export class Pill extends models.Model {
         "form,2": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/><field name="parent_id"/></form>`,
         "form,3": `<form edit="0" create="0"><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,
         "form,4": `<form edit="1" delete="0"><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,
+        "form,99": `<form><group><field name="name" required="1"/><field name="x_contact"/><field name="x_tags" widget="many2many_tags"/><field name="x_color"/></group></form>`,
         "list,false": `<list><field name="name"/><field name="parent_id"/></list>`,
         "search,false": `<search><field name="name"/><field name="parent_id"/></search>`,
         "card,1": `<card>
@@ -119,6 +120,11 @@ export class Pill extends models.Model {
                 <t t-name="card"><div class="o_card_view_body"><field name="x_contact"/></div></t>
             </templates>
         </card>`,
+        "kanban,false": `<kanban>
+            <templates>
+                <t t-name="card"><div class="o_card_view_body"><field name="name"/></div></t>
+            </templates>
+        </kanban>`,
     };
 
     _records = (() => {
@@ -173,6 +179,7 @@ class Pill2 extends models.Model {
 
     _views = {
         "form,false": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,
+        "form,99": `<form><group><field name="name" required="1"/></group></form>`,
         "list,false": `<list><field name="name"/><field name="date_start"/></list>`,
         "search,false": `<search><field name="name" filter_domain="[('name', 'ilike', self)]"/></search>`,
     };
@@ -411,6 +418,8 @@ export const MIX_ARCHS = {
     H15: `<gantt date_start="date_start" date_stop="day" default_range="week"/>`,
 };
 
+const H_BASE = `string="Pills" default_range="week" color="x_color"`;
+
 /** Arches of the scratch host views that do not need an action. */
 export const HOST_ARCHS = {
     H1: timelineArch(
@@ -425,6 +434,16 @@ export const HOST_ARCHS = {
          display_mode="sparse" groups_limit="2"`
     ),
     H8: timelineArch(`string="Pills" default_range="week" sample="1"`),
+    H33: timelineArch(`${H_BASE} multi_create_view="test_web_gantt.host_form_template_one"`),
+    H35: timelineArch(
+        `string="Dated pills" default_range="week" plan="0"
+         multi_create_view="test_web_gantt.host_form_template_two"`
+    ),
+    H36: timelineArch(`${H_BASE} plan="0" schedule="1"`),
+    H39: timelineArch(`${H_BASE} edit="0" schedule="1"`),
+    H40: timelineArch(
+        `${H_BASE} schedule="1" multi_create_view="test_web_gantt.host_form_template_one"`
+    ),
     H10: timelineArch(
         `string="Dated pills" default_range="month" scales="day,week,month"
          precision="{'month': 'day:full'}"`

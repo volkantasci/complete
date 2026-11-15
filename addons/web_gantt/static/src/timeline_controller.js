@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, onWillUnmount, proxy, signal, t, useProps } from "@odoo/owl";
+import { Component, onMounted, onPatched, onWillUnmount, proxy, signal, t, useProps } from "@odoo/owl";
 import { DateTimeInput } from "@web/core/datetime/datetime_input";
 import { DateTimePicker } from "@web/core/datetime/datetime_picker";
 import { browser } from "@web/core/browser/browser";
@@ -22,7 +22,10 @@ import { useSearchBarToggler } from "@web/search/search_bar/search_bar_toggler";
 import { standardViewProps } from "@web/views/standard_view_props";
 import { fixCustomDates } from "./timeline_dates";
 import { TimelineEditor } from "./timeline_editor";
+import { TimelineSelectionButtons } from "./timeline_selection_buttons";
 import { newButtonPeriod } from "./timeline_editing";
+import { buildMultiCreateValues } from "./timeline_multi_create";
+import { hasSidePanel, panelTitleText } from "./timeline_side_panel";
 
 const KIND_LABELS = {
     day: _t("Day"),
@@ -71,6 +74,7 @@ export class TimelineController extends Component {
         DropdownItem,
         Layout,
         SearchBar,
+        TimelineSelectionButtons,
     };
     props = useProps({
         ...standardViewProps,
@@ -95,8 +99,20 @@ export class TimelineController extends Component {
             fields: this.props.fields,
             config: this.props.archInfo,
             viewId: this.env.config.viewId,
+            actionId: this.env.config.actionId,
+            isSmall: () => this.ui.isSmall,
             state: this.props.state?.modelState,
         });
+        // what is picked in the grid (002b3 R9): the renderer fills `state` after every change and
+        // sets `renderer` while it is mounted (see the comment of the renderer class)
+        this.selection = {
+            state: proxy({ count: 0, cellCount: 0, drawing: false, visible: false }),
+            renderer: null,
+        };
+        // Escape is registered twice: by the renderer (cells picked, no drawing held) and by the
+        // Community buttons (while they show); both call `clearPicked`, which is idempotent, so
+        // the order they are reached in does not matter
+        this.pickedButtons = this._makePickedButtons();
         this.editor = new TimelineEditor({
             env: this.env,
             model: this.model,
@@ -110,6 +126,12 @@ export class TimelineController extends Component {
             getLocalState: () => ({ modelState: this.model.getLocalState() }),
         });
         onWillUnmount(() => this.model.dispose());
+        // the list of the records to schedule is read as soon as the panel is possible (the screen
+        // may have grown from a phone with the panel remembered closed), open or not: the count
+        // before the panel button comes from it
+        const readPanel = () => this.hasPanel && this.model.ensurePanel();
+        onMounted(readPanel);
+        onPatched(readPanel);
         this.searchBarToggler = useSearchBarToggler();
         this.rangeMenu = useDropdownState({ onOpen: () => this.resetCustomLine() });
         this.custom = proxy({ start: null, stop: null, edited: "start" });
@@ -129,6 +151,128 @@ export class TimelineController extends Component {
     }
 
     // ------------------------------------------------------------------------
+    // The selection buttons (002b3 R8, decision D3)
+    // ------------------------------------------------------------------------
+
+    /**
+     * The reactive object the Community buttons read. The counts and the visibility come from
+     * what the renderer published; the permissions are those of the view (Add: create, Plan: the
+     * plan option and edit, with one cell picked, Delete: delete).
+     */
+    _makePickedButtons() {
+        const archInfo = this.props.archInfo;
+        const state = this.selection.state;
+        const controller = this;
+        return proxy({
+            get visible() {
+                return state.visible;
+            },
+            get nbSelected() {
+                return state.count;
+            },
+            get canAdd() {
+                // the same getter as New: no creation inside a dialog
+                return controller.canCreate;
+            },
+            get canPlan() {
+                return archInfo.canPlan && state.cellCount === 1 && controller._pickedHasBlock();
+            },
+            canDelete: archInfo.canDelete,
+            onAdd: (multiCreateData) => this._onPickedAdd(multiCreateData),
+            onCancel: () => this.selection.renderer?.clearPicked(),
+            onDelete: () => this._onPickedDelete(),
+            onPlan: () => this._onPickedPlan(),
+            multiCreateView: archInfo.multiCreateView,
+            resModel: this.props.resModel,
+            context: this.props.context || {},
+            get showMultiCreateTimeRange() {
+                return controller._pickedShowsTimes;
+            },
+            multiCreateValues: this.props.state?.multiCreateValues,
+        });
+    }
+
+    /** Whether the selection has a first block (the cell Plan would plan for). */
+    _pickedHasBlock() {
+        const block = this.selection.renderer?.firstBlock();
+        return Boolean(block);
+    }
+
+    /** Plan: 002b's plan dialog for the row and the sub-column of the one picked cell (R13). */
+    _onPickedPlan() {
+        const renderer = this.selection.renderer;
+        const block = renderer?.firstBlock();
+        if (!block) {
+            return;
+        }
+        const { row } = renderer.rowOf(block.rowId);
+        return this.editor.planFor({
+            period: renderer.partPeriod(block.fromPart, block.toPart),
+            row,
+        });
+    }
+
+    /**
+     * The popover's Add, once the form and the times are valid (R11): the selection is cleared at
+     * once, then one record per picked day and record row goes to the server in one create call
+     * (the cell's values win over the form's, decision D4).
+     */
+    async _onPickedAdd(multiCreateData) {
+        const renderer = this.selection.renderer;
+        if (!renderer) {
+            return;
+        }
+        const entries = renderer.pickedDays();
+        const rows = {};
+        for (const { rowId } of entries) {
+            rows[rowId] = renderer.rowOf(rowId).values;
+        }
+        renderer.clearPicked();
+        if (!entries.length) {
+            return;
+        }
+        // every field the form shows that is not read-only, as the relational record serializes it
+        // for a save: a new record gives all of them, empty values included
+        const formValues = await multiCreateData.record.getChanges();
+        const { startField, stopField } = this.model.config;
+        const valuesList = buildMultiCreateValues({
+            formValues,
+            entries,
+            rows,
+            fields: this.props.fields,
+            startField,
+            stopField,
+            timeRange: this._pickedShowsTimes ? multiCreateData.timeRange : null,
+            partBounds: (part) => renderer.partPeriod(part, part),
+        });
+        return this.editor.createMany(valuesList);
+    }
+
+    get _pickedShowsTimes() {
+        const { startField, stopField } = this.model.config;
+        const typeOf = (name) => this.props.fields[name]?.type;
+        return typeOf(startField) === "datetime" && typeOf(stopField) === "datetime";
+    }
+
+    /**
+     * Delete, after the Community confirmation's Ok (R14): the selection is cleared at once,
+     * whatever the server answers, then one deletion call of the counted records and the reload.
+     * A refusal deletes nothing, shows the Community error and loads nothing again (E2).
+     */
+    async _onPickedDelete() {
+        const renderer = this.selection.renderer;
+        const ids = renderer?.pickedRecordIds() || [];
+        if (!ids.length) {
+            return;
+        }
+        renderer.clearPicked();
+        // awaited here: the write tracking marks the editor's promise as handled and the
+        // Community confirmation does not wait for this call, so the refusal is raised again by
+        // this promise, which nobody handles: it reaches the Community error handler
+        await this.editor.deleteMany(ids);
+    }
+
+    // ------------------------------------------------------------------------
     // State read by the template
     // ------------------------------------------------------------------------
 
@@ -139,6 +283,25 @@ export class TimelineController extends Component {
     /** The range shown in the bar: the target of a pending step, else the loaded one. */
     get shownRange() {
         return this.data.pendingRange || this.data.range;
+    }
+
+    /** The side panel and its button exist (002b3 R17); none on a phone. */
+    get hasPanel() {
+        return hasSidePanel({
+            archInfo: this.props.archInfo,
+            isSmall: this.ui.isSmall,
+            isSample: this.data.isSample,
+        });
+    }
+
+    /** The count text before the panel button while the panel is closed (E6). */
+    get panelCountText() {
+        const { open, count } = this.model.panel;
+        return open ? "" : panelTitleText(count);
+    }
+
+    togglePanel() {
+        this.model.togglePanel();
     }
 
     get canCreate() {
@@ -215,6 +378,18 @@ export class TimelineController extends Component {
     }
 
     _createForNew() {
+        // R12: with cells picked, the first block of the selection; the selection stays until the
+        // dialog closes (its reload clears it)
+        const renderer = this.selection.renderer;
+        // (only while the grid is in multi-selection mode: on a phone New follows 002b R2)
+        const block =
+            renderer?.isMultiSelect && this.selection.state.cellCount ? renderer.firstBlock() : null;
+        if (block) {
+            return this.editor.createFor({
+                period: renderer.partPeriod(block.fromPart, block.toPart),
+                row: renderer.rowOf(block.rowId).row,
+            });
+        }
         const period = newButtonPeriod(
             this.data.scaleId,
             this.model.visibleMiddleDate(),

@@ -23,6 +23,8 @@ const HARMLESS_KEYS = ["Alt", "Control", "Meta", "Shift"];
  * - `resize-start`, `resize-stop`: a handle of the pill is held; the moved edge goes to the
  * sub-column border nearest to the pointer (R8). Only a mouse holds a handle (D5, R16).
  * - `lock`: a pill that cannot be moved (R1) is held; it follows nothing and has no target (R11).
+ * - `panel`: a line of the side panel is held (002b3 R21); its target is a span of one column over a
+ * row, the grid never scrolls (no edge scrolling).
  */
 const MODES = {
     move: { follows: true },
@@ -30,6 +32,7 @@ const MODES = {
     "resize-start": { edge: "start" },
     "resize-stop": { edge: "stop" },
     lock: {},
+    panel: { follows: true, fixed: true },
 };
 
 /**
@@ -49,15 +52,22 @@ const MODES = {
  * - `change(drawing)`: what to draw now, `{mode, pill, rowId, target, offset: {x, y}}` (`offset`:
  *   how far the pointer is from where it was pressed, in pixels), or `null` for nothing;
  * - `commit(result)`: the release, `{mode, pill, rowId, target}` (`target` may be `null`);
+ * - `cancelled()` (optional): a held gesture was cancelled (Escape, lost pointer), no `commit`
+ *   follows;
  * - `borderAt(x, pill, edge)`: for a resize, the sub-column border nearest to the viewport
  *   abscissa `x` for the edge `edge` of `pill` (kept one sub-column from the other edge), or
  *   `undefined` to keep the previous one (a folded column); the drawing's `target` is then
  *   `{part: border}`, or `null` while the pointer has not given one;
+ * - `panelOpen()` (optional): the side panel is open, a pill move does not scroll the grid
+ *   (002b3 R23);
  * - `hold(mode)`: the gesture in `mode` is held (the view root takes the pointer shape), or `null`
  *   when it is over.
  *
  * `press(ev, pill, {handle, rowId})` starts it: `handle` ("start" or "stop") is the resize
  * handle that was pressed, `rowId` the row of the pill. A finger on a handle moves the pill (D5).
+ * `pressLine(ev, line)` starts the drag of a line of the side panel (002b3 R21): `targetAt(x, y,
+ * {panel: true})` answers its target (`{rowId, part, length}` or `null`) and `change` gets `{mode:
+ * "panel", line, x, y, target}`.
  */
 export class TimelinePillDrag {
     constructor(host) {
@@ -141,6 +151,35 @@ export class TimelinePillDrag {
             ? this.host.targetAt(ev.clientX, ev.clientY, null)
             : null;
         const offset = pressed ? pressed.part - pill.record.span.from : 0;
+        this._arm(ev, {
+            pill,
+            rowId,
+            mode,
+            grab: {
+                offset,
+                length: pill.record.span.to - pill.record.span.from,
+                rowId,
+                // where it was grabbed and which pill: date-only steps count from there (R17)
+                press: pressed ? pressed.part : null,
+                pill,
+            },
+        });
+    }
+
+    /**
+     * A press on a line of the side panel (002b3 R21). The drag starts with the first move of 10
+     * px; a release before is a click. `line` is passed back to the host as it is.
+     */
+    pressLine(ev, line) {
+        if (this.state !== "idle") {
+            return;
+        }
+        this._suppressClick = false;
+        this._forgetRelease();
+        this._arm(ev, { pill: null, rowId: null, mode: "panel", line, grab: { panel: true } });
+    }
+
+    _arm(ev, { pill, rowId, mode, grab, line = null }) {
         this._press = {
             id: ev.pointerId,
             type: ev.pointerType,
@@ -151,15 +190,9 @@ export class TimelinePillDrag {
             pill,
             rowId,
             mode,
+            line,
             copy: ev.ctrlKey === true,
-            grab: {
-                offset,
-                length: pill.record.span.to - pill.record.span.from,
-                rowId,
-                // where it was grabbed and which pill: date-only steps count from there (R17)
-                press: pressed ? pressed.part : null,
-                pill,
-            },
+            grab,
             target: null,
         };
         this.state = "pending";
@@ -288,14 +321,14 @@ export class TimelinePillDrag {
             return;
         }
         const dragging = this.state === "dragging";
-        const { pill, rowId, target } = this._press;
+        const { pill, rowId, target, line } = this._press;
         const mode = dragging ? this._mode : null;
         this._finish();
         if (dragging) {
             this.host.change(null);
             // the click that follows is the end of the gesture, not a click on a pill or a cell
             this._expectClick();
-            this.host.commit({ mode, pill, rowId, target });
+            this.host.commit({ mode, pill, rowId, target, line });
         }
     }
 
@@ -383,6 +416,7 @@ export class TimelinePillDrag {
     _cancel() {
         if (this.state === "dragging") {
             this.host.change(null);
+            this.host.cancelled?.();
         }
         this._finish();
     }
@@ -406,11 +440,15 @@ export class TimelinePillDrag {
             pill: press.pill,
             rowId: press.rowId,
             target: press.target,
+            line: press.line,
+            x: press.x,
+            y: press.y,
             offset: { x: press.x - press.x0, y: press.y - press.y0 },
             touch: press.type === "touch",
         });
-        if (mode.follows || mode.edge) {
-            // R14: a move scrolls on both axes near an edge; a resize like a selection, on x
+        if ((mode.follows && !mode.fixed && !this.host.panelOpen?.()) || mode.edge) {
+            // R14: a move scrolls on both axes near an edge; a resize like a selection, on x;
+            // with the side panel open a move does not scroll (002b3 R23)
             this._edge.axes = mode.edge ? "x" : "xy";
             this._edge.follow(press.x, press.y, mode.edge ? SELECT_EDGE : MOVE_EDGE);
         }

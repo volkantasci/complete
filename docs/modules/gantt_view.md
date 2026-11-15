@@ -9,6 +9,11 @@ record, change it and delete it, as far as the view and your rights allow (see
 You can also move a pill to another time or row, copy it, and stretch or
 shorten it by its ends (see
 [Moving, copying and resizing pills](#moving-copying-and-resizing-pills)).
+A view that names a template form lets you pick many cells at once and create
+or delete the records of the selection in one go (see
+[Selecting several cells](#selecting-several-cells)), and a view that turns on
+scheduling adds a side panel of records that still have no dates (see
+[The side panel](#the-side-panel)).
 
 The view has no menu of its own. It appears in any window action whose view
 modes include **Gantt**, next to the other views in the view switcher, or as
@@ -460,6 +465,10 @@ creating from cells and planning (see the options below).
 |---|---|
 | New button | create |
 | Selection of cells | creating from cells |
+| Add in the selection buttons, and New with a selection | create |
+| Plan in the selection buttons | planning, with one selected cell of a record row |
+| Delete in the selection buttons | delete, and a count above zero |
+| The side panel and its button | edit, scheduling on, not a phone |
 | A click opens the plan dialog | planning |
 | A click opens the create dialog | creating from cells, with planning off |
 | Create New in the plan dialog | creating from cells |
@@ -480,6 +489,271 @@ the popover button **View** and a read-only dialog.
 ![A user with read access only, light](../assets/gantt_view/29-restricted-user.png)
 
 ![A read-only record dialog, light](../assets/gantt_view/27-readonly-dialog.png)
+
+## Selecting several cells
+
+A view whose definition names a template form (the `multi_create_view`
+attribute, see [For developers](#for-developers)) selects cells instead of
+opening a dialog when you click or draw on the grid. The selection is the base
+for creating, planning and deleting records, described in the next sections.
+It is on only when all of these hold: the screen is not a phone, the display
+mode is shared rows (dense), and the columns of the range are days (the Week,
+Month and Quarter ranges, not Day or Year). Otherwise the view behaves as
+described under [Creating a record](#creating-a-record).
+
+A **cell** is one part of a day column in one row: half a day on a view with
+the usual half-day precision. Selected cells are tinted with the selection
+colour and have a thin border on their right and bottom sides. Cells of group
+rows can be part of a selection and are tinted, but they never count and never
+give a record. Cells of folded columns are never selected. The pointer is the
+cross (cell) shape over the cells of record rows and the hand over headers.
+
+- **Click.** A click on an empty part of a cell of a record row selects the
+  whole day column in that row and replaces the selection. With **Ctrl**
+  (or Cmd) held, the clicked cells are toggled instead: cells not yet selected
+  join, selected ones leave.
+- **Drawing.** Press on an empty part of a cell, or on a locked pill, and move
+  ten pixels or more: a rectangle is drawn from the pressed cell to the cell
+  under the pointer, covering every row in between, group rows included. Only
+  the tint shows while you hold; no badges and no buttons. A press on a pill
+  that can move starts a move, as before. Releasing makes the rectangle the
+  selection, or adds it to the earlier one when Ctrl was held at the start.
+  **Escape** while holding drops the drawing and the whole selection. The grid
+  scrolls when you hold near an edge, sideways and also up and down.
+- **Column headers.** A click on the header of a day selects that day in every
+  row, group rows included. With Ctrl it toggles the column. With **Shift** it
+  selects every column from the **anchor** to the clicked one; the anchor is
+  the column last clicked without Shift. Shift with no anchor acts as a plain
+  click, and Shift with Ctrl acts as Shift alone. A foldable column keeps its
+  folding behaviour: a plain click on an open one folds it (and selects
+  nothing), a click on a folded one opens the run it stands for, with Ctrl it
+  also selects that run, and Shift never folds or opens.
+- **Row headers.** A click on the header of a row without sub-rows first scrolls
+  the grid as before, then selects that row over the whole displayed range.
+  Ctrl toggles the row, Shift selects every row between the row anchor and the
+  clicked one (group rows between them included). A click on a group row header
+  still opens or folds the group, which reloads the view and so clears the
+  selection. Using a row header with a column anchor set, or the reverse,
+  clears the selection first, and a click on a cell forgets both anchors.
+
+Text in the view, including the row headers, cannot be selected with the
+pointer, so a press, a move and a release inside one row header is a click on
+it every time.
+
+![A selection being drawn, light](../assets/gantt_view/53-drag-selecting.png)
+
+![A selection being drawn, dark](../assets/gantt_view/53-drag-selecting-dark.png)
+
+![Selected cells and the buttons, light](../assets/gantt_view/54-selected.png)
+
+![Selected cells and the buttons, dark](../assets/gantt_view/54-selected-dark.png)
+
+![Columns selected by their headers, light](../assets/gantt_view/55-columns-selected.png)
+
+![A row selected by its header, light](../assets/gantt_view/56-row-selected.png)
+
+The selection is cleared by the cross of the count box, by Escape while the
+buttons show, by every reload of the view (a creation, a deletion, a range,
+search or grouping change, a group opened or folded), at the start of a move,
+copy or resize of a pill, at the start of a drag from the side panel, by Load
+more and by folding or opening a column without Ctrl. Closing the plan dialog
+or the popover keeps it. A click on Today that only scrolls keeps it too.
+
+### Pressing inside a row header
+
+With text selection off in the view, a press, a move and a release inside one
+row header is a click on it, with or without the side panel, and three of them
+in a row open and fold a group again each time.
+
+![A gesture inside a row header, light](../assets/gantt_view/72-row-header-drag.png)
+
+![The same gesture again, light](../assets/gantt_view/73-row-header-again.png)
+
+### The selection buttons
+
+As soon as the selection holds a cell, a row of buttons appears over the grid:
+
+- **The count box** shows how many records the selection touches, with a cross
+  to drop the selection. A record counts once however many selected cells its
+  pill covers, and also when it is drawn in two rows. Pills of group rows never
+  count. A selection of group-row cells alone shows a count of 0.
+- **Add** opens the template form (see below). It needs the view's *create*
+  permission.
+- **Plan** is offered only when exactly one cell is selected, that cell is in a
+  record row, and planning is on (the plan option, with *edit*). It opens the
+  plan dialog described under
+  [Planning records that have no dates](#planning-records-that-have-no-dates)
+  for that cell's row and period. A click selects a whole day, which on a
+  half-day view is two cells, so Plan shows there only after a small drawing
+  inside one half day.
+- **Delete** is offered when the count is above zero and the view's *delete*
+  permission is on.
+
+When none of the buttons is offered, the count box shows alone. The selection
+itself works without any permission. The **New** button of the control panel,
+with a selection, opens the create dialog for the first block of the selected
+cells of record rows (the topmost row, its first selected cell and the cells
+that follow it without a gap), with that row's values. Without any selected
+record-row cell it works as without a selection.
+
+![The Plan button with one cell, light](../assets/gantt_view/57-plan-button.png)
+
+![The Plan button with one cell, dark](../assets/gantt_view/57-plan-button-dark.png)
+
+### Creating several records
+
+**Add** opens a popover under the button. It holds the **template form**, a
+form of the model named by the view with its own defaults, required marks and
+onchanges, and, only when both the start and the stop are date-and-time fields,
+two time inputs (start 12:00 and end 13:00 at first). The last valid times are
+remembered in the browser for the model and proposed again. What you typed in
+the form is kept while the view stays open, also after Discard or a click
+outside, and when you switch to another view of the action and back, but not
+after the page is reloaded.
+
+![The template form popover, light](../assets/gantt_view/58-popover.png)
+
+![The template form popover, dark](../assets/gantt_view/58-popover-dark.png)
+
+**Add** in the popover checks the form (a missing required field keeps the
+popover open with the usual message) and the times (an unreadable time, or a
+start that is not before the end, shows a warning and keeps the popover). When
+all is valid, one record is created **for each day and record row that has at
+least one selected cell**: a clicked day gives one record, not one per half day.
+Group-row cells give none. All the records are sent in one call, the popover
+closes, the selection is cleared and the view reloads.
+
+Each record gets:
+
+1. the values of the template form, as the form would save them, empty values
+   included;
+2. the dates of its cell: the day at the chosen start and end times in your
+   time zone, or the day as both start and stop on a date-only model; on a
+   model mixing the two, the date-only end gets the day and the other end the
+   start of the first selected part of the day (for the start) or the end of
+   the last one (for the stop);
+3. the values of its row and of the rows above it for the grouping fields, an
+   "Undefined" row giving an empty value.
+
+**The cell's values win.** If the template form shows a field that is also a
+grouping field of the row, or the start or stop, the row's or the cell's value
+replaces the form's, even when the row's value is empty. So every new record
+shows up in the cell chosen for it. Records outside the action's domain or the
+search vanish after the reload.
+
+![Records created for the selected days, light](../assets/gantt_view/59-created.png)
+
+![Records created for the selected days, dark](../assets/gantt_view/59-created-dark.png)
+
+![The popover on a date-only model, light](../assets/gantt_view/62-popover-dated.png)
+
+If the server refuses the creation (a missing right or a constraint) the usual
+error dialog appears and nothing is created. For a user who may not create on a
+view that says *create* explicitly yes, the refusal already comes when Add is
+pressed: the popover does not open and the selection stays.
+
+### Deleting several records
+
+**Delete** asks for confirmation in the web client's own box, which says
+whether one record or several are concerned. **Ok** deletes every counted record
+in one call, sent at once, and reloads; pills that are locked or cut are
+deleted like the others. **Discard**, or closing the box, deletes nothing and
+keeps the selection. The selection is cleared when you press Ok, whatever the
+server answers; if it refuses, the usual error dialog shows and the view is not
+loaded again.
+
+![The confirmation of a multiple deletion, light](../assets/gantt_view/60-delete-confirm.png)
+
+![The confirmation of a multiple deletion, dark](../assets/gantt_view/60-delete-confirm-dark.png)
+
+![After the deletion, light](../assets/gantt_view/61-deleted.png)
+
+## The side panel
+
+A view with the **scheduling** option on (the `schedule` attribute) shows a
+panel at the right of the grid with the records that have neither a start nor a
+stop, so that you can drag them onto the grid. It exists only when the view
+allows editing, the screen is not a phone and the view is not showing sample
+data. It is open the first time; the panel button at the right end of the
+control bar shows or hides it (its tooltip reads "Show or hide the panel"). The
+state is remembered in the browser for each view and action, and read when the
+view opens. When the page is printed, the panel and its button are left out.
+
+The grid box keeps a margin and a rounded border while the panel is there, and
+reaches the right edge of the screen when the panel is closed. The row header
+column is always one sixth of the width of the whole content, the panel
+included. The first time the grid is shown, it scrolls so that the focus day
+lies at the middle of the width left after the row header and the open panel.
+Opening, closing or resizing the panel later changes the column widths but moves
+neither the row header nor the scroll position.
+
+![The side panel, light](../assets/gantt_view/63-panel.png)
+
+![The side panel, dark](../assets/gantt_view/63-panel-dark.png)
+
+![A closed panel with its count, light](../assets/gantt_view/69-panel-collapsed.png)
+
+![A closed panel with its count, dark](../assets/gantt_view/69-panel-collapsed-dark.png)
+
+- **The title** reads "Unscheduled: 4" with the number of records to schedule,
+  or "All records are scheduled" when there are none. While the panel is closed
+  the same text stands before the panel button.
+- **The list** holds the records of the action's domain and of the current
+  search that have **both** start and stop empty, in the model's default order,
+  twenty at first. A record with only one of the two dates is not listed. Every
+  condition of the search on the start or stop field is left out of the filter,
+  so that a search on dates cannot hide an unscheduled record; a negated date
+  condition is left out as well. **Load more** under the list adds twenty
+  lines; a reload shows the first twenty again.
+- **A line** has a handle and the name. Clicking it opens the record dialog.
+- **Resizing.** Press the thin strip between the grid and the panel and move
+  sideways: the panel is at least 150 pixels wide and at most the larger of half
+  the window and its width at the start. The width is kept while the view stays
+  open, and is 262 pixels again when the view is opened anew.
+
+![Load more, light](../assets/gantt_view/70-load-more.png)
+
+![After Load more, light](../assets/gantt_view/71-loaded.png)
+
+### Scheduling a record from the panel
+
+Press a line and move ten pixels: the line follows the pointer, the list keeps
+a copy in place, and the selection is cleared. Over a cell that accepts drops a
+highlight covers one column (a day on the Week and Month ranges) in the target
+row, with the start and stop badges. Cells of record rows and group rows accept,
+except in rows at or below a grouping level that is read-only, which all refuse
+because the record has no row to start from. Over the panel, the headers, the
+control bar or a refusing row nothing is highlighted and a release writes
+nothing; Escape cancels. The grid does not scroll at its edges during this
+drag. A release over a cell writes the start, the stop (on a date-only model the
+day as both) and the row's grouping values in one write, after any write still
+running, then reloads. The record leaves the list and appears as a pill, with no
+notification and no Undo.
+
+![Dragging a line from the panel, light](../assets/gantt_view/64-panel-handle.png)
+
+![Dragging a line from the panel, dark](../assets/gantt_view/64-panel-handle-dark.png)
+
+![The line over the grid, light](../assets/gantt_view/65-panel-dragging.png)
+
+![The record scheduled, light](../assets/gantt_view/66-panel-scheduled.png)
+
+### Removing the dates by dragging a pill onto the panel
+
+While a pill is moved or copied and the panel is open, the list is replaced by a
+**drop zone** with the text "Drop here to remove the dates". Releasing the pill
+over the zone's own box (not over the panel's margin around it) empties its
+start and stop in one write, sent at once, and reloads; the pill disappears and
+the record joins the list, with no notification and no Undo. With Ctrl held the
+original record loses its dates and no copy is made. A resize never shows the
+zone. While the panel is open, a moved pill does not scroll the grid at its
+edges; with the panel closed it does.
+
+![The drop zone, light](../assets/gantt_view/67-unschedule-zone.png)
+
+![The drop zone, dark](../assets/gantt_view/67-unschedule-zone-dark.png)
+
+![The record back in the list, light](../assets/gantt_view/68-unscheduled.png)
 
 ## Moving, copying and resizing pills
 
@@ -673,7 +947,8 @@ the view shows a faded, non-interactive grid with generated rows and no pills,
 and the help text of the action drawn over it. Below its one faded row the sample state shows the page background, so
 the help text stands on the page; the help is centred in the free space (on a
 phone it starts at the top of the grid area). The sample state ends at the
-next load (any navigation or search). When sample data is not allowed, an empty
+next load (any navigation or search). The side panel is not shown in it, even
+when scheduling is on. When sample data is not allowed, an empty
 result shows the normal grid with empty rows and no help. Whenever the grid is
 shorter than the screen, the area under it takes the background of the view
 rather than the page's. The grid's own scroll area reaches the bottom of the
@@ -683,6 +958,10 @@ under the last row.
 ![The sample state, light](../assets/gantt_view/15-sample-data.png)
 
 ![The sample state, dark](../assets/gantt_view/15-sample-data-dark.png)
+
+![The sample state without the panel, light](../assets/gantt_view/74-sample-no-panel.png)
+
+![The sample state without the panel, dark](../assets/gantt_view/74-sample-no-panel-dark.png)
 
 ![An empty view, light](../assets/gantt_view/16-empty.png)
 
@@ -704,6 +983,10 @@ the row header column takes a third of the width, where a long name such as
 "Undefined Contact" is cut with an ellipsis. Month names in the headers
 are abbreviated, and the page itself scrolls.
 
+There is no multi-selection and no side panel on a phone: cells, headers and
+the New button behave as described for a screen without them, and the control
+bar has no panel button.
+
 Creating works as on a desktop: the New button, taps on cells, the plan dialog
 and the popover buttons behave the same, and every dialog opens full screen with
 its buttons stacked at the bottom, the plan dialog listing records as cards. The
@@ -715,6 +998,8 @@ while you hold, so start from the middle of the screen to select without
 scrolling. With a mouse the selection works as on a desktop.
 
 ![A selection on a phone, light](../assets/gantt_view/20-selecting.mobile.png)
+
+![A view with a template form and scheduling on a phone, light](../assets/gantt_view/54-selected.mobile.png)
 
 ![The create dialog on a phone, light](../assets/gantt_view/21-create-dialog.mobile.png)
 
@@ -792,6 +1077,8 @@ or date-and-time fields) are required. The other attributes:
 | `cell_create` | yes or no (default yes): allows creating from cells, by click when planning is off and by selection |
 | `plan` | yes or no (default yes): a click on a cell opens the plan dialog instead of the create dialog |
 | `form_view_id` | database identifier of a form view of the same model, used by the create and record dialogs (default: the model's default form) |
+| `multi_create_view` | XML identifier of a form view of the same model (`module.name`), used as the template form of the selection's Add button. Without it there is no multi-selection |
+| `schedule` | yes or no (default no): shows the side panel of records without dates (with edit on, not on a phone) |
 | `on_create` | an action reference (an XML identifier such as `module.action_name`, or a database identifier) run instead of the create dialog |
 | `default_group_by`, `sample`, `class`, `js_class` | the usual meaning in a Community view |
 
@@ -800,8 +1087,8 @@ popover) and at most one `popover`. A `popover` takes `card_id` only, and may
 hold `field` elements and one `templates` element with `popover-body` (or
 `card`), `popover-header` and `popover-footer` (the last with `replace` set to
 a false value to keep the default button). The attributes
-`multi_create_view`, `dependency_field`,
-`dependency_inverted_field`, `buffer_start`, `buffer_stop`, `schedule`,
+`dependency_field`,
+`dependency_inverted_field`, `buffer_start`, `buffer_stop`,
 `collapse_first_level`, `dynamic_range` and `offset` are accepted and have no
 effect yet. A view that breaks the rules is refused when saved, with a message
 that names the problem. An action can pass the context keys `default_range`,
@@ -828,10 +1115,23 @@ the other keys. The New button gives the period keys and no row keys.
 ```xml
 <gantt date_start="date_start" date_stop="date_stop" string="Work"
        default_range="week" color="priority" progress="progress"
-       decoration-danger="is_late" total_row="1">
+       decoration-danger="is_late" total_row="1"
+       multi_create_view="my_module.view_work_template" schedule="1">
     <field name="is_late"/>
 </gantt>
 ```
+
+#### The multi-creation call
+
+Add sends one create call with the list of all the value mappings. Its context
+is the action's context combined with the search context plus the key
+`multi_create` set to true, so a model can tell a multi-creation from a normal
+creation in its create method. A deletion from the selection is one delete call
+for all the records, and the panel is read with one search-and-read of the
+display name with a limit. Scheduling from the panel is one write queued behind
+earlier writes; removing dates through the drop zone is one write sent at once.
+Each write is followed by a reload. The panel's open state is kept in the
+browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
 
 ### The server side
 
@@ -853,6 +1153,6 @@ the other keys. The New button gives the period keys and no row keys.
 
 ## Not included yet
 
-Selecting several cells at once and the side panel of records to schedule, the dependency arrows and
+The dependency arrows and
 buffers, rescheduling, and the Gantt views of employees, attendances, event
 tracks and time off are delivered in later slices.

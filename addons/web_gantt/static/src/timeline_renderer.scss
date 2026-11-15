@@ -1,8 +1,12 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The box measures the width of the view (without the scrollbar of the grid) for the width of
-// the row header column.
+// The box measures the width of the view (without the scrollbar of the grid) for the width of the
+// row header column; with a side panel the frame around it does (see below). No text can be
+// selected anywhere in the view (002b3 R1): the property sits on the view's root (see the
+// controller's stylesheet) and is inherited, so the headers, the cells, the total row and the
+// pills all take it, and a press, a move and a release inside one row header never select text
+// nor start the drag of a selection.
 .o_tl_box {
     position: relative;
     flex: 1 1 auto;
@@ -10,6 +14,40 @@
     display: flex;
     flex-direction: column;
     container-type: inline-size;
+}
+
+// The frame around the grid box (and the side panel when there is one, 002b3 R18). Without a
+// panel it takes no box of its own: the grid box lays out exactly as before.
+.o_tl_frame {
+    display: contents;
+
+    // with the panel (open or closed): the grid box has a 16 px margin and the border and the
+    // rounded top corners of its own (M28, M52); the panel and its strip take the right of the row
+    &.o_tl_with_panel {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        // the row header column is a sixth of the whole width of the view, the panel, its strip
+        // and the margins included, whether the panel is open, closed or resized (R18 point 1)
+        container-type: inline-size;
+
+        > .o_tl_box {
+            container-type: normal;
+            flex: 1 1 0;
+            min-width: 0;
+            margin-left: 16px;
+            border: 1px solid $o-border-color;
+            border-bottom: 0;
+            border-radius: 12px 12px 0 0;
+            background-color: $o-view-background-color;
+
+            // the line above the headers is the box's own, and the scroll area keeps its corners
+            > .o_tl_renderer {
+                border-top: 0;
+                border-radius: 11px 11px 0 0;
+            }
+        }
+    }
 }
 
 // The grid is one CSS grid: the header cells, then one row per visible row. A body row is a
@@ -253,6 +291,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+// the label of a group row's header is 18 px tall (M56d, M56p), centred in its 40 px row
+.o_tl_group_row .o_tl_row_label {
+    line-height: 18px;
 }
 
 // The header wraps: the caret, the thumbnail and the body (the name and the capacity label on a
@@ -510,6 +553,35 @@
     z-index: 0;
 }
 
+// A picked cell (002b3 R3, M1 to M3, M15, M16): the highlight of a selection over one sub-column of
+// a row, as tall as the row.
+.o_tl_cell_picked {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    background-color: $o-tl-selection-bg;
+    border: 0 solid $o-border-color;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-radius: 0;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+// Pointer shapes of the multi-selection mode (R15, M12 to M14): the thick plus over the cells of
+// the record rows, the hand over the headers; over pills the shapes of 002b2 stay.
+.o_tl_grid.o_tl_multi {
+    .o_tl_row:not(.o_tl_group_row):not(.o_tl_total_row) .o_tl_cell:not(.o_tl_folded_cell) {
+        cursor: cell;
+    }
+
+    .o_tl_row:not(.o_tl_total_row) .o_tl_row_header,
+    .o_tl_col {
+        cursor: pointer;
+    }
+}
+
 .o_tl_selection {
     position: absolute;
     top: 0;
@@ -568,6 +640,14 @@
     }
 
     @include o-tl-shield;
+}
+
+// Drawing over several cells (R15): the thick plus over the whole view.
+.o_timeline_view.o_tl_selecting.o_tl_drawing {
+    .o_content,
+    .o_content * {
+        cursor: cell !important; // stylelint-disable-line declaration-no-important
+    }
 }
 
 .o_tl_pill {
@@ -701,6 +781,11 @@
 
     &.o_tl_drag_move,
     &.o_tl_drag_move * {
+        cursor: move !important; // stylelint-disable-line declaration-no-important
+    }
+
+    &.o_tl_drag_panel,
+    &.o_tl_drag_panel * {
         cursor: move !important; // stylelint-disable-line declaration-no-important
     }
 

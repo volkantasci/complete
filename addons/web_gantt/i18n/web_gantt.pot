@@ -151,6 +151,7 @@ msgstr ""
 #. module: web_gantt
 #. odoo-javascript
 #: code:addons/web_gantt/static/src/timeline_editor.js:0
+#: code:addons/web_gantt/static/src/timeline_selection_buttons.xml:0
 msgid "Plan"
 msgstr ""
 
@@ -285,4 +286,34 @@ msgstr ""
 #. odoo-javascript
 #: code:addons/web_gantt/static/src/timeline_renderer.js:0
 msgid "Show the folded days"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_side_panel.js:0
+msgid "Unscheduled: %s"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_side_panel.js:0
+msgid "All records are scheduled"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_side_panel.xml:0
+msgid "Drop here to remove the dates"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_controller.xml:0
+msgid "Show or hide the panel"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_side_panel.xml:0
+msgid "Load more"
 msgstr ""

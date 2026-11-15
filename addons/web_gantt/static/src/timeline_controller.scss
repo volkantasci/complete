@@ -2,8 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 .o_timeline_view {
     min-height: 0;
+    // no text can be selected in the whole view, the control panel (breadcrumb, buttons, range
+    // text, search field) included (002b3 R1, M71, M72); the grid box and the side panel inherit it
+    -webkit-user-select: none; // stylelint-disable-line property-no-vendor-prefix
+    user-select: none;
 
     .o_tl_controls {
+        // the selection buttons centre themselves in the bar (002b3 M4)
+        position: relative;
         padding: 0 16px 16px;
         column-gap: 4px;
 
@@ -52,6 +58,48 @@
             }
         }
     }
+}
+
+// The panel button at the right end of the bar, with the count text before it while the panel is
+// closed (M37, M38, M50, M51). The text is 13 px, muted, 8 px from the button.
+.o_timeline_view .o_tl_controls {
+    .o_tl_panel_tools {
+        column-gap: 8px;
+    }
+
+    .o_tl_panel_count {
+        font-size: 13px;
+        color: rgba($o-gray-700, .76);
+        white-space: nowrap;
+    }
+
+    // the open state is the active look of a button: the tint of the action colour (M37); the
+    // closed one a grey fill (M51). The icon is a 14 px square, 3 px under the content's top.
+    .o_tl_panel_toggle {
+        color: $o-tl-panel-button-closed-color;
+        background-color: $o-tl-panel-button-closed-bg;
+
+        .oi {
+            display: block;
+            width: 14px;
+            height: 14px;
+            margin: 3px 0 4px;
+            font-size: 14px;
+            line-height: 14px;
+        }
+
+        &.active {
+            color: $o-black;
+            background-color: $o-tl-panel-button-active-bg;
+            border-color: $o-tl-panel-button-active-border;
+        }
+    }
+}
+
+// The cross of the count box keeps an inert zero-size black ring (M7); the other values of the
+// selection buttons come from the Community component and the theme.
+.o_timeline_view .o_multi_selection_buttons .o_unselect_all {
+    box-shadow: 0 0 0 0 $o-tl-ring-black;
 }
 
 // The dates of the custom line are plain fields: a bottom line only, 4 px side padding (M73). The

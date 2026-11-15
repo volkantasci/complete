@@ -166,6 +166,9 @@ export function parseTimelineArch(xmlDoc, fields = {}) {
         disableDragDrop: exprToBoolean(attr("disable_drag_drop"), false),
         canCellCreate: activeActions.create && exprToBoolean(attr("cell_create"), true),
         canPlan: activeActions.edit && exprToBoolean(attr("plan"), true),
+        // multi-selection and the side panel
+        multiCreateView: attr("multi_create_view") || "",
+        canSchedule: exprToBoolean(attr("schedule"), false),
         popover,
         extraFieldNames: [...extraNames],
         // read by the controller and the model

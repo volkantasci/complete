@@ -1,5 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { proxy } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { Domain } from "@web/core/domain";
 import {
@@ -28,6 +29,8 @@ import {
     partsFor,
 } from "./timeline_dates";
 import { orderPills, pillSpan } from "./timeline_layout";
+import { stripDateConditions } from "./timeline_panel_math";
+import { PANEL_LIMIT, PANEL_LIMIT_STEP, PANEL_WIDTH } from "./timeline_side_panel";
 
 const { DateTime } = luxon;
 
@@ -36,6 +39,10 @@ const NUMBER_TYPES = ["integer", "float", "monetary"];
 const RELATIONAL_TYPES = ["many2one", "many2many", "one2many"];
 
 const storageKey = (viewId) => `rangeOf-viewId-${viewId}`;
+// whether the side panel is open, kept per view and action (002b3 R17)
+// (a view or an action without an id shares the key "none")
+const panelKey = (viewId, actionId) =>
+    `timelinePanelOpen-view-${viewId || "none"}-action-${actionId || "none"}`;
 
 function groupByFieldName(groupBy) {
     return groupBy.split(":")[0];
@@ -52,12 +59,27 @@ export class TimelineModel extends Model {
      * @param {Object} params.fields field descriptions of the model
      * @param {Object} params.config result of `parseTimelineArch`
      * @param {number|false} [params.viewId]
+     * @param {number|false} [params.actionId]
+     * @param {Function} [params.isSmall] tells whether the screen is a phone (no panel, no list)
      */
     setup(params) {
         this.resModel = params.resModel;
         this.fields = { ...params.fields };
         this.config = params.config;
         this.viewId = params.viewId;
+        this.actionId = params.actionId;
+        this._isSmall = params.isSmall || (() => false);
+        // the side panel (002b3 R17, R20): open by default, as the browser kept it for this view
+        // and action; `count` is the number of records to schedule (null until it is known),
+        // `records` the first `limit` of them (`{id, display_name}`); `width` is kept while the
+        // view stays open
+        this.panel = proxy({
+            open: browser.localStorage.getItem(this._panelKey) !== "false",
+            count: null,
+            records: [],
+            limit: PANEL_LIMIT,
+            width: PANEL_WIDTH,
+        });
         // what the action kept when the user left this view (range, display mode, scroll)
         this._restored = params.state || null;
         this.restoredScroll = this._restored?.scroll || null;
@@ -99,6 +121,16 @@ export class TimelineModel extends Model {
     // ------------------------------------------------------------------------
     // Public API
     // ------------------------------------------------------------------------
+
+    get _panelKey() {
+        return panelKey(this.viewId, this.actionId);
+    }
+
+    /** Closes or opens the side panel and keeps the state in the browser (R17). */
+    togglePanel() {
+        this.panel.open = !this.panel.open;
+        browser.localStorage.setItem(this._panelKey, String(this.panel.open));
+    }
 
     /** Placement options `pillSpan` needs for the start and stop fields. */
     get placement() {
@@ -545,6 +577,70 @@ export class TimelineModel extends Model {
         this._requestedRange = null;
         this._requestedOffset = null;
         this._commit(request, result);
+        // every reload reads the first records of the list again (R19)
+        this.panel.limit = PANEL_LIMIT;
+        this.loadPanel();
+    }
+
+    /**
+     * The list of the records to schedule and their number, read with every load (002b3 R19):
+     * those of the action's domain and the search, without the conditions on the start or the
+     * stop field, whose start and stop are both empty, in the model's own order, the first
+     * `panel.limit` of them. Nothing is read where the panel cannot show (no option, no edit
+     * right, a phone, sample data). A failed or overtaken read leaves the list as it was.
+     */
+    async loadPanel() {
+        const { canSchedule, canEdit, startField, stopField } = this.config;
+        if (!canSchedule || !canEdit || this.isSample || this._isSmall()) {
+            return;
+        }
+        const serial = (this._panelSerial = (this._panelSerial || 0) + 1);
+        // R19.1: the date conditions go from the current search only; the action's own domain
+        // stays as it is
+        const searchModel = this.env.searchModel;
+        const actionDomain = searchModel ? searchModel.globalDomain || [] : [];
+        const searchDomain = searchModel
+            ? searchModel._getDomain({ withGlobal: false })
+            : this.domain;
+        const domain = Domain.and([
+            actionDomain,
+            stripDateConditions(searchDomain, startField, stopField),
+            [
+                [startField, "=", false],
+                [stopField, "=", false],
+            ],
+        ]).toList();
+        let result;
+        try {
+            result = await this.orm.webSearchRead(this.resModel, domain, {
+                specification: { display_name: {} },
+                limit: this.panel.limit,
+                context: this.context,
+            });
+        } catch {
+            // the panel is a convenience: the old list stays, the view is not disturbed
+            return;
+        }
+        if (serial === this._panelSerial && !this.disposed) {
+            this.panel.records = result.records.map(({ id, display_name }) => ({
+                id,
+                display_name,
+            }));
+            this.panel.count = result.length;
+        }
+    }
+
+    /** Reads the list when none was read yet (the panel shows after the screen grew from a phone). */
+    ensurePanel() {
+        if (!this._panelSerial) {
+            this.loadPanel();
+        }
+    }
+
+    /** Load more: twenty more lines (the renderer clears the selection, R9). */
+    async loadMorePanel() {
+        this.panel.limit += PANEL_LIMIT_STEP;
+        await this.loadPanel();
     }
 
     _commit(request, result) {

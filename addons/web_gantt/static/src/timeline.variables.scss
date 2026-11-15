@@ -4,6 +4,9 @@
 // Values of the timeline view that match no theme role. The dark counterparts live in
 // timeline.variables.dark.scss, which the dark bundle places before this file.
 
+// The inert zero-size ring of the cross of the selection count box: black in both schemes (M7).
+$o-tl-ring-black: #000000 !default;
+
 // Highlight of the column of now: fill and the left and top border of its header.
 $o-tl-today-bg: #FFFAEB !default;
 $o-tl-today-border: #DCA665 !default;
@@ -55,3 +58,18 @@ $o-tl-popover-extra-gap: 2px !default;
 
 // The highlight of a selection being drawn (M1): the view's own teal, the same in both schemes.
 $o-tl-selection-bg: rgba(0, 160, 157, .3) !default;
+
+// The panel button (M37, M51): the open look is the active look of a component, the closed one a
+// grey fill with black text. The dark scheme has its own tint and border for the open look.
+$o-tl-panel-button-active-bg: $o-component-active-bg !default;
+$o-tl-panel-button-active-border: $o-component-active-border !default;
+$o-tl-panel-button-closed-bg: $o-gray-200 !default;
+$o-tl-panel-button-closed-color: $o-black !default;
+
+// The drag handle of a line of the panel (M32, M39): grey at rest, darker under the pointer and
+// while the line is dragged.
+$o-tl-panel-handle: $o-gray-500 !default;
+$o-tl-panel-handle-hover: #666666 !default;
+
+// The Load more button of the panel (M53): a zero-size black shadow, black in both schemes.
+$o-tl-panel-more-shadow: 0 0 0 0 rgba(0, 0, 0, 1) !default;

@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { queryAll, queryOne } from "@odoo/hoot-dom";
+import { hover, pointerDown, pointerUp, queryAll, queryOne, queryRect } from "@odoo/hoot-dom";
 import { animationFrame } from "@odoo/hoot-mock";
 import { contains, mountView, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
@@ -113,4 +113,78 @@ test("R18 focus is a linear share, not a column start", async () => {
     const moved = middle().toMillis() - before;
     expect(moved).toBeGreaterThan(0);
     expect(moved).toBeLessThan(30 * DAY);
+});
+
+// -- 002b3 R1: no text can be selected in the view ------------------------------------------------
+
+const BY_PARENT_CONTACT = ["parent_id", "x_contact"];
+
+async function mountGrouped() {
+    await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: HOST_ARCHS.H1,
+        groupBy: BY_PARENT_CONTACT,
+    });
+    await animationFrame();
+}
+
+const headerOf = (name) =>
+    queryAll(".o_tl_row_header").find(
+        (header) => header.querySelector(".o_tl_row_label")?.textContent === name
+    );
+
+test("002b3 A1: no text can be selected in the view", async () => {
+    await mountGrouped();
+    const none = (element) => getComputedStyle(element).userSelect;
+    expect(none(queryOne(".o_tl_box"))).toBe("none");
+    expect(none(queryOne(".o_tl_renderer"))).toBe("none");
+    expect(none(headerOf("Alpha").querySelector(".o_tl_row_label"))).toBe("none");
+    expect(none(queryAll(".o_tl_row:not(.o_tl_group_row) .o_tl_row_label")[0])).toBe("none");
+    expect(none(queryAll(".o_tl_col")[0])).toBe("none");
+    expect(".o_tl_total_row").toHaveCount(1);
+    expect(none(queryOne(".o_tl_total_row .o_tl_row_header"))).toBe("none");
+    expect(none(queryAll(".o_tl_pill")[0])).toBe("none");
+});
+
+test("002b3 A2: the control panel and the side panel allow no text selection either", async () => {
+    await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: HOST_ARCHS.H1,
+        groupBy: BY_PARENT_CONTACT,
+        searchViewArch: `<search><field name="name"/></search>`,
+    });
+    await animationFrame();
+    const none = (element) => getComputedStyle(element).userSelect;
+    expect(none(queryOne(".o_timeline_view"))).toBe("none");
+    expect(none(queryOne(".o_control_panel"))).toBe("none");
+    expect(none(queryOne(".o_searchview_input"))).toBe("none");
+    expect(none(queryOne(".o_tl_button_add"))).toBe("none");
+    expect(none(queryOne(".o_tl_range_button"))).toBe("none");
+    // typing in the search field works as usual
+    await contains(".o_searchview_input").edit("Alp", { confirm: false });
+    expect(".o_searchview_input").toHaveValue("Alp");
+});
+
+test("002b3 A1: press, move, release in a group header toggles it each time", async () => {
+    await mountGrouped();
+    const before = queryAll(".o_tl_row:not(.o_tl_group_row)").length;
+    const states = [];
+    for (let i = 0; i < 3; i++) {
+        const header = headerOf("Alpha");
+        const rect = queryRect(header);
+        const y = rect.top + rect.height / 2;
+        await pointerDown(header, { position: { x: rect.left + 60, y } });
+        for (let step = 1; step <= 8; step++) {
+            await hover(header, { position: { x: rect.left + 60 + (140 * step) / 8, y } });
+        }
+        await pointerUp(header, { position: { x: rect.left + 200, y } });
+        await animationFrame();
+        await animationFrame();
+        states.push(queryAll(".o_tl_row:not(.o_tl_group_row)").length);
+    }
+    expect(states[0]).toBeLessThan(before);
+    expect(states[1]).toBe(before);
+    expect(states[2]).toBe(states[0]);
 });

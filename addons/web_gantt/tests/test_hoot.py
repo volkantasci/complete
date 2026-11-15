@@ -1,7 +1,9 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 import logging
+import os
 import re
+from urllib.parse import quote
 
 from odoo.addons.web.tests.test_js import HootCommon, unit_test_error_checker
 from odoo.tests import no_retry, tagged
@@ -15,11 +17,14 @@ class TestWebGanttHootSuite(HootCommon):
     def test_web_gantt_hoot_suite(self):
         asset_addons = self._get_addons_from_asset_bundle('web.assets_unit_tests')
         self.assertIn("web_gantt", asset_addons, "No web_gantt unit test bundled")
-        # filter the Hoot run to the suite of the `web_gantt` module only
-        url = (
-            '/web/tests?headless&loglevel=2&preset=desktop&timeout=15000'
-            f'&id={self._generate_hash("@web_gantt")}'
-        )
+        # filter the Hoot run to the suite of the `web_gantt` module only; WEB_GANTT_HOOT_FILTER
+        # narrows it to the tests whose name contains that text (Hoot adds a text filter to the
+        # ids instead of intersecting them, so the ids are left out then)
+        url = '/web/tests?headless&loglevel=2&preset=desktop&timeout=15000'
+        if text_filter := os.environ.get('WEB_GANTT_HOOT_FILTER'):
+            url += f'&filter={quote(text_filter)}'
+        else:
+            url += f'&id={self._generate_hash("@web_gantt")}'
         # Record the browser console without stealing it from the test log.
         records = []
         handler = logging.Handler(logging.INFO)
