@@ -1,14 +1,14 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: web_gantt
-slice: 002b2-gantt-drag-resize
-spec_sha256: e1c151f4f9292aef67ea11069ad4ab2fc7dc3f4c7257d50953f500b5dd16cc67
+slice: 002b3-gantt-multi-create
+spec_sha256: 062b5b29f140c47afcddf7ef7b6c92efdf1bafb6b385f4baad21b709d32977b5
 ee_build: "20261106"
 implementer_sessions:
-  - d23d0704-f970-4e8b-a479-112999fef249
-verifier_session: 9967d882-d2f2-45e2-a914-41a0f29ff6ae
+  - 6a3b7dc3-b6d8-40bb-ab07-63c46599eae5
+verifier_session: d8a4f8f7-5721-4e92-bd75-4c5f8958be8f
 overlap:
-  ratio: 0.0006
+  ratio: 0.0004
   longest_run: 1
   reviewed_matches:
     - file: addons/web_gantt/models/ir_ui_view.py
@@ -20,28 +20,65 @@ overlap:
     - file: addons/web_gantt/models/timeline_base.py
       line: 57
       reason: interface (model.md)
-    - file: addons/web_gantt/static/src/timeline_controller.js
-      line: 3
-      reason: framework interface
     - file: addons/web_gantt/static/tests/timeline_controller.test.js
       line: 404
       reason: generic one-line test idiom
     - file: addons/web_gantt/static/tests/timeline_undo.test.js
       line: 506
       reason: generic one-line test assertion on Community names
-audit_log_sha256: 9cf5aa6c39b754f5a2344b964a9471e099e05da9599355df16dc841923c08006
+audit_log_sha256: b0929fb6791464dedd95f7ebe1959ad703d28ba255ab9f654505d8087ce35dc2
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-13"
-  implemented: "2026-11-14"
-  verified: "2026-11-14"
+  spec_approved: "2026-11-14"
+  implemented: "2026-11-15"
+  verified: "2026-11-15"
 approvals:
-  - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the second (2026-11-12)"
-  - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-13)"
-  - "before verification, the analyst answered the implementer's spec questions in the package, which changed its hash, in a step the owner started (2026-11-14)"
-  - "owner: after verification round 1, had the package corrected, decided D7 on the rework item F1, had F1 and the polish item P3 fixed, accepted the one new overlap match and the two Arabic unit words that equal the original's (P7, P5), and left the polish items P1, P2 and P6 for a later batch (2026-11-14)"
-  - "owner: release approved at CP-release after verification round 2 passed with no rework item and no new overlap match since round 1, with its one new polish item, P8, left for the next slice, 002b3 (2026-11-14)"
+  - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the third (2026-11-12)"
+  - "owner: spec approved at CP-spec with decisions D1-D4 (2026-11-14)"
+  - "before verification, the analyst answered the implementer's spec question and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-15)"
+  - "owner: decided D5 and D6 on two questions that the analyst's answers raised (2026-11-15)"
+  - "owner: release approved at CP-release after verification round 1 passed with no rework item, accepted the ten new overlap matches of the test module, and left the two polish items, P1 and P2, for the next slice, 002c, with P2 decided to follow the original (2026-11-15)"
 earlier_slices:
+  - slice: 002b2-gantt-drag-resize
+    spec_sha256: e1c151f4f9292aef67ea11069ad4ab2fc7dc3f4c7257d50953f500b5dd16cc67
+    ee_build: "20261106"
+    implementer_sessions:
+      - d23d0704-f970-4e8b-a479-112999fef249
+    verifier_session: 9967d882-d2f2-45e2-a914-41a0f29ff6ae
+    overlap:
+      ratio: 0.0006
+      longest_run: 1
+      reviewed_matches:
+        - file: addons/web_gantt/models/ir_ui_view.py
+          line: 39
+          reason: interface (the Community validator calls it by name and signature)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 28
+          reason: interface (model.md; the Community view loader calls it)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 57
+          reason: interface (model.md)
+        - file: addons/web_gantt/static/src/timeline_controller.js
+          line: 3
+          reason: framework interface
+        - file: addons/web_gantt/static/tests/timeline_controller.test.js
+          line: 404
+          reason: generic one-line test idiom
+        - file: addons/web_gantt/static/tests/timeline_undo.test.js
+          line: 506
+          reason: generic one-line test assertion on Community names
+    audit_log_sha256: 9cf5aa6c39b754f5a2344b964a9471e099e05da9599355df16dc841923c08006
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-13"
+      implemented: "2026-11-14"
+      verified: "2026-11-14"
+    approvals:
+      - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the second (2026-11-12)"
+      - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-13)"
+      - "before verification, the analyst answered the implementer's spec questions in the package, which changed its hash, in a step the owner started (2026-11-14)"
+      - "owner: after verification round 1, had the package corrected, decided D7 on the rework item F1, had F1 and the polish item P3 fixed, accepted the one new overlap match and the two Arabic unit words that equal the original's (P7, P5), and left the polish items P1, P2 and P6 for a later batch (2026-11-14)"
+      - "owner: release approved at CP-release after verification round 2 passed with no rework item and no new overlap match since round 1, with its one new polish item, P8, left for the next slice, 002b3 (2026-11-14)"
   - slice: 002b-gantt-editing
     spec_sha256: 5eaf033432e4530b93a08e7dc31a99396f7acbb926eb6a3489078a0295e62575
     ee_build: "20261106"
