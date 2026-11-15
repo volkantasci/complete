@@ -7,7 +7,7 @@
                 <div class="o_tl_panel_strip_line"/>
             </div>
             <div class="o_tl_panel d-print-none" t-att-class="{ o_tl_panel_zoned: this.props.zone }" t-attf-style="width: {{this.props.width}}px">
-                <div t-if="this.props.zone" class="o_tl_panel_dropzone d-flex align-items-center justify-content-center"><span class="o_tl_panel_dropzone_text text-center fw-bold">Drop here to remove the dates</span></div>
+                <div t-if="this.props.zone" class="o_tl_panel_dropzone d-flex align-items-center justify-content-center"><span class="o_tl_panel_dropzone_text text-center">Drop here to remove the dates</span></div>
                 <t t-else="">
                     <h6 class="o_tl_panel_title" t-out="this.title"/>
                     <div class="o_tl_panel_list">

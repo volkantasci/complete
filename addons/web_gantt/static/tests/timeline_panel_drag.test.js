@@ -471,8 +471,10 @@ test("002b3 A51: a moved pill shows the drop zone; release unschedules, no notif
         borderTopWidth: "1px",
         borderTopLeftRadius: "12px",
     });
-    // bold in the theme's sense (its bold weight is above the normal one)
-    expect(parseInt(getComputedStyle(queryOne(".o_tl_panel_dropzone_text")).fontWeight, 10)).toBeGreaterThan(400);
+    // bold as the count of a selection (the theme's own bold class is only a medium weight)
+    expect(".o_tl_panel_dropzone_text").toHaveStyle({ fontWeight: "700" });
+    // over the grid the moved pill stays in the grid's scroll area
+    expect(".o_tl_pill_moved").toHaveStyle({ position: "absolute" });
     expect(".o_tl_panel_dropzone_text").toHaveStyle({ textAlign: "center" });
     // over the zone: no highlight, no badge
     const at = panelCentre();
@@ -480,6 +482,9 @@ test("002b3 A51: a moved pill shows the drop zone; release unschedules, no notif
     expect(".o_tl_drop").toHaveCount(0);
     expect(".o_tl_selection_badge").toHaveCount(0);
     expect(".o_tl_pill_moved").toHaveCount(1);
+    // over the panel it is drawn on the page, not cut at the edge of the grid's scroll area
+    expect(".o_tl_pill_moved").toHaveStyle({ position: "fixed" });
+    expect(queryRect(".o_tl_pill_moved").right).toBeGreaterThan(queryRect(".o_tl_panel").left);
     await held.drop();
     await settle();
     expect(writes()).toEqual([

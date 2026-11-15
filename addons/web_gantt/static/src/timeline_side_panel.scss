@@ -116,4 +116,9 @@
         background-color: mix($o-action, $o-view-background-color, 10%);
         color: $body-color;
     }
+
+    // bold as the count of a selection is (the theme's `fw-bold` is only a medium weight)
+    .o_tl_panel_dropzone_text {
+        font-weight: 700;
+    }
 }

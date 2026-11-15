@@ -2038,12 +2038,28 @@ export class TimelineRenderer extends Component {
             className: drag.lock
                 ? `${ghost.className} o_tl_pill_locked${drag.touch ? " o_touch_bounce" : ""}`
                 : ghost.className,
-            movedStyle: box(
-                inside(ghost.left + offset.x, ghost.width, grid?.offsetWidth),
-                inside(ghost.top + offset.y, ghost.height, grid?.offsetHeight)
-            ),
+            movedStyle: this._zoneHit && grid
+                ? this._movedOverPanel(box, grid, ghost, offset)
+                : box(
+                      inside(ghost.left + offset.x, ghost.width, grid?.offsetWidth),
+                      inside(ghost.top + offset.y, ghost.height, grid?.offsetHeight)
+                  ),
             originStyle: box(ghost.left, ghost.top),
         };
+    }
+
+    /**
+     * The moved pill over the drop zone (S15): the scroll area of the grid would cut it at its
+     * edge, so it is drawn at the same place of the page with a fixed position (M49).
+     */
+    _movedOverPanel(box, grid, ghost, offset) {
+        const rect = grid.getBoundingClientRect();
+        const top = Math.min(
+            Math.max(ghost.top + offset.y, 0),
+            Math.max(grid.offsetHeight - ghost.height, 0)
+        );
+        const placed = box(rect.left + ghost.left + offset.x, rect.top + top);
+        return `position: fixed; ${placed}`;
     }
 
     /** Whether `pill`, as drawn in `row`, is the one the gesture holds (a record can stand in several rows). */
