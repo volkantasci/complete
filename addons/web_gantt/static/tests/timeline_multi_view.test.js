@@ -187,6 +187,37 @@ test("002b3 A4: the day scale follows 002b", async () => {
     expect(".o_tl_grid").not.toHaveClass("o_tl_multi");
 });
 
+test("002b3 A5: leaving multi-selection mode forgets the picked cells", async () => {
+    await mountMulti();
+    const row = rowIndex("Beta", "Host Contact 2");
+    await clickCell(row, "2026-11-10");
+    expect(pickedCells()).toHaveCount(2);
+    expect(".o_multi_selection_buttons").toHaveCount(1);
+    // the window shrinks below the phone breakpoint without any new data
+    await resize({ width: 390, height: 844 });
+    await animationFrame();
+    await animationFrame();
+    expect(".o_tl_grid").not.toHaveClass("o_tl_multi");
+    expect(pickedCells()).toHaveCount(0);
+    expect(".o_multi_selection_buttons").toHaveCount(0);
+    expect(state().cellCount).toBe(0);
+    // New on the phone is 002b's: no block taken from a stale selection
+    const sent = [];
+    controller.editor.createFor = (params) => sent.push(params);
+    controller.selection.state.cellCount = 2;
+    await controller.onNew();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].row).toBe(undefined);
+    // back on the desktop: the old selection does not come back
+    controller.selection.state.cellCount = 0;
+    await resize({ width: 1600, height: 900 });
+    await animationFrame();
+    await animationFrame();
+    expect(".o_tl_grid").toHaveClass("o_tl_multi");
+    expect(pickedCells()).toHaveCount(0);
+    expect(".o_multi_selection_buttons").toHaveCount(0);
+});
+
 test("002b3 A5: the phone keeps 002b", async () => {
     mockTouch(true);
     await resize({ width: 390, height: 844 });
@@ -320,9 +351,16 @@ test("002b3 A10: group row cells highlighted, not counted", async () => {
     await only.drop();
     await animationFrame();
     expect(state().count).toBe(withGroup);
+    // a drawing over group row cells only (Gamma) counts no record
+    controller.selection.renderer.clearPicked();
+    await animationFrame();
+    const gammaOnly = await draw([group, "2026-11-10", 0], [group, "2026-11-11", 1]);
+    await gammaOnly.drop();
+    await animationFrame();
+    expect(state().count).toBe(0);
 });
 
-test("002b3 A10: a press on a group row cell draws nothing", async () => {
+test("002b3 A15: a press on a group row cell draws nothing", async () => {
     await mountMulti();
     const group = rowIndex("Beta");
     const to = rowIndex("Beta", "Host Contact 2");

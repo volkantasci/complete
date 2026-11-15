@@ -303,7 +303,15 @@ export class TimelineRenderer extends Component {
             isAvailable: () => this.isMultiSelect && !this.picked.isEmpty && !this.picked.isDrawing,
         });
         onMounted(() => this._syncScroll());
+        // leaving multi-selection mode (the window shrinks to a phone, the display mode or the
+        // scale changes) forgets the picked cells: they must not come back with the mode
+        this._wasMulti = this.isMultiSelect;
         onPatched(() => {
+            const multi = this.isMultiSelect;
+            if (this._wasMulti && !multi) {
+                this.clearPicked();
+            }
+            this._wasMulti = multi;
             this._syncScroll();
             this._placeBadges();
         });
@@ -653,8 +661,9 @@ export class TimelineRenderer extends Component {
      * never count.
      */
     _overDropZone(drawing) {
-        const zone = document.querySelector(".o_tl_panel_dropzone");
-        const element = zone || document.querySelector(".o_tl_panel");
+        const frame = this.rendererRef()?.closest(".o_tl_frame");
+        const zone = frame?.querySelector(".o_tl_panel_dropzone");
+        const element = zone || frame?.querySelector(".o_tl_panel");
         if (!element || !this.panel.open) {
             return false;
         }
@@ -1326,14 +1335,10 @@ export class TimelineRenderer extends Component {
             if (!ctrl) {
                 this.picked.clear();
             }
-            if (column.folded) {
-                // R23: unfolding a column starts the click lock
-                this._lockClicks(CELL_CLICK_LOCK, true);
-            }
             this._setRunOpen(column.run, column.folded);
             if (column.folded && ctrl) {
                 // the cells of the run exist and can be picked once the layout shows it open
-                this._refreshLayout();
+                this._ensureLayout();
                 this.picked.clickColumnHeader(
                     column.run,
                     { ctrl, shift: false },
@@ -1360,11 +1365,6 @@ export class TimelineRenderer extends Component {
             parts.push(...this._partsOfColumn(i));
         }
         return parts;
-    }
-
-    /** Build the layout now: a change of the folded runs shows in it. */
-    _refreshLayout() {
-        return this.layout;
     }
 
     _setRunOpen(run, open) {
@@ -2264,6 +2264,11 @@ export class TimelineRenderer extends Component {
 
     /** Everything the template reads, rebuilt only when the model published new data. */
     get layout() {
+        return this._ensureLayout();
+    }
+
+    /** Builds the layout when the data, the screen size or the folded runs changed, else keeps it. */
+    _ensureLayout() {
         const data = this.data;
         const small = this.ui.isSmall;
         const version = this.state.version;

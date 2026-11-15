@@ -35,13 +35,18 @@ export function panelTitleText(count) {
  * the panel itself. The renderer draws it beside the grid box while `model.panel.open` holds.
  * The title with the count and the list of the records to schedule, twenty lines at a time; the
  * resize strip (R20); a click on a line, which opens the record, and the press of a line, which
- * the renderer turns into a drag onto the grid (R21; `renderer` is the renderer's own object).
+ * the renderer turns into a drag onto the grid (R21; the renderer gives the callbacks).
  */
 export class TimelineSidePanel extends Component {
     static template = "web_gantt.TimelineSidePanel";
     props = useProps({
         model: t.object(),
-        renderer: t.object().optional(),
+        // what the grid does for the panel: open a record, press a line, forget the picked
+        // cells, tell whether a click is the end of a drag
+        onOpen: t.function().optional(),
+        onPress: t.function().optional(),
+        onClear: t.function().optional(),
+        swallowsClick: t.function().optional(),
         width: t.number(),
         zone: t.boolean().optional(),
     });
@@ -73,20 +78,20 @@ export class TimelineSidePanel extends Component {
      * nothing.
      */
     onLineClick(record) {
-        if (this.props.renderer?.swallowsClick()) {
+        if (this.props.swallowsClick?.()) {
             return;
         }
-        this.props.renderer?.props.editor?.openRecord(record.id);
+        this.props.onOpen?.(record.id);
     }
 
     /** A press on a line starts a drag onto the grid after a move of 10 px (R21). */
     onLinePointerDown(ev, record) {
-        this.props.renderer?.pressLine(ev, record);
+        this.props.onPress?.(ev, record);
     }
 
     /** Load more: the selection of the grid is cleared (R9), then twenty more lines are read. */
     onLoadMore() {
-        this.props.renderer?.clearPicked();
+        this.props.onClear?.();
         this.props.model.loadMorePanel();
     }
 

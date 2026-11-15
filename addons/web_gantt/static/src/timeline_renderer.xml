@@ -104,7 +104,7 @@
             </div>
             <ActionHelper t-if="layout.isSample and this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
         </div>
-        <TimelineSidePanel t-if="this.hasPanel and this.panel.open" model="this.props.model" renderer="this" width="this.panel.width" zone="this.showsDropZone"/>
+        <TimelineSidePanel t-if="this.hasPanel and this.panel.open" model="this.props.model" onOpen="(id) => this.props.editor?.openRecord(id)" onPress="(ev, record) => this.pressLine(ev, record)" onClear="() => this.clearPicked()" swallowsClick="() => this.swallowsClick()" width="this.panel.width" zone="this.showsDropZone"/>
         <t t-set="line" t-value="this.panelGhost"/>
         <div t-if="line" class="o_tl_panel_ghost o_tl_panel_line o_tl_panel_dragged d-flex d-print-none" t-att-style="line.style">
             <i class="oi o_tl_panel_handle" data-icon="drag_indicator"/>

@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, onWillUnmount, proxy, signal, t, useProps } from "@odoo/owl";
+import { Component, onMounted, onPatched, onWillUnmount, proxy, signal, t, useProps } from "@odoo/owl";
 import { DateTimeInput } from "@web/core/datetime/datetime_input";
 import { DateTimePicker } from "@web/core/datetime/datetime_picker";
 import { browser } from "@web/core/browser/browser";
@@ -126,6 +126,12 @@ export class TimelineController extends Component {
             getLocalState: () => ({ modelState: this.model.getLocalState() }),
         });
         onWillUnmount(() => this.model.dispose());
+        // the list of the records to schedule is read as soon as the panel is possible (the screen
+        // may have grown from a phone with the panel remembered closed), open or not: the count
+        // before the panel button comes from it
+        const readPanel = () => this.hasPanel && this.model.ensurePanel();
+        onMounted(readPanel);
+        onPatched(readPanel);
         this.searchBarToggler = useSearchBarToggler();
         this.rangeMenu = useDropdownState({ onOpen: () => this.resetCustomLine() });
         this.custom = proxy({ start: null, stop: null, edited: "start" });
@@ -164,9 +170,12 @@ export class TimelineController extends Component {
             get nbSelected() {
                 return state.count;
             },
-            canAdd: archInfo.canCreate,
+            get canAdd() {
+                // the same getter as New: no creation inside a dialog
+                return controller.canCreate;
+            },
             get canPlan() {
-                return archInfo.canPlan && state.cellCount === 1 && controller._pickedPlanBlock();
+                return archInfo.canPlan && state.cellCount === 1 && controller._pickedHasBlock();
             },
             canDelete: archInfo.canDelete,
             onAdd: (multiCreateData) => this._onPickedAdd(multiCreateData),
@@ -183,8 +192,8 @@ export class TimelineController extends Component {
         });
     }
 
-    /** The one picked cell of a record row, as the first block of the selection, or null. */
-    _pickedPlanBlock() {
+    /** Whether the selection has a first block (the cell Plan would plan for). */
+    _pickedHasBlock() {
         const block = this.selection.renderer?.firstBlock();
         return Boolean(block);
     }
@@ -372,7 +381,9 @@ export class TimelineController extends Component {
         // R12: with cells picked, the first block of the selection; the selection stays until the
         // dialog closes (its reload clears it)
         const renderer = this.selection.renderer;
-        const block = this.selection.state.cellCount ? renderer?.firstBlock() : null;
+        // (only while the grid is in multi-selection mode: on a phone New follows 002b R2)
+        const block =
+            renderer?.isMultiSelect && this.selection.state.cellCount ? renderer.firstBlock() : null;
         if (block) {
             return this.editor.createFor({
                 period: renderer.partPeriod(block.fromPart, block.toPart),
