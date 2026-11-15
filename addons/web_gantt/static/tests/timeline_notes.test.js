@@ -147,6 +147,26 @@ test("002b3 A1: no text can be selected in the view", async () => {
     expect(none(queryAll(".o_tl_pill")[0])).toBe("none");
 });
 
+test("002b3 A2: the control panel and the side panel allow no text selection either", async () => {
+    await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: HOST_ARCHS.H1,
+        groupBy: BY_PARENT_CONTACT,
+        searchViewArch: `<search><field name="name"/></search>`,
+    });
+    await animationFrame();
+    const none = (element) => getComputedStyle(element).userSelect;
+    expect(none(queryOne(".o_timeline_view"))).toBe("none");
+    expect(none(queryOne(".o_control_panel"))).toBe("none");
+    expect(none(queryOne(".o_searchview_input"))).toBe("none");
+    expect(none(queryOne(".o_tl_button_add"))).toBe("none");
+    expect(none(queryOne(".o_tl_range_button"))).toBe("none");
+    // typing in the search field works as usual
+    await contains(".o_searchview_input").edit("Alp", { confirm: false });
+    expect(".o_searchview_input").toHaveValue("Alp");
+});
+
 test("002b3 A1: press, move, release in a group header toggles it each time", async () => {
     await mountGrouped();
     const before = queryAll(".o_tl_row:not(.o_tl_group_row)").length;
