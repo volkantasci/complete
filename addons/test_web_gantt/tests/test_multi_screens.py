@@ -198,10 +198,15 @@ class TimelineMultiScreens(TimelineProbeCase):
             self.mouse('mouseMoved', 1313, 520)
             self.settle(500)
             shot('64-panel-handle')
-            self.hold_line()
+            # the second half of Thursday 12 in the Beta row, from the rendered cells
+            day = self.geometry("document.querySelector('.o_tl_col.o_tl_is_today')")
+            beta = self.geometry(self.row('Beta'))
+            at = (day['geometry.x'] + day['geometry.width'] * .75,
+                  beta['geometry.y'] + beta['geometry.height'] / 2)
+            self.hold_line(to=at)
             self.wait("!!document.querySelector('.o_tl_panel_ghost')")
             shot('65-panel-dragging')
-            self.mouse('mouseReleased', 1000, 335, button='left', buttons=0, clickCount=1)
+            self.mouse('mouseReleased', at[0], at[1], button='left', buttons=0, clickCount=1)
             self.settle(800)
             self.wait("!!document.querySelector('.o_tl_pill')")
             self.pointer_away()
