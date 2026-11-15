@@ -776,7 +776,9 @@ export class TimelineRenderer extends Component {
                         .map((record) => ({
                             resId: record.resId,
                             from: record.span.from,
-                            to: record.span.to,
+                            // the span ends before sub-column `to`: the last one it covers
+                            // is the one before (at least its first)
+                            to: Math.max(record.span.from, record.span.to - 1),
                         })),
             };
         }

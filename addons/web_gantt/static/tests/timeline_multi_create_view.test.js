@@ -287,3 +287,23 @@ test("002b3 A36: New without a selection proposes the focus week", async () => {
     expect(context.default_date_stop).toBe("2026-11-14 21:00:00");
     expect(controller.selection.state.cellCount).toBe(0);
 });
+
+/** Draw inside one half day of a row (one picked cell). */
+async function drawInHalfDay(rowIdx, date, half = 0) {
+    const helpers = await drag(cellOf(rowIdx, date), {
+        position: pointOf(rowIdx, date, half, -20),
+    });
+    await helpers.moveTo(cellOf(rowIdx, date), { position: pointOf(rowIdx, date, half, 20) });
+    await helpers.drop();
+    await settle();
+}
+
+test("002b3 A22: a pill that ends where a half day ends does not count the next cell", async () => {
+    // Overlap A ends on Thursday 12 at 12:00 sharp: the second half of that day is not under it
+    await mountMulti("", { groupBy: [], domain: [["name", "=", "Overlap A"]] });
+    await drawInHalfDay(0, "2026-11-12", 1);
+    expect(pickedCells()).toHaveCount(1);
+    expect(controller.selection.state.count).toBe(0);
+    await drawInHalfDay(0, "2026-11-12", 0);
+    expect(controller.selection.state.count).toBe(1);
+});

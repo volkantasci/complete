@@ -230,6 +230,7 @@ export class TimelinePickedCells {
  * @param {Array<{rowId, part}>} cells
  * @param {Object} rowsById rows, each with `isGroup`
  * @param {(rowId: string) => Array<{resId: number, from: number, to: number}>} pillPartsOfRow
+ *  the first and the last sub-column the pill covers, both included
  * @returns {Set<number>}
  */
 export function countPickedRecords(cells, rowsById, pillPartsOfRow) {
