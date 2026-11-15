@@ -17,6 +17,7 @@ from . import (
     test_install,
     test_multi_host,
     test_multi_probes,
+    test_multi_screens,
     test_multi_tours,
     test_probes,
     test_screens,
