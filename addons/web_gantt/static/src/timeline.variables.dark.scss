@@ -32,3 +32,6 @@ $o-tl-panel-button-closed-color: $o-main-text-color !default;
 // The drag handle of a line of the panel in the dark scheme: the same greys as in the light one.
 $o-tl-panel-handle: #ADB5BD !default;
 $o-tl-panel-handle-hover: #666666 !default;
+
+// The ring of the remove button of an arrow in the dark scheme: grey 500 (M13).
+$o-tl-arrow-ring: #6E6F77 !default;

@@ -1,0 +1,99 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The arrows between dependent pills (002c R8 to R10). The wrapper takes no room in the grid and
+// no stacking context of its own: every arrow is a layer as large as the area of the cells (M7).
+.o_tl_arrows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+// under the pills (z-index 10, M8) at rest, over them when lit (M12)
+.o_tl_arrow {
+    position: absolute;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 1;
+
+    path {
+        fill: none;
+        stroke-linejoin: round;
+    }
+
+    &.o_tl_arrow_lit {
+        z-index: 20;
+    }
+
+    // "Show dependencies" off (R13): invisible, and nothing to catch the pointer
+    &.o_tl_arrow_hidden {
+        opacity: 0;
+
+        path {
+            pointer-events: none;
+        }
+    }
+}
+
+// the 3 px outline under the line, and the 2 px line (never dashed)
+.o_tl_arrow_halo {
+    stroke-width: 3;
+    pointer-events: stroke;
+}
+
+.o_tl_arrow_line {
+    stroke-width: 2;
+    stroke-dasharray: none;
+    pointer-events: stroke;
+}
+
+.o_tl_arrow .o_tl_arrow_head {
+    stroke-width: 1;
+    fill-opacity: 1;
+}
+
+// the invisible band that catches the pointer (M5)
+.o_tl_arrow_band {
+    stroke: none;
+    stroke-width: 13;
+    pointer-events: stroke;
+}
+
+// the remove button in the middle of a lit arrow (M13, M14, M20, M21)
+.o_tl_arrow_remove {
+    cursor: pointer;
+    pointer-events: all;
+
+    .o_tl_arrow_remove_ring {
+        fill: $o-view-background-color;
+        stroke: $o-tl-arrow-ring;
+        stroke-width: 1;
+    }
+
+    .o_tl_arrow_cross {
+        fill: $o-tl-arrow-cross;
+    }
+
+    &:hover {
+        .o_tl_arrow_remove_ring {
+            fill: $o-tl-arrow-cross;
+        }
+
+        .o_tl_arrow_cross {
+            fill: #FFFFFF;
+        }
+    }
+}
+
+// while a gesture is held the arrows keep their look and take no pointer
+.o_timeline_view.o_tl_dragging,
+.o_timeline_view.o_tl_selecting {
+    .o_tl_arrow path,
+    .o_tl_arrow .o_tl_arrow_remove {
+        pointer-events: none;
+    }
+}

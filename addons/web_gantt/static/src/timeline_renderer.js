@@ -45,6 +45,7 @@ import {
 } from "./timeline_drag_math";
 import { TimelinePillDrag } from "./timeline_drag";
 import { commitDrag, commitResize } from "./timeline_drag_commit";
+import { TimelineArrowLayer, TimelineArrows } from "./timeline_arrows";
 import { TimelinePillPointer } from "./timeline_pill_pointer";
 import { badgeText, columnPeriod, partPeriod, rowValueChain } from "./timeline_editing";
 import {
@@ -155,13 +156,15 @@ function textOfDate(date) {
  */
 export class TimelineRenderer extends Component {
     static template = "web_gantt.TimelineRenderer";
-    static components = { ActionHelper, TimelineSidePanel };
+    static components = { ActionHelper, TimelineArrowLayer, TimelineSidePanel };
     props = useProps({
         model: t.object(),
         archInfo: t.object(),
         editor: t.object().optional(),
         noContentHelp: t.string().optional(),
         selection: t.object().optional(),
+        // `{shown}`: the switch "Show dependencies" (002c R13), a reactive object of the controller
+        dependencies: t.object().optional(),
     });
 
     rendererRef = signal.ref();
@@ -214,6 +217,7 @@ export class TimelineRenderer extends Component {
             hold: (on) => this._hold(on),
         });
         this._pillPointer = new TimelinePillPointer(this);
+        this.arrows = new TimelineArrows(this);
         this._drag = new TimelinePillDrag({
             pillState: (pill) => this._pillState(pill),
             targetAt: (x, y, grab) => this._targetAt(x, y, grab),
@@ -301,7 +305,11 @@ export class TimelineRenderer extends Component {
         useHotkey("escape", () => this.clearPicked(), {
             isAvailable: () => this.isMultiSelect && !this.picked.isEmpty && !this.picked.isDrawing,
         });
-        onMounted(() => this._syncScroll());
+        onMounted(() => {
+            this._syncScroll();
+            this._watchArrows();
+            this.refreshArrows();
+        });
         // leaving multi-selection mode (the window shrinks to a phone, the display mode or the
         // scale changes) forgets the picked cells: they must not come back with the mode
         this._wasMulti = this.isMultiSelect;
@@ -313,8 +321,10 @@ export class TimelineRenderer extends Component {
             this._wasMulti = multi;
             this._syncScroll();
             this._placeBadges();
+            this.refreshArrows();
         });
         onWillUnmount(() => {
+            this._unwatchArrows?.();
             model.bus.removeEventListener("update", onUpdate);
             if (link && link.renderer === this) {
                 link.renderer = null;
@@ -328,6 +338,42 @@ export class TimelineRenderer extends Component {
                 model.setViewAccess(null);
             }
         });
+    }
+
+    // ------------------------------------------------------------------------
+    // Arrows (002c R4 to R10)
+    // ------------------------------------------------------------------------
+
+    /** The highlight of the arrows: `{pillKey, arrowKey}` (`pillKey` is `${rowId}|${pillId}`). */
+    get arrowFocus() {
+        return this.arrows.focus;
+    }
+
+    /** The switch "Show dependencies" (R13). */
+    get arrowsShown() {
+        return this.arrows.shown;
+    }
+
+    /**
+     * Reads the pills of the DOM again and draws the arrows: called after every render, when the
+     * grid is resized, and by the gestures that move a pill's image (the arrows follow it).
+     */
+    refreshArrows() {
+        this.arrows.refresh();
+    }
+
+    /** The arrows follow a change of size of the window or of the grid. */
+    _watchArrows() {
+        const refresh = () => this.refreshArrows();
+        browser.addEventListener("resize", refresh);
+        const grid = this.rendererRef()?.querySelector(".o_tl_grid");
+        const observer =
+            grid && typeof ResizeObserver !== "undefined" ? new ResizeObserver(refresh) : null;
+        observer?.observe(grid);
+        this._unwatchArrows = () => {
+            browser.removeEventListener("resize", refresh);
+            observer?.disconnect();
+        };
     }
 
     // ------------------------------------------------------------------------
@@ -1174,6 +1220,9 @@ export class TimelineRenderer extends Component {
             root.classList.toggle("o_tl_selecting", on);
             root.classList.toggle("o_tl_drawing", on && this.isMultiSelect);
         }
+        if (!on) {
+            this.arrows.reset();
+        }
     }
 
     /** Style of the highlight in the row `descriptor`, or null when the selection is elsewhere. */
@@ -1425,8 +1474,8 @@ export class TimelineRenderer extends Component {
         this._pillPointer.enter(pill, row);
     }
 
-    onPillLeave() {
-        this._pillPointer.leave();
+    onPillLeave(pill, row) {
+        this._pillPointer.leave(pill, row);
     }
 
     /** The resize handles drawn in `pill` (R8, S4); see `TimelinePillPointer`. */
@@ -1488,6 +1537,9 @@ export class TimelineRenderer extends Component {
             if (!this.picked.isEmpty) {
                 this.clearPicked();
             }
+        }
+        if (!mode && this._dragMode) {
+            this.arrows.reset();
         }
         this._dragMode = mode;
     }

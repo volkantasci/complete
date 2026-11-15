@@ -37,11 +37,16 @@ export class TimelinePillPointer {
     enter(pill, row) {
         if (!this.isHeld) {
             this.host.state.hover = this.keyOf(pill, row);
+            // R9: the arrows of a pill of a record row light up
+            if (row.kind === "pills") {
+                this.host.arrows.focusPill(this.keyOf(pill, row));
+            }
         }
     }
 
-    leave() {
+    leave(pill, row) {
         this.host.state.hover = null;
+        this.host.arrows.unfocusPill(pill && row ? this.keyOf(pill, row) : undefined);
     }
 
     /**

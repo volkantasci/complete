@@ -318,3 +318,9 @@ msgstr "إظهار اللوحة أو إخفاؤها"
 #: code:addons/web_gantt/static/src/timeline_side_panel.xml:0
 msgid "Load more"
 msgstr "تحميل المزيد"
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_arrows.js:0
+msgid "Remove this dependency"
+msgstr "إزالة هذا الاعتماد"

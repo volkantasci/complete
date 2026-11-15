@@ -135,6 +135,30 @@ export class TimelineEditor {
     }
 
     /**
+     * 002c R10: take `sourceId` out of the dependency field of `targetId` (the remove button of
+     * an arrow): one write after the writes sent before, then the view reloads; no notification.
+     * A refused call reloads the view and is passed on, so that the Community error shows when
+     * the caller does not catch it.
+     * @param {Object} params
+     * @param {number} params.targetId the record that was blocked
+     * @param {number} params.sourceId the blocker to take out
+     */
+    removeDependency({ targetId, sourceId }) {
+        const { model, services, archInfo } = this;
+        const field = archInfo.dependencyField;
+        return this._queueChange({
+            send: () =>
+                services.orm.write(
+                    model.resModel,
+                    [targetId],
+                    { [field]: [[3, sourceId]] },
+                    { context: model.context }
+                ),
+            reloadOnRefusal: true,
+        });
+    }
+
+    /**
      * 002b3 R22: empty the start and the stop of the record of a pill dropped on the drop zone,
      * sent at once (it does not wait for the writes before it), then the view reloads; no
      * notification and no Undo. A refused call reloads the view (E2) and is passed on.

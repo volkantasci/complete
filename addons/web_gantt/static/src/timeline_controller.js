@@ -25,6 +25,7 @@ import { TimelineEditor } from "./timeline_editor";
 import { TimelineSelectionButtons } from "./timeline_selection_buttons";
 import { newButtonPeriod } from "./timeline_editing";
 import { buildMultiCreateValues } from "./timeline_multi_create";
+import { readShowConnectors } from "./timeline_dependency_prefs";
 import { hasSidePanel, panelTitleText } from "./timeline_side_panel";
 
 const KIND_LABELS = {
@@ -109,6 +110,11 @@ export class TimelineController extends Component {
             state: proxy({ count: 0, cellCount: 0, drawing: false, visible: false }),
             renderer: null,
         };
+        // the switch "Show dependencies" (002c R13), kept per view and action; the renderer draws
+        // the arrows by it (`shown`), the menu of the method button toggles it
+        this.dependencies = proxy({
+            shown: readShowConnectors(this.env.config.viewId, this.env.config.actionId),
+        });
         // Escape is registered twice: by the renderer (cells picked, no drawing held) and by the
         // Community buttons (while they show); both call `clearPicked`, which is idempotent, so
         // the order they are reached in does not matter
