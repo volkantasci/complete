@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { click, drag, queryAll, queryAllTexts, queryOne, queryRect, resize } from "@odoo/hoot-dom";
-import { advanceFrame, advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
+import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import {
     contains,
     defineWebModels,
@@ -309,12 +309,14 @@ test("002b A12: edge scroll grows the selection", async () => {
     await animationFrame();
     const before = renderer.scrollLeft;
     const width = selectionRect().width;
+    // the scroll speed follows the clock: from here on only the frames below move it
+    freezeTime();
     // 100 px from the right edge of the grid
     const x = box.right - 100;
     await drawing.moveTo(cellUnder(x), { position: { x, y } });
     await animationFrame();
     for (let i = 0; i < 5; i++) {
-        await advanceFrame();
+        await advanceTime(16);
     }
     expect(renderer.scrollLeft).toBeGreaterThan(before);
     expect(selectionRect().width).toBeGreaterThan(width);
@@ -325,7 +327,7 @@ test("002b A12: edge scroll grows the selection", async () => {
     await drawing.moveTo(cellUnder(left), { position: { x: left, y } });
     await animationFrame();
     for (let i = 0; i < 5; i++) {
-        await advanceFrame();
+        await advanceTime(16);
     }
     expect(renderer.scrollLeft).toBeLessThan(grown);
     // the row header column is no edge zone: 200 px right of it nothing scrolls
@@ -333,7 +335,7 @@ test("002b A12: edge scroll grows the selection", async () => {
     const calm = header.right + 200;
     await drawing.moveTo(cellUnder(calm), { position: { x: calm, y } });
     for (let i = 0; i < 3; i++) {
-        await advanceFrame();
+        await advanceTime(16);
     }
     expect(renderer.scrollLeft).toBe(rest);
 
@@ -344,7 +346,7 @@ test("002b A12: edge scroll grows the selection", async () => {
     await drawing.moveTo(rowAt().querySelector(".o_tl_row_header"), { position: { x: inside, y } });
     const from = renderer.scrollLeft;
     for (let i = 0; i < 3; i++) {
-        await advanceFrame();
+        await advanceTime(16);
     }
     expect(renderer.scrollLeft).toBeLessThan(from);
     // the speed is by time (R20): 2500 px per second is 42 px of a frame
