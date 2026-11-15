@@ -403,23 +403,23 @@ test("002b3 A54: a view and an action without ids store the state under a key wi
 
 test.tags("desktop");
 test("002b3 A46: a line opens the record dialog; closing reloads", async () => {
-    const reloads = [];
-    const noteReload = () => {
-        reloads.push(1);
-    };
-    onRpc("get_gantt_data", noteReload);
+    const methods = [];
+    onRpc("*", ({ method }) => {
+        methods.push(method);
+    });
+    const reloadCount = () => methods.filter((method) => method === "get_gantt_data").length;
     await mountPanel();
-    const before = reloads.length;
+    const before = reloadCount();
     await contains(".o_tl_panel_line[data-record-id='2'] .o_tl_panel_name").click();
     await waitFor(".modal-body .o_form_view");
     expect(queryAllTexts(".o_dialog .modal-title")).toEqual(["Open"]);
     expect(".o_dialog .o_field_widget[name='name'] input").toHaveValue("Beta");
-    expect(reloads).toHaveLength(before);
+    expect(reloadCount()).toBe(before);
     await contains(".o_dialog .o_form_button_cancel").click();
     await animationFrame();
     await advanceTime(100);
     expect(".o_dialog").toHaveCount(0);
-    expect(reloads.length).toBeGreaterThan(before);
+    expect(reloadCount()).toBeGreaterThan(before);
 });
 
 test.tags("desktop");

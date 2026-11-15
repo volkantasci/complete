@@ -85,7 +85,7 @@ function pointOf(rowIdx, date, half = 0, dx = 0) {
 const pickedCells = () => queryAll(".o_tl_cell_picked");
 const popover = ".o_popover .o_multi_create_popover";
 const DIALOG_FORM = ".modal-body .o_form_view";
-const ADD =".o_multi_selection_buttons [data-tooltip='Add']";
+const ADD = ".o_multi_selection_buttons [data-tooltip='Add']";
 
 async function settle() {
     for (let i = 0; i < 4; i++) {

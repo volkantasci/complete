@@ -492,8 +492,8 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         self.assertFalse(gamma.parent_id)
         self._tour('h36', 'timeline_002b3_a48_ungrouped_and_group_row')
         # the first half of the day before today: a day from 00:00, no grouping value
-        self.assertEqual(gamma.date_start, self._tl_utc_on(self.today + timedelta(days=-1)))
-        self.assertEqual(gamma.date_stop, self._tl_utc_on(self.today))
+        self.assertEqual(gamma.date_start, self._tl_utc(-1, 0))
+        self.assertEqual(gamma.date_stop, self._tl_utc(0, 0))
         self.assertFalse(gamma.parent_id)
         gamma.write({'date_start': False, 'date_stop': False})
         self._tour('h41', 'timeline_002b3_a48_ungrouped_and_group_row')
