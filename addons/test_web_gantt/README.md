@@ -105,7 +105,8 @@ git-ignored `.cache/` of the checkout through a bind mount, as the
 [web_enterprise](../web_enterprise/README.md) screenshots do: `run --rm -v
 /path/to/complete/.cache/gantt_multi_screens:/mnt/cwg_shots odoo odoo ... --test-tags
 gantt_multi_screens --screenshots /mnt/cwg_shots` (images 53 to 74), then copy the
-pictures you keep into `docs/assets/gantt_view/`. Drag tours:
+pictures you keep into `docs/assets/gantt_view/`. Make the directory writable for
+the container's user first (`chmod 777` on it), and create it yourself. Drag tours:
 `--test-tags /test_web_gantt:TestTimelineDragTours`; host and undo tests:
 `/test_web_gantt:TestTimelineDragHost` and
 `/test_web_gantt:TestTimelineUndoMethod`.
