@@ -100,6 +100,7 @@ export class TimelineController extends Component {
             config: this.props.archInfo,
             viewId: this.env.config.viewId,
             actionId: this.env.config.actionId,
+            isSmall: () => this.ui.isSmall,
             state: this.props.state?.modelState,
         });
         // what is picked in the grid (002b3 R9): the renderer fills `state` after every change and

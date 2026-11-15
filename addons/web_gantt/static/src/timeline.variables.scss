@@ -65,3 +65,11 @@ $o-tl-panel-button-active-bg: $o-component-active-bg !default;
 $o-tl-panel-button-active-border: $o-component-active-border !default;
 $o-tl-panel-button-closed-bg: $o-gray-200 !default;
 $o-tl-panel-button-closed-color: $o-black !default;
+
+// The drag handle of a line of the panel (M32, M39): grey at rest, darker under the pointer and
+// while the line is dragged.
+$o-tl-panel-handle: $o-gray-500 !default;
+$o-tl-panel-handle-hover: #666666 !default;
+
+// The Load more button of the panel (M53): a zero-size black shadow, black in both schemes.
+$o-tl-panel-more-shadow: 0 0 0 0 rgba(0, 0, 0, 1) !default;

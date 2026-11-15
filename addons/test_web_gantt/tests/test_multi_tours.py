@@ -421,3 +421,48 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
 
     def test_a54_tour_open_close_remembered(self):
         self._tour('h36', 'timeline_002b3_a54_open_close_remembered')
+
+    # -- the list of the records to schedule (R19) -------------------------------------------------
+
+    def _tl_queue(self):
+        """Queue 01 to Queue 22: records without dates (the test's savepoint takes them back)."""
+        return self.env[PILL].create([{'name': f'Queue {i:02d}'} for i in range(1, 23)])
+
+    def test_a44_tour_list(self):
+        self._tour('h36', 'timeline_002b3_a44_list')
+        self._tour('h37', 'timeline_002b3_a44_list')
+        # a record changed elsewhere: Alpha gets a start and no stop, so it is not listed
+        alpha = self.env[PILL].search([('name', '=', 'Alpha')])
+        alpha.write({'date_start': fields.Datetime.now()})
+        self._tour('h36', 'timeline_002b3_a44_list_start_only')
+        alpha.write({'date_start': False})
+        self._tour('h36', 'timeline_002b3_a44_list')
+
+    def test_a45_tour_date_filter_ignored(self):
+        action = self.env.ref('test_web_gantt.host_action_h36')
+        self.env['ir.filters'].create({
+            'name': 'Start is set',
+            'model_id': PILL,
+            'domain': "[('date_start', '!=', False)]",
+            'action_id': action.id,
+            'user_ids': [Command.set([self.env.ref('base.user_admin').id])],
+            'is_default': True,
+        })
+        self._tour('h36', 'timeline_002b3_a45_date_filter_ignored')
+
+    def test_a46_tour_open_line(self):
+        self._tour('h36', 'timeline_002b3_a46_open_line')
+
+    def test_a53_tour_load_more(self):
+        queue = self._tl_queue()
+        self._tour('h36', 'timeline_002b3_a53_load_more')
+        queue.unlink()
+        self.assertFalse(self.env[PILL].search([('name', 'like', 'Queue ')]))
+
+    def test_a25_tour_load_more_clears(self):
+        queue = self._tl_queue()
+        self._tour('h40', 'timeline_002b3_a25_load_more_clears')
+        queue.unlink()
+
+    def test_a58_tour_hover(self):
+        self._tour('h37', 'timeline_002b3_a58_hover')

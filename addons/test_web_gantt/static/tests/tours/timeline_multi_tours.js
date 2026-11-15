@@ -1314,3 +1314,149 @@ tours.add("timeline_002b3_a54_open_close_remembered", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// The list of the records to schedule (R19; A25, A44 to A46, A53, A58)
+// ---------------------------------------------------------------------------------------------
+
+const panelNames = () => $$(".o_tl_panel_name").map((element) => element.textContent.trim());
+const panelTitle = () => $(".o_tl_panel_title")?.textContent.trim();
+const panelListed = (title, names) => async () => {
+    await until(() => panelTitle() === title, `the title ${title}, got ${panelTitle()}`);
+    await gridSettled();
+    assert(
+        JSON.stringify(panelNames()) === JSON.stringify(names),
+        `the lines are ${JSON.stringify(panelNames())}`
+    );
+};
+
+// H36 as the test built it: the three parents and the record without dates
+tours.add("timeline_002b3_a44_list", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            run: panelListed("Unscheduled: 4", ["Alpha", "Beta", "Gamma", "Unscheduled"]),
+        },
+    ],
+});
+
+// the test gave Alpha a start and no stop: it is not listed
+tours.add("timeline_002b3_a44_list_start_only", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            run: panelListed("Unscheduled: 3", ["Beta", "Gamma", "Unscheduled"]),
+        },
+    ],
+});
+
+// a default filter "start is set" (made by the test) does not touch the list, while the grid
+// shows only records with a start
+tours.add("timeline_002b3_a45_date_filter_ignored", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            run: async () => {
+                await panelListed("Unscheduled: 4", ["Alpha", "Beta", "Gamma", "Unscheduled"])();
+                assert(
+                    $$(".o_searchview_facet").length === 1,
+                    "the default filter is among the facets of the search"
+                );
+                assert(!$$(".o_tl_pill").some((el) => el.textContent.includes("Unscheduled")));
+            },
+        },
+    ],
+});
+
+tours.add("timeline_002b3_a46_open_line", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const alpha = $$(".o_tl_panel_name").find((el) => el.textContent === "Alpha");
+                alpha.click();
+                await until(() => $(".o_dialog .modal-title"), "the record dialog");
+                assert($(".o_dialog .modal-title").textContent === "Open", "the dialog is Open");
+                await until(
+                    () => $(".o_dialog .o_field_widget[name='name'] input")?.value === "Alpha",
+                    "the dialog shows Alpha"
+                );
+                $(".o_dialog .o_form_button_cancel").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await gridSettled();
+                assert(panelTitle() === "Unscheduled: 4", "the list is read again");
+                assert(panelNames().length === 4, "the four lines are back");
+            },
+        },
+    ],
+});
+
+// the test made Queue 01 to Queue 22: 26 records, twenty lines first
+tours.add("timeline_002b3_a53_load_more", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_more",
+            async run() {
+                await gridSettled();
+                assert(panelTitle() === "Unscheduled: 26", `the title is ${panelTitle()}`);
+                assert($$(".o_tl_panel_line").length === 20, "twenty lines");
+                assert($(".o_tl_panel_more").textContent.trim() === "Load more", "the text");
+                $(".o_tl_panel_more").click();
+                await until(() => $$(".o_tl_panel_line").length === 26, "twenty more");
+                await gridSettled();
+                assert(panelTitle() === "Unscheduled: 26", "the title keeps the total");
+                assert(!$(".o_tl_panel_more"), "no Load more once everything is listed");
+            },
+        },
+    ],
+});
+
+// H40: a selection in the grid goes with Load more
+tours.add("timeline_002b3_a25_load_more_clears", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_more",
+            async run() {
+                await gridSettled();
+                await clickAt(cellPoint(recordRows()[0], todayIndex(), 0));
+                await until(() => pickedCount() > 0, "a picked cell");
+                $(".o_tl_panel_more").click();
+                await until(() => $$(".o_tl_panel_line").length === 26, "twenty more");
+                await gridSettled();
+                assert(pickedCount() === 0, "the selection is cleared");
+                assert(!$(".o_multi_selection_buttons"), "the selection buttons are gone");
+            },
+        },
+    ],
+});
+
+// the handle is grey at rest and darker under the real pointer
+tours.add("timeline_002b3_a58_hover", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const gamma = $$(".o_tl_panel_line").find(
+                    (line) => $(".o_tl_panel_name", line).textContent === "Gamma"
+                );
+                const handle = $(".o_tl_panel_handle", gamma);
+                const colour = () => getComputedStyle(handle).color;
+                assert(colour() === "rgb(173, 181, 189)", `at rest ${colour()}`);
+                const { x, y } = centreOf(handle);
+                await realMouse([mouse("mouseMoved", x, y, { button: "none", buttons: 0 })]);
+                assert(colour() === "rgb(102, 102, 102)", `under the pointer ${colour()}`);
+                await realMouse([mouse("mouseMoved", x + 300, y, { button: "none", buttons: 0 })]);
+                assert(colour() === "rgb(173, 181, 189)", `after leaving ${colour()}`);
+            },
+        },
+    ],
+});

@@ -443,3 +443,55 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.wait("!!document.querySelector('.o_tl_row[data-row-id]')")
                 self.settle(500)
                 self.check_without_panel('M55p', scheme, viewport, sample=False)
+
+    # -- the list of the panel: M30 to M33, M39, M53 (R19) -----------------------------------------
+    #
+    # Elements read: M30 the title `.o_tl_panel_title`, M31 the line `.o_tl_panel_line` of
+    # "Unscheduled", M32 its handle `.o_tl_panel_handle`, M33 its name `.o_tl_panel_name`, M39 the
+    # handle of the line "Gamma" under the pointer, M53 the Load more button `.o_tl_panel_more`.
+
+    @staticmethod
+    def panel_line(name):
+        return ("[...document.querySelectorAll('.o_tl_panel_line')].find("
+                f"(l) => l.querySelector('.o_tl_panel_name').textContent === {name!r})")
+
+    def test_002b3_m30_m33_list_at_rest(self):
+        probes = ['M30', 'M31', 'M32', 'M33']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("document.querySelectorAll('.o_tl_panel_line').length === 4")
+                self.pointer_away()
+                line = self.panel_line('Unscheduled')
+                self.check('M30', "document.querySelector('.o_tl_panel_title')", scheme,
+                           viewport, 'the panel title')
+                self.check('M31', line, scheme, viewport, 'the line Unscheduled')
+                self.check('M32', f"{line}.querySelector('.o_tl_panel_handle')", scheme, viewport,
+                           'the handle of the line Unscheduled')
+                # the name's width follows the text and the font: only what is not geometry
+                self.check_keys('M33', f"{line}.querySelector('.o_tl_panel_name')", scheme,
+                                viewport, 'the name of the line Unscheduled',
+                                lambda k: not k.startswith('geometry.')
+                                or k in ('geometry.x', 'geometry.y'))
+
+    def test_002b3_m39_handle_hover(self):
+        for scheme, viewport in self.combos(['M39'], ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("document.querySelectorAll('.o_tl_panel_line').length === 4")
+                handle = f"{self.panel_line('Gamma')}.querySelector('.o_tl_panel_handle')"
+                self.pointer_to(handle)
+                self.check('M39', handle, scheme, viewport, 'the handle of Gamma under the pointer')
+
+    def test_002b3_m53_load_more(self):
+        queue = self.env['test.web.gantt.pill'].create(
+            [{'name': f'Queue {i:02d}'} for i in range(1, 23)])
+        try:
+            for scheme, viewport in self.combos(['M53'], ('desktop',)):
+                with self.page(HOST.format('h36'), scheme, viewport):
+                    self.wait("!!document.querySelector('.o_tl_panel_more')")
+                    self.js("(() => { const p = document.querySelector('.o_tl_panel');"
+                            " p.scrollTop = p.scrollHeight; })()")
+                    self.pointer_away()
+                    self.check('M53', "document.querySelector('.o_tl_panel_more')", scheme,
+                               viewport, 'the Load more button, the panel scrolled to its end')
+        finally:
+            queue.unlink()

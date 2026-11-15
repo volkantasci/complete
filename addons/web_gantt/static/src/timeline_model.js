@@ -29,7 +29,8 @@ import {
     partsFor,
 } from "./timeline_dates";
 import { orderPills, pillSpan } from "./timeline_layout";
-import { PANEL_WIDTH } from "./timeline_side_panel";
+import { stripDateConditions } from "./timeline_panel_math";
+import { PANEL_LIMIT, PANEL_LIMIT_STEP, PANEL_WIDTH } from "./timeline_side_panel";
 
 const { DateTime } = luxon;
 
@@ -39,7 +40,9 @@ const RELATIONAL_TYPES = ["many2one", "many2many", "one2many"];
 
 const storageKey = (viewId) => `rangeOf-viewId-${viewId}`;
 // whether the side panel is open, kept per view and action (002b3 R17)
-const panelKey = (viewId, actionId) => `timelinePanelOpen-view-${viewId}-action-${actionId}`;
+// (a view or an action without an id shares the key "none")
+const panelKey = (viewId, actionId) =>
+    `timelinePanelOpen-view-${viewId || "none"}-action-${actionId || "none"}`;
 
 function groupByFieldName(groupBy) {
     return groupBy.split(":")[0];
@@ -57,6 +60,7 @@ export class TimelineModel extends Model {
      * @param {Object} params.config result of `parseTimelineArch`
      * @param {number|false} [params.viewId]
      * @param {number|false} [params.actionId]
+     * @param {Function} [params.isSmall] tells whether the screen is a phone (no panel, no list)
      */
     setup(params) {
         this.resModel = params.resModel;
@@ -64,12 +68,16 @@ export class TimelineModel extends Model {
         this.config = params.config;
         this.viewId = params.viewId;
         this.actionId = params.actionId;
+        this._isSmall = params.isSmall || (() => false);
         // the side panel (002b3 R17, R20): open by default, as the browser kept it for this view
-        // and action; `count` is the number of records to schedule (null until it is known);
-        // `width` is kept while the view stays open
+        // and action; `count` is the number of records to schedule (null until it is known),
+        // `records` the first `limit` of them (`{id, display_name}`); `width` is kept while the
+        // view stays open
         this.panel = proxy({
             open: browser.localStorage.getItem(this._panelKey) !== "false",
             count: null,
+            records: [],
+            limit: PANEL_LIMIT,
             width: PANEL_WIDTH,
         });
         // what the action kept when the user left this view (range, display mode, scroll)
@@ -569,31 +577,62 @@ export class TimelineModel extends Model {
         this._requestedRange = null;
         this._requestedOffset = null;
         this._commit(request, result);
-        this._refreshPanelCount();
+        // every reload reads the first records of the list again (R19)
+        this.panel.limit = PANEL_LIMIT;
+        this.loadPanel();
     }
 
     /**
-     * The number of records to schedule, read with every load (002b3 R19): those of the action's
-     * domain and the search, without the conditions on the start or the stop field, whose start
-     * and stop are both empty. The list of the panel is read the same way.
+     * The list of the records to schedule and their number, read with every load (002b3 R19):
+     * those of the action's domain and the search, without the conditions on the start or the
+     * stop field, whose start and stop are both empty, in the model's own order, the first
+     * `panel.limit` of them. Nothing is read where the panel cannot show (no option, no edit
+     * right, a phone, sample data). A failed or overtaken read leaves the list as it was.
      */
-    async _refreshPanelCount() {
+    async loadPanel() {
         const { canSchedule, canEdit, startField, stopField } = this.config;
-        if (!canSchedule || !canEdit || this.isSample) {
+        if (!canSchedule || !canEdit || this.isSample || this._isSmall()) {
             return;
         }
-        const serial = (this._countSerial = (this._countSerial || 0) + 1);
+        const serial = (this._panelSerial = (this._panelSerial || 0) + 1);
         const domain = Domain.and([
-            Domain.removeDomainLeaves(this.domain, [startField, stopField]),
+            stripDateConditions(this.domain, startField, stopField),
             [
                 [startField, "=", false],
                 [stopField, "=", false],
             ],
         ]).toList();
-        const count = await this.orm.searchCount(this.resModel, domain, { context: this.context });
-        if (serial === this._countSerial && !this.disposed) {
-            this.panel.count = count;
+        let result;
+        try {
+            result = await this.orm.webSearchRead(this.resModel, domain, {
+                specification: { display_name: {} },
+                limit: this.panel.limit,
+                context: this.context,
+            });
+        } catch {
+            // the panel is a convenience: the old list stays, the view is not disturbed
+            return;
         }
+        if (serial === this._panelSerial && !this.disposed) {
+            this.panel.records = result.records.map(({ id, display_name }) => ({
+                id,
+                display_name,
+            }));
+            this.panel.count = result.length;
+        }
+    }
+
+    /** Reads the list when none was read yet (the panel shows after the screen grew from a phone). */
+    ensurePanel() {
+        if (!this._panelSerial) {
+            this.loadPanel();
+        }
+    }
+
+    /** Load more: twenty more lines (the renderer clears the selection, R9). */
+    async loadMorePanel() {
+        this.panel.limit += PANEL_LIMIT_STEP;
+        await this.loadPanel();
     }
 
     _commit(request, result) {

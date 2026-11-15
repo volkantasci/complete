@@ -28,3 +28,7 @@ $o-tl-panel-button-active-bg: #1F3738 !default;
 $o-tl-panel-button-active-border: #2CE0D3 !default;
 $o-tl-panel-button-closed-bg: $o-gray-300 !default;
 $o-tl-panel-button-closed-color: $o-main-text-color !default;
+
+// The drag handle of a line of the panel in the dark scheme: the same greys as in the light one.
+$o-tl-panel-handle: #ADB5BD !default;
+$o-tl-panel-handle-hover: #666666 !default;

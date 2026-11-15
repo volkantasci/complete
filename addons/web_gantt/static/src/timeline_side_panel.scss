@@ -33,8 +33,52 @@
 
     .o_tl_panel_title {
         margin: 0 0 8px;
-        font-size: 1.1rem;
+        font-size: $font-size-base * 1.1;
+        line-height: 1.2;
         font-weight: 500;
         color: $headings-color;
+    }
+
+    // a line: 4 px above and below its text, grabbed to be dragged; the handle is grey, darker
+    // under the pointer and while the line is dragged (M31 to M33, M39)
+    .o_tl_panel_line {
+        padding: 4px 0;
+        min-height: 29px;
+        align-items: flex-start;
+        cursor: grab;
+
+        .o_tl_panel_handle {
+            flex: none;
+            position: relative;
+            top: 3px;
+            font-size: 14px;
+            line-height: 14px;
+            color: $o-tl-panel-handle;
+
+            &:hover {
+                color: $o-tl-panel-handle-hover;
+            }
+        }
+
+        &.o_tl_panel_dragged .o_tl_panel_handle {
+            color: $o-tl-panel-handle-hover;
+        }
+
+        // the name reaches the line's end, cut with an ellipsis (the text-truncate class), its
+        // click opens the record
+        .o_tl_panel_name {
+            flex: 1 1 auto;
+            min-width: 0;
+            position: relative;
+            top: 2px;
+            padding-left: 4px;
+            line-height: 16px;
+            cursor: pointer;
+        }
+    }
+
+    .o_tl_panel_more {
+        font-weight: 500;
+        box-shadow: $o-tl-panel-more-shadow;
     }
 }
