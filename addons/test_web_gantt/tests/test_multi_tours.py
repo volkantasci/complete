@@ -269,6 +269,22 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         self._tour('h34', 'timeline_002b3_a35_new_with_selection')
         self.assertEqual(self.env[PILL].search_count([]), count)
 
+    def test_a35_tour_new_skips_group_rows(self):
+        count = self.env[PILL].search_count([])
+        self._tour('h34', 'timeline_002b3_a35_new_skips_group_row')
+        self._tour('h34', 'timeline_002b3_a35_new_column_header')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
+    def test_a66_tour_group_row_cells_only(self):
+        """002a H3's grouping with H33's multi_create_view and full-day precision on the week."""
+        count = self.env[PILL].search_count([])
+        path = self._tl_option_action({
+            'multi_create_view': 'test_web_gantt.host_form_template_one',
+            'precision': "{'week': 'day:full'}",
+        }, base_view='test_web_gantt.host_view_h3')
+        self._tour(path, 'timeline_002b3_a66_group_row_cells_only')
+        self.assertEqual(self.env[PILL].search_count([]), count)
+
     def test_a62_halves(self):
         self._tour('h34', 'timeline_002b3_a62_halves_and_mixed')
         halves = self._tl_created('Halves').sorted('date_start')
@@ -456,6 +472,27 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         })
         self._tour('h36', 'timeline_002b3_a45_date_filter_ignored')
 
+    def test_a45_tour_negations(self):
+        action = self.env.ref('test_web_gantt.host_action_h36')
+        admin = self.env.ref('base.user_admin')
+        for domain, tour in [
+            ("['!', ('date_start', '!=', False)]", 'timeline_002b3_a45_negation_listed'),
+            ("['!', '&', ('date_start', '!=', False), ('name', 'ilike', 'Gam')]",
+             'timeline_002b3_a45_negated_group'),
+            ("['|', ('date_start', '!=', False), ('name', 'ilike', 'Gam')]",
+             'timeline_002b3_a45_or_branch'),
+        ]:
+            filter_ = self.env['ir.filters'].create({
+                'name': 'Dates ' + tour,
+                'model_id': PILL,
+                'domain': domain,
+                'action_id': action.id,
+                'user_ids': [Command.set([admin.id])],
+                'is_default': True,
+            })
+            self._tour('h36', tour)
+            filter_.unlink()
+
     def test_a46_tour_open_line(self):
         self._tour('h36', 'timeline_002b3_a46_open_line')
 
@@ -525,6 +562,18 @@ class TestTimelineMultiTours(RealPointerMixin, HttpCase):
         self._tour('h37', 'timeline_002b3_a51_drop_zone')
         self.assertFalse(record.date_start)
         self.assertFalse(record.date_stop)
+
+    def test_a51_tour_margin_release(self):
+        record = self._tl_pill('Unscheduled')
+        values = {
+            'date_start': self._tl_utc_on(self.today, 12),
+            'date_stop': self._tl_utc_on(self.today + timedelta(days=1), 12),
+            'parent_id': self._tl_pill('Beta').id,
+        }
+        record.write(values)
+        self._tour('h37', 'timeline_002b3_a51_margin_release')
+        self.assertEqual(record.date_start, values['date_start'])
+        self.assertEqual(record.date_stop, values['date_stop'])
 
     def test_a52_tour_copy_on_zone(self):
         review = self._tl_pill('Review')

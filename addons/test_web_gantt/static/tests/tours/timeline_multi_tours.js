@@ -971,6 +971,149 @@ tours.add("timeline_002b3_a35_new_with_selection", {
     ],
 });
 
+/** The context of the first request of the create dialog opened by New. */
+async function newContext() {
+    const { bodies, stop } = recordRequestBodies();
+    try {
+        $(".o_tl_button_add").click();
+        await until(() => $(".o_dialog .o_form_view"), "the create dialog");
+        const body = await until(
+            () => bodies.find((b) => b.includes('"onchange"') && b.includes("default_date_start")),
+            "the first request of the dialog"
+        );
+        return JSON.parse(body).params.kwargs.context;
+    } finally {
+        stop();
+    }
+}
+
+// a drawing from a record row up into the group row above it: the group row's cell is skipped and
+// the first block is the first record-row cell (R12, decision D6)
+tours.add("timeline_002b3_a35_new_skips_group_row", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const groupRow = allRows().find(
+                    (element) =>
+                        element.classList.contains("o_tl_group_row") &&
+                        $(".o_tl_row_label", element)?.textContent === "Alpha"
+                );
+                const row = groupRow.nextElementSibling;
+                const index = todayIndex();
+                const from = cellPoint(row, index, 0);
+                const to = cellPoint(groupRow, index, 0);
+                await realMouse([
+                    ...holdEvents(from, [{ x: from.x, y: from.y - 15 }, to]),
+                    ...releaseAt(to),
+                ]);
+                assert(pickedCount() === 2, `two cells, got ${pickedCount()}`);
+                const context = await newContext();
+                const day = todayIso();
+                assert(
+                    context.default_date_start === `${day} 00:00:00` &&
+                        context.default_date_stop === `${day} 12:00:00`,
+                    `the period is ${context.default_date_start} to ${context.default_date_stop}`
+                );
+                assert(
+                    Number.isInteger(context.default_parent_id) &&
+                        Number.isInteger(context.default_x_contact),
+                    `the row is ${context.default_parent_id}, ${context.default_x_contact}`
+                );
+                $(".o_dialog .o_form_button_cancel").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await gridSettled();
+            },
+        },
+    ],
+});
+
+// today by its column header: New opens the creation in the first record row, not in the first
+// group row (R12, decision D6)
+tours.add("timeline_002b3_a35_new_column_header", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                await clickAt(centreOf($(".o_tl_col.o_tl_is_today")));
+                assert(pickedCount() > 0, "the column is selected");
+                assert(
+                    allRows()[0].classList.contains("o_tl_group_row"),
+                    "the first row is a group row"
+                );
+                const context = await newContext();
+                const day = todayIso();
+                const next = new Date(Date.parse(`${day}T00:00:00Z`) + 86400000)
+                    .toISOString()
+                    .slice(0, 10);
+                assert(
+                    context.default_date_start === `${day} 00:00:00` &&
+                        context.default_date_stop === `${next} 00:00:00`,
+                    `the period is ${context.default_date_start} to ${context.default_date_stop}`
+                );
+                assert(
+                    !Number.isInteger(context.default_parent_id) &&
+                        !Number.isInteger(context.default_x_contact),
+                    "the first record row has neither Parent nor Contact"
+                );
+                $(".o_dialog .o_form_button_cancel").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await gridSettled();
+            },
+        },
+    ],
+});
+
+// A66: only group-row cells stay selected: the count 0, Add, no Plan, no Delete; New as without
+tours.add("timeline_002b3_a66_group_row_cells_only", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_row[data-row-id]",
+            async run() {
+                const column = $(".o_tl_col.o_tl_is_today");
+                const index = Number(column.dataset.index);
+                await clickAt(centreOf(column));
+                assert(
+                    pickedCount() === allRows().length,
+                    `one cell in every row, got ${pickedCount()}`
+                );
+                for (const row of allRows()) {
+                    if (!row.classList.contains("o_tl_group_row")) {
+                        await clickAt(cellPoint(row, index, 0), ["ctrl"]);
+                    }
+                }
+                const groups = allRows().filter((row) => row.classList.contains("o_tl_group_row"));
+                assert(pickedCount() === groups.length, `group cells only, got ${pickedCount()}`);
+                assert(countShown() === "0", `the count is ${countShown()}`);
+                const labels = $$(".o_multi_selection_buttons > button").map((b) =>
+                    b.textContent.trim()
+                );
+                assert(JSON.stringify(labels) === '["Add"]', `the buttons are ${labels}`);
+                assert(!deleteButton(), "no Delete");
+                assert(!$(".o_tl_multi_plan"), "no Plan");
+                // New works as without a selection: the focus week
+                const context = await newContext();
+                assert(
+                    context.default_date_stop !== undefined &&
+                        context.default_date_start !== context.default_date_stop,
+                    "New proposes the period of 002b R2"
+                );
+                const days =
+                    (Date.parse(context.default_date_stop.replace(" ", "T") + "Z") -
+                        Date.parse(context.default_date_start.replace(" ", "T") + "Z")) /
+                    86400000;
+                assert(days === 7, `the period is ${days} days long, not a selected block`);
+                $(".o_dialog .o_form_button_cancel").click();
+                await until(() => !$(".o_dialog"), "the dialog closes");
+                await gridSettled();
+            },
+        },
+    ],
+});
+
 tours.add("timeline_002b3_a62_halves_and_mixed", {
     steps: () => [
         gridReady,
@@ -1192,7 +1335,8 @@ tours.add("timeline_002b3_a41_delete_cut_pills", {
     ],
 });
 
-// the server refuses the deletion: the Community error, nothing deleted, the selection stays
+// the server refuses the deletion: the Community error, nothing deleted, the selection is cleared
+// at Ok whatever the answer, and the view's data are not loaded again (R14, E2)
 tours.add("timeline_002b3_a63_server_refuses_delete", {
     steps: () => [
         gridReady,
@@ -1200,13 +1344,24 @@ tours.add("timeline_002b3_a63_server_refuses_delete", {
             trigger: ".o_tl_row[data-row-id]",
             async run() {
                 await pickSprintAndDelete();
-                dialogButton("Ok").click();
-                await until(
-                    () => /Deletion refused by the server/.test(dialogText()),
-                    "the Community error"
-                );
+                const { bodies, stop } = recordRequestBodies();
+                try {
+                    dialogButton("Ok").click();
+                    await until(
+                        () => /Deletion refused by the server/.test(dialogText()),
+                        "the Community error"
+                    );
+                    await gridSettled();
+                } finally {
+                    stop();
+                }
                 assert(pillsTitled("Sprint").length === 1, "the Sprint pill stays");
-                assert(pickedCount() === 2, "the selection stays after the refusal");
+                assert(pickedCount() === 0, "the selection is cleared at Ok");
+                assert(!$(".o_multi_selection_buttons"), "the buttons are gone");
+                assert(
+                    !bodies.some((body) => body.includes("get_gantt_data")),
+                    "the data are not loaded again after a refusal"
+                );
             },
         },
     ],
@@ -1360,6 +1515,41 @@ tours.add("timeline_002b3_a45_date_filter_ignored", {
                 );
                 assert(!$$(".o_tl_pill").some((el) => el.textContent.includes("Unscheduled")));
             },
+        },
+    ],
+});
+
+// a default filter with a negated condition on the start field (made by the test): the negation is
+// removed with its condition and the four records without dates are listed (R19.1, D5)
+tours.add("timeline_002b3_a45_negation_listed", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            run: panelListed("Unscheduled: 4", ["Alpha", "Beta", "Gamma", "Unscheduled"]),
+        },
+    ],
+});
+
+// "not (start is set and name contains Gam)": the date condition goes first, the negation applies
+// to what is left: Gamma is not listed
+tours.add("timeline_002b3_a45_negated_group", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            run: panelListed("Unscheduled: 3", ["Alpha", "Beta", "Unscheduled"]),
+        },
+    ],
+});
+
+// "start is set or name contains Gam": only the other branch acts
+tours.add("timeline_002b3_a45_or_branch", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            run: panelListed("Unscheduled: 1", ["Gamma"]),
         },
     ],
 });
@@ -1943,6 +2133,31 @@ tours.add("timeline_002b3_a51_drop_zone", {
                 assert(panelNames().includes("Unscheduled"), "the record is listed again");
                 assert(!pillNamed("Unscheduled"), "the pill is gone");
                 assert(!$(".o_notification"), "no notification");
+            },
+        },
+    ],
+});
+
+// the same pill released over the panel's 16 px margin above the zone: nothing is written (R22)
+tours.add("timeline_002b3_a51_margin_release", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel_line",
+            async run() {
+                await gridSettled();
+                const pill = await until(() => pillNamed("Unscheduled"), "the pill Unscheduled");
+                const from = centreOf(pill);
+                from.x -= 40;
+                const panel = $(".o_tl_panel").getBoundingClientRect();
+                const to = { x: panel.left + panel.width / 2, y: panel.top + 8 };
+                await realMouse(holdEvents(from, stepsTo(from, to)));
+                assert(zoneEl(), "the drop zone replaces the list");
+                await realMouse(releaseAt(to));
+                await until(() => !zoneEl(), "the zone goes");
+                await gridSettled();
+                assert(pillNamed("Unscheduled"), "the pill stays: nothing was written");
+                assert(!panelNames().includes("Unscheduled"), "the record is not listed");
             },
         },
     ],

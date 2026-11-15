@@ -1,7 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Measured values of the original for slice 002b3 (spec.md, "Measured values"): probes M1 to M70
-(M60 to M70: the row header and the first scroll with the panel, R18).
+"""Measured values of the original for slice 002b3 (spec.md, "Measured values"): probes M1 to M74
+(M60 to M70: the row header and the first scroll with the panel, R18; M71 to M73: text selection
+of the control panel and the panel, R1; M74: the text of the drop zone, R22).
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
@@ -1814,7 +1815,6 @@ MEASURED = {
             'border-top-color': 'rgba(222, 226, 230, 1)',
             'border-right-color': 'rgba(222, 226, 230, 1)',
             'border-bottom-color': 'rgba(222, 226, 230, 1)',
-            'border-left-color': 'rgba(220, 166, 101, 1)',
             'outline-color': 'rgba(33, 37, 41, 1)',
             'margin-top': '0',
             'margin-right': '0',
@@ -1848,7 +1848,6 @@ MEASURED = {
             'border-top-color': 'rgba(62, 63, 71, 1)',
             'border-right-color': 'rgba(62, 63, 71, 1)',
             'border-bottom-color': 'rgba(62, 63, 71, 1)',
-            'border-left-color': 'rgba(227, 156, 80, 0.5)',
             'outline-color': 'rgba(235, 235, 235, 1)',
             'margin-top': '0',
             'margin-right': '0',
@@ -2223,9 +2222,7 @@ MEASURED = {
             'letter-spacing': 'normal',
             'text-transform': 'none',
             'text-align': 'start',
-            'geometry.x': '1462.641',
             'geometry.y': '113.75',
-            'geometry.width': '77.344',
             'geometry.height': '19.5',
         },
         ('dark', 'desktop'): {
@@ -2244,9 +2241,7 @@ MEASURED = {
             'letter-spacing': 'normal',
             'text-transform': 'none',
             'text-align': 'start',
-            'geometry.x': '1462.641',
             'geometry.y': '113.75',
-            'geometry.width': '77.344',
             'geometry.height': '19.5',
         },
     },
@@ -2852,6 +2847,33 @@ MEASURED = {
             'geometry.y': '156',
             'geometry.width': '562',
             'geometry.height': '744',
+        },
+    },
+    'M71': {
+        ('light', 'desktop'): {
+            'user-select': 'none',
+        },
+    },
+    'M72': {
+        ('light', 'desktop'): {
+            'user-select': 'none',
+        },
+    },
+    'M73': {
+        ('light', 'desktop'): {
+            'user-select': 'none',
+        },
+    },
+    'M74': {
+        ('light', 'desktop'): {
+            'font-weight': '700',
+            'font-size': '14',
+            'color': 'rgba(33, 37, 41, 1)',
+        },
+        ('dark', 'desktop'): {
+            'font-weight': '700',
+            'font-size': '14',
+            'color': 'rgba(235, 235, 235, 1)',
         },
     },
 }

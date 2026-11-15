@@ -104,6 +104,40 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.assertEqual(self.js('window.getSelection().toString()'), '')
                 self.check('M56p', ALPHA_LABEL, scheme, viewport, 'label of the Alpha header')
 
+    # -- M71, M72, M73: no text selection in the control panel and the side panel (R1) ----------
+    #
+    # Elements read: M71 the last breadcrumb item `.o_last_breadcrumb_item` (the action name), M72
+    # the search field `.o_searchview_input`, M73 the name of "Unscheduled" in the side panel.
+
+    def test_002b3_m71_m73_no_selection_control_panel(self):
+        for scheme, viewport in self.combos(['M71', 'M72', 'M73'], ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("document.querySelectorAll('.o_tl_panel_line').length === 4")
+                self.check('M71', "document.querySelector('.o_last_breadcrumb_item')", scheme,
+                           viewport, 'the breadcrumb (the action name)')
+                self.check('M72', "document.querySelector('.o_searchview_input')", scheme,
+                           viewport, 'the search field')
+                self.check('M73', f"{self.panel_line('Unscheduled')}"
+                                  ".querySelector('.o_tl_panel_name')", scheme, viewport,
+                           'the name of Unscheduled in the side panel')
+                # a drag over the action name selects nothing; typing in the field works
+                box = self.geometry("document.querySelector('.o_last_breadcrumb_item')")
+                y = box['geometry.y'] + box['geometry.height'] / 2
+                self.mouse('mouseMoved', box['geometry.x'] + 2, y)
+                self.mouse('mousePressed', box['geometry.x'] + 2, y, button='left', buttons=1,
+                           clickCount=1)
+                self.mouse('mouseMoved', box['geometry.x'] + box['geometry.width'] - 2, y,
+                           button='left', buttons=1)
+                self.mouse('mouseReleased', box['geometry.x'] + box['geometry.width'] - 2, y,
+                           button='left', buttons=0, clickCount=1)
+                self.assertEqual(self.js('window.getSelection().toString()'), '')
+                self.js("document.querySelector('.o_searchview_input').focus()")
+                for char in 'Alp':
+                    self.browser._websocket_request('Input.dispatchKeyEvent', params={
+                        'type': 'char', 'text': char})
+                self.assertEqual(
+                    self.js("document.querySelector('.o_searchview_input').value"), 'Alp')
+
     # -- selecting cells: M1 to M3, M12 to M16 (R3, R5, R15) ----------------------------------
     #
     # Elements read: M1, M2, M3, M15 and M16 read one `.o_tl_cell_picked` (the first one of the
@@ -394,31 +428,34 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.wait("!document.querySelector('.o_tl_panel')")
                 self.wait("!!document.querySelector('.o_tl_panel_count')")
                 self.settle(500)
-                # the text follows the count and the language: its right edge is anchored (8 px
-                # before the button), its width is not compared
+                # the text follows the count and the language: the box is compared by its right
+                # edge (8 px before the button, x 1540), its top, height and styles, not by its x
+                # and width (M50 leaves them out)
                 count = "document.querySelector('.o_tl_panel_count')"
-                self.check_keys('M50', count, scheme, viewport, 'the count text before the button',
-                                lambda k: k not in ('geometry.x', 'geometry.width'))
+                self.check('M50', count, scheme, viewport, 'the count text before the button')
                 text = self.geometry(count)
-                want = MEASURED['M50'][(scheme, viewport)]
-                self.assertAlmostEqual(
-                    text['geometry.x'] + text['geometry.width'],
-                    float(want['geometry.x']) + float(want['geometry.width']), delta=.5,
-                    msg='the right edge of the count text')
+                self.assertAlmostEqual(text['geometry.x'] + text['geometry.width'], 1540, delta=.5,
+                                       msg='the right edge of the count text')
                 self.check('M51', self.TOGGLE, scheme, viewport, 'the panel button, closed')
                 self.check('M52', self.PANEL_BOX, scheme, viewport, 'the grid box, panel closed')
 
     def check_without_panel(self, probe, scheme, viewport, sample):
-        """The box of a view without panel: in the sample state the box fills the page while the
-        grid's scroll area is 92 px tall (M66), so the measured box is the scroll area there."""
+        """The box of a view without panel. In the sample state the measured box is the scrolling
+        area that carries the top line (92 px: the two header lines only, the no-content help
+        lies outside it; M54d, M54p): every property is read from it. Otherwise the box carries
+        the geometry, the margins and the padding and its scroll area the line above the headers
+        (002a puts that line on the scroll area, not on the box)."""
         line = "document.querySelector('.o_tl_renderer')"
         around = ('margin-', 'padding-')
-        self.check_keys(probe, self.PANEL_BOX, scheme, viewport, 'the grid box, no panel',
-                        lambda k: k.startswith(around) or (not sample and k.startswith('geometry')))
-        self.check_keys(probe, line, scheme, viewport, 'the scroll area, no panel',
-                        lambda k: not k.startswith(around)
-                        and (sample or k.startswith('border-top-width')
-                             or k.startswith('border-top-style')))
+        if sample:
+            self.check(probe, line, scheme, viewport, 'the scrolling area, no panel')
+        else:
+            self.check_keys(probe, self.PANEL_BOX, scheme, viewport, 'the grid box, no panel',
+                            lambda k: k.startswith(around) or k.startswith('geometry'))
+            self.check_keys(probe, line, scheme, viewport, 'the scroll area, no panel',
+                            lambda k: not k.startswith(around)
+                            and (k.startswith('border-top-width')
+                                 or k.startswith('border-top-style')))
         self.assertFalse(self.js("!!document.querySelector('.o_tl_panel_toggle')"),
                          'no panel button')
         self.assertFalse(self.js("!!document.querySelector('.o_tl_panel')"), 'no panel')
@@ -548,12 +585,10 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.wait("document.querySelectorAll('.o_tl_panel_line').length === 4")
                 self.hold_line()
                 self.wait("!!document.querySelector('.o_tl_panel_ghost')")
-                # the left border has no width (M40 measured a colour nobody sees); the x of
-                # the highlight and the badges is checked: the first scroll puts Thursday 12 at
-                # x 819 with the panel open (R18), so its second half starts at 915
-                self.check_keys('M40', "document.querySelector('.o_tl_selection.o_tl_drop')",
-                                scheme, viewport, 'the target highlight',
-                                lambda k: k != 'border-left-color')
+                # the x of the highlight and the badges is checked: the first scroll puts Thursday
+                # 12 at x 819 with the panel open (R18), so its second half starts at 915
+                self.check('M40', "document.querySelector('.o_tl_selection.o_tl_drop')", scheme,
+                           viewport, 'the target highlight')
                 ghost = "document.querySelector('.o_tl_panel_ghost')"
                 self.check('M41', ghost, scheme, viewport, 'the line that follows the pointer')
                 self.check('M42', f"{ghost}.querySelector('.o_tl_panel_handle')", scheme,
@@ -593,7 +628,7 @@ class TimelineMultiProbes(TimelineProbeCase):
     # 12:00, Parent Beta), pressed 40 px left of its centre and moved to (1450, 420), held.
 
     def test_002b3_m48_m49_drop_zone(self):
-        probes = ['M48', 'M49']
+        probes = ['M48', 'M49', 'M74']
         record = self.env['test.web.gantt.pill'].search([('name', '=', 'Unscheduled')])
         beta = self.env['test.web.gantt.pill'].search([('name', '=', 'Beta')], limit=1)
         for scheme, viewport in self.combos(probes, ('desktop',)):
@@ -615,6 +650,8 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.wait("!!document.querySelector('.o_tl_panel_dropzone')")
                 self.check('M48', "document.querySelector('.o_tl_panel_dropzone')", scheme,
                            viewport, 'the drop zone')
+                self.check('M74', "document.querySelector('.o_tl_panel_dropzone_text')", scheme,
+                           viewport, 'the text of the drop zone')
                 # the pill follows the pointer, pressed 40 px left of its centre: its x does not
                 # depend on where the grid sits
                 self.check('M49', "document.querySelector('.o_tl_pill_moved')", scheme,
