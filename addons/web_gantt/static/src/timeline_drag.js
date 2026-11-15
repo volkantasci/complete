@@ -52,6 +52,8 @@ const MODES = {
  * - `change(drawing)`: what to draw now, `{mode, pill, rowId, target, offset: {x, y}}` (`offset`:
  *   how far the pointer is from where it was pressed, in pixels), or `null` for nothing;
  * - `commit(result)`: the release, `{mode, pill, rowId, target}` (`target` may be `null`);
+ * - `cancelled()` (optional): a held gesture was cancelled (Escape, lost pointer), no `commit`
+ *   follows;
  * - `borderAt(x, pill, edge)`: for a resize, the sub-column border nearest to the viewport
  *   abscissa `x` for the edge `edge` of `pill` (kept one sub-column from the other edge), or
  *   `undefined` to keep the previous one (a folded column); the drawing's `target` is then
@@ -414,6 +416,7 @@ export class TimelinePillDrag {
     _cancel() {
         if (this.state === "dragging") {
             this.host.change(null);
+            this.host.cancelled?.();
         }
         this._finish();
     }

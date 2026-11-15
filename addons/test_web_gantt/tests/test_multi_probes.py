@@ -613,9 +613,10 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.wait("!!document.querySelector('.o_tl_panel_dropzone')")
                 self.check('M48', "document.querySelector('.o_tl_panel_dropzone')", scheme,
                            viewport, 'the drop zone')
-                self.check_keys('M49', "document.querySelector('.o_tl_pill_moved')", scheme,
-                                viewport, 'the moved pill over the panel',
-                                lambda k: k != 'geometry.x')
+                # the pill follows the pointer, pressed 40 px left of its centre: its x does not
+                # depend on where the grid sits
+                self.check('M49', "document.querySelector('.o_tl_pill_moved')", scheme,
+                           viewport, 'the moved pill over the panel')
                 self.mouse('mouseReleased', 1450, 420, button='left', buttons=0, clickCount=1)
                 self.settle(800)
             record.write({'date_start': False, 'date_stop': False})

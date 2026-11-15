@@ -234,6 +234,10 @@ export class TimelineRenderer extends Component {
             },
             change: (drawing) => this._setDrag(drawing),
             commit: (result) => this._commitDrag(result),
+            // a cancelled gesture (Escape, lost pointer) leaves no zone hit for the next release
+            cancelled: () => {
+                this._zoneHit = false;
+            },
             borderAt: (x, pill, edge) => this._borderAt(x, pill, edge),
             hold: (mode) => this._holdDrag(mode),
             panelOpen: () => this.hasPanel && this.panel.open,
