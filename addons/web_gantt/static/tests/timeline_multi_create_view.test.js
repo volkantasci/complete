@@ -279,6 +279,97 @@ test("002b3 A35: New with a selection opens the create dialog for the first bloc
     expect(pickedCells()).toHaveCount(0);
 });
 
+test("002b3 A35: a drawing that reaches the Alpha group row: New skips it (D6)", async () => {
+    let context;
+    onRpc("pill", "onchange", ({ kwargs }) => {
+        context = kwargs.context;
+    });
+    await mountMulti();
+    const group = rows().findIndex((row) => isGroupRow(row) && labelOf(row) === "Alpha");
+    // from the first record row under Alpha up into the Alpha group row, Tuesday 10, first half
+    await drawBetween(group + 1, "2026-11-10", 0, group, "2026-11-10", 0);
+    expect(pickedCells()).toHaveCount(2);
+    expect(rows()[group].querySelectorAll(".o_tl_cell_picked")).toHaveCount(1);
+    await contains(".o_tl_button_add").click();
+    await dialogFormReady();
+    // Tuesday 10, 00:00 to 12:00 local, Parent Alpha: the group row's cell is skipped
+    expect(context.default_date_start).toBe("2026-11-09 21:00:00");
+    expect(context.default_date_stop).toBe("2026-11-10 09:00:00");
+    expect(context.default_parent_id).toBe(1);
+    expect(context.default_x_contact).toBe(1);
+});
+
+test("002b3 A35: Monday by its column header: New opens in the first record row (D6)", async () => {
+    let context;
+    onRpc("pill", "onchange", ({ kwargs }) => {
+        context = kwargs.context;
+    });
+    await mountMulti();
+    await click(queryOne('.o_tl_col[data-date="2026-11-09"]'));
+    await settle();
+    await contains(".o_tl_button_add").click();
+    await dialogFormReady();
+    // Monday 9, 00:00 to Tuesday 10, 00:00 local, in the first record row (no Parent, no Contact)
+    expect(context.default_date_start).toBe("2026-11-08 21:00:00");
+    expect(context.default_date_stop).toBe("2026-11-09 21:00:00");
+    expect(rows()[0]).toHaveClass("o_tl_group_row");
+    expect(context.default_parent_id).not.toBeOfType("number");
+    expect(context.default_x_contact).not.toBeOfType("number");
+});
+
+test("002b3 A66: only group-row cells: count 0, Add, no Plan, no Delete; Add creates nothing; New as without", async () => {
+    const calls = trackCreate();
+    let context;
+    onRpc("pill", "onchange", ({ kwargs }) => {
+        context = kwargs.context;
+    });
+    // 002a's grouping with H33's option and full-day precision on the week scale
+    await mountMulti(`precision="{'week': 'day:full'}"`);
+    const monday = '.o_tl_col[data-date="2026-11-09"]';
+    await click(queryOne(monday));
+    await settle();
+    expect(pickedCells()).toHaveCount(rows().length);
+    // Ctrl+click on the Monday cell of every record row removes it
+    await keyDown("Control");
+    for (let i = 0; i < rows().length; i++) {
+        if (!isGroupRow(rows()[i])) {
+            await click(cellOf(i, "2026-11-09"), { position: pointOf(i, "2026-11-09") });
+            await settle();
+        }
+    }
+    await keyUp("Control");
+    const groups = rows().filter(isGroupRow).length;
+    expect(pickedCells()).toHaveCount(groups);
+    expect(controller.selection.state.count).toBe(0);
+    expect(queryAllTexts(".o_multi_selection_buttons > button")).toEqual(["Add"]);
+    expect(".o_multi_selection_buttons .o_selection_box b").toHaveText("0");
+    expect(".o_multi_selection_buttons .o_tl_multi_plan").toHaveCount(0);
+    expect(".o_multi_selection_buttons [data-tooltip='Delete']").toHaveCount(0);
+    // New works as without a selection: the focus week
+    await contains(".o_tl_button_add").click();
+    await dialogFormReady();
+    expect(context.default_date_start).toBe("2026-11-07 21:00:00");
+    expect(context.default_date_stop).toBe("2026-11-14 21:00:00");
+    await contains(".o_dialog .o_form_button_cancel").click();
+    await settle();
+    // Add creates nothing
+    await click(queryOne(monday));
+    await settle();
+    await keyDown("Control");
+    for (let i = 0; i < rows().length; i++) {
+        if (!isGroupRow(rows()[i])) {
+            await click(cellOf(i, "2026-11-09"), { position: pointOf(i, "2026-11-09") });
+            await settle();
+        }
+    }
+    await keyUp("Control");
+    await openPopover();
+    await contains(`${popover} .o_field_widget[name='name'] input`).edit("Nothing");
+    await contains(`${popover} .popover-footer .btn-primary`).click();
+    await settle();
+    expect(calls).toHaveLength(0);
+});
+
 test("002b3 A36: New without a selection proposes the focus week", async () => {
     let context;
     onRpc("pill", "onchange", ({ kwargs }) => {
