@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Measured values of the original for slice 002b3 (spec.md, "Measured values"): probes M1 to M59.
+"""Measured values of the original for slice 002b3 (spec.md, "Measured values"): probes M1 to M70
+(M60 to M70: the row header and the first scroll with the panel, R18).
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
@@ -2697,6 +2698,160 @@ MEASURED = {
             'geometry.y': '328',
             'geometry.width': '267',
             'geometry.height': '41',
+        },
+    },
+    'M60': {
+        ('light', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+    },
+    'M61': {
+        ('light', 'desktop'): {
+            'geometry.x': '819',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '819',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+    },
+    'M62': {
+        ('light', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+    },
+    'M63': {
+        ('light', 'desktop'): {
+            'geometry.x': '819',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '819',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+    },
+    'M64': {
+        ('light', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+    },
+    'M65': {
+        ('light', 'desktop'): {
+            'geometry.x': '950',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '950',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+    },
+    'M66': {
+        ('light', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+    },
+    'M67': {
+        ('light', 'desktop'): {
+            'geometry.x': '950',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '950',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+    },
+    'M68': {
+        ('light', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '17',
+            'geometry.y': '207',
+            'geometry.width': '267',
+            'geometry.height': '264',
+        },
+    },
+    'M69': {
+        ('light', 'desktop'): {
+            'geometry.x': '950',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '950',
+            'geometry.y': '182',
+            'geometry.width': '192',
+            'geometry.height': '25',
+        },
+    },
+    'M70': {
+        ('light', 'desktop'): {
+            'geometry.x': '1022',
+            'geometry.y': '156',
+            'geometry.width': '562',
+            'geometry.height': '744',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '1022',
+            'geometry.y': '156',
+            'geometry.width': '562',
+            'geometry.height': '744',
         },
     },
 }

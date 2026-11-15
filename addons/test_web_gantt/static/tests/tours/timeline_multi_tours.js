@@ -1534,6 +1534,73 @@ tours.add("timeline_002b3_a55_resize", {
 });
 
 // ---------------------------------------------------------------------------------------------
+// The row header and the first scroll with the panel (R18; A65)
+// ---------------------------------------------------------------------------------------------
+
+const headerWidthNow = () => Math.round($(".o_tl_row_header").getBoundingClientRect().width);
+const headerLeftNow = () => Math.round($(".o_tl_row_header").getBoundingClientRect().left);
+const todayLeftNow = () => $(".o_tl_col.o_tl_is_today").getBoundingClientRect().left;
+// the focus day starts at half of (the content width - the row header - the open panel) from the
+// cells' visible left edge (the box's left edge, 16 px margin and 1 px border, plus the row header)
+const focusPlace = (panelWidth) =>
+    $(".o_tl_title_cell").getBoundingClientRect().right +
+    (window.innerWidth - headerWidthNow() - panelWidth) / 2;
+
+/** The row header is a sixth of the view's width whatever the panel does. */
+function headerIsASixth() {
+    const sixth = Math.round(window.innerWidth / 6);
+    assert(headerWidthNow() === sixth, `the row header is ${headerWidthNow()} wide, not ${sixth}`);
+}
+
+// open at the first display: row header 267, Today at the focus place; closing keeps both; opened
+// again from a remembered closed state: the place is for no panel; opening and resizing keep both
+tours.add("timeline_002b3_a65_row_header_and_first_scroll", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_panel",
+            expectUnloadPage: true,
+            async run() {
+                await gridSettled();
+                headerIsASixth();
+                assert(panelWidthNow() === 262, "the panel is open at 262");
+                const open = focusPlace(262);
+                assert(near(todayLeftNow(), open, 1.5), `${todayLeftNow()} is not at ${open}`);
+                const first = todayLeftNow();
+                panelButton().click();
+                await until(() => !$(".o_tl_panel"), "the panel closes");
+                await gridSettled();
+                headerIsASixth();
+                assert(near(todayLeftNow(), first, 1), "closing moved the columns");
+                window.location.reload();
+            },
+        },
+        {
+            trigger: ".o_tl_panel_toggle:not(.active)",
+            async run() {
+                await gridSettled();
+                headerIsASixth();
+                assert(!$(".o_tl_panel"), "closed as it was left");
+                const closed = focusPlace(0);
+                assert(near(todayLeftNow(), closed, 1.5), `${todayLeftNow()} is not at ${closed}`);
+                const first = todayLeftNow();
+                panelButton().click();
+                await until(() => $(".o_tl_panel"), "the panel opens");
+                await gridSettled();
+                headerIsASixth();
+                assert(near(todayLeftNow(), first, 1), "opening moved the columns");
+                await dragStrip(-300);
+                assert(panelWidthNow() === 562, `562 after 300 px left, got ${panelWidthNow()}`);
+                await gridSettled();
+                headerIsASixth();
+                assert(headerLeftNow() === 17, `the row header starts at ${headerLeftNow()}`);
+                assert(near(todayLeftNow(), first, 1), "the resize moved the columns");
+            },
+        },
+    ],
+});
+
+// ---------------------------------------------------------------------------------------------
 // Scheduling a record by dragging its line onto the grid (R21; A47 to A50, A57, A60, A61)
 // ---------------------------------------------------------------------------------------------
 

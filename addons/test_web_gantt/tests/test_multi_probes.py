@@ -548,21 +548,22 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.wait("document.querySelectorAll('.o_tl_panel_line').length === 4")
                 self.hold_line()
                 self.wait("!!document.querySelector('.o_tl_panel_ghost')")
-                # the left border has no width (M40 measured a colour nobody sees); the
-                # x of the highlight and the badges follows the grid's scroll (see the report)
+                # the left border has no width (M40 measured a colour nobody sees); the x of
+                # the highlight and the badges is checked: the first scroll puts Thursday 12 at
+                # x 819 with the panel open (R18), so its second half starts at 915
                 self.check_keys('M40', "document.querySelector('.o_tl_selection.o_tl_drop')",
                                 scheme, viewport, 'the target highlight',
-                                lambda k: k not in ('border-left-color', 'geometry.x'))
+                                lambda k: k != 'border-left-color')
                 ghost = "document.querySelector('.o_tl_panel_ghost')"
                 self.check('M41', ghost, scheme, viewport, 'the line that follows the pointer')
                 self.check('M42', f"{ghost}.querySelector('.o_tl_panel_handle')", scheme,
                            viewport, 'the handle of the line that follows the pointer')
                 self.check('M43', self.panel_line('Unscheduled'), scheme, viewport,
                            'the line left in the list')
-                self.check_keys('M44', "document.querySelector('.o_tl_badge_start')", scheme,
-                                viewport, 'the start badge', lambda k: k != 'geometry.x')
-                self.check_keys('M45', "document.querySelector('.o_tl_badge_stop')", scheme,
-                                viewport, 'the stop badge', lambda k: k != 'geometry.x')
+                self.check('M44', "document.querySelector('.o_tl_badge_start')", scheme,
+                           viewport, 'the start badge')
+                self.check('M45', "document.querySelector('.o_tl_badge_stop')", scheme,
+                           viewport, 'the stop badge')
                 self.check('M46', "document.querySelector('.o_timeline_view')", scheme, viewport,
                            'the pointer shape over the view')
                 self.mouse('mouseReleased', 1000, 335, button='left', buttons=0, clickCount=1)
@@ -571,6 +572,7 @@ class TimelineMultiProbes(TimelineProbeCase):
                 # M47 measured the pill's slot: the pill's box with the 1 px inset added back
                 pill = self.geometry(self.pill('Unscheduled'))
                 slot = {
+                    'geometry.x': pill['geometry.x'] - 1,
                     'geometry.y': pill['geometry.y'] - 1,
                     'geometry.width': pill['geometry.width'] + 2,
                     'geometry.height': pill['geometry.height'] + 2,
@@ -621,25 +623,110 @@ class TimelineMultiProbes(TimelineProbeCase):
                 self.settle(800)
             record.write({'date_start': False, 'date_stop': False})
 
-    # -- the first centring (002a R39) with and without the panel ----------------------------------
+    # -- the row header and the first scroll with the panel: M60 to M70 (R18) ---------------------
+    #
+    # Elements read: the row header column (M60, M62, M64, M66, M68) is the rectangle from the top
+    # of the first row header to the bottom of the last one, the column header of Thursday 12
+    # (M61, M63, M65, M67, M69) is `.o_tl_col[data-date="2026-11-12"]`, M70 the side panel.
+
+    HEADER_COLUMN = """(() => {
+        const rects = [...document.querySelectorAll('.o_tl_row_header')]
+            .map((h) => h.getBoundingClientRect());
+        const left = Math.min(...rects.map((r) => r.left));
+        const top = Math.min(...rects.map((r) => r.top));
+        return {'geometry.x': left, 'geometry.y': top,
+                'geometry.width': Math.max(...rects.map((r) => r.right)) - left,
+                'geometry.height': Math.max(...rects.map((r) => r.bottom)) - top};
+    })()"""
+    THURSDAY = "document.querySelector('.o_tl_col[data-date=\"2026-11-12\"]')"
+
+    def check_header_column(self, probe, scheme, viewport):
+        measured = self.js(self.HEADER_COLUMN)
+        for prop, want in MEASURED[probe][(scheme, viewport)].items():
+            with self.subTest(probe=probe, scheme=scheme, viewport=viewport, prop=prop,
+                              element='the row header column'):
+                self.assertAlmostEqual(float(measured[prop]), float(want), delta=1,
+                                       msg=f'{probe} {prop}')
+
+    def reopen(self):
+        """Open the page again in the same browser: the storage keeps the panel's state."""
+        self.js('location.reload()')
+        time.sleep(1)
+        self.wait("!!document.querySelector('.o_tl_renderer .o_tl_row')", timeout=60)
+        self.wait("document.readyState === 'complete'")
+        self.settle(800)
+
+    def test_002b3_m60_m70_row_header_and_first_scroll(self):
+        probes = [f'M{n}' for n in range(60, 71)]
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h37'), scheme, viewport):
+                self.wait("!!document.querySelector('.o_tl_panel')")
+                self.settle(500)
+                self.check_header_column('M60', scheme, viewport)
+                self.check('M61', self.THURSDAY, scheme, viewport, 'Thursday 12, panel open')
+                self.js(f"{self.TOGGLE}.click()")
+                self.wait("!document.querySelector('.o_tl_panel')")
+                self.settle(500)
+                self.check_header_column('M62', scheme, viewport)
+                self.check('M63', self.THURSDAY, scheme, viewport, 'Thursday 12, panel closed')
+                self.reopen()
+                self.assertFalse(self.js("!!document.querySelector('.o_tl_panel')"),
+                                 'the panel opens as it was left: closed')
+                self.check_header_column('M64', scheme, viewport)
+                self.check('M65', self.THURSDAY, scheme, viewport,
+                           'Thursday 12, opened with the panel remembered as closed')
+                self.js(f"{self.TOGGLE}.click()")
+                self.wait("!!document.querySelector('.o_tl_panel')")
+                self.settle(500)
+                self.check_header_column('M66', scheme, viewport)
+                self.check('M67', self.THURSDAY, scheme, viewport,
+                           'Thursday 12, panel opened again')
+                strip = self.geometry(self.STRIP)
+                x = strip['geometry.x'] + strip['geometry.width'] / 2
+                y = strip['geometry.y'] + 200
+                self.mouse('mouseMoved', x, y)
+                self.mouse('mousePressed', x, y, button='left', buttons=1, clickCount=1)
+                for i in range(1, 7):
+                    self.mouse('mouseMoved', x - 50 * i, y, button='left', buttons=1)
+                    time.sleep(.05)
+                self.mouse('mouseReleased', x - 300, y, button='left', buttons=0, clickCount=1)
+                self.settle(500)
+                self.check_header_column('M68', scheme, viewport)
+                self.check('M69', self.THURSDAY, scheme, viewport,
+                           'Thursday 12, panel dragged to 562 px')
+                self.check('M70', "document.querySelector('.o_tl_panel')", scheme, viewport,
+                           'the side panel, 562 px wide')
+
+    # -- the first centring (002a R39, 002b3 R18) with and without the panel -----------------------
 
     CENTRE = """(() => {
         const grid = document.querySelector('.o_tl_renderer');
         const box = grid.getBoundingClientRect();
         const title = grid.querySelector('.o_tl_title_cell').getBoundingClientRect();
-        const middle = (title.right + box.left + grid.clientLeft + grid.clientWidth) / 2;
+        const panel = document.querySelector('.o_tl_panel');
+        const frame = document.querySelector('.o_tl_frame');
+        const content = panel ? frame.clientWidth : grid.clientWidth;
+        const place = title.right
+            + (content - title.width - (panel ? panel.getBoundingClientRect().width : 0)) / 2;
         const today = document.querySelector('.o_tl_col.o_tl_is_today').getBoundingClientRect();
-        return {middle, start: today.left};
+        const middle = (title.right + box.left + grid.clientLeft + grid.clientWidth) / 2;
+        return {place, middle, start: today.left};
     })()"""
 
     def test_002b3_centre_of_the_first_scroll(self):
-        """Today's column starts at the middle of the visible grid, panel open or not."""
+        """Today's column starts at half of (content width - row header - open panel) from the
+        cells' left edge: with the panel that is right of the middle of the visible cells,
+        without a panel it is the middle."""
         for action in ('h37', 'h34'):
             with self.page(HOST.format(action), 'light', 'desktop'):
                 self.wait("!!document.querySelector('.o_tl_col.o_tl_is_today')")
                 self.settle(800)
                 measured = self.js(self.CENTRE)
+                with_panel = action == 'h37'
                 self.assertEqual(bool(self.js("!!document.querySelector('.o_tl_panel')")),
-                                 action == 'h37')
-                self.assertAlmostEqual(measured['start'], measured['middle'], delta=2,
-                                       msg=f'{action}: the day starts at the middle {measured}')
+                                 with_panel)
+                self.assertAlmostEqual(measured['start'], measured['place'], delta=2,
+                                       msg=f'{action}: the day starts at the place {measured}')
+                if not with_panel:
+                    self.assertAlmostEqual(measured['place'], measured['middle'], delta=1,
+                                           msg=f'{action}: no panel, the middle {measured}')
