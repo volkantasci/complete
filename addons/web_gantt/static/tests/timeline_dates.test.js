@@ -324,3 +324,31 @@ test("R25 the week line keeps Western digits in English", () => {
     const groups = buildColumnGroups("week", buildColumns("week", displayedPeriod(namedRange("week", today), "week")));
     expect(groups[1].label).toBe("Week 46, Nov 8 - Nov 14");
 });
+
+test("002c A88: the week label in another year", () => {
+    const labels = (kind, day) => {
+        const range = namedRange(kind, day);
+        const scale = kind;
+        const groups = buildColumnGroups(scale, buildColumns(scale, displayedPeriod(range, scale)));
+        return groups;
+    };
+    // the clock is in 2026: a week of 2030 carries the year once, at the end, no comma
+    const weeks = labels("week", d("2030-06-12"));
+    expect(weeks.map((g) => g.label)).toEqual([
+        "Week 23, Jun 2 - Jun 8 2030",
+        "Week 24, Jun 9 - Jun 15 2030",
+        "Week 25, Jun 16 - Jun 22 2030",
+    ]);
+    expect(weeks[1].tooltip).toBe("Week 24, Jun 9 - Jun 15 2030");
+    // a week of the current year has none; a week of a year ahead has it (Jan 3, 2027 starts week 1)
+    expect(labels("week", today)[1].label).toBe("Week 46, Nov 8 - Nov 14");
+    const turn = labels("week", d("2027-01-05"));
+    expect(turn.map((g) => g.label)).toEqual([
+        "Week 53, Dec 27 - Jan 2",
+        "Week 1, Jan 3 - Jan 9 2027",
+        "Week 2, Jan 10 - Jan 16 2027",
+    ]);
+    // the other scales keep their labels with the year
+    expect(labels("month", d("2030-06-12"))[1].label).toBe("June 2030");
+    expect(labels("day", d("2030-06-12"))[1].label).toBe("Wednesday, June 12, 2030");
+});

@@ -61,6 +61,23 @@ class TimelineDependencyProbes(TimelineProbeCase):
                            'the name of Unscheduled in the side panel')
                 self.check('M48', line, scheme, viewport, 'the line of Unscheduled')
 
+    # -- M49, M50: the week group headers of H46, a week of another year (R27) ----------
+
+    @staticmethod
+    def week_header(text):
+        return ("[...document.querySelectorAll('.o_tl_col_group')].find("
+                f"(g) => g.textContent.trim() === {text!r})")
+
+    def test_002c_m49_m50_week_header_in_another_year(self):
+        for scheme, viewport in self.combos(['M49', 'M50'], ('desktop',)):
+            with self.rescheduling_page(scheme, viewport):
+                self.pointer_away()
+                self.check('M49', self.week_header('Week 24, Jun 9 - Jun 15 2030'), scheme,
+                           viewport, 'the week header of 9 June 2030')
+                self.check('M50', self.week_header('Week 23, Jun 2 - Jun 8 2030'), scheme,
+                           viewport, 'the week header before it')
+            self.env['test.web.gantt.pill']._tl_drop_reschedule_records()
+
     # -- arrows (R4 to R10, R13) ------------------------------------------------------
 
     @staticmethod

@@ -184,6 +184,12 @@ class TestTimelineRescheduleTours(RealPointerMixin, HttpCase):
         self.assertEqual(design.date_stop, stop + timedelta(days=1))
         self.assertEqual(build.date_start, build_start)
 
+    def test_a88_tour_week_label_in_another_year(self):
+        self._run('h46', 'timeline_002c_a88', prepared=False)
+
+    def test_a88_tour_week_label_in_the_current_year(self):
+        self._run('h42', 'timeline_002c_a88_no_year', now=D0, prepared=False)
+
     def test_a77_tour_undo_after_row_change(self):
         test = self.records['Test']
         start, stop, parent = test.date_start, test.date_stop, test.parent_id

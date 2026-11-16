@@ -528,6 +528,63 @@ tours.add("timeline_002c_a50_waits_for_earlier_writes", {
     ],
 });
 
+// A88 (R27): the week group headers carry the year once, at the end, only in another year than the
+// browser's; H46 (2030 under the 2026 clock) with its tooltip, then the month and day ranges
+const headerTexts = () => $$(".o_tl_col_group").map((el) => el.textContent.trim());
+async function chooseRangeItem(name) {
+    $(".o_tl_range_button").click();
+    const item = await until(() => $(`.o_tl_range_${name}`), `the ${name} item`);
+    item.click();
+    await gridSettled();
+}
+tours.add("timeline_002c_a88", {
+    steps: () => [
+        {
+            trigger: ".o_tl_col_group",
+            async run() {
+                await gridSettled();
+                const texts = headerTexts();
+                assert(
+                    texts.includes("Week 23, Jun 2 - Jun 8 2030") &&
+                        texts.includes("Week 24, Jun 9 - Jun 15 2030"),
+                    `week headers: ${texts}`
+                );
+                const group = $$(".o_tl_col_group").find(
+                    (el) => el.textContent.trim() === "Week 24, Jun 9 - Jun 15 2030"
+                );
+                assert(
+                    group.getAttribute("title") === "Week 24, Jun 9 - Jun 15 2030",
+                    `tooltip ${group.getAttribute("title")}`
+                );
+                assert(getComputedStyle(group).paddingLeft === "8px", "8 px left padding");
+                await chooseRangeItem("month");
+                assert(headerTexts().includes("June 2030"), `month headers: ${headerTexts()}`);
+                await chooseRangeItem("day");
+                assert(
+                    headerTexts().some((text) => /2030$/.test(text) && text.includes("June")),
+                    `day headers: ${headerTexts()}`
+                );
+            },
+        },
+    ],
+});
+
+// A88: a week of the browser's own year (H42, 2026) carries no year
+tours.add("timeline_002c_a88_no_year", {
+    steps: () => [
+        {
+            trigger: ".o_tl_col_group",
+            async run() {
+                await gridSettled();
+                assert(
+                    headerTexts().includes("Week 46, Nov 8 - Nov 14"),
+                    `week headers: ${headerTexts()}`
+                );
+            },
+        },
+    ],
+});
+
 // A77: "Test" (Beta) to the Alpha row one day later, then Undo puts it back (month range)
 tours.add("timeline_002c_a77_undo_after_row_change", {
     steps: () => [
