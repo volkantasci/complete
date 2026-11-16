@@ -506,7 +506,8 @@ test("002c A65: the arrow follows the moving pill, lit", async () => {
     await settleArrows();
     expect(".o_tl_pill_moved").toHaveCount(0);
     expect(pathOf(arrow)).toBe(before);
-    expect(isLit(arrow)).toBe(false);
+    // cancelled, not written: the arrow lit when the gesture started stays lit (R9, A95)
+    expect(isLit(arrow)).toBe(true);
 });
 
 test("002c A69: arrows do not follow the moving end of a resize", async () => {
@@ -534,7 +535,10 @@ test("002c A69: arrows do not follow the moving end of a resize", async () => {
     await settleArrows();
     expect(".o_tl_pill_resizing").toHaveCount(0);
     expect(pathOf(arrow)).toBe(before);
-    expect(isLit(arrow)).toBe(false);
+    // Escape writes nothing and reloads nothing: the arrows lit at the start stay lit (R9, A69)
+    expect(isLit(arrow)).toBe(true);
+    expect(".o_tl_arrow_remove").toHaveCount(2);
+    expect(".o_tl_connect_handle").toHaveCount(2);
 });
 
 test("002c A26: no handles on other pills while moving", async () => {
@@ -582,7 +586,7 @@ test("002c R9: a highlight key that matches nothing after a reload is dropped", 
 
 const stripOf = (side) => queryOne(`.o_tl_connect_strip_${side}`);
 
-test("002c A93: the strips above and below the body, as wide as the body", async () => {
+test("002c A93: the strips above and below the body, as wide as the pill's outer box", async () => {
     await mountDependencies();
     expect(".o_tl_connect_strip").toHaveCount(0);
     await hover(pillEl("Build"));

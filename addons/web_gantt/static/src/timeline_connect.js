@@ -34,6 +34,7 @@ const CENTRE = { start: { inward: 8, up: -8 }, stop: { inward: 6, up: 8 } };
  *   popover go) or over;
  * - `rest(x, y)`: the drawing ended with the pointer at the viewport point (the pill under it, if
  *   any, shows its handles again, as the pointer entered it);
+ * - `cancelled()` (optional): a drawing that was on was cancelled (Escape, lost pointer), no `commit`;
  * - `commit({source, target})`: the release over another pill; `source` is `{rowId, pillId}`.
  *
  * `drawing` is what the template reads: the key of the source pill, the key of the other pill
@@ -135,16 +136,16 @@ export class TimelineConnectDrag {
             "pointerdown",
             (event) => {
                 if (event.pointerId !== this._press?.id) {
-                    this._finish();
+                    this._cancel();
                 }
             },
             { capture: true }
         );
         // no release will come when the window or the tab loses the focus
-        this._listen(doc.defaultView, "blur", () => this._finish());
+        this._listen(doc.defaultView, "blur", () => this._cancel());
         this._listen(doc, "visibilitychange", () => {
             if (doc.visibilityState === "hidden") {
-                this._finish();
+                this._cancel();
             }
         });
         this._listen(doc, "keydown", (event) => this._onKeyDown(event), { capture: true });
@@ -226,8 +227,16 @@ export class TimelineConnectDrag {
 
     _onCancel(ev) {
         if (this._own(ev)) {
-            this._finish();
+            this._cancel();
         }
+    }
+
+    /** The drawing ends without a write: Escape, a lost pointer, another finger. */
+    _cancel() {
+        if (this.isActive) {
+            this.host.cancelled?.();
+        }
+        this._finish();
     }
 
     /** Any key but a modifier cancels, as it cancels a move (R12.4). */
@@ -235,7 +244,7 @@ export class TimelineConnectDrag {
         if (this.isActive && !HARMLESS_KEYS.includes(ev.key)) {
             ev.preventDefault();
             ev.stopPropagation();
-            this._finish();
+            this._cancel();
         }
     }
 

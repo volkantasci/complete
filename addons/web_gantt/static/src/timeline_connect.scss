@@ -20,7 +20,7 @@
     }
 }
 
-// The strips (R11, M52, M53): 11 px tall above and below the body, as wide as the body, in which the
+// The strips (R11, M52, M53): 11 px tall above and below the body, as wide as the pill's outer box, in which the
 // pill stays under the pointer. They lie in the wrapper, over the neighbouring pills (10), under
 // the lit arrows (20) and the column headers, and take the pointer only while the pill is under it
 // (the wrapper exists only then). The pointer there is the default arrow.

@@ -228,8 +228,10 @@ export class TimelineRenderer extends Component {
             change: (drawing) => this._setDrag(drawing),
             commit: (result) => this._commitDrag(result),
             // a cancelled gesture (Escape, lost pointer) leaves no zone hit for the next release
+            // (the arrows lit when it started stay lit, R9, A69, A95)
             cancelled: () => {
                 this._zoneHit = false;
+                this.arrows.cancelGesture();
             },
             borderAt: (x, pill, edge) => this._borderAt(x, pill, edge),
             hold: (mode) => this._holdDrag(mode),
@@ -247,6 +249,8 @@ export class TimelineRenderer extends Component {
             scrollBy: (dx, dy) => this._scrollGesture(dx, dy),
             panelOpen: () => this.hasPanel && this.panel.open,
             hold: (on) => this._holdDrag(on ? "connect" : null),
+            // a drawing cancelled with Escape or lost: the arrows lit when it started stay lit (R9)
+            cancelled: () => this.arrows.cancelGesture(),
             // the drawing ended: the pill under the pointer shows its handles, but its arrows
             // stay at rest until the pointer moves (R9, A90)
             rest: (x, y) => {
@@ -380,9 +384,13 @@ export class TimelineRenderer extends Component {
         // R9: where the pointer is, so that a gesture's end can tell the pointer's move from the
         // browser's own mouse move after a layout change
         const onMove = (ev) => this.arrows.pointerMoved(ev);
+        // R11: a finger and a mouse light the arrows differently; a press tells which one is in use
+        const onDown = (ev) => this.arrows.pointerSeen(ev);
         document.addEventListener("pointermove", onMove, true);
+        document.addEventListener("pointerdown", onDown, true);
         this._unwatchArrows = () => {
             document.removeEventListener("pointermove", onMove, true);
+            document.removeEventListener("pointerdown", onDown, true);
             browser.removeEventListener("resize", refresh);
             observer?.disconnect();
         };
@@ -1553,6 +1561,10 @@ export class TimelineRenderer extends Component {
     /** The press on a handle of `pill`: a drawing may follow (R12). */
     onConnectPointerDown(ev, pill, row, edge) {
         this.connect.press(ev, { pill, rowId: row.row.id, edge });
+        if (ev.pointerType === "touch" && this.connect.isPressed) {
+            // a finger on a handle lights the pill's arrows (R11, A91)
+            this.arrows.touchLit(this.keyOfPill(pill, row));
+        }
     }
 
     /** The pill of a record row under the viewport point (a handle counts as its pill), or null. */

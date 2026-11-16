@@ -43,11 +43,11 @@ export class TimelinePillPointer {
     }
 
     /** The pointer enters a pill: its handles show, unless a gesture is on (R8). */
-    enter(pill, row) {
+    enter(pill, row, { lit = true } = {}) {
         if (!this.isHeld) {
             this.host.state.hover = this.keyOf(pill, row);
-            // R9: the arrows of a pill of a record row light up
-            if (row.kind === "pills") {
+            // R9: the arrows of a pill of a record row light up (not for a tap, R11)
+            if (lit && row.kind === "pills") {
                 this.host.arrows.focusPill(this.keyOf(pill, row));
             }
         }
@@ -55,11 +55,12 @@ export class TimelinePillPointer {
 
     /**
      * A tap on a pill (it also opens its popover) leaves it in the pointer-over state, as a mouse
-     * resting on it would: its handles show until a finger touches elsewhere (R11, A91).
+     * resting on it would: its handles show until a finger touches elsewhere (R11, A91). Its
+     * arrows stay at rest: a finger on a handle lights them.
      */
     tap(ev, pill, row) {
         if (ev.pointerType === "touch") {
-            this.enter(pill, row);
+            this.enter(pill, row, { lit: false });
         }
     }
 

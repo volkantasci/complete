@@ -86,6 +86,11 @@ export class TimelineArrows {
             this.reset();
         }
         this._wasShown = this.shown;
+        if (this._recheck && !this.isHeld) {
+            // the view is drawn again after a cancelled gesture: the pill under the pointer now
+            this._recheck = false;
+            this._showHandlesUnderPointer();
+        }
         if (this.isResizing) {
             // R23: the arrows stay on the pill's stored box, as lit when the resize began
             return;
@@ -229,11 +234,35 @@ export class TimelineArrows {
         return this.host._pillPointer.isHeld;
     }
 
-    /** The pointer enters a pill of a record row. */
+    /**
+     * The pointer enters a pill of a record row. The compatibility mouse events that follow a touch
+     * (a tap) light nothing: a finger rests on no pill (R11, A91); `touchLit` is the finger's way.
+     */
     focusPill(key) {
-        if (!this.isHeld && !this.isQuiet) {
+        if (!this.isHeld && !this.isQuiet && !this.isTouch) {
             this.focus.pillKey = key;
         }
+    }
+
+    /** Whether the last pointer event of the page came from a finger (R11, A91). */
+    get isTouch() {
+        return this._pointerType === "touch";
+    }
+
+    /** Every pointer press and move over the page (capture): the kind of pointer that is in use. */
+    pointerSeen(ev) {
+        this._pointerType = ev.pointerType;
+    }
+
+    /**
+     * A finger goes down on a drawing handle of the pill `key`: its arrows light with their remove
+     * buttons, as a pointer arriving on the pill does (R11, A91).
+     */
+    touchLit(key) {
+        this._quietAt = null;
+        this._kept = false;
+        this.focus.arrowKey = null;
+        this.focus.pillKey = key;
     }
 
     /** The pointer leaves `key`; nothing changes when another pill was entered first. */
@@ -249,7 +278,7 @@ export class TimelineArrows {
      * and its own arrows go (R9, R11, A75).
      */
     focusArrow(key, ev) {
-        if (this.isHeld || this.isQuiet) {
+        if (this.isHeld || this.isQuiet || this.isTouch) {
             return;
         }
         this.focus.arrowKey = key;
@@ -274,20 +303,66 @@ export class TimelineArrows {
      * reloads, with the pointer's coordinates: it does not count (`pointerMoved`).
      */
     reset() {
-        this.focus.arrowKey = null;
-        this.focus.pillKey = null;
+        // a gesture cancelled with Escape writes nothing, so nothing reloads: the arrows lit when
+        // it started stay lit, and the pill under the pointer shows its handles again, until the
+        // pointer moves (R9, A69, A95)
+        this._kept = this._cancelling;
+        this._cancelling = false;
+        if (!this._kept) {
+            this.focus.arrowKey = null;
+            this.focus.pillKey = null;
+        }
         this._quietAt = this._pointer ? { ...this._pointer } : { x: NaN, y: NaN };
+        if (this._kept) {
+            this._recheck = true;
+            this._showHandlesUnderPointer();
+        }
     }
 
-    /** Every mouse move over the page (capture): the pointer's place, and the end of the quiet. */
+    /**
+     * The gesture that ends next was cancelled (Escape, a lost pointer): see `reset`. Called by the
+     * gesture right before it lets go.
+     */
+    cancelGesture() {
+        this._cancelling = true;
+    }
+
+    /** The pill under the pointer shows its handles (none on an empty cell). */
+    _showHandlesUnderPointer() {
+        const at = this._pointer;
+        this.host.state.hover = at ? this._pillKeyAtPoint(at.x, at.y) : null;
+    }
+
+    /** Every pointer move over the page (capture): the pointer's place, and the end of the quiet. */
     pointerMoved(ev) {
         this._pointer = { x: ev.clientX, y: ev.clientY };
+        this._pointerType = ev.pointerType;
+        if (ev.pointerType === "touch" && this.host.connect.isPressed && !this.host.connect.isActive) {
+            // a finger on a handle crosses an arrow's band before the threshold: that arrow alone is
+            // lit when the drawing starts, as for a mouse (R9, A91); no mouse event tells it
+            const band = document
+                .elementsFromPoint(ev.clientX, ev.clientY)
+                .map((element) => element.closest?.(".o_tl_arrow"))
+                .find(Boolean);
+            if (band) {
+                this.focus.arrowKey = band.dataset.arrow;
+                this.focus.pillKey = null;
+            }
+        }
         const quiet = this._quietAt;
         if (quiet && (ev.clientX !== quiet.x || ev.clientY !== quiet.y)) {
             this._quietAt = null;
-            if (!this.isHeld) {
-                this.focus.pillKey = this._pillKeyAt(ev);
+            this._recheck = false;
+            if (!this.isHeld && ev.pointerType !== "touch") {
+                const key = this._pillKeyAt(ev);
+                this.focus.pillKey = key;
+                if (this._kept) {
+                    // after a cancelled gesture the highlight follows the pointer again (the
+                    // handles do, by the pill's own mouse enter and leave)
+                    this.focus.arrowKey = null;
+                }
             }
+            this._kept = false;
         }
     }
 
@@ -296,7 +371,11 @@ export class TimelineArrows {
     }
 
     _pillKeyAt(ev) {
-        for (const element of document.elementsFromPoint(ev.clientX, ev.clientY)) {
+        return this._pillKeyAtPoint(ev.clientX, ev.clientY);
+    }
+
+    _pillKeyAtPoint(x, y) {
+        for (const element of document.elementsFromPoint(x, y)) {
             if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {
                 return null;
             }

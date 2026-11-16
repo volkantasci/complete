@@ -342,6 +342,168 @@ test("002c A90: no arrow lit after a move ends, until the pointer moves", async 
     expect(lit()).toHaveLength(2);
 });
 
+// -- a gesture cancelled with Escape (R9, A69, A95) ------------------------------------------
+
+const arrowKey = (source, target) =>
+    queryOne(`.o_tl_arrow[data-arrow*="|${ID[source]}>"][data-arrow$="|${ID[target]}"]`).dataset.arrow;
+
+/** What is lit and shown now: the keys of the lit arrows, their buttons and the drawing handles. */
+const shown = () => ({
+    lit: lit().map((arrow) => arrow.dataset.arrow).sort(),
+    buttons: queryAll(".o_tl_arrow_remove").length,
+    handles: queryAll(".o_tl_connect_handle").length,
+});
+
+/** Presses "Build" at its middle with Ctrl as `copy`, moves 96 px left in 10 steps, ends at `end`. */
+async function holdBuild({ copy = false, end = null } = {}) {
+    await hover(pillEl("Build"));
+    await animationFrame();
+    const start = centre(queryRect(pillEl("Build")));
+    if (copy) {
+        await keyDown("Control");
+    }
+    const held = await drag(pillEl("Build"), { position: start });
+    const to = { x: start.x - 96, y: start.y };
+    for (let i = 1; i <= 10; i++) {
+        const x = start.x + ((to.x - start.x) * i) / 10;
+        const target = document.elementFromPoint(x, to.y) || queryOne(".o_tl_renderer");
+        await held.moveTo(target, { position: { x, y: to.y } });
+        await animationFrame();
+    }
+    let last = to;
+    if (end) {
+        const target = document.elementFromPoint(end.x, end.y) || queryOne(".o_tl_renderer");
+        await held.moveTo(target, { position: end });
+        await animationFrame();
+        last = end;
+    }
+    return { held, last };
+}
+
+/** A point of the row's pills layer that lies on no pill, no arrow and no handle. */
+function emptyPoint() {
+    const rect = queryRect(queryAll(".o_tl_pills")[0]);
+    for (let x = rect.right - 30; x > rect.left + 200; x -= 25) {
+        for (let y = rect.top + 4; y < rect.bottom; y += 6) {
+            const names = document.elementsFromPoint(x, y).map((element) => element.className?.baseVal ?? element.className);
+            if (!names.some((name) => /o_tl_pill|o_tl_arrow|o_tl_connect/.test(name))) {
+                return { x, y };
+            }
+        }
+    }
+    throw new Error("no empty point");
+}
+
+test("002c A95: a move cancelled with Escape, ending on the pill, keeps Build's arrows lit", async () => {
+    await mountDependencies();
+    const { held, last } = await holdBuild();
+    const during = shown();
+    expect(during.lit).toHaveLength(2);
+    expect(during.handles).toBe(0);
+    await held.cancel();
+    await settle();
+    expect(".o_tl_pill_moved").toHaveCount(0);
+    // at Escape: the two arrows stay lit with their buttons, Build's handles show again
+    expect(shown()).toEqual({ lit: during.lit, buttons: 2, handles: 2 });
+    // the pointer still: the same
+    await pointerTo(last.x, last.y);
+    expect(shown()).toEqual({ lit: during.lit, buttons: 2, handles: 2 });
+    // a move of 1 px: the arrows of the pill under the pointer, Build's two
+    await pointerTo(last.x + 1, last.y);
+    expect(shown()).toEqual({ lit: during.lit, buttons: 2, handles: 2 });
+    expect(writes()).toHaveLength(0);
+});
+
+test("002c A95: a move cancelled with Escape, ending on an empty cell: lit arrows, no handles, then none", async () => {
+    await mountDependencies();
+    const empty = emptyPoint();
+    const { held } = await holdBuild({ end: empty });
+    const during = shown();
+    expect(during.lit).toHaveLength(2);
+    await held.cancel();
+    await settle();
+    expect(shown()).toEqual({ lit: during.lit, buttons: 2, handles: 0 });
+    // the pointer still (the browser's own mouse move): the same
+    await pointerTo(empty.x, empty.y);
+    expect(shown()).toEqual({ lit: during.lit, buttons: 2, handles: 0 });
+    // the next move: nothing lies under the pointer
+    await pointerTo(empty.x + 1, empty.y);
+    expect(shown()).toEqual({ lit: [], buttons: 0, handles: 0 });
+    expect(writes()).toHaveLength(0);
+});
+
+test("002c A95: a copy cancelled with Escape follows the same rule", async () => {
+    await mountDependencies();
+    const { held, last } = await holdBuild({ copy: true });
+    const during = shown();
+    expect(during.lit).toHaveLength(2);
+    expect(".o_tl_pill_moved").toHaveCount(1);
+    await held.cancel();
+    await keyUp("Control");
+    await settle();
+    expect(shown()).toEqual({ lit: during.lit, buttons: 2, handles: 2 });
+    await pointerTo(last.x + 1, last.y);
+    expect(shown()).toEqual({ lit: during.lit, buttons: 2, handles: 2 });
+    expect(writes()).toHaveLength(0);
+});
+
+test("002c A95: a drawing cancelled with Escape keeps the arrows lit when it started", async () => {
+    await mountDependencies();
+    const build = await pressHandle("Build", "stop");
+    // the pointer crossed the band of "Build" to "Test" before the threshold (R9, A27's path)
+    controller.selection.renderer.arrows.focusArrow(arrowKey("Build", "Test"));
+    await animationFrame();
+    const around = { x: build.start.x + 50, y: build.start.y + 60 };
+    await moveInSteps(build, build.start, around, 8);
+    const over = centre(queryRect(pillEl("Overlap C")));
+    await moveInSteps(build, around, over, 12);
+    const during = shown();
+    expect(".o_tl_connect_path").toHaveCount(1);
+    expect(during.lit).toHaveLength(1);
+    await build.cancel();
+    await settle();
+    // the line goes, the arrows stay lit with their buttons, the pill under the pointer shows its handles
+    expect(".o_tl_connect_path").toHaveCount(0);
+    expect(lit().map((arrow) => arrow.dataset.arrow).sort()).toEqual(during.lit);
+    expect(queryAll(".o_tl_arrow_remove")).toHaveLength(during.lit.length);
+    expect(handleEls("Overlap C")).toHaveLength(2);
+    expect(handleEls("Build")).toHaveLength(0);
+    await pointerTo(over.x + 1, over.y);
+    // "Overlap C" has no arrow
+    expect(lit()).toHaveLength(0);
+    expect(writes()).toHaveLength(0);
+});
+
+test("002c A95: a drawing cancelled with Escape over an empty cell: no handles, then no arrow", async () => {
+    await mountDependencies();
+    const build = await pressHandle("Build", "stop");
+    controller.selection.renderer.arrows.focusArrow(arrowKey("Build", "Test"));
+    await animationFrame();
+    const around = { x: build.start.x + 50, y: build.start.y + 60 };
+    await moveInSteps(build, build.start, around, 8);
+    const empty = emptyPoint();
+    await moveInSteps(build, around, empty, 12);
+    const during = shown();
+    expect(during.lit).toHaveLength(1);
+    await build.cancel();
+    await settle();
+    expect(shown()).toEqual({ lit: during.lit, buttons: during.lit.length, handles: 0 });
+    await pointerTo(empty.x + 1, empty.y);
+    expect(shown()).toEqual({ lit: [], buttons: 0, handles: 0 });
+    expect(writes()).toHaveLength(0);
+});
+
+test("002c A95: a gesture that ends with a write still leaves nothing lit (A90)", async () => {
+    onRpc("web_gantt_reschedule", () => ({ type: "success", message: "Records rescheduled", old_vals_per_pill_id: {} }));
+    await mountDependencies();
+    const { held, last } = await holdBuild();
+    await held.drop();
+    await settle();
+    expect(lit()).toHaveLength(0);
+    await pointerTo(last.x + 1, last.y);
+    expect(lit()).toHaveLength(2);
+});
+
 test("002c A28: drawing from the start handle of Review onto Plan: Plan gets Review", async () => {
     await mountDependencies();
     const review = await pressHandle("Review", "start");
@@ -457,10 +619,17 @@ test("002c A91: a tap shows the handles, a finger on a handle draws and writes",
     // the tap opened the popover and left the pill in the pointer-over state with its handles
     expect(".o_popover").toHaveCount(1);
     expect(handleEls("Build")).toHaveLength(2);
+    // R11: the tap lights none of the pill's arrows, no remove button
+    expect(lit()).toHaveLength(0);
+    expect(".o_tl_arrow_remove").toHaveCount(0);
     expect(css(handleEl("Build", "stop"), "touchAction")).toBe("none");
     const handle = handleEl("Build", "stop");
     const start = centre(queryRect(handle));
     const held = await drag(handle, { position: start });
+    // a finger put down on a handle lights the pill's two arrows with their buttons
+    await animationFrame();
+    expect(lit()).toHaveLength(2);
+    expect(".o_tl_arrow_remove").toHaveCount(2);
     const over = centre(queryRect(pillEl("Overlap C")));
     for (let i = 1; i <= 12; i++) {
         const x = start.x + ((over.x - start.x) * i) / 12;
