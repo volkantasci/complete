@@ -9,6 +9,9 @@ scheme needs ``web_enterprise``; without it the dark probes are skipped. The val
 Elements read: M47 the name ``.o_tl_panel_name`` of "Unscheduled" in the side panel, M48 its line
 ``.o_tl_panel_line``.
 """
+import time
+
+from odoo import Command
 from odoo.tests import tagged
 
 from .test_probes import SCHEMES, VIEWPORTS
@@ -149,3 +152,72 @@ class TimelineDependencyProbes(TimelineProbeCase):
                 self.check('M35', self.arrow('Review', 'Overlap A'), scheme, viewport,
                            'layer Review to Overlap A, not connected to Build')
                 self.js(f"localStorage.removeItem('gantt_show_connectors,{view},{action}')")
+
+    # -- the drawing handles and the drawing (R11, R12) --------------------------------
+
+    @staticmethod
+    def handle(name, edge, part=''):
+        """A handle of a pill (``edge``: 'start' or 'stop') or one of its parts."""
+        return (
+            f"(() => {{ const id = ({TimelineProbeCase.pill(name)}).dataset.pillId;"
+            " return document.querySelector('.o_tl_connect[data-pill-id=\"' + id + '\"]"
+            f" .o_tl_connect_{edge}{part}'); }})()")
+
+    def mouse(self, kind, x, y, **extra):
+        self.browser._websocket_request('Input.dispatchMouseEvent', params={
+            'type': kind, 'x': x, 'y': y, **extra,
+        })
+
+    def test_002c_m15_m19_drawing_handles(self):
+        probes = ['M15', 'M16', 'M17', 'M18', 'M19']
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h42'), scheme, viewport):
+                self.pointer_at(1300, 260)
+                self.check('M15', self.handle('Build', 'stop'), scheme, viewport,
+                           'end handle of Build')
+                self.check('M16', self.handle('Build', 'stop', ' .o_tl_connect_dot'), scheme,
+                           viewport, 'dot of the end handle')
+                self.check('M17', self.handle('Build', 'start'), scheme, viewport,
+                           'start handle of Build')
+                self.check('M18', self.handle('Build', 'stop', ' .o_tl_connect_corner'), scheme,
+                           viewport, 'corner line of the end handle')
+                self.check('M19', self.handle('Build', 'stop', ' .o_tl_connect_halo'), scheme,
+                           viewport, 'halo of the corner line')
+
+    def test_002c_m22_m26_drawing(self):
+        probes = ['M22', 'M23', 'M24', 'M25', 'M26']
+        overlap, build = self.records['Overlap C'], self.records['Build']
+        links = overlap.dependency_field.ids
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            try:
+                with self.page(HOST.format('h42'), scheme, viewport):
+                    self.pointer_at(1300, 260)
+                    self.mouse('mouseMoved', 1502, 280)
+                    self.mouse('mousePressed', 1502, 280, button='left', buttons=1, clickCount=1)
+                    for i in range(1, 9):
+                        self.mouse('mouseMoved', 1502 + 50 * i / 8, 280 + 60 * i / 8,
+                                   button='left', buttons=1)
+                        time.sleep(.03)
+                    for i in range(1, 13):
+                        self.mouse('mouseMoved', 1552 + (1133 - 1552) * i / 12,
+                                   340 + (442 - 340) * i / 12, button='left', buttons=1)
+                        time.sleep(.03)
+                    self.wait("!!document.querySelector('.o_tl_connect_path')")
+                    self.settle()
+                    self.check('M22', "document.querySelector('.o_tl_connect_path')", scheme,
+                               viewport, 'the line being drawn')
+                    self.check('M23', "document.querySelector('.o_content')", scheme, viewport,
+                               'the content area while drawing')
+                    self.check('M24', self.handle('Overlap C', 'stop'), scheme, viewport,
+                               'end handle of Overlap C')
+                    self.check('M25', self.handle('Build', 'stop'), scheme, viewport,
+                               'end handle of Build')
+                    self.mouse('mouseReleased', 1133, 442, button='left', buttons=0, clickCount=1)
+                    self.wait("document.querySelectorAll('.o_tl_arrow').length === 4", timeout=60)
+                    self.pointer_away()
+                    self.check('M26', self.part('Build', 'Overlap C', '.o_tl_arrow_line'), scheme,
+                               viewport, 'the new arrow Build to Overlap C')
+            finally:
+                overlap.invalidate_recordset()
+                overlap.write({'dependency_field': [Command.set(links)]})
+        self.assertNotIn(build.id, overlap.dependency_field.ids)

@@ -191,3 +191,63 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
 
     def test_a75_a76_tour_lit_arrow_over_a_pill(self):
         self._tour('h42', 'timeline_002c_a75_a76_lit_arrow_over_a_pill')
+
+    # -- drawing a dependency (R11, R12, R24) ----------------------------------------------------
+
+    def _links(self):
+        return {record.id: record.dependency_field.ids for record in self.env[PILL].search([])}
+
+    def _restore_links(self, links):
+        """Write the dependency links back as they were (the tour changed them for real)."""
+        for record in self.env[PILL].search([]):
+            record.invalidate_recordset(['dependency_field'])
+            if record.dependency_field.ids != links[record.id]:
+                record.write({'dependency_field': [Command.set(links[record.id])]})
+        self.assertEqual(self._links(), links)
+
+    def _draw_tour(self, host, name, expected=None, **kwargs):
+        """Run the tour; `expected` is `(target, source)` of the one link it must add."""
+        links = self._links()
+        try:
+            self._tour(host, name, **kwargs)
+            for record in self.env[PILL].search([]):
+                record.invalidate_recordset(['dependency_field'])
+            now = self._links()
+            if expected is None:
+                self.assertEqual(now, links)
+            else:
+                target, source = (self.records[expected[0]], self.records[expected[1]])
+                self.assertEqual(sorted(now[target.id]), sorted(links[target.id] + [source.id]))
+                self.assertEqual({k: sorted(v) for k, v in now.items() if k != target.id},
+                                 {k: sorted(v) for k, v in links.items() if k != target.id})
+        finally:
+            self._restore_links(links)
+
+    def test_a26_tour_handles(self):
+        self._tour('h42', 'timeline_002c_a26_handles')
+
+    def test_a27_tour_draw_from_the_end(self):
+        self._draw_tour('h42', 'timeline_002c_a27_draw_from_the_end', ('Overlap C', 'Build'))
+
+    def test_a28_tour_draw_from_the_start(self):
+        self._draw_tour('h42', 'timeline_002c_a28_draw_from_the_start', ('Plan', 'Review'))
+
+    def test_a29_tour_no_write(self):
+        self._draw_tour('h42', 'timeline_002c_a29_no_write')
+
+    def test_a30_tour_clears_selection(self):
+        self._draw_tour('h48', 'timeline_002c_a30_clears_selection')
+
+    def test_a31_tour_edge_scroll(self):
+        links = self._links()
+        try:
+            self._tour('h42', 'timeline_002c_a31_edge_scroll')
+        finally:
+            self._restore_links(links)
+
+    def test_a32_tour_cycle(self):
+        self._draw_tour('h42', 'timeline_002c_a32_cycle', ('Design', 'Test'))
+
+    def test_a87_tour_locked_pill(self):
+        self._draw_tour('h42', 'timeline_002c_a87_locked_pill', ('Plan', 'Test'))
+

@@ -1,8 +1,9 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 """Measured values of the original for slice 002c (spec.md, "Measured values"): probes M47 and
-M48 (the name and the line in the side panel, R1) and M1 to M14, M20, M21, M33 to M35 (arrows, their
-highlight, the remove button, the hidden state); later tasks append the others.
+M48 (the name and the line in the side panel, R1) and M1 to M26, M33 to M35 (arrows, their
+highlight, the remove button, the drawing handles and the drawing,
+the hidden state); later tasks append the others.
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
@@ -232,6 +233,164 @@ MEASURED = {
         },
         ('dark', 'desktop'): {
             'opacity': '0',
+        },
+    },
+    'M15': {
+        ('light', 'desktop'): {
+            'cursor': 'grab',
+            'geometry.x': '1494',
+            'geometry.y': '272',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+        ('dark', 'desktop'): {
+            'cursor': 'grab',
+            'geometry.x': '1494',
+            'geometry.y': '272',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+    },
+    'M16': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(220, 133, 52, 1)',
+            'outline-color': 'rgba(255, 255, 255, 1)',
+            'outline-width': '1',
+            'outline-style': 'solid',
+            'width': '6',
+            'height': '6',
+            'border-top-left-radius': '50%',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(255, 156, 65, 1)',
+            'outline-color': 'rgba(44, 46, 53, 1)',
+            'outline-width': '1',
+            'outline-style': 'solid',
+            'width': '6',
+            'height': '6',
+            'border-top-left-radius': '50%',
+        },
+    },
+    'M17': {
+        ('light', 'desktop'): {
+            'cursor': 'grab',
+            'geometry.x': '934',
+            'geometry.y': '233',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+        ('dark', 'desktop'): {
+            'cursor': 'grab',
+            'geometry.x': '934',
+            'geometry.y': '233',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+    },
+    'M18': {
+        ('light', 'desktop'): {
+            'border-bottom-width': '1',
+            'border-bottom-color': 'rgba(220, 133, 52, 1)',
+            'border-bottom-style': 'solid',
+            'border-left-width': '1',
+            'border-left-color': 'rgba(220, 133, 52, 1)',
+            'border-left-style': 'solid',
+            'geometry.x': '1494',
+            'geometry.y': '273',
+            'geometry.width': '8',
+            'geometry.height': '8',
+        },
+        ('dark', 'desktop'): {
+            'border-bottom-width': '1',
+            'border-bottom-color': 'rgba(255, 156, 65, 1)',
+            'border-bottom-style': 'solid',
+            'border-left-width': '1',
+            'border-left-color': 'rgba(255, 156, 65, 1)',
+            'border-left-style': 'solid',
+            'geometry.x': '1494',
+            'geometry.y': '273',
+            'geometry.width': '8',
+            'geometry.height': '8',
+        },
+    },
+    'M19': {
+        ('light', 'desktop'): {
+            'border-bottom-width': '3',
+            'border-bottom-color': 'rgba(255, 255, 255, 1)',
+            'border-left-width': '3',
+            'border-left-color': 'rgba(255, 255, 255, 1)',
+            'transform': 'matrix(1, 0, 0, 1, -2, 2)',
+        },
+        ('dark', 'desktop'): {
+            'border-bottom-width': '3',
+            'border-bottom-color': 'rgba(44, 46, 53, 1)',
+            'border-left-width': '3',
+            'border-left-color': 'rgba(44, 46, 53, 1)',
+            'transform': 'matrix(1, 0, 0, 1, -2, 2)',
+        },
+    },
+    'M22': {
+        ('light', 'desktop'): {
+            'stroke': 'rgba(143, 143, 143, 1)',
+            'stroke-width': '2',
+            'pointer-events': 'none',
+        },
+        ('dark', 'desktop'): {
+            'stroke': 'rgba(143, 143, 143, 1)',
+            'stroke-width': '2',
+            'pointer-events': 'none',
+        },
+    },
+    'M23': {
+        ('light', 'desktop'): {
+            'cursor': 'grabbing',
+        },
+        ('dark', 'desktop'): {
+            'cursor': 'grabbing',
+        },
+    },
+    'M24': {
+        ('light', 'desktop'): {
+            'geometry.x': '1494',
+            'geometry.y': '454',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '1494',
+            'geometry.y': '454',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+    },
+    'M25': {
+        ('light', 'desktop'): {
+            'geometry.x': '1494',
+            'geometry.y': '272',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '1494',
+            'geometry.y': '272',
+            'geometry.width': '16',
+            'geometry.height': '16',
+        },
+    },
+    'M26': {
+        ('light', 'desktop'): {
+            'stroke': 'rgba(211, 65, 59, 0.5)',
+            'geometry.x': '904',
+            'geometry.y': '260.5',
+            'geometry.width': '634',
+            'geometry.height': '182',
+        },
+        ('dark', 'desktop'): {
+            'stroke': 'rgba(211, 65, 59, 0.5)',
+            'geometry.x': '904',
+            'geometry.y': '260.5',
+            'geometry.width': '634',
+            'geometry.height': '182',
         },
     },
     'M47': {

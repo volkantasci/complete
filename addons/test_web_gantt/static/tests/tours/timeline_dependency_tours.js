@@ -784,3 +784,226 @@ tours.add("timeline_002c_a14_records_in_several_rows", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Drawing handles and the drawing (R11, R12, R24): A26 to A32, A87
+// ---------------------------------------------------------------------------------------------
+
+const handleOf = (name, edge) => $(`.o_tl_connect[data-pill-id="${idOf(name)}"] .o_tl_connect_${edge}`);
+const handleCount = () => $$(".o_tl_connect_handle").length;
+const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
+/** The centre of the end ("stop") or the start handle of a pill, once its handles are shown. */
+const handleCentre = (name, edge) => centreOf(handleOf(name, edge));
+/** Press a handle, go round by (+50, +60) in 8 steps then to `to` in 12 steps: the exact gesture of A27. */
+async function drawTo(name, edge, to) {
+    const from = handleCentre(name, edge);
+    const round = { x: from.x + 50, y: from.y + 60 };
+    await realMouse(holdEvents(from, [...stepsTo(from, round, 8), ...stepsTo(round, to, 12)]));
+    return from;
+}
+const middleOf = (name) => {
+    const rect = pillNamed(name).getBoundingClientRect();
+    return { x: Math.min(rect.left + rect.width * 0.3, rect.right - 10), y: rect.top + rect.height / 2 };
+};
+const drawing = () => $(".o_tl_connect_path");
+async function release(at) {
+    await realMouse(releaseAt(at));
+    await gridSettled();
+}
+
+// A26: the handles of "Build": 16 x 16 at the body's ends, the open hand; none on the restricted
+// user's H49-like view is covered by A25
+tours.add("timeline_002c_a26_handles", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await pointerAway();
+                assert(handleCount() === 0, "no handle at rest");
+                await moveTo(rightPartOf("Build"));
+                assert(handleCount() === 2, `two handles, got ${handleCount()}`);
+                const body = pillNamed("Build").getBoundingClientRect();
+                const start = handleOf("Build", "start").getBoundingClientRect();
+                const stop = handleOf("Build", "stop").getBoundingClientRect();
+                assert(start.width === 16 && start.height === 16 && stop.width === 16 && stop.height === 16, "16 x 16");
+                assert(near(start.left, body.left, 0.5) && near(start.top, body.top - 16, 0.5), "start handle above the left end");
+                assert(near(stop.left, body.right - 14, 0.5) && near(stop.top, body.bottom, 0.5), "end handle below the right end");
+                assert(getComputedStyle(handleOf("Build", "stop")).cursor === "grab", "the open hand");
+                const centre = handleCentre("Build", "stop");
+                assert(near(centre.x, 1502, 1) && near(centre.y, 280, 1), `centre (1502, 280), got ${centre.x}, ${centre.y}`);
+                await pointerAway();
+                assert(handleCount() === 0, "the handles go with the pointer");
+            },
+        },
+    ],
+});
+
+// A27: from the end handle of "Build" onto "Overlap C"
+tours.add("timeline_002c_a27_draw_from_the_end", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                const end = { x: 1133, y: centreOf(pillNamed("Overlap C")).y };
+                await drawTo("Build", "stop", end);
+                const path = drawing();
+                assert(path, "a line is drawn");
+                const style = getComputedStyle(path);
+                assert(style.stroke === "rgb(143, 143, 143)" && style.strokeWidth === "2px", "grey, 2 px");
+                assert(style.pointerEvents === "none", "the line catches nothing");
+                assert(getComputedStyle($(".o_content")).cursor === "grabbing", "the closed hand");
+                assert(handleCount() === 4, `Build keeps and Overlap C shows its handles, got ${handleCount()}`);
+                assert(handleOf("Overlap C", "stop") && handleOf("Build", "stop"), "both end handles");
+                assert(litArrows().length === 2, "the arrows lit at the start stay lit");
+                await release(end);
+                await until(() => arrows().length === 4, "the new arrow");
+                await pointerAway();
+                assert(!drawing() && !$(".o_tl_drag_connect"), "nothing is drawn any more");
+                assert(strokeOf(arrowBetween("Build", "Overlap C")) === "rgba(211, 65, 59, 0.5)", "the new arrow is red");
+                assert(!$(".o_notification"), "no notification");
+            },
+        },
+    ],
+});
+
+// A28: the start handle of "Review" released over "Plan"
+tours.add("timeline_002c_a28_draw_from_the_start", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Review"));
+                const end = middleOf("Plan");
+                const from = handleCentre("Review", "start");
+                await realMouse(holdEvents(from, stepsTo(from, end, 12)));
+                assert(drawing(), "a line is drawn");
+                await release(end);
+                await until(() => arrows().length === 4, "the new arrow");
+            },
+        },
+    ],
+});
+
+// A29: releases that write nothing: over "Build" itself, over an empty cell, and after Escape
+tours.add("timeline_002c_a29_no_write", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                for (const target of [() => centreOf(pillNamed("Build")), () => ({ x: 600, y: 300 })]) {
+                    await moveTo(rightPartOf("Build"));
+                    const end = target();
+                    await drawTo("Build", "stop", end);
+                    assert(drawing(), "a line is drawn");
+                    await release(end);
+                    assert(!drawing(), "the line is gone");
+                    assert(arrows().length === 3, `still three arrows, got ${arrows().length}`);
+                }
+                // Escape while held
+                await moveTo(rightPartOf("Build"));
+                const end = centreOf(pillNamed("Overlap C"));
+                await drawTo("Build", "stop", end);
+                document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+                await until(() => !drawing(), "Escape to cancel the drawing");
+                await release(end);
+                await pointerAway();
+                assert(arrows().length === 3, `still three arrows, got ${arrows().length}`);
+            },
+        },
+    ],
+});
+
+// A30: a drawing clears the cell selection (H48)
+tours.add("timeline_002c_a30_clears_selection", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                const column = $(`.o_tl_col[data-date="2026-11-09"]`).getBoundingClientRect();
+                const beta = rowOf("Beta").getBoundingClientRect();
+                await clickAt({ x: column.left + column.width / 2, y: beta.top + beta.height / 2 });
+                assert(pickedCount() > 0, "a cell is selected");
+                await moveTo(rightPartOf("Build"));
+                const from = handleCentre("Build", "stop");
+                await realMouse(holdEvents(from, stepsTo(from, { x: from.x + 40, y: from.y }, 4)));
+                assert(pickedCount() === 0, "the selection is gone");
+                assert(!$(".o_tl_selection_buttons, .o_tl_multi_buttons"), "and its buttons");
+                await release({ x: from.x + 40, y: from.y });
+            },
+        },
+    ],
+});
+
+// A31: held at (1595, 300) for a second, the grid scrolls to the right
+tours.add("timeline_002c_a31_edge_scroll", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                const before = renderer().scrollLeft;
+                const from = handleCentre("Build", "stop");
+                const to = { x: 1595, y: 300 };
+                await realMouse(holdEvents(from, stepsTo(from, to, 8)));
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                assert(renderer().scrollLeft > before + 50, `the grid scrolled (${before} to ${renderer().scrollLeft})`);
+                await release(to);
+            },
+        },
+    ],
+});
+
+// A32: a cycle: from "Test" onto "Design"
+tours.add("timeline_002c_a32_cycle", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Test"));
+                const end = middleOf("Design");
+                const from = handleCentre("Test", "start");
+                await realMouse(holdEvents(from, stepsTo(from, end, 12)));
+                await release(end);
+                await until(() => arrows().length === 4, "the new arrow");
+                assert(!$(".o_notification"), "no message");
+            },
+        },
+    ],
+});
+
+// A87: "Test" is cut by the end of the week: its handle shows, drawing from it onto "Plan" works
+tours.add("timeline_002c_a87_locked_pill", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Test"));
+                assert(handleOf("Test", "start"), "the start handle shows on the cut pill");
+                assert(buttons(arrowBetween("Build", "Test")).length === 1, "and the remove button");
+                const end = middleOf("Plan");
+                const from = handleCentre("Test", "start");
+                await realMouse(holdEvents(from, stepsTo(from, end, 12)));
+                await release(end);
+                await until(() => arrows().length === 4, "the new arrow");
+            },
+        },
+    ],
+});
+
