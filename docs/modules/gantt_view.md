@@ -1014,7 +1014,12 @@ bands and the rescheduling also work on a phone (see [below](#dependencies-on-a-
   a pill, nothing is highlighted until the pointer moves. While a move, a
   resize or a drawing is in progress the highlight stays as it was (a moved
   pill's arrows are highlighted and follow it; a resized pill's arrows stay on
-  the stored end until the view reloads after the release).
+  the stored end until the view reloads after the release). A gesture
+  cancelled with Escape writes nothing and reloads nothing, so it keeps that
+  state: at Escape and after the release with the pointer still, the arrows lit
+  when the gesture started stay lit with their buttons and the pill under the
+  pointer shows its handles again (none on an empty cell); at the pointer's next
+  move the highlight follows the pointer again.
 
 ![The arrows of the pill under the pointer, light](../assets/gantt_view/76-pill-hover.png)
 
@@ -1032,8 +1037,9 @@ shows its handles and buttons, because they write the link, not the pill.
   handles appear: one above its left end, one below its right end. Group pills
   have none. The dot takes the pill's own colour. The pill stays under the
   pointer while it is on the body, in a strip 11 pixels tall above and below the
-  body (as wide as the body, not beyond its ends, over neighbouring pills and
-  rows, under the column headers and a highlighted arrow's band), or on a
+  body (as wide as the pill's outer box, starting at the body's left edge, not
+  beyond its ends, over neighbouring pills and rows, under the column headers
+  and a highlighted arrow's band), or on a
   handle, so the pointer can go from the body to a handle on a slant. A click
   in a strip does nothing; a press and move there moves the pill.
 - **Drawing.** Press a handle and move the pointer: a grey line follows from the
@@ -1048,9 +1054,11 @@ shows its handles and buttons, because they write the link, not the pill.
   clicked) and the line being drawn lie over all pills. Drawing a link that already exists changes
   nothing, and a link that closes a loop is accepted; the loop shows up only when
   a rescheduling meets it.
-- **Touch.** At desktop size a tap on a pill leaves it in the pointer-over state,
-  so its handles show (and its popover opens); a touch press on a handle and a
-  move draws the same way.
+- **Touch.** At desktop size a tap on a pill shows its handles and opens its
+  popover but lights none of its arrows; a finger put down on a handle lights
+  the pill's arrows with their buttons, and a move draws the same way. During
+  the drawing only the arrow lit when it started stays lit, and after the save
+  none is.
 - **Removing.** A highlighted arrow shows a small round button with a cross at
   the middle of its route, named "Remove this dependency" for assistive
   technology. A click removes the source from the target's dependencies (one
