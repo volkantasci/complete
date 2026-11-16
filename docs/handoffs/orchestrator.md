@@ -38,6 +38,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
   - A module that is already installed in a database runs no tests when `-i` names it again. Run its tests on a fresh database, or update it with `-u`.
   - A run that writes files through a container, such as screenshots or browser logs, leaves them owned by the container's user. Write them under `.cache/` at the repository's root, which `.gitignore` ignores, through a bind mount of the run, and copy what you keep. If you cannot remove that directory afterwards, name it in your report: the owner's next command removes it.
   - Never add a line to the repository's local exclude file. It hides a stray file from `git status`, and so from the tree check.
+  - Keep the scratch files of a run in one directory under `.cache/` too, and remove that directory before your final message.
 - **Long runs.** A subagent waits for its own long runs, such as screenshot batches and test suites, inside its turn, with a foreground command or a monitor. It never ends its turn while one is still running, because the harness may not wake it again. Put this rule into every dispatch that starts a long run.
 - **Names.** Use technical names only where `model.md` requires them. Give every other identifier a name of your own ([module-authoring.md](../module-authoring.md#naming)).
 - **Wording.** The spec's screenshots show the original's wording. Write every user-facing text in your own words, with the meaning the spec gives, except the texts the spec prescribes.
@@ -64,6 +65,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - A unit test finds every element in the page, including those a stylesheet hides. Assert what a user sees, such as a dialog's visible buttons, in a tour.
    - Tests create the records they need, so that they pass with and without demo data. CI installs every module without it.
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
+   - A tour of a gesture plays the scenario's own path, with real pointer events at the package's points. A tour that reaches the same state by another path can pass while the scenario's path fails.
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
 5. **Overlap report.** When every task is implemented and reviewed, and before the final review, stop.
    - Report with Status `OVERLAP_CHECK`, the module paths, and every spec question and ruling so far, in full and in spec language. Write the status line exactly as `**Status:** OVERLAP_CHECK`.
@@ -78,6 +80,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - the module tests as CI runs them: every module under `addons/` installed together on a fresh database without demo data, with CI's test tags (the step "Install and test modules" in `.github/workflows/ci.yml`);
    - then the final review, with one fix wave;
    - then the module tests and CI's configuration again at the final head, each on a fresh database. Run one test container at a time: a browser test can fail when two run together.
+   - then every tour class the slice adds, three times in a row at the final head, with each result in your report. A tour that waits for a server call can pass once and fail the next time.
 8. **Stop before integration.** The provenance record and the merge come after verification and the owner's approval.
 
 ## Report

@@ -13,7 +13,7 @@ Read the [process description](docs/process.md) to see how that works, the [lice
 | 0 — Foundation | Repositories, policy and process docs, isolation layers, tools, Odoo image, CI | Done |
 | Pilot | One small slice end to end (`timer`) | Done |
 | Gateway admin UI | Administration UI for the AI and OCR gateway | Built; deployment pending |
-| 1 — Platform | Web shell, Gantt, grid, cohort and map views, spreadsheet, worksheet, data cleaning | In progress: the web shell's home menu, top bar and colour scheme, the theme with its dark scheme, the mobile bridge, and the Gantt view's read-only display, its creating, planning, opening and deleting of records, its moving, copying and resizing of pills, and its selecting of several cells, creating of several records and side panel of records to schedule are done |
+| 1 — Platform | Web shell, Gantt, grid, cohort and map views, spreadsheet, worksheet, data cleaning | In progress: the web shell's home menu, top bar and colour scheme, the theme with its dark scheme, the mobile bridge, and the Gantt view's read-only display, its creating, planning, opening and deleting of records, its moving, copying and resizing of pills, its selecting of several cells, creating of several records and side panel of records to schedule, and its dependencies between records, with arrows, buffers and rescheduling, are done |
 | 2 — AI and OCR | Gateway extensions, `complete_ai_gateway`, OCR, AI core and bridges | Planned |
 | 3 — Finance | Report engine, reconciliation, assets, budgets, payment files, bank imports, compliance | Planned |
 | 4 — Services | Helpdesk, Planning, Field Service, Project Enterprise, Timesheets, Appointments | Planned |
