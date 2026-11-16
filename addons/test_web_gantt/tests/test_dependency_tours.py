@@ -270,3 +270,29 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
 
     def test_a74_tour_storage_keys(self):
         self._tour('h42', 'timeline_002c_a74')
+
+    # -- the buffer bands (R22) ------------------------------------------------------------------
+
+    def _buffer_tour(self, name, **kwargs):
+        review = self.records['Review']
+        values = (review.x_buffer_before, review.x_buffer_after)
+        try:
+            self._tour('h44', name, **kwargs)
+        finally:
+            review.invalidate_recordset()
+            review.write({'x_buffer_before': values[0], 'x_buffer_after': values[1]})
+
+    def test_a64_tour_buffer_bands(self):
+        self._buffer_tour('timeline_002c_a64')
+
+    def test_a65_tour_band_hidden_while_moving(self):
+        self._buffer_tour('timeline_002c_a65')
+
+    def test_a65_tour_phone(self):
+        self._buffer_tour('timeline_002c_a65_phone', size='390x844', touch=True)
+
+    def test_a68_tour_band_in_view(self):
+        self._buffer_tour('timeline_002c_a68')
+
+    def test_a78_tour_zero_and_negative(self):
+        self._buffer_tour('timeline_002c_a78')

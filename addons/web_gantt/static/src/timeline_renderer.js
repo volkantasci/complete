@@ -43,6 +43,7 @@ import {
     resizedBound,
     rowAcceptsDrop,
 } from "./timeline_drag_math";
+import { bufferSpan, subColumnHoursAt } from "./timeline_buffers";
 import { TimelineConnectDrag } from "./timeline_connect";
 import { TimelinePillDrag } from "./timeline_drag";
 import { commitDrag, commitResize } from "./timeline_drag_commit";
@@ -2225,6 +2226,30 @@ export class TimelineRenderer extends Component {
         return `${pill.className} ${drag.resize ? "o_tl_pill_resizing" : "o_tl_pill_origin"}`;
     }
 
+    /** The sub-columns of a record with its buffer band (R22): its span when it has none. */
+    _extentOf(record, data) {
+        const { bufferBeforeField, bufferAfterField } = this.props.archInfo;
+        const { from, to } = record.span;
+        if (!bufferBeforeField && !bufferAfterField) {
+            return { from, to };
+        }
+        return (
+            bufferSpan(record, {
+                beforeField: bufferBeforeField,
+                afterField: bufferAfterField,
+                subColumnHours: subColumnHoursAt(data.columns, data.parts),
+                from,
+                to,
+                partsTotal: data.columns.length * data.parts,
+            }) || { from, to }
+        );
+    }
+
+    /** The class of a buffer place: hidden while its pill is moved or resized (M40). */
+    bufferClass(pill, row) {
+        return this._isHeld(this.state.drag, pill, row) ? "o_tl_buffer_hidden" : "";
+    }
+
     /** The place of a pill: its stored one, or the new length while its handle is held (R8.1). */
     pillStyle(pill, row) {
         const drag = this.state.drag;
@@ -2378,10 +2403,8 @@ export class TimelineRenderer extends Component {
         const runs = foldableRuns({
             columns: data.columns,
             rowsUnavailable: [...unavailable.values()],
-            pillsSubRanges: data.records.map((record) => ({
-                from: record.span.from,
-                to: record.span.to,
-            })),
+            // a band runs over the columns after and before its pill (002c R22)
+            pillsSubRanges: data.records.map((record) => this._extentOf(record, data)),
             scaleId: data.scaleId,
             parts: data.parts,
         });
@@ -2715,8 +2738,25 @@ export class TimelineRenderer extends Component {
                 `${this._spanStyle(from, to, data, PILL_INSET)};` +
                 ` top: ${LINE_GAP + (line - 1) * LINE_STEP}px`,
             top: LINE_GAP + (line - 1) * LINE_STEP,
+            buffer: this._bufferOf(record, data, colorIndex, LINE_GAP + (line - 1) * LINE_STEP),
             progress,
             mark: DECORATION_ORDER.find((name) => decorations.includes(name)) || null,
+        };
+    }
+
+    /** The place of the buffer band of a record (R22), or null without one. */
+    _bufferOf(record, data, colorIndex, top) {
+        const { bufferBeforeField, bufferAfterField } = this.props.archInfo;
+        if (!bufferBeforeField && !bufferAfterField) {
+            return null;
+        }
+        const extent = this._extentOf(record, data);
+        if (extent.from === record.span.from && extent.to === record.span.to) {
+            return null;
+        }
+        return {
+            className: `o_tl_color_${colorIndex}`,
+            style: `${this._spanStyle(extent.from, extent.to, data)}; top: ${top - PILL_INSET}px`,
         };
     }
 

@@ -1298,3 +1298,172 @@ tours.add("timeline_002c_a74", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// A64, A65, A68, A78: the buffer bands on H44 (R22)
+// ---------------------------------------------------------------------------------------------
+
+const placeOf = (name) => $(`.o_tl_buffer_place[data-pill-id="${idOf(name)}"]`);
+const bandOf = (name) => $(".o_tl_buffer_band", placeOf(name));
+/** A write of the host record `name` as the browser's own session does it. */
+async function writeRecord(name, values) {
+    const call = (model, method, args, kwargs = {}) =>
+        fetch(`/web/dataset/call_kw/${model}/${method}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "call",
+                params: { model, method, args, kwargs },
+            }),
+        }).then((response) => response.json());
+    const found = await call("test.web.gantt.pill", "search", [[["name", "=", name]]], { limit: 1 });
+    assert(found.result?.length === 1, `the record ${name} is found`);
+    const done = await call("test.web.gantt.pill", "write", [found.result, values]);
+    assert(!done.error, `the write of ${name} succeeded`);
+}
+const reloadStep = (action) => ({
+    trigger: ".o_tl_controls",
+    expectUnloadPage: true,
+    async run() {
+        await action();
+        window.location.reload();
+    },
+});
+
+// A64: Review's band from x 933, 384 px wide, 15 px tall, Design's from x 165, 864 px wide, both
+// under their pills; Buffer before 4 hours no longer extends before Review
+tours.add("timeline_002c_a64", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_buffer_place",
+            async run() {
+                await gridSettled();
+                await pointerAway();
+                const band = bandOf("Review").getBoundingClientRect();
+                const place = placeOf("Review").getBoundingClientRect();
+                assert(near(band.x, 933) && near(band.width, 384), `Review band ${band.x} ${band.width}`);
+                assert(near(band.y, 278) && band.height === 15, `Review band ${band.y} ${band.height}`);
+                assert(near(place.x, 933) && near(place.y, 273) && place.height === 25, "its place");
+                assert(getComputedStyle(placeOf("Review")).zIndex === "9", "z-index 9");
+                assert(getComputedStyle(pillNamed("Review")).zIndex === "10", "under the pill");
+                const design = bandOf("Design").getBoundingClientRect();
+                assert(near(design.x, 165) && near(design.width, 864), `Design band ${design.x} ${design.width}`);
+                const style = getComputedStyle(bandOf("Review"));
+                assert(style.opacity === "0.6" && style.borderTopLeftRadius === "6px", "60 % and 6 px");
+            },
+        },
+        reloadStep(() => writeRecord("Review", { x_buffer_before: 4 })),
+        gridReady,
+        {
+            trigger: ".o_tl_buffer_place",
+            async run() {
+                await gridSettled();
+                const pill = pillNamed("Review").getBoundingClientRect();
+                const place = placeOf("Review").getBoundingClientRect();
+                assert(near(place.left, pill.left, 2), "no extension before Review");
+                assert(near(place.right, pill.right + 192, 2), `after: ${place.right}`);
+                await writeRecord("Review", { x_buffer_before: 12 });
+            },
+        },
+    ],
+});
+
+// A65: Review pressed at (1069, 285) and moved to (1261, 326) in 12 steps: its band is hidden; after
+// Escape it is back
+tours.add("timeline_002c_a65", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_buffer_place",
+            async run() {
+                await gridSettled();
+                await pointerAway();
+                const from = { x: 1069, y: 285 };
+                await realMouse(
+                    holdEvents(from, stepsTo(from, { x: 1261, y: 326 }, 12)),
+                    { settle: false }
+                );
+                await until(() => $(".o_tl_pill_moved"), "the moved pill");
+                assert(getComputedStyle(placeOf("Review")).display === "none", "the band is hidden");
+                document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+                await until(() => !$(".o_tl_pill_moved"), "Escape to end the move");
+                await realMouse(releaseAt({ x: 1261, y: 326 }));
+                assert(getComputedStyle(placeOf("Review")).display !== "none", "the band is back");
+                assert(near(bandOf("Review").getBoundingClientRect().x, 933), "at its place");
+            },
+        },
+    ],
+});
+
+// A65, phone: the band of Review is drawn
+tours.add("timeline_002c_a65_phone", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_buffer_place",
+            async run() {
+                await gridSettled();
+                const phoneBand = bandOf("Review").getBoundingClientRect();
+                assert(phoneBand.height === 15, `the band is drawn: ${phoneBand.height}`);
+                assert(arrows().length === 0, "and no arrow");
+            },
+        },
+    ],
+});
+
+// A68: scrolled 900 px towards later dates, Review lies under the row headers while the part of its
+// band after it is in view: that part is drawn
+tours.add("timeline_002c_a68", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_buffer_place",
+            async run() {
+                await gridSettled();
+                renderer().scrollLeft += 900;
+                await gridSettled();
+                await pointerAway();
+                const grid = renderer().getBoundingClientRect();
+                const headers = $(".o_tl_row_header").getBoundingClientRect();
+                const pill = pillNamed("Review").getBoundingClientRect();
+                const band = bandOf("Review").getBoundingClientRect();
+                assert(pill.right <= headers.right, "Review lies under the row headers");
+                assert(band.right > headers.right && band.right <= grid.right, "the end of its band is in view");
+                assert(getComputedStyle(placeOf("Review")).display !== "none", "the band is drawn");
+            },
+        },
+    ],
+});
+
+// A78: zero and negative values draw nothing; Buffer after back to 24 brings the band back
+tours.add("timeline_002c_a78", {
+    steps: () => [
+        gridReady,
+        reloadStep(() => writeRecord("Review", { x_buffer_before: 0, x_buffer_after: -24 })),
+        gridReady,
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                await gridSettled();
+                assert(pillNamed("Review"), "Review is drawn");
+                assert(!placeOf("Review"), "without a band");
+                assert(placeOf("Design"), "Design keeps its band");
+            },
+        },
+        reloadStep(() => writeRecord("Review", { x_buffer_after: 24 })),
+        gridReady,
+        {
+            trigger: ".o_tl_buffer_place",
+            async run() {
+                await gridSettled();
+                const pill = pillNamed("Review").getBoundingClientRect();
+                const place = placeOf("Review").getBoundingClientRect();
+                assert(near(place.left, pill.left, 2), "nothing before");
+                assert(place.right > pill.right + 150, "the band after returns");
+                await writeRecord("Review", { x_buffer_before: 12, x_buffer_after: 24 });
+            },
+        },
+    ],
+});

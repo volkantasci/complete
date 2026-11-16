@@ -1,0 +1,28 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The buffer band of a pill (002c R22, M36 to M40): the free time before and after it. The place
+// box is as tall as a pill with its pixel around it (25 px, M38); the band inside carries the
+// pill's colour class, which gives it the pill's background (M36, M37). The box lies over the
+// arrows at rest (2) and under the pills (10).
+.o_tl_renderer .o_tl_grid .o_tl_buffer_place {
+    position: absolute;
+    box-sizing: border-box;
+    height: $o-tl-pill-height + 2px;
+    pointer-events: none;
+    z-index: 9;
+
+    // while the pill is moved or resized (M40)
+    &.o_tl_buffer_hidden {
+        display: none;
+    }
+}
+
+.o_tl_buffer_band {
+    position: absolute;
+    inset-inline: 0;
+    top: 20%;
+    height: 60%;
+    border-radius: 6px;
+    opacity: .6;
+}

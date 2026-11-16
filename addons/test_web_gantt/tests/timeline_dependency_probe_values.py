@@ -3,7 +3,8 @@
 """Measured values of the original for slice 002c (spec.md, "Measured values"): probes M47 and
 M48 (the name and the line in the side panel, R1) and M1 to M26, M33 to M35 (arrows, their
 highlight, the remove button, the drawing handles and the drawing,
-the hidden state) and M27 to M32 (the method button and its menu); later tasks append the others.
+the hidden state), M27 to M32 (the method button and its menu) and M36 to M40 (buffer bands);
+later tasks append the others.
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
 """
@@ -1035,6 +1036,88 @@ MEASURED = {
             'geometry.y': '52.891',
             'geometry.width': '7.781',
             'geometry.height': '39',
+        },
+    },
+    'M36': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(241, 214, 119, 1)',
+            'opacity': '0.6',
+            'border-top-left-radius': '6',
+            'border-bottom-right-radius': '6',
+            'geometry.x': '933',
+            'geometry.y': '278',
+            'geometry.width': '384',
+            'geometry.height': '15',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(237, 208, 102, 1)',
+            'opacity': '0.6',
+            'border-top-left-radius': '6',
+            'border-bottom-right-radius': '6',
+            'geometry.x': '933',
+            'geometry.y': '278',
+            'geometry.width': '384',
+            'geometry.height': '15',
+        },
+    },
+    'M37': {
+        ('light', 'desktop'): {
+            'background-color': 'rgba(245, 129, 129, 1)',
+            'opacity': '0.6',
+            'geometry.x': '165',
+            'geometry.y': '253',
+            'geometry.width': '864',
+            'geometry.height': '15',
+        },
+        ('dark', 'desktop'): {
+            'background-color': 'rgba(255, 146, 146, 1)',
+            'opacity': '0.6',
+            'geometry.x': '165',
+            'geometry.y': '253',
+            'geometry.width': '864',
+            'geometry.height': '15',
+        },
+    },
+    'M38': {
+        ('light', 'desktop'): {
+            'z-index': '9',
+            'geometry.x': '933',
+            'geometry.y': '273',
+            'geometry.width': '384',
+            'geometry.height': '25',
+        },
+        ('dark', 'desktop'): {
+            'z-index': '9',
+            'geometry.x': '933',
+            'geometry.y': '273',
+            'geometry.width': '384',
+            'geometry.height': '25',
+        },
+    },
+    'M39': {
+        ('light', 'phone'): {
+            'background-color': 'rgba(241, 214, 119, 1)',
+            'opacity': '0.6',
+            'geometry.x': '260',
+            'geometry.y': '326',
+            'geometry.width': '384',
+            'geometry.height': '15',
+        },
+        ('dark', 'phone'): {
+            'background-color': 'rgba(237, 208, 102, 1)',
+            'opacity': '0.6',
+            'geometry.x': '260',
+            'geometry.y': '326',
+            'geometry.width': '384',
+            'geometry.height': '15',
+        },
+    },
+    'M40': {
+        ('light', 'desktop'): {
+            'display': 'none',
+        },
+        ('dark', 'desktop'): {
+            'display': 'none',
         },
     },
 }
