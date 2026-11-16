@@ -283,6 +283,62 @@ test("002c A27: drawing from the end handle onto Overlap C writes one link", asy
     expect(".o_notification").toHaveCount(0);
 });
 
+/** Rest the pointer at the viewport point (x, y), as a plain pointer move. */
+async function pointerTo(x, y) {
+    const target = document.elementFromPoint(x, y) || queryOne(".o_tl_renderer");
+    await hover(target, { position: { x, y } });
+    await animationFrame();
+}
+
+test("002c A90: no arrow lit after a drawing ends, until the pointer moves", async () => {
+    await mountDependencies();
+    const build = await pressHandle("Build", "stop");
+    const around = { x: build.start.x + 50, y: build.start.y + 60 };
+    await moveInSteps(build, build.start, around, 8);
+    const over = centre(queryRect(pillEl("Overlap C")));
+    await moveInSteps(build, around, over, 12);
+    await build.drop();
+    await settle();
+    // the write went through and the new arrow is drawn, none is lit
+    expect(writes()).toHaveLength(1);
+    expect(".o_tl_arrow").toHaveCount(4);
+    expect(lit()).toHaveLength(0);
+    // the browser's own mouse move at the same place does not light them either
+    await pointerTo(over.x, over.y);
+    expect(lit()).toHaveLength(0);
+    // the pointer moves by 1 px: the arrow of "Overlap C" is lit
+    await pointerTo(over.x + 1, over.y);
+    expect(lit()).toHaveLength(1);
+    expect(lit()[0].dataset.arrow.endsWith(`|${ID["Overlap C"]}`)).toBe(true);
+});
+
+test("002c A90: no arrow lit after a move ends, until the pointer moves", async () => {
+    // the automatic method sends one call to the rescheduling method of the server
+    const rescheduled = [];
+    onRpc("web_gantt_reschedule", ({ args }) => {
+        rescheduled.push(args);
+        return { type: "success", message: "Records rescheduled", old_vals_per_pill_id: {} };
+    });
+    await mountDependencies();
+    const rect = queryRect(pillEl("Build"));
+    const start = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const held = await drag(pillEl("Build"), { position: start });
+    let end = start;
+    for (const dx of [20, 50, 80]) {
+        end = { x: start.x + dx, y: start.y };
+        const target = document.elementFromPoint(end.x, end.y) || queryOne(".o_tl_renderer");
+        await held.moveTo(target, { position: end });
+        await animationFrame();
+    }
+    await held.drop();
+    await settle();
+    expect(rescheduled).toHaveLength(1);
+    expect(lit()).toHaveLength(0);
+    // the pointer moves by 1 px over the pill, which still stands under it
+    await pointerTo(end.x + 1, end.y);
+    expect(lit()).toHaveLength(2);
+});
+
 test("002c A28: drawing from the start handle of Review onto Plan: Plan gets Review", async () => {
     await mountDependencies();
     const review = await pressHandle("Review", "start");

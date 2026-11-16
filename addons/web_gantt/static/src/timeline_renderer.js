@@ -247,12 +247,10 @@ export class TimelineRenderer extends Component {
             scrollBy: (dx, dy) => this._scrollGesture(dx, dy),
             panelOpen: () => this.hasPanel && this.panel.open,
             hold: (on) => this._holdDrag(on ? "connect" : null),
+            // the drawing ended: the pill under the pointer shows its handles, but its arrows
+            // stay at rest until the pointer moves (R9, A90)
             rest: (x, y) => {
-                const key = this._connectTargetAt(x, y)?.key ?? null;
-                this.state.hover = key;
-                if (key) {
-                    this.arrows.focusPill(key);
-                }
+                this.state.hover = this._connectTargetAt(x, y)?.key ?? null;
             },
             commit: (result) => this._commitConnect(result),
         });
@@ -379,7 +377,12 @@ export class TimelineRenderer extends Component {
         browser.addEventListener("resize", refresh);
         const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(refresh) : null;
         this._arrowGrid = null;
+        // R9: where the pointer is, so that a gesture's end can tell the pointer's move from the
+        // browser's own mouse move after a layout change
+        const onMove = (ev) => this.arrows.pointerMoved(ev);
+        document.addEventListener("pointermove", onMove, true);
         this._unwatchArrows = () => {
+            document.removeEventListener("pointermove", onMove, true);
             browser.removeEventListener("resize", refresh);
             observer?.disconnect();
         };

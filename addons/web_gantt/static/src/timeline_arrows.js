@@ -192,7 +192,7 @@ export class TimelineArrows {
 
     /** The pointer enters a pill of a record row. */
     focusPill(key) {
-        if (!this.isHeld) {
+        if (!this.isHeld && !this.isQuiet) {
             this.focus.pillKey = key;
         }
     }
@@ -209,7 +209,7 @@ export class TimelineArrows {
      * pointer, if any (A75: a lit arrow may pass over a pill).
      */
     focusArrow(key, ev) {
-        if (this.isHeld) {
+        if (this.isHeld || this.isQuiet) {
             return;
         }
         this.focus.arrowKey = key;
@@ -218,17 +218,38 @@ export class TimelineArrows {
 
     /** The pointer leaves an arrow: the pill under it, if any, keeps its arrows lit. */
     unfocusArrow(key, ev) {
-        if (this.isHeld || this.focus.arrowKey !== key) {
+        if (this.isHeld || this.isQuiet || this.focus.arrowKey !== key) {
             return;
         }
         this.focus.arrowKey = null;
         this.focus.pillKey = this._pillKeyAt(ev);
     }
 
-    /** A gesture ended: the pointer may be anywhere, nothing is lit until it moves again. */
+    /**
+     * A gesture ended: the pointer may be anywhere, nothing is lit until it moves again (R9, A90).
+     * The browser sends a mouse move of its own to the pill under a still pointer after the view
+     * reloads, with the pointer's coordinates: it does not count (`pointerMoved`).
+     */
     reset() {
         this.focus.arrowKey = null;
         this.focus.pillKey = null;
+        this._quietAt = this._pointer ? { ...this._pointer } : { x: NaN, y: NaN };
+    }
+
+    /** Every mouse move over the page (capture): the pointer's place, and the end of the quiet. */
+    pointerMoved(ev) {
+        this._pointer = { x: ev.clientX, y: ev.clientY };
+        const quiet = this._quietAt;
+        if (quiet && (ev.clientX !== quiet.x || ev.clientY !== quiet.y)) {
+            this._quietAt = null;
+            if (!this.isHeld) {
+                this.focus.pillKey = this._pillKeyAt(ev);
+            }
+        }
+    }
+
+    get isQuiet() {
+        return Boolean(this._quietAt);
     }
 
     _pillKeyAt(ev) {
