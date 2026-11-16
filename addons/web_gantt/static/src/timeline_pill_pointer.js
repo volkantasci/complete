@@ -30,13 +30,15 @@ export class TimelinePillPointer {
 
     /**
      * Whether a gesture is on (a drawing is shown, the drag is not idle, or a dependency is being
-     * drawn: the highlight of the arrows is frozen, 002c R9).
+     * drawn: the highlight of the arrows is frozen, 002c R9). A press on a drawing handle is no
+     * gesture until the pointer has moved by the threshold: until then the highlight still
+     * follows the pointer (R9, A27's path crosses an arrow's band before it).
      */
     get isHeld() {
         return (
             Boolean(this.host.state.drag) ||
             this.host._drag.state !== "idle" ||
-            this.host.connect.isPressed
+            this.host.connect.isActive
         );
     }
 
@@ -66,7 +68,7 @@ export class TimelinePillPointer {
         if (ev?.pointerType !== "touch" || !this.host.state.hover) {
             return;
         }
-        if (ev.target?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle")) {
+        if (ev.target?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle, .o_tl_connect_strip")) {
             return;
         }
         this.host.state.hover = null;
@@ -74,12 +76,14 @@ export class TimelinePillPointer {
     }
 
     /**
-     * The pointer leaves a pill, or one of its drawing handles (which lie beside it): not when it
-     * goes from one to the other, the pill is still the one it rests on.
+     * The pointer leaves a pill, or one of its drawing handles or strips (which lie beside it):
+     * not when it goes from one to the other, the pill is still the one it rests on.
      */
     leave(pill, row, ev) {
         const key = pill && row ? this.keyOf(pill, row) : undefined;
-        const into = ev?.relatedTarget?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle");
+        const into = ev?.relatedTarget?.closest?.(
+            ".o_tl_pill[data-pill-id], .o_tl_connect_handle, .o_tl_connect_strip"
+        );
         if (key !== undefined && into) {
             const rowEl = into.closest(".o_tl_row[data-row-id]");
             const intoKey = into.dataset.pillKey ?? `${rowEl?.dataset.rowId}|${into.dataset.pillId}`;
@@ -118,7 +122,12 @@ export class TimelinePillPointer {
             host._pressDrawing(ev, ev.currentTarget.closest(".o_tl_row"), row);
             return;
         }
-        const element = ev.currentTarget;
+        // the press may come from a strip beside the pill (R11): the pill's own body gives the box
+        const element = ev.currentTarget.matches(".o_tl_pill")
+            ? ev.currentTarget
+            : ev.currentTarget
+                  .closest(".o_tl_pills")
+                  .querySelector(`:scope > .o_tl_pill[data-pill-id="${pill.id}"]`);
         const grid = element.closest(".o_tl_grid").getBoundingClientRect();
         const rect = element.getBoundingClientRect();
         const renderer = host.rendererRef();

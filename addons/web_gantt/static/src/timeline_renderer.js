@@ -1557,6 +1557,14 @@ export class TimelineRenderer extends Component {
 
     /** The pill of a record row under the viewport point (a handle counts as its pill), or null. */
     _connectTargetAt(x, y) {
+        // a remove button (a lit arrow's) is no pill: a release on it writes nothing (R12.4), also
+        // where it lies over a pill (it takes no pointer while a line is drawn)
+        for (const button of this.rendererRef()?.querySelectorAll(".o_tl_arrow_remove") ?? []) {
+            const rect = button.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                return null;
+            }
+        }
         // the first pill or handle of the stack; a header over the pills hides them
         for (const element of document.elementsFromPoint(x, y)) {
             if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {

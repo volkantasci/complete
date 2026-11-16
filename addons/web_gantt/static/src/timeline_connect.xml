@@ -6,6 +6,9 @@
     <t t-name="web_gantt.TimelineConnectHandles">
         <t t-set="connectHandles" t-value="this.connectHandlesOf(pill, row)"/>
         <div t-if="connectHandles.length" class="o_tl_connect" t-att-class="this.connectClass(pill, row)" t-att-style="pill.style" t-att-data-pill-id="pill.id">
+            <!-- R11: the strips above and below the body, in which the pill stays under the pointer; a
+                 press and move there moves the pill, a click does nothing -->
+            <div t-foreach="['above', 'below']" t-as="side" t-key="side" class="o_tl_connect_strip" t-att-class="`o_tl_connect_strip_${side}`" t-att-data-pill-key="this.keyOfPill(pill, row)" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-mouseenter="() => this.onPillEnter(pill, row)" t-on-mouseleave="(ev) => this.onPillLeave(pill, row, ev)"/>
             <div t-foreach="connectHandles" t-as="handle" t-key="handle.edge" class="o_tl_connect_handle" t-att-class="`o_tl_connect_${handle.edge}`" t-att-data-edge="handle.edge" t-att-data-pill-key="this.keyOfPill(pill, row)" t-on-pointerdown="(ev) => this.onConnectPointerDown(ev, pill, row, handle.edge)" t-on-mouseenter="() => this.onPillEnter(pill, row)" t-on-mouseleave="(ev) => this.onPillLeave(pill, row, ev)">
                 <span class="o_tl_connect_halo"/>
                 <span class="o_tl_connect_corner"/>

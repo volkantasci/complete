@@ -57,16 +57,22 @@ export class TimelineArrows {
     }
 
     /**
-     * The key of the pill a gesture moves, copies or resizes, or null (R23). A pill dragged from
-     * the side panel, or locked, is not one of the drawn pills and has no arrows to move.
+     * The key of the pill a gesture moves or copies, or null (R23). A pill dragged from the side
+     * panel, or locked, is not one of the drawn pills and has no arrows to move. A resized pill is
+     * none either: its arrows stay where they were (`isResizing`).
      */
     get heldKey() {
         const drag = this.host.state.drag;
         const mode = drag?.mode;
-        if (!drag || !(mode === "move" || mode === "copy" || mode?.startsWith("resize-"))) {
+        if (!drag || !(mode === "move" || mode === "copy")) {
             return null;
         }
         return `${drag.startRowId}|${drag.pillId}`;
+    }
+
+    /** R23: while a pill is resized its arrows do not follow the moving end. */
+    get isResizing() {
+        return Boolean(this.host.state.drag?.mode?.startsWith("resize-"));
     }
 
     // ------------------------------------------------------------------------
@@ -75,6 +81,15 @@ export class TimelineArrows {
 
     /** Reads the pills of the DOM again and replaces the arrows when something moved. */
     refresh() {
+        // R13, R9: switching the arrows off or on is no pointer move: nothing lights until one
+        if (this._wasShown !== undefined && this._wasShown !== this.shown) {
+            this.reset();
+        }
+        this._wasShown = this.shown;
+        if (this.isResizing) {
+            // R23: the arrows stay on the pill's stored box, as lit when the resize began
+            return;
+        }
         let items = [];
         let box = null;
         const grid = this.host.rendererRef()?.querySelector(".o_tl_grid");
@@ -139,10 +154,9 @@ export class TimelineArrows {
             }
         }
         // R23: a moved or copied pill's arrows are drawn to its moving image, the box that
-        // surrounds its body by one pixel (M41); a resized pill is its own image (its body is in
-        // the DOM with the new length)
+        // surrounds its body by one pixel (M41)
         const held = this.heldKey;
-        const image = held && !host.state.drag.resize && grid.querySelector(".o_tl_pill_moved");
+        const image = held && grid.querySelector(".o_tl_pill_moved");
         if (image && bodies.has(held)) {
             bodies.set(held, image.getBoundingClientRect());
         }
@@ -230,33 +244,28 @@ export class TimelineArrows {
     }
 
     /**
-     * The pointer is over an arrow: it is lit, and so are the arrows of the pill under the
-     * pointer, if any (A75: a lit arrow may pass over a pill).
+     * The pointer is on an arrow's band: that arrow alone is lit, also where the band crosses a
+     * pill's box; the pill under the band does not count as under the pointer, so its handles
+     * and its own arrows go (R9, R11, A75).
      */
     focusArrow(key, ev) {
         if (this.isHeld || this.isQuiet) {
             return;
         }
         this.focus.arrowKey = key;
-        this._pointOver(this._pillKeyAt(ev));
+        this.focus.pillKey = null;
+        this.host.state.hover = null;
     }
 
-    /** The pointer leaves an arrow: the pill under it, if any, keeps its arrows lit. */
-    unfocusArrow(key, ev) {
+    /**
+     * The pointer leaves an arrow. A pill under the pointer is entered by the browser's own
+     * events (the pill's mouse enter), as the pointer comes off the band.
+     */
+    unfocusArrow(key) {
         if (this.isHeld || this.isQuiet || this.focus.arrowKey !== key) {
             return;
         }
         this.focus.arrowKey = null;
-        this._pointOver(this._pillKeyAt(ev));
-    }
-
-    /**
-     * The pill under the pointer while it is over an arrow: its arrows stay lit and it still
-     * counts as hovered, so its handles do not flicker (R9, R8).
-     */
-    _pointOver(key) {
-        this.focus.pillKey = key;
-        this.host.state.hover = key;
     }
 
     /**
@@ -290,6 +299,14 @@ export class TimelineArrows {
         for (const element of document.elementsFromPoint(ev.clientX, ev.clientY)) {
             if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {
                 return null;
+            }
+            // a lit arrow's band hides the pill under it (R9)
+            if (element.closest?.(".o_tl_arrow")) {
+                return null;
+            }
+            const strip = element.closest?.(".o_tl_connect_strip, .o_tl_connect_handle");
+            if (strip && this.host.rendererRef()?.contains(strip)) {
+                return strip.dataset.pillKey;
             }
             const pill = element.closest?.(".o_tl_pill[data-pill-id]");
             const row = pill?.closest(".o_tl_row[data-row-id]");

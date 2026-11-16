@@ -20,6 +20,29 @@
     }
 }
 
+// The strips (R11, M52, M53): 11 px tall above and below the body, as wide as the body, in which the
+// pill stays under the pointer. They lie in the wrapper, over the neighbouring pills (10), under
+// the lit arrows (20) and the column headers, and take the pointer only while the pill is under it
+// (the wrapper exists only then). The pointer there is the default arrow.
+.o_tl_connect_strip {
+    position: absolute;
+    inset-inline-start: 0;
+    // as wide as the pill's outer box (the body and its 1 px inset on the trailing side, M52, M53)
+    width: calc(100% + 2px);
+    height: 11px;
+    cursor: default;
+    pointer-events: auto;
+
+    // above and below the pill's outer box: the body plus the 1 px inset around it
+    &.o_tl_connect_strip_above {
+        bottom: calc(100% + 1px);
+    }
+
+    &.o_tl_connect_strip_below {
+        top: calc(100% + 1px);
+    }
+}
+
 // the source of a drawing lies over the other pills (S4)
 .o_tl_pill.o_tl_pill_source {
     z-index: 15;

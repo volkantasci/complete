@@ -272,10 +272,11 @@ test("002c A27: drawing from the end handle onto Overlap C writes one link", asy
     // the source lies over the other pills
     expect(pillEl("Build")).toHaveClass("o_tl_pill_source");
     expect(Number(css(pillEl("Build"), "zIndex"))).toBeGreaterThan(Number(css(pillEl("Review"), "zIndex")));
-    // the arrows lit at the start stay lit
-    expect(lit()).toHaveLength(2);
+    // the arrows lit when the drawing started stay lit (until then the highlight follows the
+    // pointer, R9)
+    const frozen = lit().map((arrow) => arrow.dataset.arrow);
     await hover(pillEl("Review"));
-    expect(lit()).toHaveLength(2);
+    expect(lit().map((arrow) => arrow.dataset.arrow)).toEqual(frozen);
     await build.move(over.x, over.y);
     await build.drop();
     await settle();

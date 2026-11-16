@@ -362,40 +362,52 @@ test("002c A33: hidden arrows", async () => {
     expect(getComputedStyle(arrowOf("Review", "Overlap A")).opacity).toBe("1");
 });
 
-test("002c A75: a lit arrow over another pill keeps both lit", async () => {
+/** A point of the line of `arrow` that lies inside the box of `pill`. */
+function pointInPill(arrow, pill) {
+    const box = pill.getBoundingClientRect();
+    const line = arrow.querySelector(".o_tl_arrow_line");
+    const rect = arrow.getBoundingClientRect();
+    for (let at = 0; at <= 1; at += 0.005) {
+        const p = line.getPointAtLength(line.getTotalLength() * at);
+        const x = rect.left + p.x;
+        const y = rect.top + p.y;
+        if (x > box.left + 4 && x < box.right - 4 && y > box.top && y < box.bottom) {
+            return { x, y };
+        }
+    }
+    return null;
+}
+
+test("002c A75: on a lit arrow's band inside a pill only that arrow is lit", async () => {
     await mountDependencies();
     await hover(pillEl("Build"));
     await animationFrame();
     expect(isLit(arrowOf("Build", "Test"))).toBe(true);
-    // Review lies over the orange arrow's horizontal part: aim at the part of the line in Review
     const arrow = arrowOf("Build", "Test");
-    const review = pillEl("Review").getBoundingClientRect();
-    const line = arrow.querySelector(".o_tl_arrow_line");
-    const box = arrow.getBoundingClientRect();
-    let target = null;
-    for (let at = 0; at <= 1; at += 0.005) {
-        const p = line.getPointAtLength(line.getTotalLength() * at);
-        const x = box.left + p.x;
-        const y = box.top + p.y;
-        if (x > review.left + 4 && x < review.right - 4 && y > review.top && y < review.bottom) {
-            target = { x, y };
-            break;
-        }
-    }
+    // Review lies over the orange arrow's horizontal part: aim at the part of the line in Review
+    const target = pointInPill(arrow, pillEl("Review"));
     expect(target).not.toBe(null);
     const band = arrow.querySelector(".o_tl_arrow_band");
     const rect = band.getBoundingClientRect();
     await hover(band, { position: { x: target.x - rect.left, y: target.y - rect.top } });
-    await animationFrame();
-    // the pointer moves on the band: the event carries its place
     band.dispatchEvent(
         new MouseEvent("mousemove", { bubbles: true, clientX: target.x, clientY: target.y })
     );
     await animationFrame();
     expect(isLit(arrowOf("Build", "Test"))).toBe(true);
-    expect(isLit(arrowOf("Review", "Overlap A"))).toBe(true);
+    // the pill under the band does not count: its own arrow is at rest, it shows no handle, and
+    // Build, which the pointer left, has no handle either
+    expect(isLit(arrowOf("Review", "Overlap A"))).toBe(false);
     expect(isLit(arrowOf("Design", "Build"))).toBe(false);
-    expect(arrowOf("Review", "Overlap A").querySelector(".o_tl_arrow_remove")).not.toBe(null);
+    expect(lit()).toHaveLength(1);
+    expect(arrowOf("Build", "Test").querySelector(".o_tl_arrow_remove")).not.toBe(null);
+    expect(".o_tl_handle").toHaveCount(0);
+    expect(".o_tl_connect_handle").toHaveCount(0);
+    // off the band, still in Review: Review's arrow is lit and the orange arrow is at rest
+    await hover(pillEl("Review"));
+    await animationFrame();
+    expect(isLit(arrowOf("Review", "Overlap A"))).toBe(true);
+    expect(isLit(arrowOf("Build", "Test"))).toBe(false);
 });
 
 test("002c A76: a click on a lit arrow over a pill opens no popover", async () => {
@@ -497,14 +509,14 @@ test("002c A65: the arrow follows the moving pill, lit", async () => {
     expect(isLit(arrow)).toBe(false);
 });
 
-test("002c A69: arrows during a resize", async () => {
+test("002c A69: arrows do not follow the moving end of a resize", async () => {
     await mountDependencies();
     const arrow = arrowOf("Build", "Test");
     const other = arrowOf("Review", "Overlap A");
     const before = pathOf(arrow);
-    const startBefore = pointOn(arrow, 0).x;
     await hover(pillEl("Build"));
     await settleArrows();
+    expect(isLit(arrow)).toBe(true);
     const handle = queryOne(`.o_tl_pill[data-pill-id="${ID.Build}"] .o_tl_handle_stop`);
     const start = centreOf(queryRect(handle));
     const held = await drag(handle, { position: start });
@@ -514,13 +526,10 @@ test("002c A69: arrows during a resize", async () => {
     }
     await settleArrows();
     expect(".o_tl_pill_resizing").toHaveCount(1);
+    // lit as when the resize began, and still drawn from the stored end
     expect(isLit(arrow)).toBe(true);
     expect(isLit(other)).toBe(false);
-    expect(pathOf(arrow)).not.toBe(before);
-    // the line leaves the moving end of the pill
-    const body = queryRect(".o_tl_pill_resizing");
-    expect(pointOn(arrow, 0).x).toBeWithin(body.right - 2, body.right + 2);
-    expect(pointOn(arrow, 0).x).toBeLessThan(startBefore - 40);
+    expect(pathOf(arrow)).toBe(before);
     await held.cancel();
     await settleArrows();
     expect(".o_tl_pill_resizing").toHaveCount(0);
@@ -543,22 +552,20 @@ test("002c A26: no handles on other pills while moving", async () => {
     await held.cancel();
 });
 
-test("002c R9: a pill under the pointer on a lit arrow keeps its handles", async () => {
+test("002c R9: where a lit band lies over a pill, the pill's handles and arrows go", async () => {
     await mountDependencies();
-    const build = pillEl("Build");
-    // the pointer rests on an arrow whose line passes over the pill Build
-    patchWithCleanup(document, { elementsFromPoint: () => [build] });
-    await hoverArrow(arrowOf("Review", "Overlap A"), 0.5);
-    expect(isLit(arrowOf("Review", "Overlap A"))).toBe(true);
-    expect(isLit(arrowOf("Design", "Build"))).toBe(true);
+    await hover(pillEl("Build"));
+    await animationFrame();
+    expect(".o_tl_connect_handle").toHaveCount(2);
+    await hoverArrow(arrowOf("Build", "Test"), 0.5);
+    expect(lit()).toHaveLength(1);
     expect(isLit(arrowOf("Build", "Test"))).toBe(true);
-    expect(pillEl("Build").querySelectorAll(".o_tl_handle")).toHaveLength(2);
-    // leaving the arrow for a place without pill ends both
-    patchWithCleanup(document, { elementsFromPoint: () => [] });
+    expect(".o_tl_handle").toHaveCount(0);
+    expect(".o_tl_connect_handle").toHaveCount(0);
+    // leaving the arrow for a place without pill ends it
     await hover(".o_tl_col");
     await animationFrame();
     expect(lit()).toHaveLength(0);
-    expect(".o_tl_handle").toHaveCount(0);
 });
 
 test("002c R9: a highlight key that matches nothing after a reload is dropped", async () => {
@@ -569,4 +576,191 @@ test("002c R9: a highlight key that matches nothing after a reload is dropped", 
     arrows.refresh();
     expect(arrows.focus.arrowKey).toBe(null);
     expect(arrows.focus.pillKey).toBe(null);
+});
+
+// -- the strips around a pill (R11, A93, M52, M53) -----------------------------------------
+
+const stripOf = (side) => queryOne(`.o_tl_connect_strip_${side}`);
+
+test("002c A93: the strips above and below the body, as wide as the body", async () => {
+    await mountDependencies();
+    expect(".o_tl_connect_strip").toHaveCount(0);
+    await hover(pillEl("Build"));
+    await settleArrows();
+    const body = queryRect(pillEl("Build"));
+    const above = queryRect(stripOf("above"));
+    const below = queryRect(stripOf("below"));
+    expect(".o_tl_connect_strip").toHaveCount(2);
+    // M52, M53: from the body's left edge, 2 px wider than the body (its 1 px inset), 11 px tall,
+    // above and below the outer box (the body and its 1 px inset)
+    for (const strip of [above, below]) {
+        expect(strip.left).toBe(body.left);
+        expect(strip.width).toBe(body.width + 2);
+        expect(strip.height).toBe(11);
+    }
+    expect(above.bottom).toBe(body.top - 1);
+    expect(below.top).toBe(body.bottom + 1);
+    expect(getComputedStyle(stripOf("above")).cursor).toBe("default");
+});
+
+test("002c A93: the pill stays under the pointer in a strip and goes outside it", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await settleArrows();
+    for (const side of ["above", "below"]) {
+        await hover(stripOf(side));
+        await settleArrows();
+        expect(".o_tl_connect_handle").toHaveCount(2);
+        expect(".o_tl_handle").toHaveCount(2);
+        expect(isLit(arrowOf("Design", "Build"))).toBe(true);
+        expect(isLit(arrowOf("Build", "Test"))).toBe(true);
+        // back on the body
+        await hover(pillEl("Build"));
+        await settleArrows();
+    }
+    // outside the strips (the cells beyond them): the handles go and the arrows rest
+    await hover(stripOf("below"));
+    await hover(".o_tl_col");
+    await settleArrows();
+    expect(".o_tl_connect_handle").toHaveCount(0);
+    expect(".o_tl_connect_strip").toHaveCount(0);
+    expect(lit()).toHaveLength(0);
+});
+
+test("002c A93: the strips lie over the neighbouring pills and under a lit arrow", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await settleArrows();
+    const zOf = (element) => Number(getComputedStyle(element).zIndex);
+    const wrapper = stripOf("below").closest(".o_tl_connect");
+    expect(zOf(wrapper)).toBeGreaterThan(zOf(pillEl("Review")));
+    expect(zOf(wrapper)).toBeLessThan(zOf(arrowOf("Build", "Test")));
+    expect(zOf(wrapper)).toBeLessThan(zOf(queryAll(".o_tl_col")[0]));
+    // over "Review", under Build's strip, the strip is what the pointer meets
+    const below = queryRect(stripOf("below"));
+    const review = queryRect(pillEl("Review"));
+    const x = Math.max(below.left, review.left) + 10;
+    const y = below.top + 5;
+    expect(y).toBeWithin(review.top, review.bottom);
+    expect(document.elementFromPoint(x, y)).toBe(stripOf("below"));
+});
+
+test("002c A93: a click in a strip does nothing, a press and move moves the pill", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await settleArrows();
+    await click(stripOf("below"));
+    await advanceTime(400);
+    await animationFrame();
+    expect(".o_tl_popover").toHaveCount(0);
+    expect(".o_tl_cell_picked").toHaveCount(0);
+    expect(log).toHaveLength(0);
+    const start = centreOf(queryRect(stripOf("below")));
+    const held = await drag(stripOf("below"), { position: start });
+    for (let step = 1; step <= 4; step++) {
+        const x = start.x + (200 * step) / 4;
+        await held.moveTo(document.elementFromPoint(x, start.y), { position: { x, y: start.y } });
+    }
+    await settleArrows();
+    expect(".o_tl_pill_moved").toHaveCount(1);
+    await held.cancel();
+    await settleArrows();
+    expect(".o_tl_pill_moved").toHaveCount(0);
+    expect(log).toHaveLength(0);
+});
+
+test("002c A93: no strip without the edit permission, none on a group row", async () => {
+    await mountDependencies({ arch: timelineArch(`${DEPENDENCIES} edit="0"`) });
+    await hover(pillEl("Build"));
+    await settleArrows();
+    expect(".o_tl_connect_strip").toHaveCount(0);
+});
+
+// -- switching the arrows with the pointer at rest (R13, R9, A94) ---------------------------
+
+test("002c A94: switching the arrows lights nothing until the pointer moves", async () => {
+    await mountDependencies();
+    const design = pillEl("Design");
+    const rect = design.getBoundingClientRect();
+    const at = { clientX: rect.left + 40, clientY: rect.top + 6, bubbles: true };
+    // the pointer rests on "Design" (it moved there)
+    document.dispatchEvent(new PointerEvent("pointermove", at));
+    for (const shown of [false, true]) {
+        controller.dependencies.shown = shown;
+        await settleArrows();
+        // the browser's own mouse move over the pill after the menu closed: the same point
+        document.dispatchEvent(new PointerEvent("pointermove", at));
+        design.dispatchEvent(new MouseEvent("mouseenter", at));
+        await settleArrows();
+        expect(lit()).toHaveLength(0);
+        // the pointer moves by 1 px
+        const moved = { ...at, clientX: at.clientX + 1 };
+        patchWithCleanup(document, { elementsFromPoint: () => [design] });
+        document.dispatchEvent(new PointerEvent("pointermove", moved));
+        await settleArrows();
+        expect(isLit(arrowOf("Design", "Build"))).toBe(true);
+        // rest again
+        design.dispatchEvent(new MouseEvent("mouseleave", { bubbles: false }));
+        await settleArrows();
+        at.clientX += 1;
+    }
+});
+
+// -- the layers during a drawing (S4, R9, R12, P3) ------------------------------------------
+
+test("002c P3: during a drawing the source covers arrows at rest, lit arrows and the line cover all pills", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await settleArrows();
+    const handle = queryOne(".o_tl_connect_stop");
+    const start = centreOf(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    for (let step = 1; step <= 4; step++) {
+        const x = start.x + (40 * step) / 4;
+        const y = start.y + (60 * step) / 4;
+        await held.moveTo(document.elementFromPoint(x, y), { position: { x, y } });
+    }
+    await settleArrows();
+    expect(".o_tl_connect_path").toHaveCount(1);
+    const z = (element) => Number(getComputedStyle(element).zIndex);
+    const source = pillEl("Build");
+    expect(source.classList.contains("o_tl_pill_source")).toBe(true);
+    // the raised source over the other pills and over every arrow at rest
+    expect(z(source)).toBeGreaterThan(z(pillEl("Review")));
+    for (const arrow of arrowEls().filter((arrow) => !isLit(arrow))) {
+        expect(z(source)).toBeGreaterThan(z(arrow));
+    }
+    // the lit arrows and the line being drawn over all pills, the source included
+    for (const arrow of lit()) {
+        expect(z(arrow)).toBeGreaterThan(z(source));
+    }
+    expect(z(queryOne(".o_tl_connect_line"))).toBeGreaterThan(z(source));
+    expect(getComputedStyle(queryOne(".o_tl_connect_path")).pointerEvents).toBe("none");
+    // no remove button takes the pointer
+    for (const button of queryAll(".o_tl_arrow_remove")) {
+        expect(getComputedStyle(button).pointerEvents).toBe("none");
+    }
+    await held.cancel();
+});
+
+test("002c P3: a release on a remove button during a drawing writes nothing", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await settleArrows();
+    const button = queryAll(".o_tl_arrow_remove")[0];
+    const b = button.getBoundingClientRect();
+    const onButton = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    const handle = queryOne(".o_tl_connect_stop");
+    const start = centreOf(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    await held.moveTo(document.elementFromPoint(start.x + 30, start.y + 30), {
+        position: { x: start.x + 30, y: start.y + 30 },
+    });
+    // the button lies over the pill beneath it: it counts as no pill
+    const renderer = controller.selection.renderer;
+    expect(renderer._connectTargetAt(onButton.x, onButton.y)).toBe(null);
+    await held.moveTo(document.elementFromPoint(onButton.x, onButton.y), { position: onButton });
+    await held.drop();
+    await settleArrows();
+    expect(log).toHaveLength(0);
 });
