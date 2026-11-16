@@ -323,3 +323,27 @@ msgstr ""
 #: code:addons/web_gantt/static/src/timeline_arrows.js:0
 msgid "Remove this dependency"
 msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.js:0
+msgid "Manual Reschedule"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.js:0
+msgid "Auto-Reschedule (Use Buffer)"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.js:0
+msgid "Auto-Reschedule (Keep Buffer)"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.xml:0
+msgid "Show dependencies"
+msgstr ""

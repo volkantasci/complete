@@ -251,3 +251,22 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
     def test_a87_tour_locked_pill(self):
         self._draw_tour('h42', 'timeline_002c_a87_locked_pill', ('Plan', 'Test'))
 
+    # -- the method button, its menu and the switch (R13, R14) -----------------------------------
+
+    def test_a33_tour_show_dependencies(self):
+        self._tour('h42', 'timeline_002c_a33')
+
+    def test_a35_tour_method_menu(self):
+        self._tour('h42', 'timeline_002c_a35')
+
+    def test_a37_tour_phone(self):
+        self._tour('h42', 'timeline_002c_a37_phone', size='390x844', touch=True)
+
+    def test_a37_tour_sample(self):
+        self._tour('h50', 'timeline_002c_a37_sample')
+
+    def test_a70_tour_read_only(self):
+        self._tour('h49', 'timeline_002c_a70')
+
+    def test_a74_tour_storage_keys(self):
+        self._tour('h42', 'timeline_002c_a74')

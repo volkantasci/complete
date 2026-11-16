@@ -221,3 +221,28 @@ class TimelineDependencyProbes(TimelineProbeCase):
                 overlap.invalidate_recordset()
                 overlap.write({'dependency_field': [Command.set(links)]})
         self.assertNotIn(build.id, overlap.dependency_field.ids)
+
+    # -- the method button and its menu (R14) -------------------------------------------------
+
+    def test_002c_m27_m32_method_menu(self):
+        probes = ['M27', 'M28', 'M29', 'M30', 'M31', 'M32']
+        button = "document.querySelector('.o_tl_reschedule_button')"
+        menu = "document.querySelector('.o_tl_reschedule_menu')"
+        for scheme, viewport in self.combos(probes, ('desktop',)):
+            with self.page(HOST.format('h42'), scheme, viewport):
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 3", timeout=60)
+                self.settle()
+                self.pointer_away()
+                self.check('M27', button, scheme, viewport, 'the method button at rest')
+                self.click_js(button)
+                self.wait(f"{menu} !== null")
+                self.settle()
+                self.pointer_away()
+                self.check('M28', button, scheme, viewport, 'the method button, menu open')
+                self.check('M29', menu, scheme, viewport, 'the menu')
+                self.check('M30', "document.querySelector('.o_tl_reschedule_maintainBuffer')",
+                           scheme, viewport, 'the chosen method')
+                self.check('M31', f"{menu}.querySelector('.dropdown-divider')", scheme, viewport,
+                           'the separator')
+                self.check('M32', "document.querySelector('.o_tl_reschedule_consumeBuffer')",
+                           scheme, viewport, 'a method not chosen')

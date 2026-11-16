@@ -22,6 +22,7 @@ import { useSearchBarToggler } from "@web/search/search_bar/search_bar_toggler";
 import { standardViewProps } from "@web/views/standard_view_props";
 import { fixCustomDates } from "./timeline_dates";
 import { TimelineEditor } from "./timeline_editor";
+import { TimelineRescheduleMenu } from "./timeline_reschedule_menu";
 import { TimelineSelectionButtons } from "./timeline_selection_buttons";
 import { newButtonPeriod } from "./timeline_editing";
 import { buildMultiCreateValues } from "./timeline_multi_create";
@@ -75,6 +76,7 @@ export class TimelineController extends Component {
         DropdownItem,
         Layout,
         SearchBar,
+        TimelineRescheduleMenu,
         TimelineSelectionButtons,
     };
     props = useProps({
@@ -289,6 +291,21 @@ export class TimelineController extends Component {
     /** The range shown in the bar: the target of a pending step, else the loaded one. */
     get shownRange() {
         return this.data.pendingRange || this.data.range;
+    }
+
+    /**
+     * The method button and its menu exist (002c R14, R4, R25): a dependency field, no sample
+     * data, no phone; the edit permission is not needed. The method a move reads is
+     * `rescheduleMethod` (the model's, which takes a choice when the delayed reload runs).
+     */
+    get hasRescheduleMenu() {
+        return (
+            Boolean(this.props.archInfo.dependencyField) && !this.data.isSample && !this.ui.isSmall
+        );
+    }
+
+    get rescheduleMethod() {
+        return this.model.rescheduleMethod;
     }
 
     /** The side panel and its button exist (002b3 R17); none on a phone. */

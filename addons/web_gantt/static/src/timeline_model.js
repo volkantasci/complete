@@ -30,6 +30,11 @@ import {
 } from "./timeline_dates";
 import { orderPills, pillSpan } from "./timeline_layout";
 import { stripDateConditions } from "./timeline_panel_math";
+import {
+    RESCHEDULE_METHODS,
+    readRescheduleMethod,
+    writeRescheduleMethod,
+} from "./timeline_dependency_prefs";
 import { PANEL_LIMIT, PANEL_LIMIT_STEP, PANEL_WIDTH } from "./timeline_side_panel";
 
 const { DateTime } = luxon;
@@ -112,6 +117,13 @@ export class TimelineModel extends Model {
         this._requestedOffset = null;
         this._timer = null;
         this._waiters = [];
+        // the rescheduling method (002c R14): `chosenMethod` is what the menu shows and is stored
+        // at once; `rescheduleMethod` is what a move reads when it is committed, and takes the
+        // choice only when the delayed reload runs (a move already under way keeps the earlier one)
+        this.rescheduleMethod = readRescheduleMethod(this.viewId);
+        this.chosenMethod = this.rescheduleMethod;
+        this._methodTimer = null;
+        this._methodWaiters = [];
         this._writes = new Set();
         this._writeTail = Promise.resolve();
         this._onDispose = [];
@@ -219,7 +231,9 @@ export class TimelineModel extends Model {
             callback();
         }
         browser.clearTimeout(this._timer);
+        browser.clearTimeout(this._methodTimer);
         this._timer = null;
+        this._methodTimer = null;
         this._waiters = [];
     }
 
@@ -283,6 +297,35 @@ export class TimelineModel extends Model {
         day = day < dates.start ? dates.start : day > dates.stop ? dates.stop : day;
         await this._reload({ range: { kind: "custom", ...dates, focus: day } });
         this.notify();
+    }
+
+    /**
+     * Choose the rescheduling method: kept in the browser for the view and shown at once; the data
+     * is loaded again half a second after the last choice (which also clears a cell selection,
+     * 002b3 R9) and only then `rescheduleMethod` takes the choice. Settles when that load is done.
+     */
+    chooseRescheduleMethod(method) {
+        if (!RESCHEDULE_METHODS.includes(method)) {
+            return Promise.resolve();
+        }
+        this.chosenMethod = method;
+        writeRescheduleMethod(this.viewId, method);
+        browser.clearTimeout(this._methodTimer);
+        this.notify();
+        const promise = new Promise((resolve) => this._methodWaiters.push(resolve));
+        this._methodTimer = browser.setTimeout(async () => {
+            this._methodTimer = null;
+            this.rescheduleMethod = this.chosenMethod;
+            try {
+                await this._reload();
+                this.notify();
+            } finally {
+                const waiters = this._methodWaiters;
+                this._methodWaiters = [];
+                waiters.forEach((resolve) => resolve());
+            }
+        }, STEP_DELAY);
+        return promise;
     }
 
     /**

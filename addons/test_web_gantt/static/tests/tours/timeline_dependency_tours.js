@@ -89,7 +89,11 @@ const gridReady = {
 let requests = Math.floor(Date.now() / 1000) * 1000;
 /** Ask the test to send these mouse events for real, and wait until it did. */
 async function realMouse(events) {
-    const id = ++requests;
+    // the tab remembers the last number, since the tours that run with the D0 clock restart it at
+    // every load of the page
+    requests = Math.max(requests, Number(sessionStorage.getItem("tl_mouse_requests") || 0)) + 1;
+    sessionStorage.setItem("tl_mouse_requests", String(requests));
+    const id = requests;
     window.__tl_mouse = { id, events };
     await until(() => window.__tl_mouse_done === id, "the real mouse events", 20000);
     await gridSettled();
@@ -1007,3 +1011,288 @@ tours.add("timeline_002c_a87_locked_pill", {
     ],
 });
 
+
+// ---------------------------------------------------------------------------------------------
+// The method button, its menu and the switch "Show dependencies" (R13, R14)
+// ---------------------------------------------------------------------------------------------
+
+const methodButton = () => $(".o_tl_reschedule_button");
+const methodLabel = () => methodButton()?.textContent.trim();
+const menuLines = () => $$(".o_tl_reschedule_menu .dropdown-item").map((el) => el.textContent.trim());
+const chosenLines = () =>
+    $$(".o_tl_reschedule_menu .dropdown-item.selected").map((el) => el.textContent.trim());
+const linePressed = (text) =>
+    $$(".o_tl_reschedule_menu .dropdown-item").find((el) => el.textContent.trim() === text);
+const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+/** What the browser kept of the two choices (the keys of `model.md`). */
+const clearChoices = () => {
+    for (const key of Object.keys(localStorage)) {
+        if (key.startsWith("rescheduleMethod-viewId-") || key.startsWith("gantt_show_connectors,")) {
+            localStorage.removeItem(key);
+        }
+    }
+};
+const storedKeys = (prefix) => Object.keys(localStorage).filter((key) => key.startsWith(prefix));
+async function openMethodMenu() {
+    methodButton().click();
+    await until(() => $(".o_tl_reschedule_menu"), "the method menu");
+    await frame();
+}
+async function chooseLine(text) {
+    linePressed(text).click();
+    await until(() => !$(".o_tl_reschedule_menu"), "the menu closes");
+    await frame();
+}
+const hiddenArrows = () => arrows().every((arrow) => getComputedStyle(arrow).opacity === "0");
+const shownArrows = () => arrows().every((arrow) => getComputedStyle(arrow).opacity !== "0");
+
+const H43 = "/odoo/action-test_web_gantt.host_action_h43";
+const H42 = "/odoo/action-test_web_gantt.host_action_h42";
+const H44 = "/odoo/action-test_web_gantt.host_action_h44";
+/** The step that opens another page of the same tour (the next step runs on the new page). */
+const goTo = (path) => ({
+    trigger: ".o_tl_controls",
+    expectUnloadPage: true,
+    run() {
+        window.location.href = path;
+    },
+});
+// (hidden arrows are not visible to a trigger: wait for the button, then for the layers)
+const arrowsReady = {
+    trigger: ".o_tl_reschedule_button",
+    async run() {
+        await until(() => arrows().length > 0, "the arrows");
+        await gridSettled();
+        await pointerAway();
+    },
+};
+
+// A33: "Show dependencies" off on H42, kept after a reload, H43 shows its arrows, shown again
+tours.add("timeline_002c_a33", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            expectUnloadPage: true,
+            async run() {
+                await gridSettled();
+                clearChoices();
+                await pointerAway();
+                await openMethodMenu();
+                assert(chosenLines().includes("Show dependencies"), "the switch is marked on");
+                await chooseLine("Show dependencies");
+                assert(hiddenArrows() && arrows().length === 3, "no arrow is visible");
+                assert(
+                    arrows().every((arrow) => getComputedStyle(arrow).pointerEvents === "none"),
+                    "none takes the pointer"
+                );
+                await moveTo(rightPartOf("Build"));
+                assert(litArrows().length === 2, `two lit arrows, got ${litArrows().length}`);
+                assert(buttons().length === 2, "with their remove buttons");
+                assert(
+                    arrows().filter((a) => getComputedStyle(a).opacity === "1").length === 2,
+                    "and no other arrow shows"
+                );
+                assert(handleOf("Build", "stop"), "the handles still show");
+                await pointerAway();
+                assert(storedKeys("gantt_show_connectors,").length === 1, "the choice is stored");
+                window.location.reload();
+            },
+        },
+        arrowsReady,
+        {
+            trigger: ".o_tl_reschedule_button",
+            run() {
+                assert(hiddenArrows(), "the arrows stay hidden after a reload");
+            },
+        },
+        goTo(H43),
+        arrowsReady,
+        {
+            trigger: ".o_tl_reschedule_button",
+            run() {
+                assert(arrows().length > 0 && shownArrows(), "H43 shows its arrows");
+            },
+        },
+        goTo(H42),
+        arrowsReady,
+        {
+            trigger: ".o_tl_reschedule_button",
+            async run() {
+                assert(hiddenArrows(), "hidden again on H42");
+                await openMethodMenu();
+                assert(!chosenLines().includes("Show dependencies"), "the switch is not marked");
+                await chooseLine("Show dependencies");
+                assert(shownArrows(), "the arrows show again");
+                clearChoices();
+            },
+        },
+    ],
+});
+
+// A35: the button and its menu on H42; "Manual Reschedule" chosen; H43 reads it, H44 does not
+tours.add("timeline_002c_a35", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_reschedule_button",
+            async run() {
+                await gridSettled();
+                clearChoices();
+                await pointerAway();
+                assert(methodLabel() === "Auto-Reschedule (Keep Buffer)", `label ${methodLabel()}`);
+                const collapse = $(".o_tl_collapse_all").getBoundingClientRect();
+                const button = methodButton().getBoundingClientRect();
+                assert(button.left > collapse.right, "the button stands after the expand button");
+                await openMethodMenu();
+                assert(
+                    menuLines().join("|") ===
+                        "Manual Reschedule|Auto-Reschedule (Use Buffer)|Auto-Reschedule (Keep Buffer)|Show dependencies",
+                    `the lines: ${menuLines().join("|")}`
+                );
+                assert(
+                    chosenLines().join("|") === "Auto-Reschedule (Keep Buffer)|Show dependencies",
+                    "the chosen method and the switch are marked"
+                );
+                assert($$(".o_tl_reschedule_menu .o_tl_check").length === 2, "two checks");
+                assert($(".o_tl_reschedule_menu .dropdown-divider"), "a separator");
+                await chooseLine("Manual Reschedule");
+                assert(methodLabel() === "Manual Reschedule", "the label changes");
+                await pause(1500);
+                await gridSettled();
+                assert(methodLabel() === "Manual Reschedule", "and stays after the load");
+                assert(arrows().length === 3, "the arrows are drawn again");
+            },
+        },
+        goTo(H43),
+        {
+            trigger: ".o_tl_reschedule_button",
+            async run() {
+                await gridSettled();
+                assert(methodLabel() === "Manual Reschedule", `H43 reads ${methodLabel()}`);
+            },
+        },
+        goTo(H44),
+        {
+            trigger: ".o_tl_reschedule_button",
+            async run() {
+                await gridSettled();
+                assert(methodLabel() === "Auto-Reschedule (Keep Buffer)", `H44 reads ${methodLabel()}`);
+                clearChoices();
+            },
+        },
+    ],
+});
+
+// A37: H42 on a phone: neither the bar nor the gear menu holds the button or the switch
+tours.add("timeline_002c_a37_phone", {
+    steps: () => [
+        { trigger: ".o_tl_renderer .o_tl_pill" },
+        {
+            trigger: ".o_tl_gear",
+            async run() {
+                await gridSettled();
+                assert(!methodButton(), "no method button in the bar");
+                $(".o_tl_gear").click();
+                await until(() => $(".o_tl_gear_menu"), "the gear menu");
+                const text = $(".o_tl_gear_menu").textContent;
+                assert(!/Reschedule|dependencies/i.test(text), `the gear menu holds: ${text}`);
+                assert(!$(".o_tl_dependencies_item"), "no switch");
+            },
+        },
+    ],
+});
+
+// A37: H50 (sample state) has no method button
+tours.add("timeline_002c_a37_sample", {
+    steps: () => [
+        { trigger: ".o_tl_controls" },
+        {
+            trigger: ".o_tl_today",
+            async run() {
+                await gridSettled();
+                assert(!methodButton(), "no method button in the sample state");
+            },
+        },
+    ],
+});
+
+// A70: H49 (edit off): arrows lit without a remove button, no handle; the menu and the switch work
+tours.add("timeline_002c_a70", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                clearChoices();
+                await pointerAway();
+                assert(methodButton(), "the method button shows without edit rights");
+                await moveTo(rightPartOf("Build"));
+                assert(litArrows().length === 2, "the arrows of Build are lit");
+                assert(buttons().length === 0, "without a remove button");
+                assert(handleCount() === 0, "and without a handle");
+                await pointerAway();
+                await openMethodMenu();
+                assert(menuLines().length === 4, "the whole menu");
+                await chooseLine("Show dependencies");
+                assert(hiddenArrows(), "the switch hides the arrows");
+                await openMethodMenu();
+                await chooseLine("Show dependencies");
+                assert(shownArrows(), "and shows them again");
+                clearChoices();
+            },
+        },
+    ],
+});
+
+// A74: with the keys of model.md set before the view opens (use buffer, arrows off), the view
+// reads them; the keys are found by making the choices once, their values are then written here
+tours.add("timeline_002c_a74", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            expectUnloadPage: true,
+            async run() {
+                await gridSettled();
+                clearChoices();
+                await openMethodMenu();
+                await chooseLine("Manual Reschedule");
+                await openMethodMenu();
+                await chooseLine("Show dependencies");
+                const [methodKey] = storedKeys("rescheduleMethod-viewId-");
+                const [switchKey] = storedKeys("gantt_show_connectors,");
+                assert(/^rescheduleMethod-viewId-\d+$/.test(methodKey), `method key ${methodKey}`);
+                assert(/^gantt_show_connectors,\d+,\d+$/.test(switchKey), `switch key ${switchKey}`);
+                localStorage.setItem(methodKey, "consumeBuffer");
+                localStorage.setItem(switchKey, "false");
+                window.location.reload();
+            },
+        },
+        arrowsReady,
+        {
+            trigger: ".o_tl_reschedule_button",
+            expectUnloadPage: true,
+            async run() {
+                assert(methodLabel() === "Auto-Reschedule (Use Buffer)", `label ${methodLabel()}`);
+                assert(hiddenArrows(), "the arrows are hidden");
+                await openMethodMenu();
+                assert(
+                    chosenLines().join("|") === "Auto-Reschedule (Use Buffer)",
+                    `marked: ${chosenLines().join("|")}`
+                );
+                localStorage.setItem(storedKeys("rescheduleMethod-viewId-")[0], "bogus");
+                window.location.reload();
+            },
+        },
+        arrowsReady,
+        {
+            trigger: ".o_tl_reschedule_button",
+            run() {
+                assert(methodLabel() === "Auto-Reschedule (Keep Buffer)", `label ${methodLabel()}`);
+                clearChoices();
+            },
+        },
+    ],
+});
