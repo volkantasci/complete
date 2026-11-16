@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { click, hover, queryAll, queryOne, resize } from "@odoo/hoot-dom";
+import { click, drag, hover, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import {
     contains,
@@ -397,4 +397,89 @@ test("002c A20: group row pills and the origin copy lie over the arrows at rest"
     queryOne(".o_tl_grid").appendChild(faded);
     expect(Number(getComputedStyle(faded).zIndex)).toBeGreaterThan(arrowZ);
     faded.remove();
+});
+
+const centreOf = (rect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+const pathOf = (arrow) => arrow.querySelector(".o_tl_arrow_line").getAttribute("d");
+
+/** The renderer patches, then the arrows are measured, then the layer draws them: three frames. */
+async function settleArrows() {
+    for (let i = 0; i < 3; i++) {
+        await animationFrame();
+    }
+}
+
+test("002c A65: the arrow follows the moving pill, lit", async () => {
+    await mountDependencies();
+    const arrow = arrowOf("Review", "Overlap A");
+    const before = pathOf(arrow);
+    expect(isLit(arrow)).toBe(false);
+    const start = centreOf(queryRect(pillEl("Review")));
+    const held = await drag(pillEl("Review"), { position: start });
+    for (let step = 1; step <= 12; step++) {
+        const x = start.x + (192 * step) / 12;
+        const y = start.y + (41 * step) / 12;
+        await held.moveTo(document.elementFromPoint(x, y), { position: { x, y } });
+    }
+    await settleArrows();
+    expect(".o_tl_pill_moved").toHaveCount(1);
+    expect(pathOf(arrow)).not.toBe(before);
+    expect(isLit(arrow)).toBe(true);
+    expect(getComputedStyle(arrow).zIndex).toBe("20");
+    // the line leaves the moving image, not the pill that stays behind
+    const image = queryRect(".o_tl_pill_moved");
+    const from = pointOn(arrow, 0);
+    expect(from.x).toBeWithin(image.right - 2, image.right + 2);
+    expect(from.y).toBeWithin(image.top, image.bottom);
+    await held.cancel();
+    await settleArrows();
+    expect(".o_tl_pill_moved").toHaveCount(0);
+    expect(pathOf(arrow)).toBe(before);
+    expect(isLit(arrow)).toBe(false);
+});
+
+test("002c A69: arrows during a resize", async () => {
+    await mountDependencies();
+    const arrow = arrowOf("Build", "Test");
+    const other = arrowOf("Review", "Overlap A");
+    const before = pathOf(arrow);
+    const startBefore = pointOn(arrow, 0).x;
+    await hover(pillEl("Build"));
+    await settleArrows();
+    const handle = queryOne(`.o_tl_pill[data-pill-id="${ID.Build}"] .o_tl_handle_stop`);
+    const start = centreOf(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    for (let step = 1; step <= 6; step++) {
+        const x = start.x - (96 * step) / 6;
+        await held.moveTo(document.elementFromPoint(x, start.y), { position: { x, y: start.y } });
+    }
+    await settleArrows();
+    expect(".o_tl_pill_resizing").toHaveCount(1);
+    expect(isLit(arrow)).toBe(true);
+    expect(isLit(other)).toBe(false);
+    expect(pathOf(arrow)).not.toBe(before);
+    // the line leaves the moving end of the pill
+    const body = queryRect(".o_tl_pill_resizing");
+    expect(pointOn(arrow, 0).x).toBeWithin(body.right - 2, body.right + 2);
+    expect(pointOn(arrow, 0).x).toBeLessThan(startBefore - 40);
+    await held.cancel();
+    await settleArrows();
+    expect(".o_tl_pill_resizing").toHaveCount(0);
+    expect(pathOf(arrow)).toBe(before);
+    expect(isLit(arrow)).toBe(false);
+});
+
+test("002c A26: no handles on other pills while moving", async () => {
+    await mountDependencies();
+    const start = centreOf(queryRect(pillEl("Review")));
+    const held = await drag(pillEl("Review"), { position: start });
+    await held.moveTo(document.elementFromPoint(start.x + 40, start.y), {
+        position: { x: start.x + 40, y: start.y },
+    });
+    await settleArrows();
+    await hover(pillEl("Build"));
+    await settleArrows();
+    expect(".o_tl_connect_handle").toHaveCount(0);
+    expect(".o_tl_handle").toHaveCount(0);
+    await held.cancel();
 });

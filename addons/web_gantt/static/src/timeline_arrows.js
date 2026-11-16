@@ -47,10 +47,26 @@ export class TimelineArrows {
     /** Whether `item` is drawn highlighted (R9). */
     isLit(item) {
         const { pillKey, arrowKey } = this.focus;
+        // R23: the arrows of a pill held for a move, a copy or a resize are lit
+        const held = this.heldKey;
         return (
             arrowKey === item.key ||
+            (held !== null && (held === item.sourcePillKey || held === item.targetPillKey)) ||
             (pillKey !== null && (pillKey === item.sourcePillKey || pillKey === item.targetPillKey))
         );
+    }
+
+    /**
+     * The key of the pill a gesture moves, copies or resizes, or null (R23). A pill dragged from
+     * the side panel, or locked, is not one of the drawn pills and has no arrows to move.
+     */
+    get heldKey() {
+        const drag = this.host.state.drag;
+        const mode = drag?.mode;
+        if (!drag || !(mode === "move" || mode === "copy" || mode?.startsWith("resize-"))) {
+            return null;
+        }
+        return `${drag.startRowId}|${drag.pillId}`;
     }
 
     // ------------------------------------------------------------------------
@@ -96,6 +112,14 @@ export class TimelineArrows {
                 const key = `${rowEl.dataset.rowId}|${pillEl.dataset.pillId}`;
                 bodies.set(key, pillEl.getBoundingClientRect());
             }
+        }
+        // R23: a moved or copied pill's arrows are drawn to its moving image, the box that
+        // surrounds its body by one pixel (M41); a resized pill is its own image (its body is in
+        // the DOM with the new length)
+        const held = this.heldKey;
+        const image = held && !host.state.drag.resize && grid.querySelector(".o_tl_pill_moved");
+        if (image && bodies.has(held)) {
+            bodies.set(held, image.getBoundingClientRect());
         }
         const rtl = host._isRtl();
         const { startField, stopField } = model.config;

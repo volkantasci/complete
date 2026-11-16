@@ -350,3 +350,24 @@ class TimelineDependencyProbes(TimelineProbeCase):
                         'windowsVirtualKeyCode': 27})
                 self.mouse('mouseReleased', 1261, 326, button='left', buttons=0, clickCount=1)
                 self.wait("!document.querySelector('.o_tl_pill_moved')")
+
+    def test_002c_m41_arrow_of_a_moved_pill(self):
+        for scheme, viewport in self.combos(['M41'], ('desktop',)):
+            with self.page(HOST.format('h44'), scheme, viewport):
+                self.pointer_away()
+                self.mouse('mouseMoved', 1069, 285, button='none', buttons=0)
+                self.mouse('mousePressed', 1069, 285, button='left', buttons=1, clickCount=1)
+                for i in range(1, 13):
+                    self.mouse('mouseMoved', 1069 + (1261 - 1069) * i / 12,
+                               285 + (326 - 285) * i / 12, button='left', buttons=1)
+                    time.sleep(.03)
+                self.wait("!!document.querySelector('.o_tl_pill_moved')")
+                self.settle()
+                self.check('M41', self.part('Review', 'Overlap A', '.o_tl_arrow_line'), scheme,
+                           viewport, 'the line of the arrow while Review is held')
+                for kind in ('keyDown', 'keyUp'):
+                    self.browser._websocket_request('Input.dispatchKeyEvent', params={
+                        'type': kind, 'key': 'Escape', 'code': 'Escape',
+                        'windowsVirtualKeyCode': 27})
+                self.mouse('mouseReleased', 1261, 326, button='left', buttons=0, clickCount=1)
+                self.wait("!document.querySelector('.o_tl_pill_moved')")

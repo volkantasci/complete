@@ -288,6 +288,12 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
     def test_a65_tour_band_hidden_while_moving(self):
         self._buffer_tour('timeline_002c_a65')
 
+    def test_a65_tour_arrow_follows_moving_pill(self):
+        self._buffer_tour('timeline_002c_a65_arrow')
+
+    def test_a69_tour_arrow_follows_resize(self):
+        self._tour('h42', 'timeline_002c_a69')
+
     def test_a65_tour_phone(self):
         self._buffer_tour('timeline_002c_a65_phone', size='390x844', touch=True)
 

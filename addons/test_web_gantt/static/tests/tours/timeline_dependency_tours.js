@@ -1467,3 +1467,73 @@ tours.add("timeline_002c_a78", {
         },
     ],
 });
+
+// ---------------------------------------------------------------------------------------------
+// A65, A69: the arrows of a moved or resized pill (R23)
+// ---------------------------------------------------------------------------------------------
+
+const escapeAndRelease = async (at) => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await until(() => !$(".o_tl_pill_moved") && !$(".o_tl_pill_resizing"), "Escape to end the gesture");
+    await realMouse(releaseAt(at));
+};
+
+// A65: Review pressed at (1069, 285) and moved to (1261, 326) in 12 steps: its arrow to "Overlap A"
+// leaves the moving pill, highlighted; after Escape it is back at its place
+tours.add("timeline_002c_a65_arrow", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await pointerAway();
+                const line = () => lineOfArrow(arrowBetween("Review", "Overlap A")).getAttribute("d");
+                const before = line();
+                assert(!litArrows().length, "nothing is lit at rest");
+                const from = { x: 1069, y: 285 };
+                await realMouse(
+                    holdEvents(from, stepsTo(from, { x: 1261, y: 326 }, 12)),
+                    { settle: false }
+                );
+                await until(() => $(".o_tl_pill_moved"), "the moved pill");
+                await until(() => line() !== before, "the arrow to follow the moved pill");
+                const arrow = arrowBetween("Review", "Overlap A");
+                assert(litArrows().includes(arrow), "the arrow is highlighted");
+                assert(getComputedStyle(lineOfArrow(arrow)).stroke === "rgb(211, 65, 59)", "in full colour");
+                assert(litArrows().length === 1, `only that arrow: ${litArrows().length}`);
+                await escapeAndRelease({ x: 1261, y: 326 });
+                await until(() => line() === before, "the arrow back at its place");
+                assert(!litArrows().length, "and nothing is lit");
+            },
+        },
+    ],
+});
+
+// A69: H42, the right resize handle of "Build" pressed at (1505, 260) and moved 96 px to the left,
+// held: the arrow "Build" to "Test" leaves the moving end, highlighted; after Escape it is back
+tours.add("timeline_002c_a69", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                const line = () => lineOfArrow(arrowBetween("Build", "Test")).getAttribute("d");
+                const before = line();
+                const from = { x: 1505, y: 260 };
+                await moveTo(from);
+                await realMouse(holdEvents(from, stepsTo(from, { x: 1409, y: 260 }, 8)), {
+                    settle: false,
+                });
+                await until(() => $(".o_tl_pill_resizing"), "the pill held by its handle");
+                await until(() => line() !== before, "the arrow to follow the moving end");
+                const arrow = arrowBetween("Build", "Test");
+                assert(litArrows().includes(arrow), "the arrow is highlighted");
+                assert(!litArrows().includes(arrowBetween("Review", "Overlap A")), "no other arrow is");
+                await escapeAndRelease({ x: 1409, y: 260 });
+                await until(() => line() === before, "the arrow back at its place");
+            },
+        },
+    ],
+});

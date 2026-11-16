@@ -3,7 +3,8 @@
 """Measured values of the original for slice 002c (spec.md, "Measured values"): probes M47 and
 M48 (the name and the line in the side panel, R1) and M1 to M26, M33 to M35 (arrows, their
 highlight, the remove button, the drawing handles and the drawing,
-the hidden state), M27 to M32 (the method button and its menu) and M36 to M40 (buffer bands);
+the hidden state), M27 to M32 (the method button and its menu) and M36 to M41 (buffer bands,
+the arrow of a moved pill);
 later tasks append the others.
 
 ``MEASURED[probe][(scheme, viewport)][property]`` is the expected text.
@@ -1118,6 +1119,22 @@ MEASURED = {
         },
         ('dark', 'desktop'): {
             'display': 'none',
+        },
+    },
+    'M41': {
+        ('light', 'desktop'): {
+            'stroke': 'rgba(211, 65, 59, 1)',
+            'geometry.x': '520',
+            'geometry.y': '326.5',
+            'geometry.width': '827',
+            'geometry.height': '91',
+        },
+        ('dark', 'desktop'): {
+            'stroke': 'rgba(211, 65, 59, 1)',
+            'geometry.x': '520',
+            'geometry.y': '326.5',
+            'geometry.width': '827',
+            'geometry.height': '91',
         },
     },
 }
