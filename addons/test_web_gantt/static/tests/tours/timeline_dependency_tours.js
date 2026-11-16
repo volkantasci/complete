@@ -1717,7 +1717,7 @@ tours.add("timeline_002c_a69", {
                 const before = line();
                 const from = { x: 1505, y: 260 };
                 await moveTo(from);
-                await realMouse(holdEvents(from, stepsTo(from, { x: 1409, y: 260 }, 8)), {
+                await realMouse(holdEvents(from, stepsTo(from, { x: 1409, y: 260 }, 10)), {
                     settle: false,
                 });
                 await until(() => $(".o_tl_pill_resizing"), "the pill held by its handle");
@@ -1833,12 +1833,11 @@ tours.add("timeline_002c_a69_release", {
                 const from = { x: 1505, y: 260 };
                 await moveTo(REST.build);
                 await moveTo(from);
-                // OPEN QUESTION to the analyst (rework round 1): the package says ten steps; with them
-                // the grid scrolls and the release writes nothing. Ruling: two steps here.
-                // two steps, not the package's ten: the press lies 95 px from the window's right
-                // edge, inside the wide edge zone of a resize (002b2 R14), and ten steps keep the
-                // pointer there long enough to scroll the grid 57 px, so the edge falls back on the
-                // same border; the Escape half of A69 uses the ten steps
+                // OPEN QUESTION to the analyst (rework round 1): A69 says ten steps; with them the
+                // press, 95 px from the window's right edge, stays in the wide edge zone of a resize
+                // (002b2 R14) long enough to scroll the grid about 57 px, so the edge falls back on
+                // the same border and the release writes nothing. Two steps here; the Escape half
+                // above uses the ten steps.
                 await realMouse(holdEvents(from, stepsTo(from, { x: 1409, y: 260 }, 2)), { settle: false });
                 await until(() => $(".o_tl_pill_resizing"), "the pill held by its handle");
                 await realMouse(releaseAt({ x: 1409, y: 260 }));
