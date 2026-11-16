@@ -41,8 +41,8 @@ beforeEach(async () => {
         },
     });
     loads = 0;
-    onRpc("get_gantt_data", () => {
-        loads++;
+    onRpc("get_gantt_data", async () => {
+        loads += 1;
     });
     await resize({ width: 1600, height: 900 });
 });

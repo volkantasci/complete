@@ -88,8 +88,9 @@ beforeEach(async () => {
             await gate();
         }
     });
-    onRpc("copy", ({ args, kwargs }) => {
-        log.push({ call: "copy", ids: args[0], default: kwargs.default });
+    onRpc("copy", (request) => {
+        const [ids] = request.args;
+        log.push({ call: "copy", ids, default: request.kwargs.default });
     });
     await resize({ width: 1600, height: 900 });
 });

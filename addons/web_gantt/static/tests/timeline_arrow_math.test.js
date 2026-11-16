@@ -50,12 +50,12 @@ test("002c A17: right-to-left mirrors the route", () => {
 
 test("002c A18: colours", () => {
     const fields = { startField: "start", stopField: "stop" };
-    const at = (start, stop) => ({
-        start: deserializeDateTime(start),
-        stop: deserializeDateTime(stop),
+    const span = (from, to) => ({
+        start: deserializeDateTime(from),
+        stop: deserializeDateTime(to),
     });
-    const source = at("2026-11-02 08:00:00", "2026-11-04 08:00:00");
-    const colour = (start) => arrowConflict(source, at(start, "2026-11-09 08:00:00"), fields);
+    const source = span("2026-11-02 08:00:00", "2026-11-04 08:00:00");
+    const colour = (start) => arrowConflict(source, span(start, "2026-11-09 08:00:00"), fields);
     expect(colour("2026-11-04 08:00:00")).toBe("none");
     expect(colour("2026-11-03 08:00:00")).toBe("warning");
     expect(colour("2026-11-02 08:00:00")).toBe("warning");

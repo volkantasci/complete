@@ -119,12 +119,11 @@ class Base(models.AbstractModel):
             record.write(values)
             return self._tl_answer([], [], old)
 
-        savepoint = self.env.cr.savepoint()
-        with savepoint:
+        with self.env.cr.savepoint() as guard:
             errors, warnings, old = record._web_gantt_action_reschedule_candidates(
                 values, method, dependency_field, inverted_field, start_field, stop_field)
             if errors:
-                savepoint.rollback()
+                guard.rollback()
         if errors:
             self.env.invalidate_all()
             return self._tl_answer(errors, warnings, {})
@@ -306,8 +305,8 @@ class Base(models.AbstractModel):
                 return True
         return False
 
-    def _web_gantt_action_reschedule_candidates(
-            self, values, method, dependency_field, inverted_field, start_field, stop_field):
+    def _web_gantt_action_reschedule_candidates(self, values, method, dependency_field,
+                                                inverted_field, start_field, stop_field):
         """Direction, candidate search and move for the moved record ``self`` (R18, R19).
 
         Returns ``(errors, warnings, old_values)``.
@@ -319,9 +318,9 @@ class Base(models.AbstractModel):
         candidates, looping = self._tl_gather_candidates(follow, start_field, stop_field)
         if looping:
             return [(LOOP_ERROR, self)], [], {}
-        return self._web_gantt_move_candidates(
-            candidates, values, method, direction, dependency_field, inverted_field,
-            start_field, stop_field)
+        mover = self._web_gantt_move_candidates
+        return mover(candidates, values, method, direction,
+                     dependency_field, inverted_field, start_field, stop_field)
 
     def _tl_gather_candidates(self, relation, start_field, stop_field):
         """Candidates reached from ``self`` through ``relation``, each after all the
@@ -404,8 +403,9 @@ class Base(models.AbstractModel):
                 start_field: candidate._tl_text(start_field),
                 stop_field: candidate._tl_text(stop_field),
             }
-            if not candidate._web_gantt_reschedule_write_new_dates(
-                    new_start, new_stop, start_field, stop_field):
+            written = candidate._web_gantt_reschedule_write_new_dates(
+                new_start, new_stop, start_field, stop_field)
+            if not written:
                 return [(PAST_ERROR, candidate)], [], {}
             handled[candidate.id] = [old_start, old_candidate_stop, new_start, new_stop, True]
         return [], [], old_values
