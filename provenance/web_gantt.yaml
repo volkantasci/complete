@@ -1,14 +1,14 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: web_gantt
-slice: 002b3-gantt-multi-create
-spec_sha256: 062b5b29f140c47afcddf7ef7b6c92efdf1bafb6b385f4baad21b709d32977b5
+slice: 002c-gantt-dependencies
+spec_sha256: 18eeba2b5b1ea3bd2677fd2fe579abaa86ea6d6c2be6c19b3d473c9feec39a2f
 ee_build: "20261106"
 implementer_sessions:
-  - 6a3b7dc3-b6d8-40bb-ab07-63c46599eae5
-verifier_session: d8a4f8f7-5721-4e92-bd75-4c5f8958be8f
+  - 151f7e92-9ef5-4fcc-a525-fe02bcb3ed98
+verifier_session: 42ebbcd2-8dff-4bfb-b624-73d277263874
 overlap:
-  ratio: 0.0004
+  ratio: 0.0005
   longest_run: 1
   reviewed_matches:
     - file: addons/web_gantt/models/ir_ui_view.py
@@ -20,25 +20,73 @@ overlap:
     - file: addons/web_gantt/models/timeline_base.py
       line: 57
       reason: interface (model.md)
+    - file: addons/web_gantt/models/timeline_reschedule.py
+      line: 128
+      reason: interface (the rollback method's name and argument, model.md)
+    - file: addons/web_gantt/models/timeline_reschedule.py
+      line: 256
+      reason: interface (the overridable step's name, model.md)
+    - file: addons/web_gantt/static/tests/timeline_connect.test.js
+      line: 634
+      reason: generic test idiom (a counting loop)
     - file: addons/web_gantt/static/tests/timeline_controller.test.js
       line: 404
       reason: generic one-line test idiom
     - file: addons/web_gantt/static/tests/timeline_undo.test.js
       line: 506
       reason: generic one-line test assertion on Community names
-audit_log_sha256: b0929fb6791464dedd95f7ebe1959ad703d28ba255ab9f654505d8087ce35dc2
+audit_log_sha256: 3e0f647a2cae795939ee700eeed88a159501fb671757c8780a2df4a50bede83c
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-14"
-  implemented: "2026-11-15"
-  verified: "2026-11-15"
+  spec_approved: "2026-11-15"
+  implemented: "2026-11-16"
+  verified: "2026-11-16"
 approvals:
-  - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the third (2026-11-12)"
-  - "owner: spec approved at CP-spec with decisions D1-D4 (2026-11-14)"
-  - "before verification, the analyst answered the implementer's spec question and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-15)"
-  - "owner: decided D5 and D6 on two questions that the analyst's answers raised (2026-11-15)"
-  - "owner: release approved at CP-release after verification round 1 passed with no rework item, accepted the ten new overlap matches of the test module, and left the two polish items, P1 and P2, for the next slice, 002c, with P2 decided to follow the original (2026-11-15)"
+  - "owner: split the Gantt view into five parts at CP-scope, of which this is the third, the dependencies (2026-11-11)"
+  - "owner: spec approved at CP-spec with decisions D1-D4 (2026-11-15)"
+  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-16)"
+  - "owner: decided D5 on a question that the analyst's answers raised (2026-11-16)"
+  - "owner: after verification round 1, had the package corrected, had the rework item F1 and the polish items P2 and P3 fixed, accepted the polish item P1 and the sixteen new overlap matches, and left the polish item P4 for a later batch (2026-11-16)"
+  - "owner: after verification round 2, which found the fixes in place, one new rework item, F2, and one new polish item, P5, had the package corrected and both items fixed, with a narrow third round (2026-11-16)"
+  - "owner: verification round 3 passed with every scenario and no new overlap match since round 1, and found three new polish items, P6 to P8, in states the package does not cover; release approved at CP-release, and those three items left for the next slice (2026-11-16)"
 earlier_slices:
+  - slice: 002b3-gantt-multi-create
+    spec_sha256: 062b5b29f140c47afcddf7ef7b6c92efdf1bafb6b385f4baad21b709d32977b5
+    ee_build: "20261106"
+    implementer_sessions:
+      - 6a3b7dc3-b6d8-40bb-ab07-63c46599eae5
+    verifier_session: d8a4f8f7-5721-4e92-bd75-4c5f8958be8f
+    overlap:
+      ratio: 0.0004
+      longest_run: 1
+      reviewed_matches:
+        - file: addons/web_gantt/models/ir_ui_view.py
+          line: 39
+          reason: interface (the Community validator calls it by name and signature)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 28
+          reason: interface (model.md; the Community view loader calls it)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 57
+          reason: interface (model.md)
+        - file: addons/web_gantt/static/tests/timeline_controller.test.js
+          line: 404
+          reason: generic one-line test idiom
+        - file: addons/web_gantt/static/tests/timeline_undo.test.js
+          line: 506
+          reason: generic one-line test assertion on Community names
+    audit_log_sha256: b0929fb6791464dedd95f7ebe1959ad703d28ba255ab9f654505d8087ce35dc2
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-14"
+      implemented: "2026-11-15"
+      verified: "2026-11-15"
+    approvals:
+      - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the third (2026-11-12)"
+      - "owner: spec approved at CP-spec with decisions D1-D4 (2026-11-14)"
+      - "before verification, the analyst answered the implementer's spec question and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-15)"
+      - "owner: decided D5 and D6 on two questions that the analyst's answers raised (2026-11-15)"
+      - "owner: release approved at CP-release after verification round 1 passed with no rework item, accepted the ten new overlap matches of the test module, and left the two polish items, P1 and P2, for the next slice, 002c, with P2 decided to follow the original (2026-11-15)"
   - slice: 002b2-gantt-drag-resize
     spec_sha256: e1c151f4f9292aef67ea11069ad4ab2fc7dc3f4c7257d50953f500b5dd16cc67
     ee_build: "20261106"
