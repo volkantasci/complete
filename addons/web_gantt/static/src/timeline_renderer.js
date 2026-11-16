@@ -247,7 +247,11 @@ export class TimelineRenderer extends Component {
             panelOpen: () => this.hasPanel && this.panel.open,
             hold: (on) => this._holdDrag(on ? "connect" : null),
             rest: (x, y) => {
-                this.state.hover = this._connectTargetAt(x, y)?.key ?? null;
+                const key = this._connectTargetAt(x, y)?.key ?? null;
+                this.state.hover = key;
+                if (key) {
+                    this.arrows.focusPill(key);
+                }
             },
             commit: (result) => this._commitConnect(result),
         });
@@ -640,6 +644,10 @@ export class TimelineRenderer extends Component {
      * the new one opens, so another pill swaps the popovers.
      */
     onPillClick(ev, pill) {
+        if (this.connect.consumeClick()) {
+            ev.stopPropagation();
+            return;
+        }
         if (this._selecting.consumeClick()) {
             // the release of a drawing that began on a locked pill is no click on it (R5)
             ev.stopPropagation();
@@ -807,7 +815,7 @@ export class TimelineRenderer extends Component {
      * state do nothing.
      */
     onCellClick(ev, cell, descriptor = null) {
-        if (this._selecting.consumeClick() || this._drag.consumeClick()) {
+        if (this._selecting.consumeClick() || this._drag.consumeClick() || this.connect.consumeClick()) {
             // the release of a selection or of a pill gesture (or of a cancelled one) is no click
             ev.stopPropagation();
             return;
@@ -1540,15 +1548,20 @@ export class TimelineRenderer extends Component {
 
     /** The pill of a record row under the viewport point (a handle counts as its pill), or null. */
     _connectTargetAt(x, y) {
-        const element = document.elementFromPoint(x, y);
-        const part = element?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle");
-        const rowEl = part?.closest(".o_tl_row[data-row-id]");
-        if (!part || !rowEl || !this.rendererRef()?.contains(part)) {
-            return null;
+        // the first pill or handle of the stack; a header over the pills hides them
+        for (const element of document.elementsFromPoint(x, y)) {
+            if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {
+                return null;
+            }
+            const part = element.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle");
+            const rowEl = part?.closest(".o_tl_row[data-row-id]");
+            if (part && rowEl && this.rendererRef()?.contains(part)) {
+                const pillId = Number(part.dataset.pillId ?? part.closest(".o_tl_connect").dataset.pillId);
+                const rowId = rowEl.dataset.rowId;
+                return { key: `${rowId}|${pillId}`, rowId, pillId };
+            }
         }
-        const pillId = Number(part.dataset.pillId ?? part.closest(".o_tl_connect").dataset.pillId);
-        const rowId = rowEl.dataset.rowId;
-        return { key: `${rowId}|${pillId}`, rowId, pillId };
+        return null;
     }
 
     /** The viewport point of the centre of a handle of the pill, or null when it is not drawn. */

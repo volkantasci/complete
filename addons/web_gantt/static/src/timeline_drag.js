@@ -12,7 +12,7 @@ export { LONG_PRESS };
 const DOUBLE_CLICK_GUARD = 500;
 
 /** Keys that do not cancel a gesture in progress (R2); Ctrl only decides copy or move (R7). */
-export const HARMLESS_KEYS =["Alt", "Control", "Meta", "Shift"];
+export const HARMLESS_KEYS = ["Alt", "Control", "Meta", "Shift"];
 
 /**
  * The gestures of this class, by `mode`. A mode is what the pointer does while the button is

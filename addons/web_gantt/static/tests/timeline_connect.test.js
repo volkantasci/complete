@@ -251,6 +251,11 @@ test("002c A27: drawing from the end handle onto Overlap C writes one link", asy
     const box0 = queryRect(path);
     expect(box0.width).toBeGreaterThan(0);
     expect(box.width).toBeGreaterThan(0);
+    // the line starts at the centre of the pressed handle (R12.2)
+    const first = path.getPointAtLength(0);
+    const origin = queryRect(".o_tl_connect_line");
+    expect(origin.left + first.x).toBeWithin(build.start.x - 1, build.start.x + 1);
+    expect(origin.top + first.y).toBeWithin(build.start.y - 1, build.start.y + 1);
     // M23: the closed hand over the whole view
     expect(root()).toHaveClass("o_tl_dragging");
     expect(root()).toHaveClass("o_tl_drag_connect");
@@ -289,7 +294,7 @@ test("002c A28: drawing from the start handle of Review onto Plan: Plan gets Rev
     expect(writes()).toEqual([{ call: "write", ids: [ID.Plan], values: { dependency_field: [[4, ID.Review]] } }]);
 });
 
-test("002c A29: four releases that write nothing", async () => {
+test("002c A29: five endings that write nothing (itself, empty cell, group row, Escape, pointercancel)", async () => {
     await mountDependencies({ groupBy: ["parent_id", "x_contact"] });
     const gesture = async (target) => {
         const build = await pressHandle("Build", "stop");
@@ -403,4 +408,58 @@ test("002c A87: handles with drag and drop off", async () => {
     await hover(pillEl("Build"));
     await animationFrame();
     expect(handleEls("Build")).toHaveLength(2);
+});
+
+test("002c A29: a record in two rows: its other pill is no other pill", async () => {
+    await mountDependencies({ groupBy: ["x_tags"] });
+    const builds = queryAll(`.o_tl_pill[data-pill-id="${ID.Build}"]:not(.o_tl_pill_moved)`);
+    expect(builds).toHaveLength(2);
+    await hover(builds[0]);
+    await animationFrame();
+    const handle = queryOne(`.o_tl_connect[data-pill-id="${ID.Build}"] .o_tl_connect_stop`);
+    const start = centre(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    const over = centre(queryRect(builds[1]));
+    for (let i = 1; i <= 10; i++) {
+        const x = start.x + ((over.x - start.x) * i) / 10;
+        const y = start.y + ((over.y - start.y) * i) / 10;
+        await held.moveTo(document.elementFromPoint(x, y) || queryOne(".o_tl_renderer"), {
+            position: { x, y },
+        });
+        await animationFrame();
+    }
+    // the other pill of the record shows no handle as a target
+    expect(`.o_tl_connect[data-pill-id="${ID.Build}"]`).toHaveCount(1);
+    await held.drop();
+    await settle();
+    expect(writes()).toHaveLength(0);
+});
+
+test("002c A29: the release of a drawing and a short click on a handle open nothing", async () => {
+    const arch = timelineArch(
+        `${DEPENDENCIES} multi_create_view="test_web_gantt.host_form_template_one"`
+    );
+    await mountDependencies({ arch });
+    // released over an empty cell of the row
+    let build = await pressHandle("Build", "stop");
+    const cell = queryAll(".o_tl_row[data-row-id] .o_tl_cell").at(2);
+    const rect = queryRect(cell);
+    await build.move(build.start.x, build.start.y + 30);
+    await build.move(rect.left + 5, rect.top + 5);
+    await build.drop();
+    await settle();
+    await advanceTime(1000);
+    expect(".o_dialog").toHaveCount(0);
+    expect(".o_popover").toHaveCount(0);
+    expect(".o_tl_cell_picked").toHaveCount(0);
+    expect(controller.selection.state.cellCount).toBe(0);
+    expect(writes()).toHaveLength(0);
+    // a press and a release on the handle without a move
+    build = await pressHandle("Build", "stop");
+    await build.drop();
+    await settle();
+    await advanceTime(1000);
+    expect(".o_dialog").toHaveCount(0);
+    expect(".o_popover").toHaveCount(0);
+    expect(writes()).toHaveLength(0);
 });

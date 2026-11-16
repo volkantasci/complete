@@ -1,6 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { proxy } from "@odoo/owl";
+import { browser } from "@web/core/browser/browser";
 import { DRAG_THRESHOLD, HARMLESS_KEYS } from "./timeline_drag";
 import { MOVE_EDGE, TimelineEdgeScroll } from "./timeline_edge_scroll";
 
@@ -45,6 +46,7 @@ export class TimelineConnectDrag {
         this.drawing = proxy({ source: null, target: null, d: null });
         this._press = null;
         this._listeners = [];
+        this._suppressClick = false;
         this._edge = new TimelineEdgeScroll({
             edges: () => this.host.edges(),
             scrollBy: (dx, dy) => this.host.scrollBy(dx, dy),
@@ -146,6 +148,13 @@ export class TimelineConnectDrag {
         this._listen(doc, "keydown", (event) => this._onKeyDown(event), { capture: true });
     }
 
+    /** The click that follows the release of a press on a handle is no click on a cell or a pill. */
+    consumeClick() {
+        const suppressed = this._suppressClick;
+        this._suppressClick = false;
+        return suppressed;
+    }
+
     /** The grid scrolled under the held pointer: the line and the target are worked out again. */
     refresh() {
         if (this.isActive) {
@@ -194,11 +203,16 @@ export class TimelineConnectDrag {
         let target = null;
         if (dragging) {
             target = this.host.targetAt(ev.clientX, ev.clientY);
-            if (target?.key === this.drawing.source) {
+            // the source is the record: its pill in another row is no other pill (R12.4)
+            if (target?.pillId === press.pillId) {
                 target = null;
             }
         }
         const source = { rowId: press.rowId, pillId: press.pillId };
+        this._suppressClick = true;
+        browser.setTimeout(() => {
+            this._suppressClick = false;
+        }, 0);
         this._finish();
         if (dragging) {
             this.host.rest(ev.clientX, ev.clientY);
@@ -227,8 +241,8 @@ export class TimelineConnectDrag {
         const press = this._press;
         const { host, drawing } = this;
         const target = host.targetAt(press.x, press.y);
-        const key = target?.key ?? null;
-        drawing.target = key !== null && key !== drawing.source ? key : null;
+        const own = target?.pillId === press.pillId;
+        drawing.target = target && !own ? target.key : null;
         const from = host.anchorOf(press.rowId, press.pillId, press.edge);
         drawing.d = from ? host.route(from, { x: press.x, y: press.y }) : null;
         if (!host.panelOpen?.()) {
