@@ -7,7 +7,11 @@ publishes ``window.__tl_mouse = {id, events}`` and waits for ``window.__tl_mouse
 ``RealPointerMixin.start_tour_with_pointer`` runs the tour with a helper thread that sends the
 events with the Chrome DevTools protocol (``Input.dispatchMouseEvent``) and marks the request as
 done. Any error of the thread fails the test; a request is sent once, never again after a failure.
-``now`` (a UTC ``datetime``) moves the browser's clock there, for a tour that needs a fixed date.
+``now`` (a UTC ``datetime``) moves the browser's clock there, for a tour that needs a fixed date;
+``timezone`` (an IANA id such as ``Etc/GMT-3``) sets the browser's time zone. A request with
+``mobile`` (width, height) emulates a touch device of that size; a request with
+``touch: true`` carries ``Input.dispatchTouchEvent`` params instead (the test then sets
+``touch_enabled``).
 """
 import json
 import threading
@@ -49,8 +53,11 @@ class MouseBridge(threading.Thread):
                 if request['id'] in self.sent:
                     continue  # never send a request twice, even after a failure
                 self.sent.add(request['id'])
+                # a request with `touch` sends touch events (finger input), else mouse events
+                method = ('Input.dispatchTouchEvent' if request.get('touch')
+                          else 'Input.dispatchMouseEvent')
                 for event in request['events']:
-                    self.browser._websocket_request('Input.dispatchMouseEvent', params=event)
+                    self.browser._websocket_request(method, params=event)
                     time.sleep(.03)
                 self.evaluate(f"window.__tl_mouse_done = {int(request['id'])}")
         except Exception as error:  # noqa: BLE001 - recorded, and re-raised by the test
@@ -82,7 +89,7 @@ def clock_script(now):
 class RealPointerMixin:
     """For an ``HttpCase``: tours that ask for real mouse events."""
 
-    def start_tour_with_pointer(self, path, name, now=None, **kwargs):
+    def start_tour_with_pointer(self, path, name, now=None, timezone=None, mobile=None, **kwargs):
         original = ChromeBrowser._wait_code_ok
         navigate = ChromeBrowser.navigate_to
 
@@ -99,6 +106,16 @@ class RealPointerMixin:
                         f'the real pointer bridge failed: {bridge.error!r}') from bridge.error
 
         def navigate_to(browser, *args, **kw):
+            if mobile is not None:
+                # a touch device at the given size (the Community's touch classes and sizes apply)
+                width, height = mobile
+                browser._websocket_request('Emulation.setDeviceMetricsOverride', params={
+                    'width': width, 'height': height, 'deviceScaleFactor': 1, 'mobile': True,
+                })
+            if timezone is not None:
+                browser._websocket_request('Emulation.setTimezoneOverride', params={
+                    'timezoneId': timezone,
+                })
             if now is not None:
                 browser._websocket_request('Page.addScriptToEvaluateOnNewDocument', params={
                     'source': clock_script(now),

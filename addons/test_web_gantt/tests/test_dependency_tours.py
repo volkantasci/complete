@@ -68,11 +68,11 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
 
     # -- helpers --------------------------------------------------------------------------------
 
-    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False, now=D0):
+    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False, now=D0, mobile=None):
         self.browser_size = size
         self.touch_enabled = touch
         path = host if host.startswith('/') else HOST_ACTION.format(host)
-        self.start_tour_with_pointer(path, name, login=login, now=now)
+        self.start_tour_with_pointer(path, name, login=login, now=now, mobile=mobile)
 
     # -- the name in a line of the side panel (R1) -----------------------------------------------
 
@@ -229,6 +229,10 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
     def test_a27_tour_draw_from_the_end(self):
         self._draw_tour('h42', 'timeline_002c_a27_draw_from_the_end', ('Overlap C', 'Build'))
 
+    def test_a91_tour_touch_draws(self):
+        self._draw_tour('h42', 'timeline_002c_a91_touch', ('Overlap C', 'Build'), touch=True,
+                         mobile=(1600, 900))
+
     def test_a90_tour_nothing_lit_after_a_drawing(self):
         self._draw_tour('h42', 'timeline_002c_a90', ('Overlap C', 'Build'))
 
@@ -252,7 +256,7 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
         self._draw_tour('h42', 'timeline_002c_a32_cycle', ('Design', 'Test'))
 
     def test_a87_tour_locked_pill(self):
-        self._draw_tour('h42', 'timeline_002c_a87_locked_pill', ('Plan', 'Test'))
+        self._draw_tour('h42', 'timeline_002c_a87_locked_pill', ('Deploy', 'Long task'))
 
     # -- the method button, its menu and the switch (R13, R14) -----------------------------------
 

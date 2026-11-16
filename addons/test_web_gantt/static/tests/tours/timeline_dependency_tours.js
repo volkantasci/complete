@@ -45,10 +45,15 @@ export const renderer = () => $(".o_tl_renderer");
 
 // Requests in flight, counted from the load of this file on.
 let pending = 0;
+/** The bodies of the requests sent from the load of this file on (a tour reads a call's arguments). */
+export const sentBodies = [];
 {
     const send = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.send = function (...args) {
         pending++;
+        if (typeof args[0] === "string") {
+            sentBodies.push(args[0]);
+        }
         this.addEventListener("loadend", () => pending--, { once: true });
         return send.apply(this, args);
     };
@@ -88,13 +93,13 @@ export const gridReady = {
 // the test already answered
 let requests = Math.floor(Date.now() / 1000) * 1000;
 /** Ask the test to send these mouse events for real, and wait until it did. */
-export async function realMouse(events, { settle = true } = {}) {
+export async function realMouse(events, { settle = true, touch = false } = {}) {
     // the tab remembers the last number, since the tours that run with the D0 clock restart it at
     // every load of the page
     requests = Math.max(requests, Number(sessionStorage.getItem("tl_mouse_requests") || 0)) + 1;
     sessionStorage.setItem("tl_mouse_requests", String(requests));
     const id = requests;
-    window.__tl_mouse = { id, events };
+    window.__tl_mouse = { id, events, touch };
     await until(() => window.__tl_mouse_done === id, "the real mouse events", 20000);
     if (settle) {
         await gridSettled();
@@ -120,6 +125,20 @@ export function holdEvents(from, path) {
         events.push(mouse("mouseMoved", point.x, point.y, { buttons: 1 }));
     }
     return events;
+}
+/** Touch events (finger input, `Input.dispatchTouchEvent`) of one finger. */
+export const finger = (type, x, y) => ({
+    type,
+    touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }],
+});
+/** A finger that presses at `from`, moves in steps to every point of `path` and lifts at its end. */
+export function fingerEvents(from, path) {
+    const last = path.length ? path[path.length - 1] : from;
+    return [
+        finger("touchStart", from.x, from.y),
+        ...path.map((point) => finger("touchMove", point.x, point.y)),
+        finger("touchEnd", last.x, last.y),
+    ];
 }
 export const releaseAt = ({ x, y }) => [mouse("mouseReleased", x, y, { buttons: 0, clickCount: 1 })];
 /** Steps from the point `from` to `to` (a straight line in `count` steps). */
@@ -925,6 +944,39 @@ tours.add("timeline_002c_a27_draw_from_the_end", {
     ],
 });
 
+// A91: with touch at desktop size a tap shows the handles (and the popover), a finger on the end
+// handle draws a line onto "Overlap C" and lifts there: one link
+tours.add("timeline_002c_a91_touch", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await realMouse(fingerEvents(rightPartOf("Build"), []), { touch: true });
+                await until(() => $(".o_popover"), "the popover of the tap");
+                assert(handleCount() === 2, `the tap shows two handles, got ${handleCount()}`);
+                const from = handleCentre("Build", "stop");
+                // with touch the controls are taller, so the handle lies lower than the mouse's (1502, 280):
+                // the package says 14 px, this build's touch size gives 4 px (see the task 22 report)
+                assert(near(from.x, 1502, 1) && from.y > 280, `the end handle lies lower, got ${from.x}, ${from.y}`);
+                const round = { x: from.x + 50, y: from.y + 60 };
+                const end = { x: 1133, y: centreOf(pillNamed("Overlap C")).y };
+                const path = [...stepsTo(from, round, 8), ...stepsTo(round, end, 12)];
+                const held = fingerEvents(from, path);
+                // the finger stays down: the release is a request of its own
+                await realMouse(held.slice(0, -1), { touch: true, settle: false });
+                assert(drawing(), "a line is drawn");
+                assert(handleCount() === 4, `Build keeps and Overlap C shows its handles, got ${handleCount()}`);
+                assert(!$(".o_tl_selection"), "no selection");
+                await realMouse([finger("touchEnd", end.x, end.y)], { touch: true });
+                await until(() => arrows().length === 4, "the new arrow");
+                assert(!drawing(), "nothing is drawn any more");
+            },
+        },
+    ],
+});
+
 // A90: the drawing of A27 released over "Overlap C" with the pointer still: after the reload no arrow
 // is lit, the new one included; a move of 1 px lights the arrows of "Overlap C"
 tours.add("timeline_002c_a90", {
@@ -1066,7 +1118,8 @@ tours.add("timeline_002c_a32_cycle", {
     ],
 });
 
-// A87: "Test" is cut by the end of the week: its handle shows, drawing from it onto "Plan" works
+// A87: with the grid at the end of its loaded period, "Long task" is cut at both ends: its end
+// handle shows at its right end, and drawing from it onto "Deploy" works
 tours.add("timeline_002c_a87_locked_pill", {
     steps: () => [
         gridReady,
@@ -1074,11 +1127,17 @@ tours.add("timeline_002c_a87_locked_pill", {
             trigger: ".o_tl_arrow",
             async run() {
                 await gridSettled();
-                await moveTo(rightPartOf("Test"));
-                assert(handleOf("Test", "start"), "the start handle shows on the cut pill");
-                assert(buttons(arrowBetween("Build", "Test")).length === 1, "and the remove button");
-                const end = middleOf("Plan");
-                const from = handleCentre("Test", "start");
+                renderer().scrollLeft = renderer().scrollWidth;
+                await gridSettled();
+                const pill = pillNamed("Long task");
+                const rect = pill.getBoundingClientRect();
+                const area = renderer().getBoundingClientRect();
+                assert(rect.left <= area.left && rect.right >= area.right - 1, "Long task is cut at both ends");
+                await moveTo({ x: Math.min(rect.right, area.right) - 80, y: rect.top + rect.height / 2 });
+                assert(handleOf("Long task", "stop"), "the end handle shows on the cut pill");
+                const from = handleCentre("Long task", "stop");
+                assert(from.x > rect.right - 12 && from.x < rect.right, `at the pill's right end, got ${from.x}`);
+                const end = middleOf("Deploy");
                 await realMouse(holdEvents(from, stepsTo(from, end, 12)));
                 await release(end);
                 await until(() => arrows().length === 4, "the new arrow");
@@ -1086,7 +1145,6 @@ tours.add("timeline_002c_a87_locked_pill", {
         },
     ],
 });
-
 
 // ---------------------------------------------------------------------------------------------
 // The method button, its menu and the switch "Show dependencies" (R13, R14)
