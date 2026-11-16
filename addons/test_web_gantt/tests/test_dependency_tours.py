@@ -300,13 +300,55 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
     def test_a69_tour_arrow_does_not_follow_resize(self):
         self._tour('h42', 'timeline_002c_a69')
 
+    def _all(self):
+        return self.env[PILL].search([])
+
+    def _dates(self):
+        return {record.id: (record.date_start, record.date_stop) for record in self._all()}
+
     def test_a69_tour_arrow_after_release(self):
-        build = self.records['Build']
-        start, stop = build.date_start, build.date_stop
-        self.addCleanup(lambda: build.write({'date_start': start, 'date_stop': stop}))
+        review = self.records['Review']
+        stop = review.date_stop
+        # the rescheduling may move other records: write every date back afterwards
+        dates = {record: (record.date_start, record.date_stop) for record in self._all()}
+
+        def restore():
+            for record, (start, end) in dates.items():
+                record.write({'date_start': start, 'date_stop': end})
+
+        self.addCleanup(restore)
         self._tour('h42', 'timeline_002c_a69_release')
-        build.invalidate_recordset()
-        self.assertLess(build.date_stop, stop)
+        review.invalidate_recordset()
+        # one sub-column, 12 hours later
+        self.assertEqual(review.date_stop - stop, timedelta(hours=12))
+
+    # -- a gesture cancelled with Escape (R9, A95) -----------------------------------------------
+
+    def _cancel_tour(self, name):
+        dates = self._dates()
+        self._tour('h42', name)
+        # nothing was written: no record moved
+        for record in self.env[PILL].search([]):
+            record.invalidate_recordset()
+        self.assertEqual(self._dates(), dates)
+
+    def test_a95_tour_move_cancelled_on_the_pill(self):
+        self._cancel_tour('timeline_002c_a95_move_on_pill')
+
+    def test_a95_tour_move_cancelled_on_an_empty_cell(self):
+        self._cancel_tour('timeline_002c_a95_move_on_empty_cell')
+
+    def test_a95_tour_copy_cancelled(self):
+        self._cancel_tour('timeline_002c_a95_copy_on_pill')
+
+    def test_a95_tour_resize_cancelled_on_an_empty_cell(self):
+        self._cancel_tour('timeline_002c_a95_resize_on_empty_cell')
+
+    def test_a95_tour_drawing_cancelled_on_a_pill(self):
+        self._draw_tour('h42', 'timeline_002c_a95_drawing_on_pill')
+
+    def test_a95_tour_drawing_cancelled_on_an_empty_cell(self):
+        self._draw_tour('h42', 'timeline_002c_a95_drawing_on_empty_cell')
 
     def test_a93_tour_strips(self):
         self._tour('h42', 'timeline_002c_a93_strips')

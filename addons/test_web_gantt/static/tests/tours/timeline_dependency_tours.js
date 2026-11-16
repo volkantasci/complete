@@ -421,18 +421,18 @@ export const pillNamed = (name) =>
             $(".o_tl_pill_title", pill)?.textContent.trim() === name
     );
 const arrows = () => $$(".o_tl_arrow");
-const litArrows = () => $$(".o_tl_arrow.o_tl_arrow_lit");
-const buttons = (root = document) => $$(".o_tl_arrow_remove", root);
-const idOf = (name) => pillNamed(name).dataset.pillId;
+export const litArrows = () => $$(".o_tl_arrow.o_tl_arrow_lit");
+export const buttons = (root = document) => $$(".o_tl_arrow_remove", root);
+export const idOf = (name) => pillNamed(name).dataset.pillId;
 /** The layer of the arrow from the pill `source` to the pill `target` (the first row holding both). */
-const arrowBetween = (source, target) =>
+export const arrowBetween = (source, target) =>
     arrows().find(
         (arrow) =>
             arrow.dataset.arrow.includes(`|${idOf(source)}>`) &&
             arrow.dataset.arrow.endsWith(`|${idOf(target)}`)
     );
-const lineOfArrow = (arrow) => $(".o_tl_arrow_line", arrow);
-const strokeOf = (arrow) => getComputedStyle(lineOfArrow(arrow)).stroke;
+export const lineOfArrow = (arrow) => $(".o_tl_arrow_line", arrow);
+export const strokeOf = (arrow) => getComputedStyle(lineOfArrow(arrow)).stroke;
 /** A point of the line of `arrow` (a fraction of its length), in the page's coordinates. */
 function pointOnArrow(arrow, fraction) {
     const line = lineOfArrow(arrow);
@@ -455,9 +455,9 @@ function freePointOn(arrow, { inside = null } = {}) {
     }
     throw new Error("no point of the line");
 }
-const moveTo = ({ x, y }) =>
+export const moveTo = ({ x, y }) =>
     realMouse([mouse("mouseMoved", x, y, { button: "none", buttons: 0 })]);
-const pointerAway = () => moveTo({ x: 2, y: 2 });
+export const pointerAway = () => moveTo({ x: 2, y: 2 });
 /** The right part of a pill (the pointer of A21 rests at 65 % of Build's width). */
 const rightPartOf = (name) => {
     const rect = pillNamed(name).getBoundingClientRect();
@@ -882,13 +882,13 @@ tours.add("timeline_002c_a14_records_in_several_rows", {
 // Drawing handles and the drawing (R11, R12, R24): A26 to A32, A87
 // ---------------------------------------------------------------------------------------------
 
-const handleOf = (name, edge) => $(`.o_tl_connect[data-pill-id="${idOf(name)}"] .o_tl_connect_${edge}`);
-const handleCount = () => $$(".o_tl_connect_handle").length;
+export const handleOf = (name, edge) => $(`.o_tl_connect[data-pill-id="${idOf(name)}"] .o_tl_connect_${edge}`);
+export const handleCount = () => $$(".o_tl_connect_handle").length;
 const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 /** The centre of the end ("stop") or the start handle of a pill, once its handles are shown. */
 const handleCentre = (name, edge) => centreOf(handleOf(name, edge));
 /** The points where the pointer rests before it goes to a handle (A27 to A32, A87: the package's). */
-const REST = {
+export const REST = {
     build: { x: 1300, y: 260 },
     review: { x: 1077, y: 285 },
     test: { x: 1300, y: 326 },
@@ -903,7 +903,7 @@ const walk = (from, to, count = 4) =>
  * The pointer rests on `name` at `rest`, then reaches the handle in 4 steps, as the package says
  * (the pill stays under the pointer in its strip), the handles still shown at the end.
  */
-async function reachHandle(name, edge, rest) {
+export async function reachHandle(name, edge, rest) {
     await moveTo(rest);
     const handle = handleCentre(name, edge);
     await walk(rest, handle, 4);
@@ -921,7 +921,7 @@ const middleOf = (name) => {
     const rect = pillNamed(name).getBoundingClientRect();
     return { x: Math.min(rect.left + rect.width * 0.3, rect.right - 10), y: rect.top + rect.height / 2 };
 };
-const drawing = () => $(".o_tl_connect_path");
+export const drawing = () => $(".o_tl_connect_path");
 async function release(at) {
     await realMouse(releaseAt(at));
     await gridSettled();
@@ -1020,6 +1020,9 @@ tours.add("timeline_002c_a91_touch", {
                 await pause(600);
                 assert($(".o_popover"), "the popover of the tap is open after 600 ms");
                 assert(handleCount() === 2, `the tap shows two handles, got ${handleCount()}`);
+                // R11: the tap lights none of Build's arrows, no remove button, the line at rest
+                assertShown({ lit: [], buttons: 0, handles: 2 }, "after the tap");
+                assert(strokeOf(arrowBetween("Build", "Test")) === "rgba(236, 151, 31, 0.5)", "the orange line at 50 %");
                 const start = handleCentre("Build", "start");
                 assert(near(start.x, outer.L + 9, 1.5) && near(start.y, outer.T - 7, 1.5), `start handle, got ${start.x}, ${start.y}`);
                 const from = handleCentre("Build", "stop");
@@ -1029,8 +1032,16 @@ tours.add("timeline_002c_a91_touch", {
                 // the finger goes down and stays: each part is a request of its own
                 await realMouse([held[0]], { touch: true, settle: false });
                 await pause(400);
+                // a finger on the handle lights both of Build's arrows with their remove buttons
+                assertShown({ lit: buildArrows(), buttons: 2, handles: 2 }, "finger down on the handle");
                 await realMouse(held.slice(1, -1), { touch: true, settle: false });
                 await pause(400);
+                // the finger crossed the band of Build to Test before the threshold: that arrow
+                // alone stays lit, with its button; Design to Build is at rest
+                assertShown(
+                    { lit: [arrowBetween("Build", "Test").dataset.arrow], buttons: 1, handles: 4 },
+                    "during the touch drawing"
+                );
                 assert(drawing(), "a line is drawn from the handle to the finger");
                 assert(!$(".o_popover"), "the popover is gone");
                 assert(handleCount() === 4, `Build keeps and Overlap C shows its handles, got ${handleCount()}`);
@@ -1038,6 +1049,8 @@ tours.add("timeline_002c_a91_touch", {
                 await realMouse([finger("touchEnd", end.x, end.y)], { touch: true });
                 await until(() => arrows().length === 4, "the new arrow");
                 assert(!drawing(), "nothing is drawn any more");
+                await gridSettled();
+                assert(litArrows().length === 0 && buttons().length === 0, "after the save no arrow is lit");
             },
         },
     ],
@@ -1697,15 +1710,52 @@ tours.add("timeline_002c_a65_arrow", {
                 assert(litArrows().length === 1, `only that arrow: ${litArrows().length}`);
                 await escapeAndRelease({ x: 1261, y: 326 });
                 await until(() => line() === before, "the arrow back at its place");
-                assert(!litArrows().length, "and nothing is lit");
+                // cancelled, nothing written: the arrow lit when the gesture started stays lit (R9)
+                assert(litArrows().length === 1 && litArrows()[0] === arrowBetween("Review", "Overlap A"), "Review's arrow stays lit");
             },
         },
     ],
 });
 
-// A69: H42, the right resize handle of "Build" pressed at (1505, 260) and moved 96 px to the left,
-// held: the arrow "Build" to "Test" does not follow the moving end, lit as when the resize began;
-// after Escape nothing changes
+/** What the user sees of the arrows and handles now (R9, A69, A95): lit arrows, buttons, handles. */
+export const shownNow = () => ({
+    lit: litArrows().map((arrow) => arrow.dataset.arrow).sort(),
+    buttons: buttons().length,
+    handles: handleCount(),
+});
+export const assertShown = (expected, when) => {
+    const now = shownNow();
+    assert(
+        JSON.stringify(now) === JSON.stringify(expected),
+        `${when}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(now)}`
+    );
+};
+/** The keys of the arrows of a pill of H42 ("Build": Design to Build and Build to Test). */
+export const buildArrows = () =>
+    [arrowBetween("Design", "Build"), arrowBetween("Build", "Test")].map((arrow) => arrow.dataset.arrow).sort();
+/**
+ * A gesture cancelled with Escape with the button held (R9, A69, A95): at Escape and after the
+ * release with the pointer still, `expected` is shown; after a move of 1 px `afterMove` is.
+ * `ended` says when the gesture is over. Returns once the 1 px move was made.
+ */
+export async function cancelAndRelease({ ended, at, expected, afterMove }) {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await until(ended, "Escape to end the gesture");
+    for (let i = 0; i < 4; i++) {
+        await frame();
+    }
+    assertShown(expected, "at Escape");
+    await realMouse(releaseAt(at));
+    await pause(300);
+    assertShown(expected, "after the release");
+    await moveTo({ x: at.x + 1, y: at.y });
+    assertShown(afterMove, "after a move of 1 px");
+}
+
+// A69: H42, the right resize handle of "Build" pressed at (1505, 260) and moved 96 px to the left
+// in 10 steps, held: the arrow "Build" to "Test" does not follow the moving end, lit as when the
+// resize began; at Escape, after the release and after a move of 1 px Build's two arrows stay lit
+// with their two remove buttons and its handles show; nothing is written
 tours.add("timeline_002c_a69", {
     steps: () => [
         gridReady,
@@ -1715,6 +1765,8 @@ tours.add("timeline_002c_a69", {
                 await gridSettled();
                 const line = () => lineOfArrow(arrowBetween("Build", "Test")).getAttribute("d");
                 const before = line();
+                const mine = buildArrows();
+                const written = sentBodies.length;
                 const from = { x: 1505, y: 260 };
                 await moveTo(from);
                 await realMouse(holdEvents(from, stepsTo(from, { x: 1409, y: 260 }, 10)), {
@@ -1726,8 +1778,18 @@ tours.add("timeline_002c_a69", {
                 const arrow = arrowBetween("Build", "Test");
                 assert(litArrows().includes(arrow), "the arrow is lit as when the resize began");
                 assert(!litArrows().includes(arrowBetween("Review", "Overlap A")), "no other arrow is");
-                await escapeAndRelease({ x: 1409, y: 260 });
+                const expected = { lit: mine, buttons: 2, handles: 2 };
+                await cancelAndRelease({
+                    ended: () => !$(".o_tl_pill_resizing"),
+                    at: { x: 1409, y: 260 },
+                    expected,
+                    afterMove: expected,
+                });
                 assert(line() === before, "nothing changed after Escape");
+                assert(
+                    !sentBodies.slice(written).some((body) => /"method":\s*"write"/.test(body)),
+                    "nothing is written"
+                );
             },
         },
     ],
@@ -1815,8 +1877,11 @@ tours.add("timeline_002c_a93_strips", {
     ],
 });
 
-// A69, second half: released, the view reloads and the arrow leaves the new end, 96 px further
-// left (the test restores Build's stop)
+// A69, second half: the end of "Review" pressed on its right resize handle at (1121, 285), reached
+// from (1077, 285) in 3 steps, moved to (1217, 285) in 10 steps and released: the pointer stays far
+// from the edge zone, so the grid does not scroll; while held the arrow "Review" to "Overlap A"
+// keeps its route; after the release Review ends 12 hours later (96 px) and the arrow leaves the
+// new end (the test restores the records)
 tours.add("timeline_002c_a69_release", {
     steps: () => [
         gridReady,
@@ -1824,29 +1889,27 @@ tours.add("timeline_002c_a69_release", {
             trigger: ".o_tl_arrow",
             async run() {
                 await gridSettled();
+                const arrow = () => arrowBetween("Review", "Overlap A");
                 const startOf = () => {
-                    const arrow = arrowBetween("Build", "Test");
-                    const line = lineOfArrow(arrow);
-                    return arrow.getBoundingClientRect().left + line.getPointAtLength(0).x;
+                    const line = lineOfArrow(arrow());
+                    return arrow().getBoundingClientRect().left + line.getPointAtLength(0).x;
                 };
-                const widthBefore = pillNamed("Build").getBoundingClientRect().width;
-                const from = { x: 1505, y: 260 };
-                await moveTo(REST.build);
-                await moveTo(from);
-                // OPEN QUESTION to the analyst (rework round 1): A69 says ten steps; with them the
-                // press, 95 px from the window's right edge, stays in the wide edge zone of a resize
-                // (002b2 R14) long enough to scroll the grid about 57 px, so the edge falls back on
-                // the same border and the release writes nothing. Two steps here; the Escape half
-                // above uses the ten steps.
-                await realMouse(holdEvents(from, stepsTo(from, { x: 1409, y: 260 }, 2)), { settle: false });
+                const before = lineOfArrow(arrow()).getAttribute("d");
+                const widthBefore = pillNamed("Review").getBoundingClientRect().width;
+                await moveTo(REST.review);
+                const from = { x: 1121, y: 285 };
+                await walk(REST.review, from, 3);
+                await realMouse(holdEvents(from, stepsTo(from, { x: 1217, y: 285 }, 10)), { settle: false });
                 await until(() => $(".o_tl_pill_resizing"), "the pill held by its handle");
-                await realMouse(releaseAt({ x: 1409, y: 260 }));
+                await pause(300);
+                assert(lineOfArrow(arrow()).getAttribute("d") === before, "the arrow keeps its route while held");
+                await realMouse(releaseAt({ x: 1217, y: 285 }));
                 await pause(2500);
-                const body = pillNamed("Build").getBoundingClientRect();
-                // the view reloaded: the pill is 96 px shorter and the arrow leaves its new end
+                const body = pillNamed("Review").getBoundingClientRect();
+                // the view reloaded: the pill is one sub-column (96 px) longer and the arrow leaves its new end
                 assert(
-                    Math.abs(widthBefore - body.width - 96) < 2,
-                    `the pill is 96 px shorter: ${widthBefore} to ${body.width}`
+                    Math.abs(body.width - widthBefore - 96) < 2,
+                    `the pill is 96 px longer: ${widthBefore} to ${body.width}`
                 );
                 assert(
                     Math.abs(startOf() - body.right) < 2,
