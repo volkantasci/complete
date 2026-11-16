@@ -347,3 +347,27 @@ msgstr ""
 #: code:addons/web_gantt/static/src/timeline_reschedule_menu.xml:0
 msgid "Show dependencies"
 msgstr ""
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Could not move %(record)s: it would start in the past"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Records rescheduled"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "These dependencies form a loop, so nothing was moved"
+msgstr ""
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Unknown rescheduling method: %s"
+msgstr ""

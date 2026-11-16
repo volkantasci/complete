@@ -23,6 +23,7 @@ from . import (
     test_multi_screens,
     test_multi_tours,
     test_probes,
+    test_reschedule,
     test_screens,
     test_tours,
     test_validation,

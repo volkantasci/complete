@@ -348,3 +348,27 @@ msgstr "إعادة جدولة تلقائية (الإبقاء على الهامش
 #: code:addons/web_gantt/static/src/timeline_reschedule_menu.xml:0
 msgid "Show dependencies"
 msgstr "إظهار الاعتماديات"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Could not move %(record)s: it would start in the past"
+msgstr "تعذر نقل %(record)s: سيبدأ في الماضي"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Records rescheduled"
+msgstr "تمت إعادة جدولة السجلات"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "These dependencies form a loop, so nothing was moved"
+msgstr "تشكل هذه الاعتماديات حلقة، لذلك لم يتم نقل أي شيء"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Unknown rescheduling method: %s"
+msgstr "طريقة إعادة الجدولة غير معروفة: %s"
