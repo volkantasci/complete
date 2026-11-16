@@ -176,6 +176,32 @@ test("002c A20: arrows lie under the pills", async () => {
     expect(Number(getComputedStyle(queryAll(".o_tl_col")[0]).zIndex)).toBeGreaterThan(20);
 });
 
+test("002c R6: the arrow head is a notched dart", async () => {
+    await mountDependencies();
+    const arrow = arrowOf("Build", "Test");
+    const marker = arrow.querySelector("marker");
+    // drawn in user units: 8 x 8 px whatever the width of the line; the tip (x 8) is 1 px past the end
+    expect(marker).toHaveAttribute("markerUnits", "userSpaceOnUse");
+    expect(marker).toHaveAttribute("markerWidth", "8");
+    expect(marker).toHaveAttribute("markerHeight", "8");
+    expect(marker).toHaveAttribute("viewBox", "0 0 8 8");
+    expect(marker).toHaveAttribute("refX", "7");
+    expect(marker).toHaveAttribute("refY", "4");
+    expect(marker).toHaveAttribute("orient", "auto");
+    expect(getComputedStyle(marker).overflow).toBe("visible");
+    // back corners, tip, then the notch 4 px deep at the middle of the back
+    const head = marker.querySelector(".o_tl_arrow_head");
+    expect(head).toHaveAttribute("d", "M 0 0 L 8 4 L 0 8 L 4 4 Z");
+    const style = getComputedStyle(head);
+    expect(style.fill).toBe("rgba(236, 151, 31, 0.5)");
+    expect(style.stroke).toBe("rgba(236, 151, 31, 0.5)");
+    expect(style.strokeWidth).toBe("1px");
+    expect(style.strokeLinejoin).toBe("round");
+    expect(arrow.querySelector(".o_tl_arrow_line").getAttribute("marker-end")).toBe(
+        `url(#${marker.id})`
+    );
+});
+
 test("002c A92: no outline under an arrow", async () => {
     await mountDependencies();
     // at rest and lit: the layer holds the line, band, head and remove button only

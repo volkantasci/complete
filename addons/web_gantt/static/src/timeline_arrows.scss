@@ -46,8 +46,16 @@
     pointer-events: stroke;
 }
 
+// The head (R6): a filled dart with a notched back, 8 x 8 px (the marker is drawn in user units, so
+// the line's width does not scale it), outlined with a 1 px stroke of its colour with round
+// corners. Its tip (x 8) stands 1 px past the end point (refX 7); the stroke overflows the marker.
+.o_tl_arrow_marker {
+    overflow: visible;
+}
+
 .o_tl_arrow .o_tl_arrow_head {
     stroke-width: 1;
+    stroke-linejoin: round;
     fill-opacity: 1;
 }
 

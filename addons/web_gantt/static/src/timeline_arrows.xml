@@ -7,7 +7,7 @@
                 <svg t-foreach="this.arrows.state.items" t-as="item" t-key="item.key" class="o_tl_arrow" t-att-class="this.classOf(item)" t-att-style="this.layerStyle()" t-att-data-arrow="item.key" t-on-mouseenter="(ev) => this.arrows.focusArrow(item.key, ev)" t-on-mousemove="(ev) => this.arrows.focusArrow(item.key, ev)" t-on-mouseleave="(ev) => this.arrows.unfocusArrow(item.key, ev)">
                     <defs>
                         <marker class="o_tl_arrow_marker" t-att-id="this.markerId(item_index)" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
-                            <path class="o_tl_arrow_head" d="M 0 0.5 L 7 4 L 0 7.5 Z" t-att-style="`fill: ${this.colourOf(item)}; stroke: ${this.colourOf(item)}`"/>
+                            <path class="o_tl_arrow_head" d="M 0 0 L 8 4 L 0 8 L 4 4 Z" t-att-style="`fill: ${this.colourOf(item)}; stroke: ${this.colourOf(item)}`"/>
                         </marker>
                     </defs>
                     <path class="o_tl_arrow_line" t-att-d="item.d" t-att-marker-end="`url(#${this.markerId(item_index)})`" t-att-style="`stroke: ${this.colourOf(item)}`"/>
@@ -22,7 +22,7 @@
                 <svg t-if="this.drawing.d" class="o_tl_connect_line" t-att-style="this.layerStyle()">
                     <defs>
                         <marker class="o_tl_arrow_marker" t-att-id="this.markerId('drawing')" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
-                            <path class="o_tl_connect_head" d="M 0 0.5 L 7 4 L 0 7.5 Z"/>
+                            <path class="o_tl_connect_head" d="M 0 0 L 8 4 L 0 8 L 4 4 Z"/>
                         </marker>
                     </defs>
                     <path class="o_tl_connect_path" t-att-d="this.drawing.d" t-att-marker-end="`url(#${this.markerId('drawing')})`"/>
