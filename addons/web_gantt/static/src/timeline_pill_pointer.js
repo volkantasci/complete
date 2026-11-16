@@ -52,6 +52,28 @@ export class TimelinePillPointer {
     }
 
     /**
+     * A tap on a pill (it also opens its popover) leaves it in the pointer-over state, as a mouse
+     * resting on it would: its handles show until a finger touches elsewhere (R11, A91).
+     */
+    tap(ev, pill, row) {
+        if (ev.pointerType === "touch") {
+            this.enter(pill, row);
+        }
+    }
+
+    /** A finger goes down away from every pill and handle: the pointer-over state ends. */
+    touchAway(ev) {
+        if (ev?.pointerType !== "touch" || !this.host.state.hover) {
+            return;
+        }
+        if (ev.target?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle")) {
+            return;
+        }
+        this.host.state.hover = null;
+        this.host.arrows.unfocusPill();
+    }
+
+    /**
      * The pointer leaves a pill, or one of its drawing handles (which lie beside it): not when it
      * goes from one to the other, the pill is still the one it rests on.
      */

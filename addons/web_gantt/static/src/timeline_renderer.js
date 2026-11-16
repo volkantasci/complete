@@ -647,7 +647,9 @@ export class TimelineRenderer extends Component {
      * between and cancels it (R30). The open popover closes on the click itself (click away) and
      * the new one opens, so another pill swaps the popovers.
      */
-    onPillClick(ev, pill) {
+    onPillClick(ev, pill, row) {
+        // a tap leaves the pill in the pointer-over state: its handles show (R11, A91)
+        this._pillPointer.tap(ev, pill, row);
         if (this.connect.consumeClick()) {
             ev.stopPropagation();
             return;
@@ -1078,7 +1080,9 @@ export class TimelineRenderer extends Component {
     // ------------------------------------------------------------------------
 
     /** The press on a cell: a selection may follow (mouse: after 10 px, touch: after a long press). */
-    onGridPointerDown() {
+    onGridPointerDown(ev) {
+        // a finger elsewhere than on a pill or a handle: no pill rests under it any more
+        this._pillPointer.touchAway(ev);
         // any press: the click of an earlier release had its chance
         this._selecting.resetClick();
         this._drag.resetClick();

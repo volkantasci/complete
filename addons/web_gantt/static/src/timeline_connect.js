@@ -104,7 +104,9 @@ export class TimelineConnectDrag {
 
     /** The left button went down on the handle `edge` of `pill`, drawn in the row `rowId`. */
     press(ev, { pill, rowId, edge }) {
-        if (this.state !== "idle" || ev.button !== 0 || ev.pointerType === "touch") {
+        // a finger draws as the mouse does (R11, A91): `touch-action: none` on the handle keeps
+        // the page from scrolling under it
+        if (this.state !== "idle" || ev.button !== 0) {
             return;
         }
         if (!this.host.canConnect()) {

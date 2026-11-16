@@ -34,6 +34,8 @@
     padding: 0;
     cursor: grab;
     user-select: none;
+    // a finger on the handle draws; it neither scrolls the page nor starts a long press
+    touch-action: none;
     pointer-events: auto;
 
     // 8 x 8 px corner line: 1 px in the pill's colour on two sides, over a 3 px halo in the cell

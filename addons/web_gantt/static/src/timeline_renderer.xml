@@ -64,7 +64,7 @@
                             <div t-if="row.kind === 'pills'" class="o_tl_pills">
                                 <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
                                     <t t-call="web_gantt.TimelineBufferBand"/>
-                                    <div class="o_tl_pill" t-att-class="this.pillClass(pill, row)" t-att-style="this.pillStyle(pill, row)" t-att-data-pill-id="pill.id" t-on-mouseenter="() => this.onPillEnter(pill, row)" t-on-mouseleave="(ev) => this.onPillLeave(pill, row, ev)" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
+                                    <div class="o_tl_pill" t-att-class="this.pillClass(pill, row)" t-att-style="this.pillStyle(pill, row)" t-att-data-pill-id="pill.id" t-on-mouseenter="() => this.onPillEnter(pill, row)" t-on-mouseleave="(ev) => this.onPillLeave(pill, row, ev)" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-click="(ev) => this.onPillClick(ev, pill, row)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
                                         <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
                                         <span class="o_tl_pill_title" t-out="pill.label"/>
                                         <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>

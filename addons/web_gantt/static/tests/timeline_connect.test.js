@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { click, drag, hover, keyDown, keyUp, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
-import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import {
     defineWebModels,
     makeMockServer,
@@ -31,7 +31,9 @@ const ID = {
     Build: 5,
     Review: 6,
     Test: 7,
+    Deploy: 8,
     Plan: 9,
+    "Long task": 10,
     "Overlap A": 11,
     "Overlap B": 12,
     "Overlap C": 13,
@@ -445,18 +447,61 @@ test("002c A32: a cycle is drawn like any link, no message", async () => {
     expect(".o_notification").toHaveCount(0);
 });
 
-test("002c A87: handles on a cut pill, drawing from it", async () => {
+test("002c A91: a tap shows the handles, a finger on a handle draws and writes", async () => {
     await mountDependencies();
-    // Test is cut by the end of the week: 002b2 locks it
-    await hover(pillEl("Test"));
+    mockTouch(true);
+    await click(pillEl("Build"));
+    await advanceTime(400);
     await animationFrame();
-    expect(handleEls("Test").length).toBe(2);
-    const test_ = await pressHandle("Test", "start");
-    const over = centre(queryRect(pillEl("Plan")));
-    await moveInSteps(test_, test_.start, over, 10);
-    await test_.drop();
+    // the tap opened the popover and left the pill in the pointer-over state with its handles
+    expect(".o_popover").toHaveCount(1);
+    expect(handleEls("Build")).toHaveLength(2);
+    expect(css(handleEl("Build", "stop"), "touchAction")).toBe("none");
+    const handle = handleEl("Build", "stop");
+    const start = centre(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    const over = centre(queryRect(pillEl("Overlap C")));
+    for (let i = 1; i <= 12; i++) {
+        const x = start.x + ((over.x - start.x) * i) / 12;
+        const y = start.y + ((over.y - start.y) * i) / 12;
+        await held.moveTo(document.elementFromPoint(x, y) || queryOne(".o_tl_renderer"), {
+            position: { x, y },
+        });
+        await animationFrame();
+    }
+    expect(".o_tl_connect_line .o_tl_connect_path").toHaveCount(1);
+    expect(".o_tl_selection").toHaveCount(0);
+    await held.drop();
     await settle();
-    expect(writes()).toEqual([{ call: "write", ids: [ID.Plan], values: { dependency_field: [[4, ID.Test]] } }]);
+    expect(writes()).toEqual([{ call: "write", ids: [ID["Overlap C"]], values: { dependency_field: [[4, ID.Build]] } }]);
+});
+
+test("002c A87: handles on a pill cut at both ends, drawing from its end handle to Deploy", async () => {
+    await mountDependencies();
+    // the grid at the end of its loaded period: "Long task" is cut at both ends (002b2 locks it)
+    const scroller = queryOne(".o_tl_renderer");
+    scroller.scrollLeft = scroller.scrollWidth;
+    await animationFrame();
+    await animationFrame();
+    const longTask = pillEl("Long task");
+    // cut at both ends: 002b2 shows no resize handle on it
+    expect(longTask.querySelector(".o_tl_handle")).toBe(null);
+    await hover(longTask);
+    await animationFrame();
+    expect(handleEls("Long task")).toHaveLength(2);
+    // the end handle stands below the pill's right end (its centre 6 px in, S2)
+    const body = queryRect(longTask);
+    const stopRect = queryRect(handleEl("Long task", "stop"));
+    expect(stopRect.right).toBeWithin(body.right + 1.5, body.right + 2.5);
+    expect(stopRect.top).toBeWithin(body.bottom - 0.5, body.bottom + 0.5);
+    const held = await pressHandle("Long task", "stop");
+    const over = centre(queryRect(pillEl("Deploy")));
+    await moveInSteps(held, held.start, over, 10);
+    await held.drop();
+    await settle();
+    expect(writes()).toEqual([
+        { call: "write", ids: [ID.Deploy], values: { dependency_field: [[4, ID["Long task"]]] } },
+    ]);
 });
 
 test("002c A87: handles with drag and drop off", async () => {
