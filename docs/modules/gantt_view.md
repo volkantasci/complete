@@ -1401,9 +1401,10 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
   `consumeBuffer` (use the free time) or `maintainBuffer` (keep it), any other
   name raises an error; `record_ids` is a list with the moved record's
   identifier (a bare identifier works too). It writes plainly when the values
-  hold no stop, when no dependency field is given or when a new start lies in
-  the past; otherwise it reschedules inside a savepoint, so an error leaves
-  nothing changed. The answer is `{'type': 'success' | 'warning', 'message': ...,
+  hold no stop (or an empty one), when the dependency field or the inverted
+  field is not given, when the moved record lacks a start or a stop, or when a
+  new start lies in the past; otherwise it reschedules inside a savepoint, so
+  an error leaves nothing changed. The answer is `{'type': 'success' | 'warning', 'message': ...,
   'old_vals_per_pill_id': {id: {field: old value}}}`; a module may also answer
   `info`, which the view shows as an information notification with Undo.
 - `action_rollback_scheduling(old_vals_per_pill_id)` writes the old values back
@@ -1420,8 +1421,8 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
   `web_gantt_format_property_fields`. The constants `forward`, `backward` and
   `loop_error` are the values other modules compare with. Four more steps
   (`_tl_outer_bound`, `_tl_spread_bound`, `_tl_gather_candidates`,
-  `_tl_keep_old_values`) are this module's own names for the original's unnamed
-  parts. The code is in `models/timeline_reschedule.py`; the effects of the
+  `_tl_keep_old_values`) have free names of this module; modules written for
+  other implementations that override these steps must be adapted. The code is in `models/timeline_reschedule.py`; the effects of the
   project and manufacturing applications are not included.
 - A model without a Gantt view gets a generated one (`_get_default_gantt_view`)
   built from the fields named by `_start_name` and `_stop_name`, or the usual
