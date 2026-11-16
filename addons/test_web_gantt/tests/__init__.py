@@ -6,6 +6,7 @@ from . import (
     test_default_view,
     test_dependency_host,
     test_dependency_probes,
+    test_dependency_screens,
     test_dependency_tours,
     test_drag_host,
     test_drag_probes,
