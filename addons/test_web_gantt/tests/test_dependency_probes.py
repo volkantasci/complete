@@ -246,3 +246,55 @@ class TimelineDependencyProbes(TimelineProbeCase):
                            'the separator')
                 self.check('M32', "document.querySelector('.o_tl_reschedule_consumeBuffer')",
                            scheme, viewport, 'a method not chosen')
+
+    # -- the notification of a rescheduling (R21) ---------------------------------------------
+
+    def drag_pill(self, start, end, steps=12):
+        """Press at `start`, move to `end` in `steps` moves, release; then wait for the notice."""
+        self.mouse('mouseMoved', start[0], start[1], button='none', buttons=0)
+        self.mouse('mousePressed', start[0], start[1], button='left', buttons=1, clickCount=1)
+        for i in range(1, steps + 1):
+            self.mouse('mouseMoved', start[0] + (end[0] - start[0]) * i / steps,
+                       start[1] + (end[1] - start[1]) * i / steps, button='left', buttons=1)
+            time.sleep(.03)
+        self.mouse('mouseReleased', end[0], end[1], button='left', buttons=0, clickCount=1)
+        self.wait("!!document.querySelector('.o_notification')", timeout=60)
+        self.settle(700)
+
+    def rescheduling_page(self, scheme, viewport):
+        """H46 with the prepared records; the phone is measured without touch."""
+        self.env['test.web.gantt.pill']._tl_build_reschedule_records()
+        self.addCleanup(self.env['test.web.gantt.pill']._tl_drop_reschedule_records)
+        return self.page(HOST.format('h46'), scheme, viewport,
+                         touch=False if viewport == 'phone' else None)
+
+    def test_002c_m42_m44_notification(self):
+        notice = "document.querySelector('.o_notification')"
+        for scheme, viewport in self.combos(['M42', 'M43', 'M44'], ('desktop',)):
+            with self.rescheduling_page(scheme, viewport):
+                self.pointer_away()
+                self.drag_pill((446, 219), (638, 219))
+                self.check('M42', notice, scheme, viewport, 'the notification')
+                self.check('M43', f"{notice}.querySelector('.o_notification_bar')", scheme,
+                           viewport, 'the coloured bar of the notification')
+                self.check('M44', f"{notice}.querySelector('.o_notification_buttons button')",
+                           scheme, viewport, 'the Undo button')
+            self.env['test.web.gantt.pill']._tl_drop_reschedule_records()
+
+    def test_002c_m45_notification_phone(self):
+        for scheme, viewport in self.combos(['M45'], ('phone',)):
+            with self.rescheduling_page(scheme, viewport):
+                self.pointer_away()
+                self.drag_pill((230, 267), (326, 267))
+                self.check('M45', "document.querySelector('.o_notification')", scheme, viewport,
+                           'the notification on the phone')
+            self.env['test.web.gantt.pill']._tl_drop_reschedule_records()
+
+    def test_002c_m46_warning_bar(self):
+        for scheme, viewport in self.combos(['M46'], ('desktop',)):
+            with self.rescheduling_page(scheme, viewport):
+                self.pointer_away()
+                self.drag_pill((1214, 219), (1310, 219))
+                self.check('M46', "document.querySelector('.o_notification .o_notification_bar')",
+                           scheme, viewport, 'the bar of the warning')
+            self.env['test.web.gantt.pill']._tl_drop_reschedule_records()

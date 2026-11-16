@@ -9,6 +9,7 @@ import {
 import { FormViewDialog } from "@web/views/view_dialogs/form_view_dialog";
 import { SelectCreateDialog } from "@web/views/view_dialogs/select_create_dialog";
 import { creationContext, planWriteValues, rowValueChain } from "./timeline_editing";
+import { TimelineRescheduler } from "./timeline_reschedule";
 
 /**
  * The record dialog. Community closes the dialog right after `removeRecord` resolves; here the
@@ -45,6 +46,7 @@ export class TimelineEditor {
         this.model = model;
         this.archInfo = archInfo;
         this.services = services;
+        this.rescheduler = new TimelineRescheduler(this);
         // the Community notifications are global: this view's go when the view is left
         model.onDispose(() => this.closeNotification());
     }
@@ -319,6 +321,8 @@ export class TimelineEditor {
     /**
      * R5, R7, R8, R10, R15: send a move, a resize or a copy whose values are computed, then
      * reload and tell the user. The write waits for the writes sent before.
+     * - automatic rescheduling method (002c R16): a move or resize is one call of the server's
+     *   rescheduling method, also with no value (E4); see `TimelineRescheduler`.
      * - `values` empty: nothing is sent, shown or reloaded, resolves `false` (D3).
      * - accepted: the view reloads, then the success notification with Undo shows (D6); a copy
      *   that was accepted reloads too. Resolves `true`.
@@ -333,6 +337,9 @@ export class TimelineEditor {
      * @returns {Promise<boolean>}
      */
     async applyChange({ kind, resId, values, undo }) {
+        if (this.rescheduler.handles(kind)) {
+            return this.rescheduler.run({ resId, values });
+        }
         if (!values || !Object.keys(values).length) {
             return false;
         }
