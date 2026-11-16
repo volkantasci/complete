@@ -41,6 +41,11 @@ class TimelineDependencyProbes(TimelineProbeCase):
             self.skipTest('the dark scheme needs web_enterprise, which is not installed')
         return found
 
+    # M4 and M11 read the original's empty outline element; Complete draws no outline (decision
+    # D5, checked by the Hoot test "002c A92" and the screens); the values stay verbatim in the
+    # values file and are not compared, as with M49 below.
+    ORIGINAL_ONLY = ('M4', 'M11')
+
     # Readings not compared, by ruling; the values stay verbatim in the values file.
     SKIPPED_READINGS = {
         # T19-2: `clip` is kept (`hidden` would make the header a scroll container and the label
@@ -50,6 +55,10 @@ class TimelineDependencyProbes(TimelineProbeCase):
     }
 
     def check(self, probe, element_js, scheme, viewport, label):
+        if probe in self.ORIGINAL_ONLY:
+            _logger.warning('PROBE-SKIPPED|%s|%s|%s|all|original only, decision D5', probe,
+                            scheme, viewport)
+            return
         expected = MEASURED[probe].get((scheme, viewport))
         skipped = self.SKIPPED_READINGS.get(probe, ())
         if expected is not None and skipped:
@@ -117,7 +126,7 @@ class TimelineDependencyProbes(TimelineProbeCase):
         self.settle()
 
     def test_002c_m1_m8_arrows_at_rest(self):
-        probes = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']
+        probes = ['M1', 'M2', 'M3', 'M5', 'M6', 'M7', 'M8']
         for scheme, viewport in self.combos(probes, ('desktop',)):
             with self.page(HOST.format('h42'), scheme, viewport):
                 self.pointer_away()
@@ -127,8 +136,6 @@ class TimelineDependencyProbes(TimelineProbeCase):
                            'line Build to Test')
                 self.check('M3', self.part('Review', 'Overlap A', '.o_tl_arrow_line'), scheme,
                            viewport, 'line Review to Overlap A')
-                self.check('M4', self.part('Design', 'Build', '.o_tl_arrow_halo'), scheme,
-                           viewport, 'outline Design to Build')
                 self.check('M5', self.part('Build', 'Test', '.o_tl_arrow_band'), scheme, viewport,
                            'band Build to Test')
                 self.check('M6', self.part('Build', 'Test', '.o_tl_arrow_head'), scheme, viewport,
@@ -138,7 +145,7 @@ class TimelineDependencyProbes(TimelineProbeCase):
                 self.check('M8', self.pill('Build'), scheme, viewport, 'pill Build')
 
     def test_002c_m9_m14_arrows_highlighted_by_a_pill(self):
-        probes = ['M9', 'M10', 'M11', 'M12', 'M13', 'M14']
+        probes = ['M9', 'M10', 'M12', 'M13', 'M14']
         for scheme, viewport in self.combos(probes, ('desktop',)):
             with self.page(HOST.format('h42'), scheme, viewport):
                 self.pointer_at(1300, 260)
@@ -146,8 +153,6 @@ class TimelineDependencyProbes(TimelineProbeCase):
                            viewport, 'line Design to Build lit')
                 self.check('M10', self.part('Build', 'Test', '.o_tl_arrow_line'), scheme,
                            viewport, 'line Build to Test lit')
-                self.check('M11', self.part('Design', 'Build', '.o_tl_arrow_halo'), scheme,
-                           viewport, 'outline Design to Build lit')
                 self.check('M12', self.arrow('Build', 'Test'), scheme, viewport,
                            'layer Build to Test lit')
                 self.check('M13', self.part('Build', 'Test', '.o_tl_arrow_remove_ring'), scheme,

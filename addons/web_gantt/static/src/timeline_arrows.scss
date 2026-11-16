@@ -39,12 +39,7 @@
     }
 }
 
-// the 3 px outline under the line, and the 2 px line (never dashed)
-.o_tl_arrow_halo {
-    stroke-width: 3;
-    pointer-events: stroke;
-}
-
+// the 2 px line (never dashed), lying straight on the cells: no outline under it (decision D5)
 .o_tl_arrow_line {
     stroke-width: 2;
     stroke-dasharray: none;

@@ -130,12 +130,22 @@ test("002c A11: no arrow on a phone", async () => {
 });
 
 test("002c A13: only arrows between loaded pills", async () => {
-    // "Build" is not loaded: its arrows are not drawn, "Test" has none
-    await mountDependencies({ domain: [["name", "!=", "Build"]] });
-    expect(`.o_tl_pill[data-pill-id="${ID.Test}"]`).toHaveCount(1);
+    await mountDependencies();
+    expect(arrowOf("Build", "Test")).not.toBe(null);
+    // one step: the period loaded reaches a week further, "Build" is still loaded, its arrow stays
+    await click(".o_tl_next");
+    await advanceTime(600);
+    await animationFrame();
+    expect(`.o_tl_pill[data-pill-id="${ID.Build}"]`).toHaveCount(1);
+    expect(arrowOf("Build", "Test")).not.toBe(null);
+    // two steps: "Build" is not loaded any more, "Test" is loaded and has no arrow
+    await click(".o_tl_next");
+    await advanceTime(600);
+    await animationFrame();
     expect(`.o_tl_pill[data-pill-id="${ID.Build}"]`).toHaveCount(0);
-    expect(arrowEls()).toHaveLength(1);
-    expect(arrowOf("Review", "Overlap A")).not.toBe(null);
+    expect(`.o_tl_pill[data-pill-id="${ID.Test}"]`).toHaveCount(1);
+    expect(arrowEls().filter((a) => a.dataset.arrow.endsWith(`|${ID.Test}`))).toHaveLength(0);
+    expect(arrowEls().filter((a) => a.dataset.arrow.includes(`|${ID.Test}>`))).toHaveLength(0);
 });
 
 test("002c A13: a search keeping the two ends keeps the arrow between them", async () => {
@@ -166,7 +176,34 @@ test("002c A20: arrows lie under the pills", async () => {
     expect(Number(getComputedStyle(queryAll(".o_tl_col")[0]).zIndex)).toBeGreaterThan(20);
 });
 
-test("002c A15: the line, its outline and its band", async () => {
+test("002c A92: no outline under an arrow", async () => {
+    await mountDependencies();
+    // at rest and lit: the layer holds the line, band, head and remove button only
+    const allowed = ["defs", "marker", "path", "title", "g", "circle", "rect"];
+    const check = () => {
+        for (const arrow of arrowEls()) {
+            expect(arrow.querySelectorAll(".o_tl_arrow_halo")).toHaveLength(0);
+            const paths = [...arrow.querySelectorAll("path")].map((p) => p.getAttribute("class"));
+            expect(paths.toSorted()).toEqual(
+                ["o_tl_arrow_band", "o_tl_arrow_head", "o_tl_arrow_line"]
+            );
+            for (const el of arrow.querySelectorAll("*")) {
+                expect(allowed).toInclude(el.tagName.toLowerCase());
+            }
+            // the line lies directly on the cells: no path with a wider stroke under it
+            const line = arrow.querySelector(".o_tl_arrow_line");
+            expect(getComputedStyle(line).strokeWidth).toBe("2px");
+            expect(line.previousElementSibling.tagName.toLowerCase()).toBe("defs");
+        }
+    };
+    check();
+    await hover(pillEl("Build"));
+    await animationFrame();
+    expect(lit()).toHaveLength(2);
+    check();
+});
+
+test("002c A15: the line and its band", async () => {
     await mountDependencies();
     const arrow = arrowOf("Build", "Test");
     const line = getComputedStyle(arrow.querySelector(".o_tl_arrow_line"));
@@ -174,9 +211,6 @@ test("002c A15: the line, its outline and its band", async () => {
     expect(line.strokeWidth).toBe("2px");
     expect(line.fill).toBe("none");
     expect(line.pointerEvents).toBe("stroke");
-    const halo = getComputedStyle(arrow.querySelector(".o_tl_arrow_halo"));
-    expect(halo.stroke).toBe("rgba(255, 255, 255, 0.5)");
-    expect(halo.strokeWidth).toBe("3px");
     const band = getComputedStyle(arrow.querySelector(".o_tl_arrow_band"));
     expect(band.stroke).toBe("none");
     expect(band.strokeWidth).toBe("13px");
@@ -200,7 +234,6 @@ test("002c A21: pointer over a pill", async () => {
     const arrow = arrowOf("Build", "Test");
     expect(getComputedStyle(arrow).zIndex).toBe("20");
     expect(getComputedStyle(arrow.querySelector(".o_tl_arrow_line")).stroke).toMatch(/^rgba?\(236, 151, 31(, 1)?\)$/);
-    expect(getComputedStyle(arrow.querySelector(".o_tl_arrow_halo")).stroke).toMatch(/^rgba?\(255, 255, 255(, 1)?\)$/);
     expect(".o_tl_arrow_remove").toHaveCount(2);
     const button = arrow.querySelector(".o_tl_arrow_remove");
     expect(getComputedStyle(button.querySelector("circle")).cursor).toBe("pointer");

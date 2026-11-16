@@ -293,11 +293,6 @@ export class TimelineArrowLayer extends Component {
         return `rgba(${r}, ${g}, ${b}, ${this.lit(item) ? ALPHA_LIT : ALPHA_REST})`;
     }
 
-    /** The outline is white, half transparent at rest. */
-    haloOf(item) {
-        return `rgba(255, 255, 255, ${this.lit(item) ? ALPHA_LIT : ALPHA_REST})`;
-    }
-
     layerStyle() {
         const { box } = this.arrows.state;
         return `left: ${box.left}px; top: ${box.top}px; width: ${box.width}px; height: ${box.height}px`;

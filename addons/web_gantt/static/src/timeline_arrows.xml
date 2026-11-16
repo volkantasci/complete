@@ -10,7 +10,6 @@
                             <path class="o_tl_arrow_head" d="M 0 0.5 L 7 4 L 0 7.5 Z" t-att-style="`fill: ${this.colourOf(item)}; stroke: ${this.colourOf(item)}`"/>
                         </marker>
                     </defs>
-                    <path class="o_tl_arrow_halo" t-att-d="item.d" t-att-style="`stroke: ${this.haloOf(item)}`"/>
                     <path class="o_tl_arrow_line" t-att-d="item.d" t-att-marker-end="`url(#${this.markerId(item_index)})`" t-att-style="`stroke: ${this.colourOf(item)}`"/>
                     <path class="o_tl_arrow_band" t-att-d="item.d"/>
                     <g t-if="this.lit(item) and this.arrows.canRemove" class="o_tl_arrow_remove" role="button" t-att-aria-label="this.removeLabel" t-att-transform="`translate(${item.mid.x} ${item.mid.y})`" t-on-click="() => this.onRemove(item)">
