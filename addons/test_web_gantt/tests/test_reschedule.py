@@ -136,10 +136,20 @@ class TestReschedule(TransactionCase):
         self.assertEqual(answer['type'], 'success')
         self.assertEqual(str(self.a.date_start), '2026-01-01 06:00:00')
         self._assert_prepared('Chain B', 'Chain C')
-        # P3: only the stop of a record that started in the past is a plain write
-        self._call(self.a, {'date_stop': '2026-01-02 14:00:00'})
-        self.assertEqual(str(self.a.date_stop), '2026-01-02 14:00:00')
-        self._assert_prepared('Chain B', 'Chain C')
+
+    def test_a89_resize_end_of_a_record_started_in_the_past(self):
+        p = self._new('P', '06-10 14:00', '06-10 14:00')
+        p.date_start = '2026-01-01 06:00:00'
+        p.date_stop = '2030-06-10 14:00:00'
+        f = self._new('F', '06-11 06:00', '06-11 14:00', dependency_field=[Command.set(p.ids)])
+        answer = self._call(p, {'date_stop': '2030-06-11 10:00:00'}, KEEP)
+        self.assertEqual(answer['type'], 'success')
+        self.assertEqual(self._dates(p), ('2026-01-01 06:00:00', '2030-06-11 10:00:00'))
+        self._assert_dates(f, '06-12 02:00', '06-12 10:00')
+        self.assertEqual(answer['old_vals_per_pill_id'], {
+            p.id: {'date_stop': '2030-06-10 14:00:00', 'date_start': '2026-01-01 06:00:00'},
+            f.id: {'date_start': '2030-06-11 06:00:00', 'date_stop': '2030-06-11 14:00:00'},
+        })
 
     def test_a55_past_candidate_stops_search(self):
         x = self._new('X', '07-01 06:00', '07-01 14:00')

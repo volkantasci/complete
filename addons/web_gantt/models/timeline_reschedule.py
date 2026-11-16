@@ -195,11 +195,13 @@ class Base(models.AbstractModel):
         # a record without both dates, or left without them, is not rescheduled (E5)
         if not (record[start_field] and record[stop_field]):
             return True
-        if start_field in values:
-            new_start = record._tl_instant(values[start_field], start_field, False)
-        else:
-            new_start = record._tl_start(start_field)  # P3: the stored start
-        if not new_start or not values[stop_field]:
+        if not values[stop_field]:
+            return True
+        if start_field not in values:
+            # only a new stop (R17): the stored start is not compared with the server's time
+            return False
+        new_start = record._tl_instant(values[start_field], start_field, False)
+        if not new_start:
             return True
         return new_start < record._tl_now(start_field)
 
