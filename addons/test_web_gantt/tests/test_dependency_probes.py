@@ -9,6 +9,7 @@ scheme needs ``web_enterprise``; without it the dark probes are skipped. The val
 Elements read: M47 the name ``.o_tl_panel_name`` of "Unscheduled" in the side panel, M48 its line
 ``.o_tl_panel_line``.
 """
+import logging
 import time
 
 from odoo import Command
@@ -19,6 +20,7 @@ from .timeline_dependency_probe_values import MEASURED
 from .timeline_probe import TimelineProbeCase
 
 HOST = 'test_web_gantt.host_action_{}'
+_logger = logging.getLogger(__name__)
 
 
 @tagged('post_install', '-at_install', 'timeline_probes')
@@ -39,9 +41,24 @@ class TimelineDependencyProbes(TimelineProbeCase):
             self.skipTest('the dark scheme needs web_enterprise, which is not installed')
         return found
 
+    # Readings not compared, by ruling; the values stay verbatim in the values file.
+    SKIPPED_READINGS = {
+        # T19-2: `clip` is kept (`hidden` would make the header a scroll container and the label
+        # would stop following the grid scroll, 002b D-5); the label is cut by its cell either way
+        # T19-3: 1 px from 002b3's scroll focus placement, an earlier part's rule
+        'M49': ('overflow', 'geometry.x'),
+    }
+
     def check(self, probe, element_js, scheme, viewport, label):
         expected = MEASURED[probe].get((scheme, viewport))
-        if expected is not None:
+        skipped = self.SKIPPED_READINGS.get(probe, ())
+        if expected is not None and skipped:
+            for prop in skipped:
+                if prop in expected:
+                    _logger.warning('PROBE-SKIPPED|%s|%s|%s|%s|by ruling', probe, scheme,
+                                    viewport, prop)
+            expected = {p: v for p, v in expected.items() if p not in skipped}
+        if expected:
             self.probe(probe, element_js, scheme, viewport, expected, label)
 
     @staticmethod
