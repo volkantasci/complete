@@ -51,7 +51,7 @@ class TestTimelineRescheduleTours(RealPointerMixin, HttpCase):
 
     # -- helpers --------------------------------------------------------------------------------
 
-    def _run(self, host, name, size=DESKTOP, now=None, prepared=True):
+    def _run(self, host, name, size=DESKTOP, now=None, prepared=True, timezone=None):
         """Create the prepared records, run the tour, return them (refreshed); they are dropped
         by the caller's `finally`-less cleanup (a class cleanup per test)."""
         pill = self.env[PILL]
@@ -59,7 +59,8 @@ class TestTimelineRescheduleTours(RealPointerMixin, HttpCase):
         self.addCleanup(self._drop)
         self.browser_size = size
         self.touch_enabled = False
-        self.start_tour_with_pointer(HOST_ACTION.format(host), name, login='admin', now=now)
+        self.start_tour_with_pointer(HOST_ACTION.format(host), name, login='admin', now=now,
+                                     timezone=timezone)
         self.env.invalidate_all()
         return built
 
@@ -191,10 +192,18 @@ class TestTimelineRescheduleTours(RealPointerMixin, HttpCase):
         self._run('h42', 'timeline_002c_a88_no_year', now=D0, prepared=False)
 
     def test_a77_tour_undo_after_row_change(self):
+        # the package's D0: Thursday 12 November 2026, 09:00 in a zone three hours ahead of UTC,
+        # the host records three hours ahead as well (its literal points are valid there)
+        pill = self.env[PILL]
+        pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        self.addCleanup(lambda: pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=0))
         test = self.records['Test']
+        test.invalidate_recordset()
+        self.assertEqual(test.date_start, datetime(2026, 11, 13, 5))
         start, stop, parent = test.date_start, test.date_stop, test.parent_id
         self.addCleanup(lambda: test.write(
             {'date_start': start, 'date_stop': stop, 'parent_id': parent.id}))
-        self._run('h42', 'timeline_002c_a77_undo_after_row_change', now=D0, prepared=False)
+        self._run('h42', 'timeline_002c_a77_undo_after_row_change', prepared=False,
+                  now=datetime(2026, 11, 12, 6), timezone='Etc/GMT-3')
         test.invalidate_recordset()
         self.assertEqual((test.date_start, test.date_stop, test.parent_id), (start, stop, parent))

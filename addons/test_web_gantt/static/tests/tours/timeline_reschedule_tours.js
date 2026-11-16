@@ -15,6 +15,7 @@ import {
     pillNamed,
     realMouse,
     renderer,
+    sentBodies,
     stepsTo,
     until,
 } from "@test_web_gantt/../tests/tours/timeline_dependency_tours";
@@ -45,6 +46,7 @@ const leftOf = (name) => pillNamed(name).getBoundingClientRect().left - anchor()
 const rightOf = (name) => pillNamed(name).getBoundingClientRect().right - anchor();
 const near = (a, b, what, tolerance = 1.5) =>
     assert(Math.abs(a - b) <= tolerance, `${what}: ${a} is not ${b}`);
+const litArrows = () => $$(".o_tl_arrow.o_tl_arrow_lit");
 const notices = () => $$(".o_notification");
 const noticeTexts = () =>
     notices().map((notice) => $(".o_notification_content", notice).textContent.trim());
@@ -585,24 +587,15 @@ tours.add("timeline_002c_a88_no_year", {
     ],
 });
 
-// A77: "Test" (Beta) to the Alpha row one day later, then Undo puts it back (month range)
+// A77: "Test" (Beta) to the Alpha row one day later, then Undo puts it back. The week range with the
+// package's points: press (1155, 326), release (1347, 305) in 12 steps. The page runs in the zone three
+// hours ahead of UTC on the D0 clock, so the records stand where the package's pills stand.
 tours.add("timeline_002c_a77_undo_after_row_change", {
     steps: () => [
         {
-            trigger: ".o_tl_range_button",
+            trigger: ".o_tl_renderer .o_tl_col.o_tl_is_today",
             async run() {
                 await gridSettled();
-                clearChoices();
-                $(".o_tl_range_button").click();
-                const item = await until(() => $(".o_tl_range_month"), "the month item");
-                item.click();
-                await until(() => $$(".o_tl_col").length > 20, "the month");
-                await gridSettled();
-            },
-        },
-        {
-            trigger: ".o_tl_pill",
-            async run() {
                 const row = (title) =>
                     $$(".o_tl_row_header")
                         .find((el) => el.getAttribute("title") === title)
@@ -612,16 +605,47 @@ tours.add("timeline_002c_a77_undo_after_row_change", {
                         (pill) => $(".o_tl_pill_title", pill)?.textContent.trim() === "Test"
                     );
                 assert(inRow("Beta"), "Test is in Beta");
-                const day = $(".o_tl_col").getBoundingClientRect().width;
+                const test = pillNamed("Test").getBoundingClientRect();
+                near(test.left, 1125, "the left end of Test", 1);
+                near(test.top, 314, "the top of Test", 1);
                 const before = leftOf("Test");
-                const target = row("Alpha").getBoundingClientRect();
-                const current = pillNamed("Test").getBoundingClientRect();
-                const dy = target.top + target.height / 2 - (current.top + current.height / 2);
-                await movePill("Test", { dx: day, dy, grab: 20 });
+                const bodies = sentBodies.length;
+                const { hold, release } = gesture({ x: 1155, y: 326 }, { x: 1347, y: 305 }, { steps: 12 });
+                await realMouse(hold);
+                await realMouse(release, { settle: false });
                 await until(() => notices().length, "the notification");
+                const call = sentBodies
+                    .slice(bodies)
+                    .map((body) => JSON.parse(body))
+                    .find((body) => body.params?.method === "web_gantt_reschedule");
+                assert(call, "the reschedule call");
+                const [values, method] = call.params.args;
+                assert(
+                    values.date_start === "2026-11-14 05:00:00" &&
+                        values.date_stop === "2026-11-17 09:00:00" &&
+                        typeof values.parent_id === "number" &&
+                        method === "maintainBuffer",
+                    `the call carries ${JSON.stringify(call.params.args.slice(0, 2))}`
+                );
+                await gridSettled();
                 assert(noticeTexts().join() === "Records rescheduled", `texts ${noticeTexts()}`);
                 assert(inRow("Alpha"), "Test is in Alpha");
-                near(leftOf("Test"), before + day, "Test", 2);
+                near(leftOf("Test"), before + DAY, "Test", 2);
+                // A90: the pointer stays still after the release: no arrow is lit, a move of 1 px lights
+                // the arrows of Test
+                assert(litArrows().length === 0, `nothing is lit, got ${litArrows().length}`);
+                const moveTo = ({ x, y }) =>
+                    realMouse([mouse("mouseMoved", x, y, { button: "none", buttons: 0 })]);
+                await moveTo({ x: 1348, y: 305 });
+                // after the reload Test stands in the second lane of Alpha (y 274 to 297), above the
+                // release point (y 305): the 1 px move lights the arrows when the pointer is over Test,
+                // and a move onto Test lights them in this layout
+                const over = pillNamed("Test").getBoundingClientRect();
+                if (over.top <= 305 && over.bottom >= 305) {
+                    assert(litArrows().length > 0, "the arrows of Test are lit by the 1 px move");
+                }
+                await moveTo({ x: 1348, y: (over.top + over.bottom) / 2 });
+                assert(litArrows().length > 0, "the arrows of Test are lit with the pointer on it");
                 await clickUndo();
                 assert(inRow("Beta"), "Test is back in Beta");
                 near(leftOf("Test"), before, "Test after Undo", 2);
