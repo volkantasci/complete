@@ -885,3 +885,23 @@ test("002b3 A27: 002b keeps the arrow cursor on cells of a view without a templa
     const row = rowIndex("Beta", "Host Contact 2");
     expect(getComputedStyle(cellOf(row, "2026-11-10")).cursor).not.toBe("cell");
 });
+
+test("002c R14: the delayed reload after a method choice clears a cell selection", async () => {
+    await mountMulti({
+        arch: timelineArch(
+            `${BASE} ${FORM} dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field"`
+        ),
+    });
+    await clickCell(rowIndex("Beta", "Host Contact 2"), "2026-11-10");
+    expect(pickedCells()).toHaveCount(2);
+    await click(".o_tl_reschedule_button");
+    await animationFrame();
+    await click(".o_tl_reschedule_consumeBuffer");
+    await animationFrame();
+    // the choice is shown at once, the selection stays until the data is loaded again
+    expect(pickedCells()).toHaveCount(2);
+    await advanceTime(600);
+    await animationFrame();
+    expect(pickedCells()).toHaveCount(0);
+    expect(state().cellCount).toBe(0);
+});

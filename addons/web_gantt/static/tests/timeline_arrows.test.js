@@ -542,3 +542,31 @@ test("002c A26: no handles on other pills while moving", async () => {
     expect(".o_tl_handle").toHaveCount(0);
     await held.cancel();
 });
+
+test("002c R9: a pill under the pointer on a lit arrow keeps its handles", async () => {
+    await mountDependencies();
+    const build = pillEl("Build");
+    // the pointer rests on an arrow whose line passes over the pill Build
+    patchWithCleanup(document, { elementsFromPoint: () => [build] });
+    await hoverArrow(arrowOf("Review", "Overlap A"), 0.5);
+    expect(isLit(arrowOf("Review", "Overlap A"))).toBe(true);
+    expect(isLit(arrowOf("Design", "Build"))).toBe(true);
+    expect(isLit(arrowOf("Build", "Test"))).toBe(true);
+    expect(pillEl("Build").querySelectorAll(".o_tl_handle")).toHaveLength(2);
+    // leaving the arrow for a place without pill ends both
+    patchWithCleanup(document, { elementsFromPoint: () => [] });
+    await hover(".o_tl_col");
+    await animationFrame();
+    expect(lit()).toHaveLength(0);
+    expect(".o_tl_handle").toHaveCount(0);
+});
+
+test("002c R9: a highlight key that matches nothing after a reload is dropped", async () => {
+    await mountDependencies();
+    const { arrows } = controller.selection.renderer;
+    arrows.focus.arrowKey = "gone|1>gone|2";
+    arrows.focus.pillKey = "gone|1";
+    arrows.refresh();
+    expect(arrows.focus.arrowKey).toBe(null);
+    expect(arrows.focus.pillKey).toBe(null);
+});

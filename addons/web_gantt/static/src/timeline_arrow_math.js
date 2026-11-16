@@ -214,17 +214,23 @@ function roundedPath(points, [trimH, trimV], sign) {
  * Conflict of an arrow (R7): "error" when the target starts before the source starts,
  * otherwise "warning" when it starts before the source stops, otherwise "none".
  * Records hold their dates as luxon DateTime (as the model deserializes them) or as
- * serialized strings; a date-only model (`dateOnly`) counts the source's stop as the
- * end of its day (002a D9, decision D4). A missing date gives "none".
+ * serialized strings. `startIsDate` / `stopIsDate` tell which field is date-only: the source's
+ * stop counts as the end of its day only when its field is a date (002a D9, decision D4); a
+ * model that mixes both types is read field by field. `dateOnly` sets both. A missing date
+ * gives "none".
  */
-export function arrowConflict(source, target, { startField, stopField, dateOnly = false }) {
-    const sourceStart = dateTime(source[startField] ?? source.raw?.[startField], dateOnly);
-    let sourceStop = dateTime(source[stopField] ?? source.raw?.[stopField], dateOnly);
-    const targetStart = dateTime(target[startField] ?? target.raw?.[startField], dateOnly);
+export function arrowConflict(
+    source,
+    target,
+    { startField, stopField, dateOnly = false, startIsDate = dateOnly, stopIsDate = dateOnly }
+) {
+    const sourceStart = dateTime(source[startField] ?? source.raw?.[startField], startIsDate);
+    let sourceStop = dateTime(source[stopField] ?? source.raw?.[stopField], stopIsDate);
+    const targetStart = dateTime(target[startField] ?? target.raw?.[startField], startIsDate);
     if (!sourceStart || !sourceStop || !targetStart) {
         return "none";
     }
-    if (dateOnly) {
+    if (stopIsDate) {
         sourceStop = sourceStop.endOf("day");
     }
     if (targetStart.toMillis() < sourceStart.toMillis()) {

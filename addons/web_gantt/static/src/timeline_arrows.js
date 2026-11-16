@@ -87,6 +87,31 @@ export class TimelineArrows {
             this.state.items = items;
             this.state.box = box;
         }
+        // a highlight key that matches no drawn arrow or pill is stale (view reloaded)
+        const { arrowKey, pillKey } = this.focus;
+        if (arrowKey !== null && !items.some((item) => item.key === arrowKey)) {
+            this.focus.arrowKey = null;
+        }
+        if (pillKey !== null && !this._hasPill(pillKey)) {
+            this.focus.pillKey = null;
+        }
+    }
+
+    _hasPill(key) {
+        const root = this.host.rendererRef();
+        return [...(root?.querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]") ?? [])].some(
+            (pill) => `${pill.closest(".o_tl_row[data-row-id]").dataset.rowId}|${pill.dataset.pillId}` === key
+        );
+    }
+
+    /** R7: the stored type of each field decides how its value is read. */
+    _fieldTypes() {
+        const { model } = this.host.props;
+        const { startField, stopField } = model.config;
+        return {
+            startIsDate: model.fields?.[startField]?.type === "date",
+            stopIsDate: model.fields?.[stopField]?.type === "date",
+        };
     }
 
     _measure(grid) {
@@ -123,7 +148,7 @@ export class TimelineArrows {
         }
         const rtl = host._isRtl();
         const { startField, stopField } = model.config;
-        const dateOnly = host._dateOnly;
+        const { startIsDate, stopIsDate } = this._fieldTypes();
         const recordsById = host.data.recordsById;
         const pairs = dependencyPairs(host.layout.rows, recordsById, archInfo.dependencyField);
         const items = [];
@@ -141,7 +166,7 @@ export class TimelineArrows {
             const conflict = arrowConflict(
                 recordsById.get(pair.sourceId).raw,
                 recordsById.get(pair.targetId).raw,
-                { startField, stopField, dateOnly }
+                { startField, stopField, startIsDate, stopIsDate }
             );
             items.push({
                 key: pair.key,
@@ -213,7 +238,7 @@ export class TimelineArrows {
             return;
         }
         this.focus.arrowKey = key;
-        this.focus.pillKey = this._pillKeyAt(ev);
+        this._pointOver(this._pillKeyAt(ev));
     }
 
     /** The pointer leaves an arrow: the pill under it, if any, keeps its arrows lit. */
@@ -222,7 +247,16 @@ export class TimelineArrows {
             return;
         }
         this.focus.arrowKey = null;
-        this.focus.pillKey = this._pillKeyAt(ev);
+        this._pointOver(this._pillKeyAt(ev));
+    }
+
+    /**
+     * The pill under the pointer while it is over an arrow: its arrows stay lit and it still
+     * counts as hovered, so its handles do not flicker (R9, R8).
+     */
+    _pointOver(key) {
+        this.focus.pillKey = key;
+        this.host.state.hover = key;
     }
 
     /**
@@ -254,9 +288,12 @@ export class TimelineArrows {
 
     _pillKeyAt(ev) {
         for (const element of document.elementsFromPoint(ev.clientX, ev.clientY)) {
+            if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {
+                return null;
+            }
             const pill = element.closest?.(".o_tl_pill[data-pill-id]");
             const row = pill?.closest(".o_tl_row[data-row-id]");
-            if (pill && row) {
+            if (pill && row && this.host.rendererRef()?.contains(pill)) {
                 return `${row.dataset.rowId}|${pill.dataset.pillId}`;
             }
         }

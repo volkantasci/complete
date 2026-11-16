@@ -89,6 +89,19 @@ test("002c A19: date-only stop counts as the end of its day", () => {
     expect(colour("2026-11-04", { ...fields, dateOnly: false })).toBe("none");
 });
 
+test("002c A19: a model with a date start and a datetime stop reads each field", () => {
+    // only a date stop counts as the end of its day
+    const source = { start: deserializeDate("2026-11-02"), stop: deserializeDateTime("2026-11-04 08:00:00") };
+    const target = (start) => ({ start: deserializeDateTime(start) });
+    const options = { startField: "start", stopField: "stop", startIsDate: true, stopIsDate: false };
+    expect(arrowConflict(source, target("2026-11-04 12:00:00"), options)).toBe("none");
+    expect(arrowConflict(source, target("2026-11-04 07:00:00"), options)).toBe("warning");
+    const dateStop = { start: deserializeDateTime("2026-11-02 08:00:00"), stop: deserializeDate("2026-11-04") };
+    const options2 = { startField: "start", stopField: "stop", startIsDate: false, stopIsDate: true };
+    expect(arrowConflict(dateStop, target("2026-11-04 12:00:00"), options2)).toBe("warning");
+    expect(arrowConflict(dateStop, target("2026-11-05 00:00:00"), options2)).toBe("none");
+});
+
 function records(spec) {
     return new Map(
         Object.entries(spec).map(([id, deps]) => [Number(id), { id: Number(id), raw: { dep: deps } }])

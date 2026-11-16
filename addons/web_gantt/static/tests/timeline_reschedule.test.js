@@ -366,6 +366,37 @@ test("002c A50: the view reloads after a refused call and the error goes on", as
     expect(notices()).toHaveCount(0);
 });
 
+test("002c A50: a later call is sent only after the first answer, and the view reloads after an error too", async () => {
+    await mountTimeline();
+    const release = holdCalls();
+    const step = async () => {
+        await advanceTime(50);
+        await animationFrame();
+    };
+    refuse = true;
+    const first = editor()
+        .applyChange(move(101))
+        .catch((reason) => reason);
+    const second = editor().applyChange(move(102, {
+        date_start: "2030-06-12 06:00:00",
+        date_stop: "2030-06-12 14:00:00",
+    }));
+    await step();
+    await step();
+    // the first call has no answer yet: the second is not sent, nothing reloaded
+    expect(sequence()).toEqual(["reschedule"]);
+    release();
+    await step();
+    // the first answer is an error: the view reloads, and only then the second call goes out
+    expect(sequence().slice(0, 3)).toEqual(["reschedule", "reload", "reschedule"]);
+    refuse = false;
+    release();
+    expect(Boolean(await first)).toBe(true);
+    await second;
+    await animationFrame();
+    expect(sequence()).toEqual(["reschedule", "reload", "reschedule", "reload"]);
+});
+
 test("002c A71: the phone reschedules with the stored method, or keep buffer", async () => {
     mockTouch(true);
     await resize({ width: 390, height: 844 });

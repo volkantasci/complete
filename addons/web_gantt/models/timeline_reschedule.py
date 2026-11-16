@@ -35,10 +35,6 @@ class Base(models.AbstractModel):
 
     # ------------------------------------------------------------------ instants (R26)
 
-    def _tl_is_dated(self, start_field):
-        """Whether the start field is date-only (R26)."""
-        return self._fields[start_field].type == 'date'
-
     @api.model
     def _tl_instant(self, value, field_name, is_stop):
         """The working instant of a stored or given value: the value itself for a datetime

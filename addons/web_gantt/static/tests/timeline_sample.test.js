@@ -182,7 +182,7 @@ test("F2: on the phone the help starts 26 px above the grid area and ignores the
 
 test("002c I1: the help stands over the pills and arrows, under the row and column headers", async () => {
     await mountEmpty(H8, { noContentHelp: HELP });
-    const zIndex = (selector) => Number(getComputedStyle(queryOne(selector)).zIndex);
+    const zIndex = (selector) => Number(getComputedStyle(queryAll(selector)[0]).zIndex);
     const help = zIndex(".o_tl_box > .o_view_nocontent");
     // pills 10, arrows 20, row headers 30, column headers 40
     expect(help).toBeGreaterThan(20);

@@ -815,10 +815,11 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * R7, R23: a click on a body cell. Locked: nothing. A folded cell opens its run. A group row
-     * toggles (through the row's own click). A cell of a record row plans (plan on), creates
-     * (cell create on) or does nothing, for the whole column. The total row and the sample
-     * state do nothing.
+     * A click on a body cell. Locked, or the release of a gesture: nothing. In multi-select mode
+     * a cell of a record row picks sub-columns (`_clickCellMulti`). Otherwise a folded cell opens
+     * its run, a group row toggles (through the row's own click), and a cell of a record row plans
+     * (plan on) or creates (cell create on), for the whole column. The sample state and the
+     * unfolded cells of the total row do nothing.
      */
     onCellClick(ev, cell, descriptor = null) {
         if (this._selecting.consumeClick() || this._drag.consumeClick() || this.connect.consumeClick()) {
