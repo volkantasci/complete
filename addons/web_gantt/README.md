@@ -66,7 +66,7 @@ New browser files, all under `static/src/`:
 |---|---|
 | `timeline_arrow_math.js` | Pure: which pairs get an arrow, the route, the conflict colour, the middle point. |
 | `timeline_arrows.js`, `.xml`, `.scss` | The arrow layer: measuring pills in the DOM, layers, highlight, the remove button. |
-| `timeline_connect.js`, `.xml`, `.scss` | The drawing handles and the drawing gesture (mouse and touch). |
+| `timeline_connect.js`, `.xml`, `.scss` | The drawing handles, the strips above and below a pill in which it stays under the pointer, and the drawing gesture (mouse and touch). |
 | `timeline_pill_pointer.js` | The pill's hover state and pointer routing (moved out of the renderer). |
 | `timeline_drag_commit.js` | The commit of a move and of a resize (moved out of the renderer). |
 | `timeline_reschedule_menu.js`, `.xml`, `.scss` | The method button, menu and switch. |

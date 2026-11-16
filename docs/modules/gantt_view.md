@@ -723,8 +723,9 @@ neither the row header nor the scroll position.
   keeps using the action's domain and the search unchanged. **Load more** under the list adds twenty
   lines; a reload shows the first twenty again.
 - **A line** has a handle and the name. A click anywhere on the line opens the
-  record dialog. The name is only as wide as its text (a long one is cut with an
-  ellipsis at the end of the line) and the pointer over it is the hand of a
+  record dialog. The name is only as wide as its text; a long name keeps the
+  width of its whole text and runs past the end of the line, and the line cuts
+  it with an ellipsis. The pointer over it is the hand of a
   link; over the rest of the line, handle included, it is the open hand of
   something you can drag, and a press and move from any point of the line,
   the name too, drags the record.
@@ -1005,10 +1006,15 @@ bands and the rescheduling also work on a phone (see [below](#dependencies-on-a-
   pills; a click on it where it crosses a pill goes to the arrow.
 - **Highlight.** The pointer over a pill highlights every arrow of that pill;
   the pointer over an arrow (a band of about 13 pixels around the line)
-  highlights that arrow. While a move, a resize or a drawing is in progress the
-  highlight stays as it was (the moved pill's own arrows are highlighted, and
-  they follow the pill). When a gesture ends and the view reloads, no arrow is
-  highlighted until the pointer moves.
+  highlights that arrow alone, also where the band crosses a pill: the pill
+  under the band does not count, so its own arrows rest and its handles are
+  gone. The highlight is worked out when the pointer moves (or the grid
+  scrolls) and not otherwise: after a gesture ends and the view reloads, and
+  after "Show dependencies" is switched off or on with the pointer resting on
+  a pill, nothing is highlighted until the pointer moves. While a move, a
+  resize or a drawing is in progress the highlight stays as it was (a moved
+  pill's arrows are highlighted and follow it; a resized pill's arrows stay on
+  the stored end until the view reloads after the release).
 
 ![The arrows of the pill under the pointer, light](../assets/gantt_view/76-pill-hover.png)
 
@@ -1024,14 +1030,22 @@ shows its handles and buttons, because they write the link, not the pill.
 
 - **Handles.** While the pointer is over a pill of a record row, two small round
   handles appear: one above its left end, one below its right end. Group pills
-  have none. The dot takes the pill's own colour.
+  have none. The dot takes the pill's own colour. The pill stays under the
+  pointer while it is on the body, in a strip 11 pixels tall above and below the
+  body (as wide as the body, not beyond its ends, over neighbouring pills and
+  rows, under the column headers and a highlighted arrow's band), or on a
+  handle, so the pointer can go from the body to a handle on a slant. A click
+  in a strip does nothing; a press and move there moves the pill.
 - **Drawing.** Press a handle and move the pointer: a grey line follows from the
   handle to the pointer, the cell selection is cleared, an open popover closes
   and the grid scrolls when you hold near its edges. Release over another pill
   and that pill now depends on the one whose handle you pressed (one write on
   the target; the view reloads). Either handle works, the pressed pill is always
   the source. Releasing on the same pill, on a group row, outside the pills or
-  after Escape writes nothing. Drawing a link that already exists changes
+  after Escape writes nothing; a remove button counts as outside the pills.
+  During a drawing the source pill lies over the other pills and over the
+  arrows at rest; the highlighted arrows (with their buttons, which cannot be
+  clicked) and the line being drawn lie over all pills. Drawing a link that already exists changes
   nothing, and a link that closes a loop is accepted; the loop shows up only when
   a rescheduling meets it.
 - **Touch.** At desktop size a tap on a pill leaves it in the pointer-over state,
