@@ -13,7 +13,10 @@ A view that names a template form lets you pick many cells at once and create
 or delete the records of the selection in one go (see
 [Selecting several cells](#selecting-several-cells)), and a view that turns on
 scheduling adds a side panel of records that still have no dates (see
-[The side panel](#the-side-panel)).
+[The side panel](#the-side-panel)). A view with a dependency field draws arrows
+between dependent pills, lets you draw and remove the links, moves the records
+that follow when you move one, and can show free time around pills (see
+[Dependencies and rescheduling](#dependencies-and-rescheduling)).
 
 The view has no menu of its own. It appears in any window action whose view
 modes include **Gantt**, next to the other views in the view switcher, or as
@@ -107,6 +110,13 @@ used, then the nearest larger one. Columns share the free width equally; when
 that would make them too narrow the grid scrolls sideways. Weeks start on the
 first day of the week of your language. On the days when the clock changes,
 the day scale has 23 or 25 hour columns, and pills follow the wall clock.
+
+On the week scale the group header reads "Week 24, Jun 9 - Jun 15", the days
+as short month and day. When the week belongs to another year than the current
+year of the browser's clock, the year follows once at the end, after a space
+and without a comma ("Week 24, Jun 9 - Jun 15 2030"); the tooltip has the same
+text. The header is left aligned with a small padding and cut by its cell when
+the cell is narrower. The other scales always show the year in their labels.
 
 Today's column has a pale warm tint in its header and cells (on the day scale
 it is the current hour).
@@ -505,8 +515,12 @@ A **cell** is one part of a day column in one row: half a day on a view with
 the usual half-day precision. Selected cells are tinted with the selection
 colour and have a thin border on their right and bottom sides. Cells of group
 rows can be part of a selection and are tinted, but they never count and never
-give a record. Cells of folded columns are never selected. The pointer is the
-cross (cell) shape over the cells of record rows and the hand over headers.
+give a record. Cells of folded columns are never selected: a drawing across a folded run
+selects the cells on both sides of it and none inside it. With selection
+possible, a click on a folded cell of a record row, with or without Ctrl, does
+nothing and leaves the run folded; the folded cell of the total row still opens
+it. The pointer is the cross (cell) shape over the cells of record rows and the
+hand over headers.
 
 - **Click.** A click on an empty part of a cell of a record row selects the
   whole day column in that row and replaces the selection. With **Ctrl**
@@ -522,7 +536,7 @@ cross (cell) shape over the cells of record rows and the hand over headers.
   scrolls when you hold near an edge, sideways and also up and down.
 - **Column headers.** A click on the header of a day selects that day in every
   row, group rows included. With Ctrl it toggles the column. With **Shift** it
-  selects every column from the **anchor** to the clicked one; the anchor is
+  selects every column from the **anchor** to the clicked one, leaving out any folded columns between them; the anchor is
   the column last clicked without Shift. Shift with no anchor acts as a plain
   click, and Shift with Ctrl acts as Shift alone. A foldable column keeps its
   folding behaviour: a plain click on an open one folds it (and selects
@@ -701,11 +715,19 @@ neither the row header nor the scroll position.
 - **The list** holds the records of the action's domain and of the current
   search that have **both** start and stop empty, in the model's default order,
   twenty at first. A record with only one of the two dates is not listed. Every
-  condition of the search on the start or stop field is left out of the filter,
-  so that a search on dates cannot hide an unscheduled record; a negated date
-  condition is left out as well. **Load more** under the list adds twenty
+  condition on the start or stop field is left out of the filter, whether it
+  comes from the search or from the action's own domain (the two are joined by
+  "and" first), so that a date condition cannot hide an unscheduled record; a
+  negated date condition is left out together with its negation, and one that
+  stands directly under an "or" lets the other side decide. The grid itself
+  keeps using the action's domain and the search unchanged. **Load more** under the list adds twenty
   lines; a reload shows the first twenty again.
-- **A line** has a handle and the name. Clicking it opens the record dialog.
+- **A line** has a handle and the name. A click anywhere on the line opens the
+  record dialog. The name is only as wide as its text (a long one is cut with an
+  ellipsis at the end of the line) and the pointer over it is the hand of a
+  link; over the rest of the line, handle included, it is the open hand of
+  something you can drag, and a press and move from any point of the line,
+  the name too, drags the record.
 - **Resizing.** Press the thin strip between the grid and the panel and move
   sideways: the panel is at least 150 pixels wide and at most the larger of half
   the window and its width at the start. The width is kept while the view stays
@@ -940,6 +962,211 @@ difference keeps Western digits.
 Every screenshot above also exists in a dark variant (suffix `-dark`) and a
 phone variant (suffix `.mobile`) in `docs/assets/gantt_view/`.
 
+## Dependencies and rescheduling
+
+A view that names a **dependency field** (see
+[the view definition](#the-view-definition)) shows which records wait for which:
+an arrow runs from a record's pill to the pills of the records it blocks. The
+same view can draw and remove those links with the pointer, and it can move the
+records that follow when you move or resize one of them. Free time before and
+after a record can be shown as a band behind its pill. Arrows, handles, the
+method button and the switch need a computer screen and real data; the buffer
+bands and the rescheduling also work on a phone (see [below](#dependencies-on-a-phone)).
+
+![Dependency arrows at rest, light](../assets/gantt_view/75-arrows.png)
+
+![Dependency arrows at rest, dark](../assets/gantt_view/75-arrows-dark.png)
+
+### The arrows
+
+- **Which.** Every record that has a pill in a record row is joined to each of
+  the records it depends on that also have one. Group rows carry no arrows, and
+  a record outside the loaded period or the search has none. The loaded period
+  is the one the view reads, so on the week range the week before and the week
+  after count, not only the displayed week. A record that sits in several rows
+  (grouped by a relation to many records) gets an arrow for each pair of pills
+  that makes sense, without a second arrow across rows that have nothing to do
+  with each other.
+- **Route.** An arrow leaves the middle of the right edge of the source pill and
+  enters the middle of the left edge of the target pill (swapped in a
+  right-to-left language), with rounded corners and a small filled arrowhead
+  with a notched back. When the target starts less than 8 pixels to the right of
+  the end of the source, the line goes around: out to the right, back on the other side
+  of the pills, and into the target from the left. The route is drawn again
+  whenever a pill moves on screen.
+- **Colour.** The colour tells whether the order is respected: grey when the
+  target starts after the source stops, orange when it starts before the source
+  stops, red when it starts before the source starts. At rest the line is half
+  transparent; highlighted it is solid. For date-only records the stop counts as
+  the end of its day, so a target that starts on the day its source stops is
+  orange. No outline is drawn under a line, in either look.
+- **Layering.** At rest the arrows lie over the cells and under the pills, so a
+  press on a pill always reaches the pill. A highlighted arrow lies over the
+  pills; a click on it where it crosses a pill goes to the arrow.
+- **Highlight.** The pointer over a pill highlights every arrow of that pill;
+  the pointer over an arrow (a band of about 13 pixels around the line)
+  highlights that arrow. While a move, a resize or a drawing is in progress the
+  highlight stays as it was (the moved pill's own arrows are highlighted, and
+  they follow the pill). When a gesture ends and the view reloads, no arrow is
+  highlighted until the pointer moves.
+
+![The arrows of the pill under the pointer, light](../assets/gantt_view/76-pill-hover.png)
+
+![The arrows of the pill under the pointer, dark](../assets/gantt_view/76-pill-hover-dark.png)
+
+### Drawing and removing a dependency
+
+Both need the view's *edit* permission. Without it (the definition says no, or
+the definition is silent and you cannot write the model) the pills show no
+handles and the arrows no remove button; everything else on this page stays.
+A pill that is locked for moving (cut at the edge, drag and drop off) still
+shows its handles and buttons, because they write the link, not the pill.
+
+- **Handles.** While the pointer is over a pill of a record row, two small round
+  handles appear: one above its left end, one below its right end. Group pills
+  have none. The dot takes the pill's own colour.
+- **Drawing.** Press a handle and move the pointer: a grey line follows from the
+  handle to the pointer, the cell selection is cleared, an open popover closes
+  and the grid scrolls when you hold near its edges. Release over another pill
+  and that pill now depends on the one whose handle you pressed (one write on
+  the target; the view reloads). Either handle works, the pressed pill is always
+  the source. Releasing on the same pill, on a group row, outside the pills or
+  after Escape writes nothing. Drawing a link that already exists changes
+  nothing, and a link that closes a loop is accepted; the loop shows up only when
+  a rescheduling meets it.
+- **Touch.** At desktop size a tap on a pill leaves it in the pointer-over state,
+  so its handles show (and its popover opens); a touch press on a handle and a
+  move draws the same way.
+- **Removing.** A highlighted arrow shows a small round button with a cross at
+  the middle of its route, named "Remove this dependency" for assistive
+  technology. A click removes the source from the target's dependencies (one
+  write on the target) and reloads. There is no confirmation and no Undo; a
+  refused write shows the usual error.
+
+![The remove button under the pointer, light](../assets/gantt_view/77-button-hover.png)
+
+![Drawing a dependency, light](../assets/gantt_view/78-drawing.png)
+
+![The new dependency, light](../assets/gantt_view/79-created.png)
+
+### The method menu and "Show dependencies"
+
+On a computer screen a button right after the button that opens or folds every
+group shows the **rescheduling method** (see below) and opens a menu with the
+three methods and, below a separator, **Show dependencies**. It is there also
+when you may not edit, though then the method changes nothing you can do.
+
+- The chosen method is marked and named on the button; the default is
+  **Auto-Reschedule (Keep Buffer)**. The choice is kept in the browser for the
+  view (all actions of it share it) and read when the view opens. The choice
+  takes effect with the reload half a second later, so a move made in that
+  moment still uses the old one.
+- **Show dependencies** is on by default and marked when on. Switched off, the
+  arrows at rest are invisible and take no pointer; highlighted arrows still
+  show (the pointer over a pill, a drawing), and handles, drawing and removal
+  work as before. The state is kept per view and per action.
+
+![The method menu, light](../assets/gantt_view/80-menu.png)
+
+![The method menu, dark](../assets/gantt_view/80-menu-dark.png)
+
+![Arrows hidden, light](../assets/gantt_view/81-hidden.png)
+
+![Arrows hidden, pointer over a pill, light](../assets/gantt_view/82-hidden-hover.png)
+
+### Rescheduling
+
+With **Manual Reschedule** a move or resize is what
+[Moving, copying and resizing pills](#moving-copying-and-resizing-pills)
+describes: one write, one notification with Undo. With one of the two automatic
+methods, a **move** (not a copy) or a **resize** is sent to the server as one
+call that also moves the records that follow, and the notification of that call
+replaces the usual one. Copies, drops from the side panel, drops on the drop
+zone and the plan dialog never reschedule.
+
+- **Direction.** Moving a record later (or its end later) pushes the records it
+  blocks, and those they block, and so on. Moving it earlier pulls the records
+  that block it, and so on; when only the end is made earlier, the records it
+  blocks are drawn along by the same amount. A record is moved only if it has
+  both dates and starts in the future; the search along the links stops at one
+  that does not. Each moved record keeps its length.
+- **Keep Buffer.** The free time between a blocker and the record it blocks is
+  kept: the record is placed after the blocker's new end plus the time that was
+  between them. Every following record moves.
+- **Use Buffer.** A following record moves only if it is in conflict, that is,
+  it starts before the end of a blocker or ends after the start of a record it
+  blocks; then it goes just after the blocker with no free time. One that is not
+  in conflict stays, the free time before it is used up, and it passes no new
+  limit on to the records after it.
+- **Plain writes.** Nothing else moves when you drop a record in the past (its
+  new start is before the server's current time), when you change only the row,
+  or when you resize the start. Resizing the end is rescheduled even if the
+  record started in the past. A drop that changes nothing still calls the
+  server, which writes nothing and answers with the success message.
+- **Past and loops.** If a record would have to start more than half a minute in
+  the past, or the links form a loop, nothing is moved at all, not even the
+  record you moved; a warning explains why (below).
+- **Whole days.** On a view whose start and stop are dates, everything is in
+  whole days: a record covers from the start of its first day to the end of its
+  last day, its length and the free time are counted in days, and a record that
+  starts the day its blocker stops counts as in conflict. Today counts as the
+  past, since a day starts at midnight.
+- **Rights and order.** Every write is made with your own rights, after the
+  earlier writes of the view have finished, and the view reloads when the call
+  returns, also after an error.
+
+![A pill being moved, with its arrows following, light](../assets/gantt_view/84-moving.png)
+
+![Before the move, light](../assets/gantt_view/85-before.png)
+
+![After the move, light](../assets/gantt_view/86-rescheduled.png)
+
+![After the move, dark](../assets/gantt_view/86-rescheduled-dark.png)
+
+### The notification and Undo
+
+A rescheduling answers with a **sticky** notification, replacing any other of
+the view: success shows "Records rescheduled" with **Undo**; a loop shows a
+warning that says the dependencies form a loop and nothing was moved, and a
+record that would start in the past shows a warning naming it ("Could not move
+... it would start in the past"). Warnings have no Undo. The notification stays
+until you close it, use Undo or the next one replaces it. Undo writes back the
+old start and stop of every record the call changed (for the record you moved,
+every value it wrote, the row included, a grouping property as a whole) and
+reloads the view; if records changed in the meantime, the old values are written
+over the new ones. An exception on the server shows the web client's error
+dialog and the view reloads.
+
+![A loop, light](../assets/gantt_view/87-cycle.png)
+
+![A date-only model rescheduled in days, light](../assets/gantt_view/88-dated.png)
+
+### Buffers
+
+When the definition names a **buffer before** and a **buffer after** field
+(numbers of hours), a record with a positive value gets a band behind its pill,
+in the pill's colour, 60 percent of its height, rounded at the ends. It runs
+from the start minus the hours before to the stop plus the hours after, each
+rounded to whole sub-columns of the scale and kept inside the displayed period;
+a value too small for one sub-column, zero or negative adds nothing on that
+side. The band hides while its pill is moved or resized and comes back when the
+gesture ends. Bands are only a display: the rescheduling does not read them.
+
+![Buffer bands, light](../assets/gantt_view/83-buffers.png)
+
+![Buffer bands, dark](../assets/gantt_view/83-buffers-dark.png)
+
+### Dependencies on a phone
+
+Below the small-screen breakpoint, and in the sample state, there are no
+arrows, no handles, no method button and no switch. The buffer bands are drawn,
+and a move or resize is rescheduled with the method stored for the view in that
+browser (keep buffer when none), exactly as on a computer.
+
+![Buffer bands on a phone, light](../assets/gantt_view/83-buffers.mobile.png)
+
+![A rescheduled move on a phone, light](../assets/gantt_view/86-rescheduled.mobile.png)
+
 ## Sample data and empty views
 
 If the view definition allows sample data and the first load finds no record,
@@ -1025,6 +1252,10 @@ its lock after the hold. The notifications stand at the bottom of the screen.
 
 ![A locked pill on a phone, light](../assets/gantt_view/44-locked.mobile.png)
 
+Dependencies show differently on a phone: no arrows, handles, method button
+or switch, but buffer bands are drawn and moves are rescheduled (see
+[Dependencies on a phone](#dependencies-on-a-phone)).
+
 Hovering a column header gives a tooltip with the date including the weekday
 ("Saturday, November 7, 2026"; on the day scale also the time).
 
@@ -1078,6 +1309,9 @@ or date-and-time fields) are required. The other attributes:
 | `plan` | yes or no (default yes): a click on a cell opens the plan dialog instead of the create dialog |
 | `form_view_id` | database identifier of a form view of the same model, used by the create and record dialogs (default: the model's default form) |
 | `multi_create_view` | XML identifier of a form view of the same model (`module.name`), used as the template form of the selection's Add button. Without it there is no multi-selection |
+| `dependency_field` | a many-to-many field of the model to itself holding the records that block each record; turns on arrows, drawing handles, the method menu and rescheduling. Needs `dependency_inverted_field` |
+| `dependency_inverted_field` | the reverse field: the records each record blocks |
+| `buffer_start`, `buffer_stop` | number fields with the hours of free time before the start and after the stop of each record, drawn as bands |
 | `schedule` | yes or no (default no): shows the side panel of records without dates (with edit on, not on a phone) |
 | `on_create` | an action reference (an XML identifier such as `module.action_name`, or a database identifier) run instead of the create dialog |
 | `default_group_by`, `sample`, `class`, `js_class` | the usual meaning in a Community view |
@@ -1087,8 +1321,6 @@ popover) and at most one `popover`. A `popover` takes `card_id` only, and may
 hold `field` elements and one `templates` element with `popover-body` (or
 `card`), `popover-header` and `popover-footer` (the last with `replace` set to
 a false value to keep the default button). The attributes
-`dependency_field`,
-`dependency_inverted_field`, `buffer_start`, `buffer_stop`,
 `collapse_first_level`, `dynamic_range` and `offset` are accepted and have no
 effect yet. A view that breaks the rules is refused when saved, with a message
 that names the problem. An action can pass the context keys `default_range`,
@@ -1133,6 +1365,23 @@ earlier writes; removing dates through the drop zone is one write sent at once.
 Each write is followed by a reload. The panel's open state is kept in the
 browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
 
+#### Dependencies and rescheduling for developers
+
+- The data call also reads the dependency field and the two buffer fields when
+  the view names them. The arrows are computed in the browser from the loaded
+  records; nothing about them is stored.
+- Drawing a link is one write `{dependency_field: [[4, source_id]]}` on the
+  target, removing one is `[[3, source_id]]`, both queued behind earlier writes
+  and followed by a reload.
+- A move or resize with an automatic method calls `web_gantt_reschedule` (below)
+  instead of writing, through the same write queue. Undo calls
+  `action_rollback_scheduling`.
+- The browser keeps two choices in its local storage:
+  `rescheduleMethod-viewId-<view id>` holds `manual`, `consumeBuffer` or
+  `maintainBuffer` (any other value counts as `maintainBuffer`), and
+  `gantt_show_connectors,<view id>,<action id>` holds `true` or `false`.
+  `manual` never reaches the server.
+
 ### The server side
 
 - `get_gantt_data` is the model call the view makes in one go. It returns
@@ -1146,6 +1395,34 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
   kind is `reschedule`. It returns the result of the deletion or write, and false
   when the record no longer exists, the kind is unknown or a reschedule has
   nothing to write. It adds no access rule: the user's own rights apply.
+- `web_gantt_reschedule(values, method, record_ids, dependency_field,
+  inverted_field, start_field, stop_field)` is called on the model, with the
+  user's rights. `values` is what a plain move would write; `method` is
+  `consumeBuffer` (use the free time) or `maintainBuffer` (keep it), any other
+  name raises an error; `record_ids` is a list with the moved record's
+  identifier (a bare identifier works too). It writes plainly when the values
+  hold no stop, when no dependency field is given or when a new start lies in
+  the past; otherwise it reschedules inside a savepoint, so an error leaves
+  nothing changed. The answer is `{'type': 'success' | 'warning', 'message': ...,
+  'old_vals_per_pill_id': {id: {field: old value}}}`; a module may also answer
+  `info`, which the view shows as an information notification with Undo.
+- `action_rollback_scheduling(old_vals_per_pill_id)` writes the old values back
+  to each listed record (identifiers may be text or numbers) and returns
+  nothing.
+- The calculation is split into steps that modules can override by name, each a
+  method of every model: `_web_gantt_reschedule_compute_dates`,
+  `_web_gantt_reschedule_is_record_candidate`,
+  `_web_gantt_reschedule_can_record_be_rescheduled`,
+  `_web_gantt_reschedule_write_new_dates`, `_web_gantt_record_has_dependencies`,
+  `_web_gantt_get_reschedule_message_per_key`, `_web_gantt_get_reschedule_message`,
+  `_web_gantt_move_candidates`, `_web_gantt_is_candidate_in_conflict`,
+  `_web_gantt_action_reschedule_candidates`, `_web_gantt_get_direction` and
+  `web_gantt_format_property_fields`. The constants `forward`, `backward` and
+  `loop_error` are the values other modules compare with. Four more steps
+  (`_tl_outer_bound`, `_tl_spread_bound`, `_tl_gather_candidates`,
+  `_tl_keep_old_values`) are this module's own names for the original's unnamed
+  parts. The code is in `models/timeline_reschedule.py`; the effects of the
+  project and manufacturing applications are not included.
 - A model without a Gantt view gets a generated one (`_get_default_gantt_view`)
   built from the fields named by `_start_name` and `_stop_name`, or the usual
   candidates (`date_start`, `start_date`, `date_stop`, `date_end`, ...). If no
@@ -1153,6 +1430,7 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
 
 ## Not included yet
 
-The dependency arrows and
-buffers, rescheduling, and the Gantt views of employees, attendances, event
-tracks and time off are delivered in later slices.
+The Gantt views of employees, attendances, event tracks and time off are
+delivered in later slices, as are the parts that project tasks and work orders
+add to rescheduling (working calendars, conflicts with other tasks, planned
+record highlight, dashed arrows).
