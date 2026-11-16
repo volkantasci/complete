@@ -257,6 +257,58 @@ class TestReschedule(TransactionCase):
             self._call(self.a, self._move('06-11 06:00', '06-11 14:00'), user=user)
         self._assert_prepared('Chain A', 'Chain B', 'Chain C')
 
+    def test_a63_read_without_write_right(self):
+        user = self.env['res.users'].create({
+            'name': 'Reader', 'login': f'reader_{uuid.uuid4().hex[:8]}',
+            'group_ids': [Command.set(self.env.ref('base.group_user').ids)],
+        })
+        pills = self.Pill.with_user(user)
+        self.assertTrue(pills.has_access('read'))
+        self.assertFalse(pills.has_access('write'))
+        # the read goes through, the call stops at the write; nothing changed, Chain A included
+        self.assertEqual(pills.browse(self.a.id).name, 'Chain A')
+        for method in (KEEP, USE):
+            with self.assertRaises(AccessError):
+                self._call(self.a, self._move('06-11 06:00', '06-11 14:00'), method, user=user)
+            with self.assertRaises(AccessError):
+                self._call(self.a, {'name': 'Plain'}, method, user=user)
+        self.assertEqual(self.a.name, 'Chain A')
+        self._assert_prepared('Chain A', 'Chain B', 'Chain C')
+
+    def test_e5_records_without_both_dates_plain_write(self):
+        # no stored start, a start given; no new stop with only the stop given
+        self.a.write({'date_start': False})
+        answer = self._call(self.a, self._move('06-11 06:00', '06-11 14:00'))
+        self.assertEqual(answer['type'], 'success')
+        self._assert_dates(self.a, '06-11 06:00', '06-11 14:00')
+        self._assert_prepared('Chain B', 'Chain C')
+        answer = self._call(self.a, {'date_start': '2030-06-12 06:00:00'})
+        self.assertEqual(answer['type'], 'success')
+        self._assert_prepared('Chain B', 'Chain C')
+        self._rebuild()
+        answer = self._call(self.a, {'date_stop': False})
+        self.assertEqual(answer['type'], 'success')
+        self.assertFalse(self.a.date_stop)
+        self._assert_prepared('Chain B', 'Chain C')
+        # a stored stop missing, both dates given
+        self._rebuild()
+        self.a.write({'date_stop': False})
+        answer = self._call(self.a, self._move('06-11 06:00', '06-11 14:00'))
+        self.assertEqual(answer['type'], 'success')
+        self._assert_prepared('Chain B', 'Chain C')
+
+    def test_t11_1_only_stop_earlier_keeps_the_shifted_stop(self):
+        # Chain C starts later than Chain B's shifted stop and is not among the candidates
+        values = {'date_stop': '2030-06-10 10:00:00'}   # 4 h earlier
+        errors, warnings, old = self.a._web_gantt_move_candidates(
+            self.b, values, KEEP, 'backward', 'dependency_field',
+            'dependency_inverted_field', 'date_start', 'date_stop')
+        self.assertEqual((errors, warnings), ([], []))
+        self.assertEqual(set(old), {self.a.id, self.b.id})
+        # the bound given by C (12 June 06:00) must not lengthen B: its stop is the shifted stop
+        self._assert_dates(self.b, '06-11 02:00', '06-11 10:00')
+        self._assert_prepared('Chain C')
+
     def test_a67_buffers_ignored(self):
         self.b.write({'x_buffer_before': 5, 'x_buffer_after': 7})
         self._call(self.a, self._move('06-11 06:00', '06-11 14:00'))
@@ -291,3 +343,101 @@ class TestReschedule(TransactionCase):
         with freeze_time('2030-06-11 00:00:00'):
             past = self._call(self.c, self._move('06-11 06:00', '06-12 14:00'))
         self.assertEqual(past['message'], PAST_TEXT)
+
+
+class TestRescheduleDates(TransactionCase):
+    """Rescheduling of date-only records in whole days (002c R26, decisions D3, D4)."""
+
+    def setUp(self):
+        super().setUp()
+        admin = self.env.ref('base.user_admin')
+        admin.tz = 'Europe/Paris'
+        self.Dated = self.env['test.web.gantt.pill2'].with_user(admin)
+        self._rebuild()
+
+    def _rebuild(self):
+        rec = self.env['test.web.gantt.pill']._tl_build_reschedule_records()
+        self.a, self.b = rec['dated Chain A'], rec['dated Chain B']
+
+    def _call(self, record, values, method=KEEP):
+        return self.Dated.web_gantt_reschedule(
+            values, method, [record.id], 'dependency_field', 'dependency_inverted_field',
+            'date_start', 'date_stop')
+
+    def _days(self, record):
+        record.invalidate_recordset()
+        return (str(record.date_start), str(record.date_stop))
+
+    def _assert_days(self, record, start, stop=None):
+        self.assertEqual(self._days(record), (f'2030-06-{start}', f'2030-06-{stop or start}'),
+                         record.name)
+
+    def test_a81_dates_forward(self):
+        answer = self._call(self.a, {'date_start': '2030-06-12', 'date_stop': '2030-06-12'})
+        self.assertEqual(answer['type'], 'success')
+        self._assert_days(self.a, '12')
+        self._assert_days(self.b, '14')
+        self.assertEqual(answer['old_vals_per_pill_id'], {
+            self.a.id: {'date_start': '2030-06-10', 'date_stop': '2030-06-10'},
+            self.b.id: {'date_start': '2030-06-12', 'date_stop': '2030-06-12'}})
+        self._rebuild()
+        answer = self._call(self.a, {'date_start': '2030-06-12', 'date_stop': '2030-06-12'}, USE)
+        self.assertEqual(answer['type'], 'success')
+        self._assert_days(self.b, '13')
+        self.assertEqual(answer['old_vals_per_pill_id'][self.b.id],
+                         {'date_start': '2030-06-12', 'date_stop': '2030-06-12'})
+
+    def test_a82_dates_backward(self):
+        answer = self._call(self.b, {'date_start': '2030-06-10', 'date_stop': '2030-06-10'})
+        self.assertEqual(answer['type'], 'success')
+        self._assert_days(self.a, '08')
+        self._rebuild()
+        self._call(self.b, {'date_start': '2030-06-10', 'date_stop': '2030-06-10'}, USE)
+        self._assert_days(self.a, '09')
+
+    def test_a83_dates_resize_end(self):
+        answer = self._call(self.a, {'date_stop': '2030-06-11'})
+        self.assertEqual(answer['type'], 'success')
+        self._assert_days(self.a, '10', '11')
+        self._assert_days(self.b, '13')
+        self.assertEqual(answer['old_vals_per_pill_id'][self.a.id],
+                         {'date_stop': '2030-06-10', 'date_start': '2030-06-10'})
+        self._rebuild()
+        self._call(self.a, {'date_stop': '2030-06-11'}, USE)
+        self._assert_days(self.a, '10', '11')
+        self._assert_days(self.b, '12')
+        # a candidate of two days keeps two days
+        self._rebuild()
+        self.b.write({'date_stop': '2030-06-13'})
+        self._call(self.a, {'date_stop': '2030-06-11'})
+        self._assert_days(self.b, '13', '14')
+        self._rebuild()
+        self.b.write({'date_stop': '2030-06-13'})
+        self._call(self.a, {'date_stop': '2030-06-11'}, USE)
+        self._assert_days(self.b, '12', '13')
+
+    def test_a84_dates_past(self):
+        # 9 June 2030, 12:00 in Paris (UTC+2)
+        with freeze_time('2030-06-09 10:00:00'):
+            answer = self._call(self.b, {'date_start': '2030-06-11', 'date_stop': '2030-06-11'})
+            self.assertEqual(answer['type'], 'warning')
+            self.assertIn('Could not move Chain A', answer['message'])
+            self.assertEqual(answer['old_vals_per_pill_id'], {})
+            self._assert_days(self.a, '10')
+            self._assert_days(self.b, '12')
+            answer = self._call(self.a, {'date_start': '2030-06-08', 'date_stop': '2030-06-08'})
+            self.assertEqual(answer['type'], 'success')
+            self._assert_days(self.a, '08')
+            self._assert_days(self.b, '12')
+            # today: the start of the day lies before the server's time
+            answer = self._call(self.a, {'date_start': '2030-06-09', 'date_stop': '2030-06-09'})
+            self.assertEqual(answer['type'], 'success')
+            self._assert_days(self.a, '09')
+            self._assert_days(self.b, '12')
+
+    def test_a85_dates_use_buffer_conflict(self):
+        self._call(self.a, {'date_start': '2030-06-12', 'date_stop': '2030-06-12'}, USE)
+        self._assert_days(self.b, '13')
+        self._rebuild()
+        self._call(self.a, {'date_start': '2030-06-11', 'date_stop': '2030-06-11'}, USE)
+        self._assert_days(self.b, '12')
