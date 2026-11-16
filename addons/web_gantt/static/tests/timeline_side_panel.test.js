@@ -671,9 +671,11 @@ test("002b3 R19: lines cut long names with an ellipsis and keep the full name as
     const name = queryAll(".o_tl_panel_name")[3];
     expect(name).toHaveText(long);
     expect(name).toHaveAttribute("title", long);
-    expect(name).toHaveStyle({ textOverflow: "ellipsis", overflowX: "hidden", whiteSpace: "nowrap" });
-    expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
-    expect(queryRect(queryAll(".o_tl_panel_line")[3]).height).toBe(29);
+    // 002c R1: the line draws the ellipsis and cuts the name, whose box keeps its whole width
+    const line = queryAll(".o_tl_panel_line")[3];
+    expect(line).toHaveStyle({ textOverflow: "ellipsis", overflowX: "hidden", whiteSpace: "nowrap" });
+    expect(line.scrollWidth).toBeGreaterThan(line.clientWidth);
+    expect(queryRect(line).height).toBe(29);
 });
 
 test.tags("desktop");
@@ -701,11 +703,13 @@ test("002c A3: a long name is cut with an ellipsis", async () => {
     await animationFrame();
     const line = queryAll(".o_tl_panel_line")[3];
     const name = queryAll(".o_tl_panel_name")[3];
-    expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
-    expect(name).toHaveStyle({ textOverflow: "ellipsis", cursor: "pointer" });
-    // capped by the line: its right edge never passes the line's
-    expect(queryRect(name).right).not.toBeGreaterThan(queryRect(line).right + 0.5);
-    expect(queryRect(name).width).toBeGreaterThan(queryRect(line).width - 20);
+    // the name's box keeps the width of its whole text and runs past the line's end; the line
+    // cuts it and draws the ellipsis (R1, A3)
+    expect(name).toHaveStyle({ cursor: "pointer" });
+    expect(line).toHaveStyle({ textOverflow: "ellipsis", overflowX: "hidden" });
+    expect(queryRect(name).right).toBeGreaterThan(queryRect(line).right + 20);
+    expect(queryRect(name).width).toBeGreaterThan(queryRect(line).width);
+    expect(line.scrollWidth).toBeGreaterThan(line.clientWidth);
 });
 
 // -- resizing by the strip (R20, A55) ---------------------------------------------------------
