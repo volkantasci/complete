@@ -229,6 +229,9 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
     def test_a27_tour_draw_from_the_end(self):
         self._draw_tour('h42', 'timeline_002c_a27_draw_from_the_end', ('Overlap C', 'Build'))
 
+    def test_a90_tour_nothing_lit_after_a_drawing(self):
+        self._draw_tour('h42', 'timeline_002c_a90', ('Overlap C', 'Build'))
+
     def test_a28_tour_draw_from_the_start(self):
         self._draw_tour('h42', 'timeline_002c_a28_draw_from_the_start', ('Plan', 'Review'))
 

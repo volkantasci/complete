@@ -485,7 +485,8 @@ tours.add("timeline_002c_a11_phone", {
     ],
 });
 
-// A13: the next range keeps no arrow whose end is not loaded
+// A13: one step forward keeps "Build" loaded and the arrow; two steps load "Test" but not "Build"
+// (no arrow for "Test"); the search clause runs at rest
 tours.add("timeline_002c_a13_next_range", {
     steps: () => [
         gridReady,
@@ -493,22 +494,43 @@ tours.add("timeline_002c_a13_next_range", {
             trigger: ".o_tl_arrow",
             async run() {
                 await gridSettled();
+                assert(arrowBetween("Build", "Test"), "the arrow Build to Test at rest");
                 $(".o_tl_next").click();
                 await gridSettled();
-                for (const arrow of arrows()) {
-                    const [source, target] = arrow.dataset.arrow.split(">").map((end) => end.split("|").pop());
-                    assert(
-                        $(`.o_tl_pill[data-pill-id="${source}"]`) && $(`.o_tl_pill[data-pill-id="${target}"]`),
-                        `the arrow ${arrow.dataset.arrow} has both its pills`
-                    );
-                }
-                if (!pillNamed("Build")) {
-                    assert(pillNamed("Test"), "Test is shown");
-                    assert(arrows().every((a) => !a.dataset.arrow.includes(`|${idOf("Test")}`)), "none for Test");
-                }
+                assert(pillNamed("Build"), "Build is still loaded after one step");
+                assert(arrowBetween("Build", "Test"), "the arrow Build to Test stays after one step");
+                $(".o_tl_next").click();
+                await gridSettled();
+                assert(!pillNamed("Build"), "Build is not loaded after two steps");
+                const test = await until(() => pillNamed("Test"), "Test is loaded after two steps");
+                // scroll the grid to the start of "Test"
+                renderer().scrollLeft +=
+                    test.getBoundingClientRect().left - renderer().getBoundingClientRect().left - 100;
+                await gridSettled();
+                assert(
+                    arrows().every((a) => !a.dataset.arrow.includes(`|${idOf("Test")}`)),
+                    "no arrow for Test"
+                );
+                $(".o_tl_previous").click();
+                await gridSettled();
                 $(".o_tl_previous").click();
                 await gridSettled();
                 assert(arrows().length === 3, `three arrows again, got ${arrows().length}`);
+                // the search keeps only "Build" and "Test": their arrow remains, the others go
+                const input = $(".o_searchview_input");
+                for (const word of ["Build", "Test"]) {
+                    input.focus();
+                    input.value = word;
+                    input.dispatchEvent(new InputEvent("input", { bubbles: true, data: word }));
+                    input.dispatchEvent(
+                        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })
+                    );
+                    await until(() => $$(".o_searchview_facet").length > 0, `the facet of ${word}`);
+                    await gridSettled();
+                }
+                await until(() => pillNamed("Test") && !pillNamed("Design"), "the search to apply");
+                assert(arrows().length === 1, `one arrow, got ${arrows().length}`);
+                assert(arrowBetween("Build", "Test"), "the arrow Build to Test remains");
             },
         },
     ],
@@ -775,7 +797,7 @@ tours.add("timeline_002c_a14_records_in_several_rows", {
                     `five arrows, got ${arrows().length}: ${arrows().map((a) => names(a.dataset.arrow).join(" to ")).join("; ")}`
                 );
                 const ids = {};
-                for (const name of ["Design", "Build", "Test"]) {
+                for (const name of ["Design", "Build", "Test", "Review", "Overlap A"]) {
                     ids[name] = idOf(name);
                 }
                 const between = (source, target) =>
@@ -786,6 +808,8 @@ tours.add("timeline_002c_a14_records_in_several_rows", {
                     ).length;
                 assert(between("Design", "Build") === 2, "Design has two arrows to Build");
                 assert(between("Build", "Test") === 2, "each Build has an arrow to Test");
+                // the fifth: Review to Overlap A, inside the row "Undefined Tags"
+                assert(between("Review", "Overlap A") === 1, "Review has its arrow to Overlap A");
             },
         },
     ],
@@ -872,6 +896,32 @@ tours.add("timeline_002c_a27_draw_from_the_end", {
                 assert(!drawing() && !$(".o_tl_drag_connect"), "nothing is drawn any more");
                 assert(strokeOf(arrowBetween("Build", "Overlap C")) === "rgba(211, 65, 59, 0.5)", "the new arrow is red");
                 assert(!$(".o_notification"), "no notification");
+            },
+        },
+    ],
+});
+
+// A90: the drawing of A27 released over "Overlap C" with the pointer still: after the reload no arrow
+// is lit, the new one included; a move of 1 px lights the arrows of "Overlap C"
+tours.add("timeline_002c_a90", {
+    steps: () => [
+        gridReady,
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await gridSettled();
+                await moveTo(rightPartOf("Build"));
+                const end = { x: 1133, y: centreOf(pillNamed("Overlap C")).y };
+                await drawTo("Build", "stop", end);
+                await release(end);
+                await until(() => arrows().length === 4, "the new arrow");
+                await gridSettled();
+                assert(litArrows().length === 0, `nothing is lit, got ${litArrows().length}`);
+                assert(buttons().length === 0, "no remove button");
+                await moveTo({ x: end.x + 1, y: end.y });
+                const lit = litArrows();
+                assert(lit.length === 1, `the arrow of Overlap C is lit, got ${lit.length}`);
+                assert(lit[0] === arrowBetween("Build", "Overlap C"), "it is the new arrow");
             },
         },
     ],

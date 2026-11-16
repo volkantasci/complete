@@ -96,15 +96,23 @@ function records(spec) {
 }
 
 test("002c A14: pairs in several rows (H43)", () => {
-    // 1 Design, 2 Build, 3 Test; Build is in rows C and V
+    // 1 Design, 2 Build, 3 Test, 4 Review, 5 Overlap A; Build is in rows C and V, Review and
+    // Overlap A (neither has a tag) both in the row U
     const rows = [
-        { kind: "group", row: { id: "g", recordIds: [1, 2, 3] } },
+        { kind: "group", row: { id: "g", recordIds: [1, 2, 3, 4, 5] } },
         { kind: "pills", row: { id: "C", recordIds: [1, 2] } },
         { kind: "pills", row: { id: "V", recordIds: [2] } },
-        { kind: "pills", row: { id: "U", recordIds: [3] } },
+        { kind: "pills", row: { id: "U", recordIds: [3, 4, 5] } },
     ];
-    const pairs = dependencyPairs(rows, records({ 1: [], 2: [1], 3: [2] }), "dep");
-    expect(pairs.map((pair) => pair.key)).toEqual(["C|1>C|2", "C|1>V|2", "C|2>U|3", "V|2>U|3"]);
+    const pairs = dependencyPairs(rows, records({ 1: [], 2: [1], 3: [2], 4: [], 5: [4] }), "dep");
+    // five arrows: the four of A14 and Review to Overlap A (the fifth) inside the row U
+    expect(pairs.map((pair) => pair.key)).toEqual([
+        "C|1>C|2",
+        "C|1>V|2",
+        "C|2>U|3",
+        "V|2>U|3",
+        "U|4>U|5",
+    ]);
     expect(pairs[1]).toEqual({
         key: "C|1>V|2",
         sourceId: 1,
