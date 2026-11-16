@@ -179,3 +179,13 @@ test("F2: on the phone the help starts 26 px above the grid area and ignores the
     expect(queryRect(".o_tl_renderer").height).toBe(92);
     expect(queryRect(".o_tl_grid").height).toBe(91);
 });
+
+test("002c I1: the help stands over the pills and arrows, under the row and column headers", async () => {
+    await mountEmpty(H8, { noContentHelp: HELP });
+    const zIndex = (selector) => Number(getComputedStyle(queryOne(selector)).zIndex);
+    const help = zIndex(".o_tl_box > .o_view_nocontent");
+    // pills 10, arrows 20, row headers 30, column headers 40
+    expect(help).toBeGreaterThan(20);
+    expect(help).toBeLessThan(30);
+    expect(help).toBeLessThan(zIndex(".o_tl_col"));
+});

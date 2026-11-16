@@ -974,3 +974,9 @@
 .o_tl_box > .o_view_nocontent {
     top: $o-tl-header-height + 1px;
 }
+
+// The help stands over the pills (10) and the arrows (20), under the row headers (30) and the
+// column headers (40); the box is its stacking context.
+.o_tl_box {
+    --o-view-nocontent-zindex: 25;
+}
