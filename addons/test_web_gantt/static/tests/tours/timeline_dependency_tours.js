@@ -1833,6 +1833,8 @@ tours.add("timeline_002c_a69_release", {
                 const from = { x: 1505, y: 260 };
                 await moveTo(REST.build);
                 await moveTo(from);
+                // OPEN QUESTION to the analyst (rework round 1): the package says ten steps; with them
+                // the grid scrolls and the release writes nothing. Ruling: two steps here.
                 // two steps, not the package's ten: the press lies 95 px from the window's right
                 // edge, inside the wide edge zone of a resize (002b2 R14), and ten steps keep the
                 // pointer there long enough to scroll the grid 57 px, so the edge falls back on the

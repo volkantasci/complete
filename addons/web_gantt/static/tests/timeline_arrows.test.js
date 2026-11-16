@@ -29,7 +29,7 @@ const DEPENDENCIES = `string="Pills" default_range="week" color="x_color"
 const ARCH = timelineArch(DEPENDENCIES);
 
 // pills of the scratch host
-const ID = { Design: 4, Build: 5, Review: 6, Test: 7, Plan: 9, "Overlap A": 11 };
+const ID = { Design: 4, Build: 5, Review: 6, Test: 7, Plan: 9, "Long task": 10, "Overlap A": 11 };
 
 let controller;
 /** The write calls the server saw, in order. */
@@ -669,11 +669,88 @@ test("002c A93: a click in a strip does nothing, a press and move moves the pill
     expect(log).toHaveLength(0);
 });
 
-test("002c A93: no strip without the edit permission, none on a group row", async () => {
+test("002c A93: no strip without the edit permission", async () => {
     await mountDependencies({ arch: timelineArch(`${DEPENDENCIES} edit="0"`) });
     await hover(pillEl("Build"));
     await settleArrows();
     expect(".o_tl_connect_strip").toHaveCount(0);
+});
+
+test("002c A93: a group row's consolidated pill has no strip and no handle", async () => {
+    await mountDependencies({ groupBy: ["parent_id", "x_contact"] });
+    const bars = queryAll(".o_tl_group_pill");
+    expect(bars.length).toBeGreaterThan(0);
+    // a group pill is not drawn by the pill template: it carries no data-pill-id and no pointer-over hook
+    for (const bar of bars) {
+        expect(bar.closest(".o_tl_pill[data-pill-id]")).toBe(null);
+        await hover(bar);
+        await settleArrows();
+        expect(".o_tl_connect_strip").toHaveCount(0);
+        expect(".o_tl_connect_handle").toHaveCount(0);
+    }
+    // the record rows' pills still have them
+    await hover(pillEl("Build"));
+    await settleArrows();
+    expect(".o_tl_connect_strip").toHaveCount(2);
+});
+
+test("002c A93: a pill cut at both ends keeps its strips and handles (R24)", async () => {
+    await mountDependencies();
+    const scroller = queryOne(".o_tl_renderer");
+    scroller.scrollLeft = scroller.scrollWidth;
+    await settleArrows();
+    const longTask = pillEl("Long task");
+    expect(longTask.querySelector(".o_tl_handle")).toBe(null);
+    await hover(longTask);
+    await settleArrows();
+    expect(".o_tl_connect_strip").toHaveCount(2);
+    expect(".o_tl_connect_handle").toHaveCount(2);
+    const body = queryRect(longTask);
+    expect(queryRect(stripOf("below")).top).toBe(body.bottom + 1);
+    // the pill stays under the pointer in its strip
+    await hover(stripOf("below"));
+    await settleArrows();
+    expect(".o_tl_connect_handle").toHaveCount(2);
+});
+
+test("002c A93: a pill locked by the drag option keeps its strips and handles (R24)", async () => {
+    await mountDependencies({ arch: timelineArch(`${DEPENDENCIES} disable_drag_drop="1"`) });
+    await hover(pillEl("Build"));
+    await settleArrows();
+    expect(".o_tl_connect_strip").toHaveCount(2);
+    expect(".o_tl_connect_handle").toHaveCount(2);
+    await hover(stripOf("above"));
+    await settleArrows();
+    expect(".o_tl_connect_handle").toHaveCount(2);
+    expect(isLit(arrowOf("Build", "Test"))).toBe(true);
+});
+
+test("002c A93: the pointer on a lit arrow's band inside a strip is not on the pill (R9, R11)", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await settleArrows();
+    const arrow = arrowOf("Build", "Test");
+    expect(isLit(arrow)).toBe(true);
+    // lay the lit arrow's band across the strip below Build (no arrow of the host crosses a strip)
+    const strip = queryRect(stripOf("below"));
+    const layer = arrow.getBoundingClientRect();
+    const y = strip.top + strip.height / 2 - layer.top;
+    const x0 = strip.left + 100 - layer.left;
+    const band = arrow.querySelector(".o_tl_arrow_band");
+    band.setAttribute("d", `M ${x0} ${y} L ${x0 + 200} ${y}`);
+    const point = { x: strip.left + 200, y: strip.top + strip.height / 2 };
+    // the band lies over the strip
+    expect(document.elementFromPoint(point.x, point.y)).toBe(band);
+    const rect = band.getBoundingClientRect();
+    await hover(band, { position: { x: point.x - rect.left, y: point.y - rect.top } });
+    band.dispatchEvent(
+        new MouseEvent("mousemove", { bubbles: true, clientX: point.x, clientY: point.y })
+    );
+    await settleArrows();
+    expect(lit()).toHaveLength(1);
+    expect(isLit(arrow)).toBe(true);
+    expect(".o_tl_connect_strip").toHaveCount(0);
+    expect(".o_tl_connect_handle").toHaveCount(0);
 });
 
 // -- switching the arrows with the pointer at rest (R13, R9, A94) ---------------------------
