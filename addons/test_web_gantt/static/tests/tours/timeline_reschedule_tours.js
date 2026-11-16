@@ -605,6 +605,22 @@ tours.add("timeline_002c_a77_undo_after_row_change", {
                         (pill) => $(".o_tl_pill_title", pill)?.textContent.trim() === "Test"
                     );
                 assert(inRow("Beta"), "Test is in Beta");
+                // the record "Alpha", whose id the row values must carry
+                const alpha = await fetch("/web/dataset/call_kw/test.web.gantt.pill/search", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        jsonrpc: "2.0",
+                        method: "call",
+                        params: {
+                            model: "test.web.gantt.pill",
+                            method: "search",
+                            args: [[["name", "=", "Alpha"]]],
+                            kwargs: { limit: 1 },
+                        },
+                    }),
+                }).then((response) => response.json());
+                assert(alpha.result?.length === 1, "Alpha is found");
                 const test = pillNamed("Test").getBoundingClientRect();
                 near(test.left, 1125, "the left end of Test", 1);
                 near(test.top, 314, "the top of Test", 1);
@@ -623,7 +639,7 @@ tours.add("timeline_002c_a77_undo_after_row_change", {
                 assert(
                     values.date_start === "2026-11-14 05:00:00" &&
                         values.date_stop === "2026-11-17 09:00:00" &&
-                        typeof values.parent_id === "number" &&
+                        values.parent_id === alpha.result[0] &&
                         method === "maintainBuffer",
                     `the call carries ${JSON.stringify(call.params.args.slice(0, 2))}`
                 );

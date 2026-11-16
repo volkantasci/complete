@@ -126,7 +126,7 @@ class TimelineDependencyProbes(TimelineProbeCase):
         self.settle()
 
     def test_002c_m1_m8_arrows_at_rest(self):
-        probes = ['M1', 'M2', 'M3', 'M5', 'M6', 'M7', 'M8']
+        probes = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']
         for scheme, viewport in self.combos(probes, ('desktop',)):
             with self.page(HOST.format('h42'), scheme, viewport):
                 self.pointer_away()
@@ -136,6 +136,8 @@ class TimelineDependencyProbes(TimelineProbeCase):
                            'line Build to Test')
                 self.check('M3', self.part('Review', 'Overlap A', '.o_tl_arrow_line'), scheme,
                            viewport, 'line Review to Overlap A')
+                self.check('M4', self.arrow('Design', 'Build'), scheme, viewport,
+                           'outline of an arrow at rest')
                 self.check('M5', self.part('Build', 'Test', '.o_tl_arrow_band'), scheme, viewport,
                            'band Build to Test')
                 self.check('M6', self.part('Build', 'Test', '.o_tl_arrow_head'), scheme, viewport,
@@ -145,7 +147,7 @@ class TimelineDependencyProbes(TimelineProbeCase):
                 self.check('M8', self.pill('Build'), scheme, viewport, 'pill Build')
 
     def test_002c_m9_m14_arrows_highlighted_by_a_pill(self):
-        probes = ['M9', 'M10', 'M12', 'M13', 'M14']
+        probes = ['M9', 'M10', 'M11', 'M12', 'M13', 'M14']
         for scheme, viewport in self.combos(probes, ('desktop',)):
             with self.page(HOST.format('h42'), scheme, viewport):
                 self.pointer_at(1300, 260)
@@ -153,6 +155,8 @@ class TimelineDependencyProbes(TimelineProbeCase):
                            viewport, 'line Design to Build lit')
                 self.check('M10', self.part('Build', 'Test', '.o_tl_arrow_line'), scheme,
                            viewport, 'line Build to Test lit')
+                self.check('M11', self.arrow('Build', 'Test'), scheme, viewport,
+                           'outline of a lit arrow')
                 self.check('M12', self.arrow('Build', 'Test'), scheme, viewport,
                            'layer Build to Test lit')
                 self.check('M13', self.part('Build', 'Test', '.o_tl_arrow_remove_ring'), scheme,
