@@ -485,6 +485,13 @@ tours.add("timeline_002c_a11_phone", {
     ],
 });
 
+/** A click on a range button: the data load again half a second later (the step delay). */
+async function step(selector) {
+    $(selector).click();
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await gridSettled();
+}
+
 // A13: one step forward keeps "Build" loaded and the arrow; two steps load "Test" but not "Build"
 // (no arrow for "Test"); the search clause runs at rest
 tours.add("timeline_002c_a13_next_range", {
@@ -495,12 +502,15 @@ tours.add("timeline_002c_a13_next_range", {
             async run() {
                 await gridSettled();
                 assert(arrowBetween("Build", "Test"), "the arrow Build to Test at rest");
-                $(".o_tl_next").click();
-                await gridSettled();
+                await step(".o_tl_next");
                 assert(pillNamed("Build"), "Build is still loaded after one step");
                 assert(arrowBetween("Build", "Test"), "the arrow Build to Test stays after one step");
-                $(".o_tl_next").click();
-                await gridSettled();
+            },
+        },
+        {
+            trigger: ".o_tl_arrow",
+            async run() {
+                await step(".o_tl_next");
                 assert(!pillNamed("Build"), "Build is not loaded after two steps");
                 const test = await until(() => pillNamed("Test"), "Test is loaded after two steps");
                 // scroll the grid to the start of "Test"
@@ -511,21 +521,35 @@ tours.add("timeline_002c_a13_next_range", {
                     arrows().every((a) => !a.dataset.arrow.includes(`|${idOf("Test")}`)),
                     "no arrow for Test"
                 );
-                $(".o_tl_previous").click();
-                await gridSettled();
-                $(".o_tl_previous").click();
-                await gridSettled();
+            },
+        },
+        {
+            trigger: ".o_tl_pill",
+            async run() {
+                await step(".o_tl_previous");
+                await step(".o_tl_previous");
                 assert(arrows().length === 3, `three arrows again, got ${arrows().length}`);
+            },
+        },
+        {
+            trigger: ".o_searchview_input",
+            async run() {
                 // the search keeps only "Build" and "Test": their arrow remains, the others go
-                const input = $(".o_searchview_input");
                 for (const word of ["Build", "Test"]) {
+                    const input = $(".o_searchview_input");
                     input.focus();
                     input.value = word;
-                    input.dispatchEvent(new InputEvent("input", { bubbles: true, data: word }));
+                    input.dispatchEvent(new Event("input", { bubbles: true }));
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                    // the suggestions of the search bar render after the input
+                    await new Promise((resolve) => setTimeout(resolve, 500));
                     input.dispatchEvent(
                         new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })
                     );
-                    await until(() => $$(".o_searchview_facet").length > 0, `the facet of ${word}`);
+                    await until(
+                        () => $$(".o_searchview_facet").some((f) => f.textContent.includes(word)),
+                        `the facet of ${word}`
+                    );
                     await gridSettled();
                 }
                 await until(() => pillNamed("Test") && !pillNamed("Design"), "the search to apply");
