@@ -55,13 +55,21 @@
 // a line: 4 px above and below its text, grabbed to be dragged; the handle is grey, darker
 // under the pointer and while the line is dragged (M31 to M33, M39)
 .o_tl_panel_line {
+    // a block of inline content: the line cuts what runs past its end with an ellipsis, the
+    // name's own box keeping the width of its whole text (002c R1, A3)
+    display: block;
     padding: 4px 0;
     min-height: 29px;
+    // the copy that follows the pointer (M41) is a flex row of the same class
     align-items: flex-start;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     cursor: grab;
 
     .o_tl_panel_handle {
-        flex: none;
+        display: inline-block;
+        vertical-align: top;
         position: relative;
         top: 3px;
         font-size: 14px;
@@ -77,13 +85,11 @@
         color: $o-tl-panel-handle-hover;
     }
 
-    // the name reaches the line's end, cut with an ellipsis (the text-truncate class), its
-    // click opens the record
+    // the name is as wide as its text, and runs past the line's end when longer; only the name has
+    // the hand, a click anywhere on the line opens the record and a press anywhere drags it
     .o_tl_panel_name {
-        flex: 1 1 auto;
-        min-width: 0;
         position: relative;
-        top: 2px;
+        top: 0;
         padding-left: 4px;
         line-height: 16px;
         cursor: pointer;

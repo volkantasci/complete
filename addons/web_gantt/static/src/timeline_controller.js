@@ -22,9 +22,11 @@ import { useSearchBarToggler } from "@web/search/search_bar/search_bar_toggler";
 import { standardViewProps } from "@web/views/standard_view_props";
 import { fixCustomDates } from "./timeline_dates";
 import { TimelineEditor } from "./timeline_editor";
+import { TimelineRescheduleMenu } from "./timeline_reschedule_menu";
 import { TimelineSelectionButtons } from "./timeline_selection_buttons";
 import { newButtonPeriod } from "./timeline_editing";
 import { buildMultiCreateValues } from "./timeline_multi_create";
+import { readShowConnectors } from "./timeline_dependency_prefs";
 import { hasSidePanel, panelTitleText } from "./timeline_side_panel";
 
 const KIND_LABELS = {
@@ -74,6 +76,7 @@ export class TimelineController extends Component {
         DropdownItem,
         Layout,
         SearchBar,
+        TimelineRescheduleMenu,
         TimelineSelectionButtons,
     };
     props = useProps({
@@ -109,6 +112,11 @@ export class TimelineController extends Component {
             state: proxy({ count: 0, cellCount: 0, drawing: false, visible: false }),
             renderer: null,
         };
+        // the switch "Show dependencies" (002c R13), kept per view and action; the renderer draws
+        // the arrows by it (`shown`), the menu of the method button toggles it
+        this.dependencies = proxy({
+            shown: readShowConnectors(this.env.config.viewId, this.env.config.actionId),
+        });
         // Escape is registered twice: by the renderer (cells picked, no drawing held) and by the
         // Community buttons (while they show); both call `clearPicked`, which is idempotent, so
         // the order they are reached in does not matter
@@ -283,6 +291,21 @@ export class TimelineController extends Component {
     /** The range shown in the bar: the target of a pending step, else the loaded one. */
     get shownRange() {
         return this.data.pendingRange || this.data.range;
+    }
+
+    /**
+     * The method button and its menu exist (002c R14, R4, R25): a dependency field, no sample
+     * data, no phone; the edit permission is not needed. The method a move reads is
+     * `rescheduleMethod` (the model's, which takes a choice when the delayed reload runs).
+     */
+    get hasRescheduleMenu() {
+        return (
+            Boolean(this.props.archInfo.dependencyField) && !this.data.isSample && !this.ui.isSmall
+        );
+    }
+
+    get rescheduleMethod() {
+        return this.model.rescheduleMethod;
     }
 
     /** The side panel and its button exist (002b3 R17); none on a phone. */

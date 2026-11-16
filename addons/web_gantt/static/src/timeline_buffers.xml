@@ -1,0 +1,11 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <!-- The buffer band of a pill (002c R22), called inside the pill loop of the renderer with
+         `pill` and `row` in scope. The place box has the pill's box; the band, in the pill's colour class, is centred in it. -->
+    <t t-name="web_gantt.TimelineBufferBand">
+        <div t-if="pill.buffer" class="o_tl_buffer_place" t-att-class="this.bufferClass(pill, row)" t-att-style="pill.buffer.style" t-att-data-pill-id="pill.id">
+            <div class="o_tl_buffer_band" t-att-class="pill.buffer.className"/>
+        </div>
+    </t>
+</templates>

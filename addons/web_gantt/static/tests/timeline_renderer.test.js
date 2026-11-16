@@ -161,8 +161,8 @@ test("A36: the year is added to a week of another year", async () => {
     await applyCustom("12/28/2026", "01/10/2027");
     expect(groups().map((el) => el.textContent)).toEqual([
         "Week 53, Dec 27 - Jan 2",
-        "Week 1, Jan 3, 2027 - Jan 9, 2027",
-        "Week 2, Jan 10, 2027 - Jan 16, 2027",
+        "Week 1, Jan 3 - Jan 9 2027",
+        "Week 2, Jan 10 - Jan 16 2027",
     ]);
 });
 

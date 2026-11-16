@@ -792,6 +792,185 @@
         <field name="context">{'group_by': ['parent_id', 'create_uid']}</field>
     </record>
 
+    <record id="host_action_h51" model="ir.actions.act_window">
+        <field name="name">H51 Schedule, date filter</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="domain">[('date_start', '&gt;', '2026-11-01 00:00:00')]</field>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h52" model="ir.actions.act_window">
+        <field name="name">H52 Schedule, date filter or name</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="domain">['|', ('date_start', '&gt;', '2026-11-01 00:00:00'), ('name', '=', 'Alpha')]</field>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h53" model="ir.actions.act_window">
+        <field name="name">H53 Schedule, negated date filter</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h36"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="domain">['!', ('date_stop', '=', False)]</field>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_view_h42" model="ir.ui.view">
+        <field name="name">H42 Dependencies by parent</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field"/>
+        </field>
+    </record>
+
+    <record id="host_view_h44" model="ir.ui.view">
+        <field name="name">H44 Buffers by parent</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field" buffer_start="x_buffer_before" buffer_stop="x_buffer_after"/>
+        </field>
+    </record>
+
+    <record id="host_view_h45" model="ir.ui.view">
+        <field name="name">H45 Dated dependencies</field>
+        <field name="model">test.web.gantt.pill2</field>
+        <field name="arch" type="xml">
+            <gantt string="Dated pills" date_start="date_start" date_stop="date_stop" default_range="week" dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field"/>
+        </field>
+    </record>
+
+    <record id="host_view_h48" model="ir.ui.view">
+        <field name="name">H48 Dependencies and multi</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field" multi_create_view="test_web_gantt.host_form_template_one"/>
+        </field>
+    </record>
+
+    <record id="host_view_h49" model="ir.ui.view">
+        <field name="name">H49 Dependencies read only</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field" edit="0"/>
+        </field>
+    </record>
+
+    <record id="host_view_h50" model="ir.ui.view">
+        <field name="name">H50 Dependencies sample</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" default_range="week" sample="1" date_start="date_start" date_stop="date_stop" dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field"/>
+        </field>
+    </record>
+
+    <record id="host_view_h54" model="ir.ui.view">
+        <field name="name">H54 Dependencies explicit edit</field>
+        <field name="model">test.web.gantt.pill</field>
+        <field name="arch" type="xml">
+            <gantt string="Pills" date_start="date_start" date_stop="date_stop" default_range="week" color="x_color" dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field" edit="1"/>
+        </field>
+    </record>
+
+    <record id="host_action_h42" model="ir.actions.act_window">
+        <field name="name">H42 Dependencies by parent</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h42"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h43" model="ir.actions.act_window">
+        <field name="name">H43 Dependencies by tags</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h42"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['x_tags']}</field>
+    </record>
+
+    <record id="host_action_h44" model="ir.actions.act_window">
+        <field name="name">H44 Buffers by parent</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h44"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h45" model="ir.actions.act_window">
+        <field name="name">H45 Dated dependencies</field>
+        <field name="res_model">test.web.gantt.pill2</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h45"/>
+        <field name="context">{}</field>
+    </record>
+
+    <record id="host_action_h46" model="ir.actions.act_window">
+        <field name="name">H46 Rescheduling</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h42"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'initialDate': '2030-06-12 06:00:00'}</field>
+    </record>
+
+    <record id="host_action_h47" model="ir.actions.act_window">
+        <field name="name">H47 Dated rescheduling</field>
+        <field name="res_model">test.web.gantt.pill2</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h45"/>
+        <field name="context">{'initialDate': '2030-06-12 06:00:00'}</field>
+    </record>
+
+    <record id="host_action_h48" model="ir.actions.act_window">
+        <field name="name">H48 Dependencies and multi</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h48"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h49" model="ir.actions.act_window">
+        <field name="name">H49 Dependencies read only</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h49"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
+    <record id="host_action_h50" model="ir.actions.act_window">
+        <field name="name">H50 Dependencies sample</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h50"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{}</field>
+        <field name="domain">[('name', '=', 'no record has this name')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing is scheduled yet</p>
+            <p>Records with a start and a stop will show up here as bars on the timeline.</p>
+        </field>
+    </record>
+
+    <record id="host_action_h54" model="ir.actions.act_window">
+        <field name="name">H54 Dependencies explicit edit</field>
+        <field name="res_model">test.web.gantt.pill</field>
+        <field name="view_mode">gantt,list,form</field>
+        <field name="view_id" ref="host_view_h54"/>
+        <field name="search_view_id" ref="host_view_h13"/>
+        <field name="context">{'group_by': ['parent_id']}</field>
+    </record>
+
     <menuitem id="host_menu_root" name="Gantt Host" sequence="900" groups="base.group_user"/>
     <menuitem id="host_menu_h1" name="H1 Main" parent="host_menu_root" action="host_action_h1" sequence="1"/>
     <menuitem id="host_menu_h2" name="H2 Main by parent" parent="host_menu_root" action="host_action_h2" sequence="2"/>
@@ -833,4 +1012,17 @@
     <menuitem id="host_menu_h39" name="H39 Schedule without edit" parent="host_menu_root" action="host_action_h39" sequence="39"/>
     <menuitem id="host_menu_h40" name="H40 Multi create and schedule" parent="host_menu_root" action="host_action_h40" sequence="40"/>
     <menuitem id="host_menu_h41" name="H41 Schedule by parent and creator" parent="host_menu_root" action="host_action_h41" sequence="41"/>
+    <menuitem id="host_menu_h51" name="H51 Schedule, date filter" parent="host_menu_root" action="host_action_h51" sequence="51"/>
+    <menuitem id="host_menu_h52" name="H52 Schedule, date filter or name" parent="host_menu_root" action="host_action_h52" sequence="52"/>
+    <menuitem id="host_menu_h53" name="H53 Schedule, negated date filter" parent="host_menu_root" action="host_action_h53" sequence="53"/>
+    <menuitem id="host_menu_h42" name="H42 Dependencies by parent" parent="host_menu_root" action="host_action_h42" sequence="42"/>
+    <menuitem id="host_menu_h43" name="H43 Dependencies by tags" parent="host_menu_root" action="host_action_h43" sequence="43"/>
+    <menuitem id="host_menu_h44" name="H44 Buffers by parent" parent="host_menu_root" action="host_action_h44" sequence="44"/>
+    <menuitem id="host_menu_h45" name="H45 Dated dependencies" parent="host_menu_root" action="host_action_h45" sequence="45"/>
+    <menuitem id="host_menu_h46" name="H46 Rescheduling" parent="host_menu_root" action="host_action_h46" sequence="46"/>
+    <menuitem id="host_menu_h47" name="H47 Dated rescheduling" parent="host_menu_root" action="host_action_h47" sequence="47"/>
+    <menuitem id="host_menu_h48" name="H48 Dependencies and multi" parent="host_menu_root" action="host_action_h48" sequence="48"/>
+    <menuitem id="host_menu_h49" name="H49 Dependencies read only" parent="host_menu_root" action="host_action_h49" sequence="49"/>
+    <menuitem id="host_menu_h50" name="H50 Dependencies sample" parent="host_menu_root" action="host_action_h50" sequence="50"/>
+    <menuitem id="host_menu_h54" name="H54 Dependencies explicit edit" parent="host_menu_root" action="host_action_h54" sequence="54"/>
 </odoo>

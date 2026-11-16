@@ -15,7 +15,7 @@
         <div class="o_tl_frame" t-att-class="{ o_tl_with_panel: this.hasPanel }">
         <div class="o_tl_box" t-att-class="{ o_tl_box_sample: layout.isSample }">
             <div class="o_tl_renderer" t-ref="this.rendererRef" t-att-data-scale="this.data.scaleId" t-on-scroll="this.onScroll" t-on-pointerdown="this.onGridPointerDown">
-                <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample, o_tl_multi: this.isMultiSelect }" t-attf-style="grid-template-columns: {{layout.template}}">
+                <div class="o_tl_grid" t-att-class="{ o_tl_with_row_headers: layout.hasRowHeaders, o_tl_sample_grid: layout.isSample, o_tl_multi: this.isMultiSelect, o_tl_arrows_off: !this.arrowsShown }" t-attf-style="grid-template-columns: {{layout.template}}">
                     <div t-if="layout.hasRowHeaders" class="o_tl_title_cell"><span class="o_tl_title_text text-truncate" t-out="this.props.archInfo.title"/></div>
                     <t t-foreach="layout.groups" t-as="group" t-key="group_index">
                         <div class="o_tl_col_group" t-att-title="group.title" t-att-style="group.style"><span class="o_tl_col_group_label" t-out="group.label"/></div>
@@ -63,16 +63,19 @@
                             </div>
                             <div t-if="row.kind === 'pills'" class="o_tl_pills">
                                 <t t-foreach="row.pills" t-as="pill" t-key="pill.key">
-                                    <div class="o_tl_pill" t-att-class="this.pillClass(pill, row)" t-att-style="this.pillStyle(pill, row)" t-att-data-pill-id="pill.id" t-on-mouseenter="() => this.onPillEnter(pill, row)" t-on-mouseleave="this.onPillLeave" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-click="(ev) => this.onPillClick(ev, pill)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
+                                    <t t-call="web_gantt.TimelineBufferBand"/>
+                                    <div class="o_tl_pill" t-att-class="this.pillClass(pill, row)" t-att-style="this.pillStyle(pill, row)" t-att-data-pill-id="pill.id" t-on-mouseenter="() => this.onPillEnter(pill, row)" t-on-mouseleave="(ev) => this.onPillLeave(pill, row, ev)" t-on-pointerdown="(ev) => this.onPillPointerDown(ev, pill, row)" t-on-click="(ev) => this.onPillClick(ev, pill, row)" t-on-dblclick="(ev) => this.onPillDoubleClick(ev, pill)">
                                         <div t-if="pill.progress" class="o_tl_pill_progress" t-attf-style="width: {{pill.progress}}%"/>
                                         <span class="o_tl_pill_title" t-out="pill.label"/>
                                         <span t-if="pill.mark" class="o_tl_pill_mark" t-att-class="`o_tl_mark_${pill.mark}`"/>
                                         <div t-foreach="this.handlesOf(pill, row)" t-as="handle" t-key="handle.edge" class="o_tl_handle" t-att-class="`o_tl_handle_${handle.edge} o_tl_handle_${handle.side}`" t-att-data-edge="handle.edge"/>
                                     </div>
+                                    <t t-call="web_gantt.TimelineConnectHandles"/>
                                 </t>
                             </div>
                         </div>
                     </t>
+                    <TimelineArrowLayer t-if="this.arrows.enabled" arrows="this.arrows"/>
                     <t t-set="ghost" t-value="this.dragGhost"/>
                     <t t-if="ghost">
                         <div t-if="!ghost.locked" class="o_tl_pill_faded" t-att-style="ghost.originStyle">

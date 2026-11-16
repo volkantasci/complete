@@ -348,23 +348,57 @@ test("002b3 A44: a name search narrows the list", async () => {
 });
 
 test.tags("desktop");
-test("002b3 A44: R19.1 strips the date conditions of the search, not those of the action's domain", async () => {
+test("002b3 A44: R19.1 strips the date conditions of the search; 002c R2 also those of the action's domain", async () => {
     const reads = watchLists();
     await mountPanel(HOST_ARCHS.H36, {
-        domain: [["date_stop", "!=", "1999-01-01"]],
+        domain: [["date_stop", "!=", "1999-01-01"], ["name", "!=", "Nobody"]],
         searchViewArch: `<search>
             <filter name="late" string="Late" domain="[('date_start', '&gt;', '2000-01-01')]"/>
         </search>`,
     });
     const listRead = () => reads.filter(({ kwargs }) => kwargs.limit === 20).at(-1).domain;
-    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(true);
+    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(false);
+    expect(JSON.stringify(listRead()).includes("Nobody")).toBe(true);
     await toggleSearchBarMenu();
     await toggleMenuItem("Late");
     await advanceTime(600);
     await animationFrame();
-    // the action's condition on the stop stays, the search's condition on the start is gone
-    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(true);
+    expect(JSON.stringify(listRead()).includes("1999-01-01")).toBe(false);
     expect(JSON.stringify(listRead()).includes("2000-01-01")).toBe(false);
+    expect(JSON.stringify(listRead()).includes("Nobody")).toBe(true);
+});
+
+test.tags("desktop");
+test("002c A4: a date condition joined by and in the action's filter is removed", async () => {
+    const reads = watchLists();
+    await mountPanel(HOST_ARCHS.H36, { domain: [["date_start", ">", "2026-11-01 00:00:00"]] });
+    expect(reads.at(-1).domain).toEqual(["&", ["date_start", "=", false], ["date_stop", "=", false]]);
+    expect(".o_tl_panel_title").toHaveText("Unscheduled: 4");
+    expect(names()).toEqual(["Alpha", "Beta", "Gamma", "Unscheduled"]);
+});
+
+test.tags("desktop");
+test("002c A5: a date condition under or in the action's filter leaves the other side", async () => {
+    const reads = watchLists();
+    await mountPanel(HOST_ARCHS.H36, {
+        domain: ["|", ["date_start", ">", "2026-11-01 00:00:00"], ["name", "=", "Alpha"]],
+    });
+    expect(reads.at(-1).domain).toEqual([
+        "&",
+        ["name", "=", "Alpha"],
+        "&",
+        ["date_start", "=", false],
+        ["date_stop", "=", false],
+    ]);
+    expect(names()).toEqual(["Alpha"]);
+    expect(".o_tl_panel_title").toHaveText("Unscheduled: 1");
+});
+
+test.tags("desktop");
+test("002c A6: a negated date condition in the action's filter lists the undated records", async () => {
+    await mountPanel(HOST_ARCHS.H36, { domain: ["!", ["date_stop", "=", false]] });
+    expect(".o_tl_panel_title").toHaveText("Unscheduled: 4");
+    expect(names()).toEqual(["Alpha", "Beta", "Gamma", "Unscheduled"]);
 });
 
 test.tags("desktop");
@@ -637,9 +671,45 @@ test("002b3 R19: lines cut long names with an ellipsis and keep the full name as
     const name = queryAll(".o_tl_panel_name")[3];
     expect(name).toHaveText(long);
     expect(name).toHaveAttribute("title", long);
-    expect(name).toHaveStyle({ textOverflow: "ellipsis", overflowX: "hidden", whiteSpace: "nowrap" });
-    expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
-    expect(queryRect(queryAll(".o_tl_panel_line")[3]).height).toBe(29);
+    // 002c R1: the line draws the ellipsis and cuts the name, whose box keeps its whole width
+    const line = queryAll(".o_tl_panel_line")[3];
+    expect(line).toHaveStyle({ textOverflow: "ellipsis", overflowX: "hidden", whiteSpace: "nowrap" });
+    expect(line.scrollWidth).toBeGreaterThan(line.clientWidth);
+    expect(queryRect(line).height).toBe(29);
+});
+
+test.tags("desktop");
+test("002c A1: the name is only as wide as its text", async () => {
+    await mountPanel();
+    const line = queryAll(".o_tl_panel_line")[3];
+    const name = queryAll(".o_tl_panel_name")[3];
+    expect(name).toHaveText("Unscheduled");
+    expect(queryRect(name).width).toBeLessThan(queryRect(line).width - 60);
+    expect(queryRect(name).height).toBe(16);
+    // the handle icon's width is 14.016 px with the font loaded: the probe's value
+    expect(Math.abs(queryRect(name).left - queryRect(line).left - 14)).toBeLessThan(0.1);
+    expect(name).toHaveStyle({ cursor: "pointer" });
+    expect(line).toHaveStyle({ cursor: "grab" });
+});
+
+test.tags("desktop");
+test("002c A3: a long name is cut with an ellipsis", async () => {
+    await mountPanel();
+    const long = "A very long name of a record that cannot fit into the narrow panel of the view";
+    const record = pill("Unscheduled");
+    record.name = long;
+    record.display_name = long;
+    await controller.model.reload();
+    await animationFrame();
+    const line = queryAll(".o_tl_panel_line")[3];
+    const name = queryAll(".o_tl_panel_name")[3];
+    // the name's box keeps the width of its whole text and runs past the line's end; the line
+    // cuts it and draws the ellipsis (R1, A3)
+    expect(name).toHaveStyle({ cursor: "pointer" });
+    expect(line).toHaveStyle({ textOverflow: "ellipsis", overflowX: "hidden" });
+    expect(queryRect(name).right).toBeGreaterThan(queryRect(line).right + 20);
+    expect(queryRect(name).width).toBeGreaterThan(queryRect(line).width);
+    expect(line.scrollWidth).toBeGreaterThan(line.clientWidth);
 });
 
 // -- resizing by the strip (R20, A55) ---------------------------------------------------------

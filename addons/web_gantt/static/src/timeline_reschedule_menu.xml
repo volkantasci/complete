@@ -1,0 +1,26 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="web_gantt.TimelineRescheduleMenu">
+        <Dropdown state="this.state" menuClass="'o_tl_reschedule_menu'">
+            <button type="button" class="btn btn-secondary o_tl_reschedule_button">
+                <span class="o_tl_reschedule_label" t-out="this.chosenLabel"/>
+                <i class="oi o_tl_reschedule_caret" t-att-data-icon="this.state.isOpen ? 'arrow_drop_up' : 'arrow_drop_down'"/>
+            </button>
+            <t t-set-slot="content">
+                <DropdownItem t-foreach="this.methods" t-as="item" t-key="item.method"
+                    class="`o_tl_reschedule_item o_tl_reschedule_${item.method} ${item.method === this.props.model.chosenMethod ? 'selected' : ''}`"
+                    onSelected="() => this.chooseMethod(item.method)">
+                    <i t-if="item.method === this.props.model.chosenMethod" class="oi o_tl_check" data-icon="check"/>
+                    <span t-out="item.label"/>
+                </DropdownItem>
+                <div class="dropdown-divider" role="separator"/>
+                <DropdownItem class="`o_tl_dependencies_item ${this.props.dependencies.shown ? 'selected' : ''}`"
+                    onSelected="() => this.toggleDependencies()">
+                    <i t-if="this.props.dependencies.shown" class="oi o_tl_check" data-icon="check"/>
+                    <span>Show dependencies</span>
+                </DropdownItem>
+            </t>
+        </Dropdown>
+    </t>
+</templates>

@@ -1,0 +1,187 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The drawing handles of a pill (002c R11, S2, M15 to M19) and the line drawn from one (R12, M22,
+// M23). The handles lie beside the pill's body (which clips its content): the wrapper has the
+// body's place and size, the two handles hang from it, one above the leading end, one below the
+// other end. The wrapper carries the pill's colour class only for the custom property that class
+// sets (`--o-tl-pill-color`); its background is taken away.
+.o_tl_renderer .o_tl_grid .o_tl_connect {
+    position: absolute;
+    box-sizing: border-box;
+    height: $o-tl-pill-height;
+    background: none;
+    pointer-events: none;
+    // over the pills at rest (10), under the source pill's own handles and the lit arrows (20)
+    z-index: 12;
+
+    &.o_tl_connect_source {
+        z-index: 16;
+    }
+}
+
+// The strips (R11, M52, M53): 11 px tall above and below the body, as wide as the pill's outer box, in which the
+// pill stays under the pointer. They lie in the wrapper, over the neighbouring pills (10), under
+// the lit arrows (20) and the column headers, and take the pointer only while the pill is under it
+// (the wrapper exists only then). The pointer there is the default arrow.
+.o_tl_connect_strip {
+    position: absolute;
+    inset-inline-start: 0;
+    // as wide as the pill's outer box (the body and its 1 px inset on the trailing side, M52, M53)
+    width: calc(100% + 2px);
+    height: 11px;
+    cursor: default;
+    pointer-events: auto;
+
+    // above and below the pill's outer box: the body plus the 1 px inset around it
+    &.o_tl_connect_strip_above {
+        bottom: calc(100% + 1px);
+    }
+
+    &.o_tl_connect_strip_below {
+        top: calc(100% + 1px);
+    }
+}
+
+// the source of a drawing lies over the other pills (S4)
+.o_tl_pill.o_tl_pill_source {
+    z-index: 15;
+}
+
+.o_tl_connect_handle {
+    position: absolute;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    cursor: grab;
+    user-select: none;
+    // a finger on the handle draws; it neither scrolls the page nor starts a long press
+    touch-action: none;
+    pointer-events: auto;
+
+    // 8 x 8 px corner line: 1 px in the pill's colour on two sides, over a 3 px halo in the cell
+    // background shifted 2 px towards the corner (M18, M19)
+    .o_tl_connect_halo,
+    .o_tl_connect_corner {
+        position: absolute;
+        box-sizing: border-box;
+        width: 8px;
+        height: 8px;
+        inset-inline-start: 0;
+        border: 0 solid transparent;
+    }
+
+    .o_tl_connect_corner {
+        border-inline-start: 1px solid var(--o-tl-pill-color);
+    }
+
+    .o_tl_connect_halo {
+        border-inline-start: 3px solid $o-view-background-color;
+    }
+
+    // the dot: 6 px, round, in the pill's colour, outlined in the cell background (M16)
+    .o_tl_connect_dot {
+        position: absolute;
+        box-sizing: border-box;
+        top: 5px;
+        inset-inline-start: 5px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: var(--o-tl-pill-color);
+        outline: 1px solid $o-view-background-color;
+    }
+}
+
+// the start handle: above the leading end of the body; the dot stands to the leading side and its
+// corner line, on the trailing side of the dot, drops to the body
+.o_tl_connect_handle.o_tl_connect_start {
+    inset-inline-start: 0;
+    top: -16px;
+
+    .o_tl_connect_halo,
+    .o_tl_connect_corner {
+        top: 7px;
+        inset-inline-start: 8px;
+        border-inline-start: 0 solid transparent;
+    }
+
+    .o_tl_connect_corner {
+        border-top: 1px solid var(--o-tl-pill-color);
+        border-inline-end: 1px solid var(--o-tl-pill-color);
+    }
+
+    .o_tl_connect_halo {
+        border-top: 3px solid $o-view-background-color;
+        border-inline-end: 3px solid $o-view-background-color;
+        transform: translate(2px, -2px);
+    }
+}
+
+// the end handle: below the other end, its corner line dropping from the body
+.o_tl_connect_handle.o_tl_connect_stop {
+    inset-inline-end: -2px;
+    top: 100%;
+
+    .o_tl_connect_halo,
+    .o_tl_connect_corner {
+        top: 1px;
+    }
+
+    .o_tl_connect_corner {
+        border-bottom: 1px solid var(--o-tl-pill-color);
+    }
+
+    .o_tl_connect_halo {
+        border-bottom: 3px solid $o-view-background-color;
+        transform: translate(-2px, 2px);
+    }
+}
+
+// a mirrored grid: the shift of the halos swaps sides
+.o_tl_renderer:dir(rtl) .o_tl_connect_handle {
+    &.o_tl_connect_start .o_tl_connect_halo {
+        transform: translate(-2px, -2px);
+    }
+
+    &.o_tl_connect_stop .o_tl_connect_halo {
+        transform: translateX(2px) translateY(2px);
+    }
+}
+
+// The line being drawn (M22): grey at full opacity, in the layer of the arrows, never catching the
+// pointer.
+.o_tl_connect_line {
+    position: absolute;
+    z-index: 20;
+    overflow: hidden;
+    pointer-events: none;
+
+    path {
+        fill: none;
+        pointer-events: none;
+        stroke-linejoin: round;
+    }
+
+    .o_tl_connect_path {
+        stroke: rgba(143, 143, 143, 1);
+        stroke-width: 2;
+    }
+
+    .o_tl_connect_head {
+        fill: rgba(143, 143, 143, 1);
+        stroke: rgba(143, 143, 143, 1);
+        stroke-width: 1;
+        stroke-linejoin: round;
+    }
+}
+
+// While a line is drawn (M23): the closed hand over the whole view
+.o_timeline_view.o_tl_dragging.o_tl_drag_connect {
+    &,
+    * {
+        cursor: grabbing !important; // stylelint-disable-line declaration-no-important
+    }
+}

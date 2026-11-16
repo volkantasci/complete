@@ -128,6 +128,16 @@ export function parseTimelineArch(xmlDoc, fields = {}) {
             extraNames.add(name);
         }
     }
+    // 002c: dependency links and buffer fields are read with the records
+    const dependencyField = attr("dependency_field") || null;
+    const dependencyInvertedField = attr("dependency_inverted_field") || null;
+    const bufferBeforeField = attr("buffer_start") || null;
+    const bufferAfterField = attr("buffer_stop") || null;
+    for (const name of [dependencyField, dependencyInvertedField, bufferBeforeField, bufferAfterField]) {
+        if (name) {
+            extraNames.add(name);
+        }
+    }
     if ("allocated_hours" in fields) {
         extraNames.add("allocated_hours");
     }
@@ -170,6 +180,10 @@ export function parseTimelineArch(xmlDoc, fields = {}) {
         multiCreateView: attr("multi_create_view") || "",
         canSchedule: exprToBoolean(attr("schedule"), false),
         popover,
+        dependencyField,
+        dependencyInvertedField,
+        bufferBeforeField,
+        bufferAfterField,
         extraFieldNames: [...extraNames],
         // read by the controller and the model
         sample: exprToBoolean(attr("sample"), false),

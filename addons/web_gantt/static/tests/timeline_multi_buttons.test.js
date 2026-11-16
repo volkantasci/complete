@@ -497,16 +497,14 @@ function foldTwoDays() {
     };
 }
 
-test("002b3 A6: a click on a folded cell of the total row does nothing in the mode", async () => {
+// 002c R3 replaced 002b3's "does nothing" for this cell: the total row's folded cell opens the run
+test("002b3 A6 (changed by 002c R3): a click on a folded cell of the total row opens the run", async () => {
     foldTwoDays();
     await mountMulti(FOLD_ATTRS, FOLD_MOUNT);
     expect(".o_tl_col.o_tl_folded").toHaveCount(1);
-    const folded = queryOne(".o_tl_total_row .o_tl_folded_cell");
-    const columns = queryAll(".o_tl_col").length;
-    await click(folded);
+    await click(queryOne(".o_tl_total_row .o_tl_folded_cell"));
     await animationFrame();
-    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
-    expect(queryAll(".o_tl_col")).toHaveLength(columns);
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
     expect(pickedCells()).toHaveCount(0);
 });
 

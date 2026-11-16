@@ -73,3 +73,8 @@ $o-tl-panel-handle-hover: #666666 !default;
 
 // The Load more button of the panel (M53): a zero-size black shadow, black in both schemes.
 $o-tl-panel-more-shadow: 0 0 0 0 rgba(0, 0, 0, 1) !default;
+
+// The remove button of an arrow (R10, M13): its ring is dark blue in the light scheme (grey 500 in
+// the dark one, see the dark file); its cross and its fill under the pointer are red.
+$o-tl-arrow-ring: #091124 !default;
+$o-tl-arrow-cross: #DD3C4F !default;

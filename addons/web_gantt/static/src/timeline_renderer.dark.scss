@@ -5,6 +5,7 @@
 // indexes keep the colours the palette gives in both schemes.
 .o_tl_renderer .o_tl_color_0 {
     background-color: $o-gray-700;
+    --o-tl-pill-color: #{$o-gray-700};
 
     .o_tl_pill_progress {
         background-color: darken($o-gray-700, 30%);

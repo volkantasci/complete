@@ -691,7 +691,7 @@ test("002b M1/M2 structure: highlight border sides and badge height/padding", as
     expect(highlight.boxShadow).toBe("none");
     // under the pills
     expect(Number(getComputedStyle(queryOne(".o_tl_selection_layer")).zIndex)).toBeLessThan(
-        Number(getComputedStyle(queryAll(".o_tl_pills")[0]).zIndex)
+        Number(getComputedStyle(queryAll(".o_tl_pill")[0]).zIndex)
     );
 
     const selection = selectionRect();

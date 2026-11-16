@@ -122,6 +122,7 @@ class TimelineHostPill(models.Model):
             'parent_id': False, 'x_contact': False, 'x_color': 0, 'x_progress': 0,
             'x_tags': [(6, 0, [])], 'x_flagged': False, 'x_done': False, 'x_day': False,
             'date_start': False, 'date_stop': False,
+            'x_buffer_before': 0, 'x_buffer_after': 0, 'dependency_field': [(6, 0, [])],
         }
         built = {}
         palette = ((200, 60, 60), (60, 160, 90), (60, 100, 200))
@@ -152,6 +153,7 @@ class TimelineHostPill(models.Model):
             ('Wrong order', 'Beta', None, (3, '18:00'), (3, '09:00'), 10, 0, (), {}),
             ('Unscheduled', 'Beta', None, None, None, 0, 0, (), {}),
         ]
+        buffers = {'Design': (24, 12), 'Review': (12, 24)}
         for name, parent, contact, start, stop, color, progress, tags, extra in rows:
             values = {
                 **neutral,
@@ -166,7 +168,12 @@ class TimelineHostPill(models.Model):
                 'x_tags': [(6, 0, [built[tag].id for tag in tags])],
             }
             values.update(extra)
+            if name in buffers:
+                values['x_buffer_before'], values['x_buffer_after'] = buffers[name]
             built[name] = put(self._name, values)
+        # dependency links of 002c: the record on the left blocks the record on the right
+        for blocker, blocked in (('Design', 'Build'), ('Build', 'Test'), ('Review', 'Overlap A')):
+            built[blocked].dependency_field = [(6, 0, [built[blocker].id])]
         # H14 and H15: the first and last displayed days of the week range of today (the week
         # starts on Sunday, as in US English), and the days around them; 10:00 to 12:00 UTC
         first_day = today - timedelta(days=(today.weekday() + 1) % 7 + 7)
@@ -199,6 +206,48 @@ class TimelineHostPill(models.Model):
                 'date_start': today + timedelta(days=first),
                 'date_stop': today + timedelta(days=last),
             })
+        built['Day one'].dependency_field = [(6, 0, [built['Three days'].id])]
+        return built
+
+    _TL_RESCHEDULE_NAMES = ('Chain A', 'Chain B', 'Chain C', 'Loop 1', 'Loop 2')
+
+    @api.model
+    def _tl_drop_reschedule_records(self):
+        """Delete the prepared records of H46 and H47 (both models) by their names."""
+        for model in (self._name, 'test.web.gantt.pill2'):
+            self.env[model].sudo().with_context(active_test=False).search(
+                [('name', 'in', list(self._TL_RESCHEDULE_NAMES))]).unlink()
+
+    @api.model
+    def _tl_build_reschedule_records(self):
+        """Create the prepared records of H46 and H47 (June 2030, UTC); return them by name.
+
+        The dict holds the first model's records under their name and the second model's
+        two records under 'dated Chain A' and 'dated Chain B'. Leftovers are deleted first.
+        """
+        self._tl_drop_reschedule_records()
+        pills = self.with_user(self.env.ref('base.user_admin'))
+        built = {}
+        for name, start, stop, color in (
+            ('Chain A', '2030-06-10 06:00:00', '2030-06-10 14:00:00', 1),
+            ('Chain B', '2030-06-11 06:00:00', '2030-06-11 14:00:00', 2),
+            ('Chain C', '2030-06-12 06:00:00', '2030-06-13 14:00:00', 3),
+            ('Loop 1', '2030-06-14 06:00:00', '2030-06-14 10:00:00', 4),
+            ('Loop 2', '2030-06-14 11:00:00', '2030-06-14 14:00:00', 5),
+        ):
+            built[name] = pills.create({
+                'name': name, 'date_start': start, 'date_stop': stop, 'x_color': color})
+        built['Chain B'].dependency_field = [(6, 0, [built['Chain A'].id])]
+        built['Chain C'].dependency_field = [(6, 0, [built['Chain B'].id])]
+        built['Loop 2'].dependency_field = [(6, 0, [built['Loop 1'].id])]
+        built['Loop 1'].dependency_field = [(6, 0, [built['Loop 2'].id])]
+        dated = self.env['test.web.gantt.pill2'].with_user(self.env.ref('base.user_admin'))
+        first = dated.create({
+            'name': 'Chain A', 'date_start': '2030-06-10', 'date_stop': '2030-06-10'})
+        second = dated.create({
+            'name': 'Chain B', 'date_start': '2030-06-12', 'date_stop': '2030-06-12',
+            'dependency_field': [(6, 0, [first.id])]})
+        built['dated Chain A'], built['dated Chain B'] = first, second
         return built
 
 

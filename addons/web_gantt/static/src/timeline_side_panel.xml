@@ -11,9 +11,9 @@
                 <t t-else="">
                     <h6 class="o_tl_panel_title" t-out="this.title"/>
                     <div class="o_tl_panel_list">
-                        <div t-foreach="this.records" t-as="record" t-key="record.id" class="o_tl_panel_line d-flex" t-att-data-record-id="record.id" t-on-pointerdown="(ev) => this.onLinePointerDown(ev, record)" t-on-click="() => this.onLineClick(record)">
+                        <div t-foreach="this.records" t-as="record" t-key="record.id" class="o_tl_panel_line" t-att-data-record-id="record.id" t-on-pointerdown="(ev) => this.onLinePointerDown(ev, record)" t-on-click="() => this.onLineClick(record)">
                             <i class="oi o_tl_panel_handle" data-icon="drag_indicator"/>
-                            <span class="o_tl_panel_name text-truncate" t-att-title="record.display_name" t-out="record.display_name"/>
+                            <span class="o_tl_panel_name" t-att-title="record.display_name" t-out="record.display_name"/>
                         </div>
                     </div>
                     <button t-if="this.hasMore" type="button" class="o_tl_panel_more btn btn-link" t-on-click="this.onLoadMore">Load more</button>

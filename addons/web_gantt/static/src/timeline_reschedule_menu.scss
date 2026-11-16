@@ -1,0 +1,41 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// the method button: a secondary button whose label is the chosen method, then a caret, 5 px apart
+.o_timeline_view .o_tl_reschedule_button {
+    display: flex;
+    align-items: center;
+    column-gap: 5px;
+    font-weight: 500;
+
+    > .oi {
+        font-size: 14px;
+        flex: none;
+        width: 14px;
+        margin: 0;
+        vertical-align: 3.4px;
+    }
+}
+
+// the menu lines: the chosen method and the switch when on carry a check in the left padding
+.o_tl_reschedule_menu .dropdown-item {
+    position: relative;
+    padding: 3px 20px;
+    border-radius: 8px;
+    font-weight: 400;
+
+    &.selected {
+        font-weight: 500;
+        color: $o-black;
+    }
+
+    .o_tl_check {
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 14px;
+        font-size: 14px;
+        line-height: 21px;
+        color: $o-action;
+    }
+}

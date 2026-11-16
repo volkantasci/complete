@@ -6,9 +6,9 @@ planned, opened, changed and deleted from the grid, and pills can be moved,
 copied and resized with the pointer. User documentation: [docs/modules/gantt_view.md](../../docs/modules/gantt_view.md).
 
 The module depends on `web` only, installs automatically with it, has no menu
-or setting and adds no model; its one server method is the undo of a drag
-(below). The dialogs are the web client's and every call runs with the user's
-rights. Dependencies and the HR and time-off bridges come in later slices.
+or setting and adds no model; its server methods are the undo of a drag and
+the rescheduling pair (below). The dialogs are the web client's and every call
+runs with the user's rights. The HR and time-off bridges come in later slices.
 
 ## What it adds
 
@@ -19,6 +19,7 @@ rights. Dependencies and the HR and time-off bridges come in later slices.
 | Generated view | `_get_default_gantt_view` on every model | Used when a model has no Gantt view. The start and stop fields come from `_start_name` and `_stop_name` (default `date_start`, `date_stop`), then from the candidate names `start_date`, `x_date_start`, `x_start_date` and `stop_date`, `date_end`, `end_date`, `x_date_stop`, `x_stop_date`, `x_date_end`, `x_end_date`. Without a pair the call fails. |
 | Data call | `get_gantt_data` on every model | Keywords `domain`, `groupby`, `read_specification`, `scale`, `start_date`, `stop_date`, `limit`, `offset`, `progress_bar_fields`, `unavailability_fields`. Returns `groups` (each with `__record_ids`), `records`, `length`, `unavailabilities`, `progress_bars`. |
 | Undo call | `gantt_undo_drag_drop(drag_kind, values=None)` on every model | Takes back a move, a resize or a copy (see below). |
+| Rescheduling | `web_gantt_reschedule`, `action_rollback_scheduling` on every model, in `models/timeline_reschedule.py` | Moves the records that follow a moved or resized one along the dependencies, and takes it back (see "Dependencies, rescheduling and buffers"). |
 | Hooks | `_gantt_unavailability`, `_gantt_progress_bar` | Host models override them; the base versions return an empty mapping. |
 | Browser view | registry `views` key `gantt` | `TimelineView` with model, renderer, controller, popover and arch parser (below). |
 
@@ -42,6 +43,48 @@ prefix `o_tl_`, templates `web_gantt.Timeline...`.
 | `timeline_side_panel.js`, `.xml`, `.scss` | `TimelineSidePanel`: the list of records without dates with Load more, the resize strip and the drop zone. |
 | `timeline_panel_math.js` | Pure: the span of a dragged line, the clamped panel width, and the removal of start and stop conditions from the search domain. |
 | `timeline.variables.scss`, `timeline.variables.dark.scss` | Own `!default` variables for the values that match no theme role. Every other colour is a theme role, so the view compiles on Community alone and follows the dark scheme when `web_enterprise` is installed. |
+
+## Dependencies, rescheduling and buffers
+
+Slice 002c. A view with `dependency_field` (and `dependency_inverted_field`)
+draws arrows between dependent pills in a layer under the pills (colour from
+the order of the two records, highlight over the pills, no outline), shows
+drawing handles on the pills and a remove button on a highlighted arrow (only
+with the view's edit permission), and has a method button with the switch
+"Show dependencies" in the control bar. With an automatic method a move or a
+resize calls the server's rescheduling instead of a plain write; the answer
+becomes a sticky notification with Undo. `buffer_start` and `buffer_stop` draw
+free-time bands behind pills. None of the arrow parts shows on a phone or in the
+sample state; bands and rescheduling do. The same slice corrects the side panel
+lines (name width, pointer shapes), the date conditions of the action's own
+filter in the panel list, the folded cells in multi-selection mode, and the
+week header label (the year only for a week of another year).
+
+New browser files, all under `static/src/`:
+
+| File | Role |
+|---|---|
+| `timeline_arrow_math.js` | Pure: which pairs get an arrow, the route, the conflict colour, the middle point. |
+| `timeline_arrows.js`, `.xml`, `.scss` | The arrow layer: measuring pills in the DOM, layers, highlight, the remove button. |
+| `timeline_connect.js`, `.xml`, `.scss` | The drawing handles, the strips above and below a pill in which it stays under the pointer, and the drawing gesture (mouse and touch). |
+| `timeline_pill_pointer.js` | The pill's hover state and pointer routing (moved out of the renderer). |
+| `timeline_drag_commit.js` | The commit of a move and of a resize (moved out of the renderer). |
+| `timeline_reschedule_menu.js`, `.xml`, `.scss` | The method button, menu and switch. |
+| `timeline_dependency_prefs.js` | Reads and writes the two browser storage keys. |
+| `timeline_reschedule.js` | The client call of the rescheduling, the notification and Undo. |
+| `timeline_buffers.js`, `.xml`, `.scss` | Buffer band spans and drawing. |
+
+- **Server calls:** `web_gantt_reschedule(values, method, record_ids,
+  dependency_field, inverted_field, start_field, stop_field)` with the method
+  `consumeBuffer` or `maintainBuffer`, answering `type`, `message` and
+  `old_vals_per_pill_id`; `action_rollback_scheduling(old_vals_per_pill_id)`.
+  The calculation is split into overridable `_web_gantt_*` steps, listed in the
+  [user page](../../docs/modules/gantt_view.md#the-server-side). Date-only models
+  are rescheduled in whole days. A drawing writes `[[4, id]]` and a removal
+  `[[3, id]]` on the target's dependency field.
+- **Browser storage:** `rescheduleMethod-viewId-<view id>` (`manual`,
+  `consumeBuffer` or `maintainBuffer`) and `gantt_show_connectors,<view id>,<action id>`
+  (`true` or `false`).
 
 ## Moving, copying and resizing
 
@@ -116,8 +159,10 @@ The attributes of the `gantt` element are listed in the
 (`cell_create`, `plan`, `form_view_id`, `on_create`) and `disable_drag_drop`.
 `multi_create_view` (the template form's XML identifier) and `schedule` (yes or
 no) are the attributes of the multi-selection and the side panel. The dependency
-attributes (`dependency_field`, `dependency_inverted_field`, `buffer_start`,
-`buffer_stop`) are accepted and ignored for now. Context keys read by the view:
+attributes are `dependency_field` (a relation to many records of the same model,
+the records that block each record), `dependency_inverted_field` (its reverse,
+required with it), `buffer_start` and `buffer_stop` (number fields, hours of free
+time before and after). Context keys read by the view:
 `default_range`, `default_scale`, `default_start_date`, `default_stop_date`,
 `initialDate`, `group_by`. Context keys the view gives to the create dialog,
 the create action and the plan dialog: the start and stop field names, their
@@ -128,7 +173,7 @@ field's name with its `default_` and `search_default_` forms (see the
 ## Provenance
 
 Written in a clean room from the spec packages of slices 002a-gantt-display,
-002b-gantt-editing, 002b2-gantt-drag-resize and 002b3-gantt-multi-create. The
+002b-gantt-editing, 002b2-gantt-drag-resize, 002b3-gantt-multi-create and 002c-gantt-dependencies. The
 provenance record is `provenance/web_gantt.yaml`. See
 [docs/module-authoring.md](../../docs/module-authoring.md).
 
@@ -145,10 +190,23 @@ after the scenarios A1 to A76; the slice 002b3 ones, in
 `timeline_multi_select`, `timeline_multi_view`, `timeline_multi_create_view`,
 `timeline_multi_buttons`, `timeline_multi_create`, `timeline_side_panel`,
 `timeline_panel_drag` and `timeline_panel_math` `.test.js` and in
-`timeline_notes`, are named `002b3 A<n>: ...`), run through
+`timeline_notes`, are named `002b3 A<n>: ...`; the slice 002c ones, in
+`timeline_arrow_math`, `timeline_arrows`, `timeline_connect`,
+`timeline_dependency_prefs`, `timeline_reschedule_menu`, `timeline_reschedule`
+and `timeline_buffers` `.test.js`, plus the notes on 002b3 and the week label in
+`timeline_side_panel`, `timeline_panel_math`, `timeline_multi_view`,
+`timeline_multi_buttons`, `timeline_model`, `timeline_arch_parser` and
+`timeline_dates`, are named `002c A<n>: ...`), run through
 `tests/test_hoot.py`; the environment variable `WEB_GANTT_HOOT_FILTER` narrows
 the run to the tests whose name contains its text, for example `002b3 A29`. The scratch host, tours, probes and backend tests live in
 the hidden module [`test_web_gantt`](../test_web_gantt/README.md).
+
+The Hoot suite alone: `--test-tags /web_gantt:TestWebGanttHootSuite`. The server
+side of the rescheduling is tested in `test_web_gantt` by the classes
+`TestReschedule` and `TestRescheduleDates`
+(`--test-tags /test_web_gantt:TestReschedule,/test_web_gantt:TestRescheduleDates`);
+tours, probes and screenshots are described in the
+[host module's page](../test_web_gantt/README.md).
 
 ```
 make test MODULES=web_gantt,test_web_gantt

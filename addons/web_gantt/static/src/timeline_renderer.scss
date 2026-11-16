@@ -119,7 +119,7 @@
     position: sticky;
     top: 0;
     inset-inline-start: 0;
-    z-index: 6;
+    z-index: 60;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -139,7 +139,7 @@
     grid-row: 1;
     position: sticky;
     top: 0;
-    z-index: 4;
+    z-index: 40;
     box-sizing: border-box;
     height: $o-tl-header-height;
     padding-inline-start: 8px;
@@ -151,7 +151,7 @@
     // `clip` keeps the group header from being a scroll container: the label sticks to the
     // scrolled grid, not to its own box
     overflow: clip;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 // The text of a group header stays at the left edge of the visible part while its group is partly
@@ -164,6 +164,7 @@
     width: 0;
     overflow: visible;
     vertical-align: top;
+    white-space: nowrap;
 }
 
 .o_tl_col {
@@ -171,7 +172,7 @@
     grid-row: 2;
     position: sticky;
     top: $o-tl-header-height;
-    z-index: 4;
+    z-index: 40;
     isolation: isolate;
     box-sizing: border-box;
     height: $o-tl-header-height;
@@ -264,7 +265,7 @@
     grid-column: 1;
     position: sticky;
     inset-inline-start: 0;
-    z-index: 3;
+    z-index: 30;
     display: flex;
     align-items: center;
     min-width: 0;
@@ -447,6 +448,8 @@
 // consolidated pill: a thin line with the count on the view background at its left
 .o_tl_group_pill {
     position: absolute;
+    // over the arrows at rest, like the pills of record rows (R8)
+    z-index: 10;
     top: 19px;
     height: 2px;
     // no width, but the colour of the line is the brand colour (M32)
@@ -540,7 +543,6 @@
     top: 0;
     bottom: 0;
     inset-inline: 0;
-    z-index: 1;
     pointer-events: none;
 
     .o_tl_with_row_headers & {
@@ -551,6 +553,13 @@
 // The selection being drawn (R4, M1): drawn like a cell, over the cells and under the pills.
 .o_tl_selection_layer {
     z-index: 0;
+}
+
+// The pills layer of a row takes no stacking context (002c): the pills (z-index 10, M8) stand in
+// the grid's own order, under the headers (30 and up) and the lit arrows (20), over the arrows at
+// rest (2). The total row's layer stays over the pills, as its band was.
+.o_tl_total_row > .o_tl_pills {
+    z-index: 10;
 }
 
 // A picked cell (002b3 R3, M1 to M3, M15, M16): the highlight of a selection over one sub-column of
@@ -607,7 +616,7 @@
 // The badges with the bounds of the selection (M2, M3, M8), placed by the renderer against the grid.
 .o_tl_selection_badge {
     position: absolute;
-    z-index: 5;
+    z-index: 50;
     box-sizing: border-box;
     padding: 3px .82em;
     font-size: 12px;
@@ -668,6 +677,8 @@
     // the text of a pill is black on every palette colour, in both schemes
     color: #000000;
     pointer-events: auto;
+    // over the arrows at rest (M8)
+    z-index: 10;
 
     // the pointer changes neither the colours nor the shadow; the stripes take the full colour
     &:hover {
@@ -736,12 +747,15 @@
     // the body, one pixel inside its box, as wide as the span less two pixels
     > .o_tl_pill {
         position: relative;
+        z-index: auto;
         width: 100%;
         pointer-events: none;
     }
 }
 
 .o_tl_pill_faded {
+    // over the arrows at rest, like the pill it copies
+    z-index: 10;
     opacity: .5;
 }
 
@@ -764,7 +778,7 @@
 }
 
 .o_tl_pill_moved {
-    z-index: 4;
+    z-index: 40;
     opacity: .8;
     box-shadow: 0 5px 25px -10px #000000;
 
@@ -890,6 +904,9 @@
 // 60 % of the palette colour over white. The progress band is the palette colour darkened.
 @mixin o-tl-pill-color($base, $pill) {
     background-color: $pill;
+    // the colour of the drawing handles, which lie beside the pill: the palette colour itself,
+    // not its 60 % mix (002c R11, M16, M18)
+    --o-tl-pill-color: #{$base};
 
     .o_tl_pill_progress {
         background-color: darken($base, 30%);
@@ -956,4 +973,10 @@
 // the scrolled grid it would scroll away with the columns, and only the cells are faded.
 .o_tl_box > .o_view_nocontent {
     top: $o-tl-header-height + 1px;
+}
+
+// The help stands over the pills (10) and the arrows (20), under the row headers (30) and the
+// column headers (40); the box is its stacking context.
+.o_tl_box {
+    --o-view-nocontent-zindex: 25;
 }

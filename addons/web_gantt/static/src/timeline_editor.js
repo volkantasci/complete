@@ -9,6 +9,7 @@ import {
 import { FormViewDialog } from "@web/views/view_dialogs/form_view_dialog";
 import { SelectCreateDialog } from "@web/views/view_dialogs/select_create_dialog";
 import { creationContext, planWriteValues, rowValueChain } from "./timeline_editing";
+import { TimelineRescheduler } from "./timeline_reschedule";
 
 /**
  * The record dialog. Community closes the dialog right after `removeRecord` resolves; here the
@@ -45,6 +46,7 @@ export class TimelineEditor {
         this.model = model;
         this.archInfo = archInfo;
         this.services = services;
+        this.rescheduler = new TimelineRescheduler(this);
         // the Community notifications are global: this view's go when the view is left
         model.onDispose(() => this.closeNotification());
     }
@@ -130,6 +132,54 @@ export class TimelineEditor {
         const { model, services } = this;
         return this._queueChange({
             send: () => services.orm.write(model.resModel, [resId], values, { context: model.context }),
+            reloadOnRefusal: true,
+        });
+    }
+
+    /**
+     * 002c R10: take `sourceId` out of the dependency field of `targetId` (the remove button of
+     * an arrow): one write after the writes sent before, then the view reloads; no notification.
+     * A refused call reloads the view and is passed on, so that the Community error shows when
+     * the caller does not catch it.
+     * @param {Object} params
+     * @param {number} params.targetId the record that was blocked
+     * @param {number} params.sourceId the blocker to take out
+     */
+    removeDependency({ targetId, sourceId }) {
+        const { model, services, archInfo } = this;
+        const field = archInfo.dependencyField;
+        return this._queueChange({
+            send: () =>
+                services.orm.write(
+                    model.resModel,
+                    [targetId],
+                    { [field]: [[3, sourceId]] },
+                    { context: model.context }
+                ),
+            reloadOnRefusal: true,
+        });
+    }
+
+    /**
+     * 002c R12: a dependency was drawn from the pill of `sourceId` to the pill of `targetId`: one
+     * write on the target adds the source to its dependency field, after the writes sent before;
+     * the view reloads, no notification and no Undo. Adding a link that exists changes nothing. A
+     * refused call reloads the view and is passed on, as for a removal.
+     * @param {Object} params
+     * @param {number} params.targetId the record that becomes blocked
+     * @param {number} params.sourceId the blocker to add
+     */
+    addDependency({ targetId, sourceId }) {
+        const { model, services, archInfo } = this;
+        const field = archInfo.dependencyField;
+        return this._queueChange({
+            send: () =>
+                services.orm.write(
+                    model.resModel,
+                    [targetId],
+                    { [field]: [[4, sourceId]] },
+                    { context: model.context }
+                ),
             reloadOnRefusal: true,
         });
     }
@@ -271,6 +321,8 @@ export class TimelineEditor {
     /**
      * R5, R7, R8, R10, R15: send a move, a resize or a copy whose values are computed, then
      * reload and tell the user. The write waits for the writes sent before.
+     * - automatic rescheduling method (002c R16): a move or resize is one call of the server's
+     *   rescheduling method, also with no value (E4); see `TimelineRescheduler`.
      * - `values` empty: nothing is sent, shown or reloaded, resolves `false` (D3).
      * - accepted: the view reloads, then the success notification with Undo shows (D6); a copy
      *   that was accepted reloads too. Resolves `true`.
@@ -285,6 +337,9 @@ export class TimelineEditor {
      * @returns {Promise<boolean>}
      */
     async applyChange({ kind, resId, values, undo }) {
+        if (this.rescheduler.handles(kind)) {
+            return this.rescheduler.run({ resId, values });
+        }
         if (!values || !Object.keys(values).length) {
             return false;
         }

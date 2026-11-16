@@ -48,6 +48,24 @@ Hidden module, never installed in production. User documentation:
   with `edit="0"`. H40: template form and scheduling together. H41: H36's view
   grouped by Parent and Created by (a read-only field, so no row accepts a
   panel drop).
+- **H42 to H54, the dependency hosts** (slice 002c). Two float host fields,
+  **Buffer before** and **Buffer after** (`x_buffer_before`, `x_buffer_after`),
+  and links between existing records written by the builder (Design blocks
+  Build, Build blocks Test, Review blocks Overlap A, and on the date-only model
+  Three days blocks Day one; buffers 24/12 on Design and 12/24 on Review). H42:
+  dependency arrows, grouped by Parent. H43: the same view grouped by Tags.
+  H44: adds the two buffer fields. H45: the date-only model with dependencies.
+  H46 and H47: H42's and H45's views opened on 12 June 2030 for the prepared
+  records below. H48: dependencies with a template form (multi-create). H49:
+  `edit="0"`. H50: an empty sample view with dependencies. H51 to H53: H36's
+  scheduling view with a date filter in the action's domain (plain, under "or",
+  negated). H54: `edit="1"` explicitly, for the restricted user.
+- **The prepared rescheduling records**:
+  `test.web.gantt.pill._tl_build_reschedule_records()` deletes any leftover and
+  creates Chain A, B, C and the cyclic Loop 1 and 2 on the first model and Chain
+  A and B on the date-only model (June 2030, created by the administrator); it
+  returns them by name (`dated Chain A` and `dated Chain B` for the second
+  model). `_tl_drop_reschedule_records()` deletes them by name on both models.
 - **The template forms**: two small forms with priority 99, one per model
   (`host_form_template_one`: name required, contact, tags, colour;
   `host_form_template_two`: name required). The date-only model also gets an
@@ -84,6 +102,39 @@ Hidden module, never installed in production. User documentation:
   {field: {id: {"value": ..., "max_value": ..., "warning": ...}}}}` the override
   answers from it; with no parameter it returns the (empty) base answer.
 
+## Slice 002c: running its tests
+
+- **Tours:** `--test-tags /test_web_gantt:TestTimelineDependencyTours` and
+  `/test_web_gantt:TestTimelineRescheduleTours`, on a database where the module
+  is installed or updated (`-u test_web_gantt,web_gantt` on an existing one, as
+  `-i` of an installed module runs no tests). The tours build the records they
+  need and put the links they change back afterwards.
+- **The clock D0:** the H42 tours and the probes run with the browser clock set
+  to 12 November 2026, 12:00 (`D0` in the two tour classes), so "today" and the
+  positions of the host records are the same on every day; the browser zone is
+  three hours ahead of UTC for the probes and for the A77 tour, and the
+  server's own clock decides only the plain-write scenarios on H42 (its records
+  lie in the past). Tours on H46 and H47 (June 2030) use the browser's own
+  clock, since their action sets the date.
+- **Probes:** `--test-tags timeline_probes/test_web_gantt:TimelineDependencyProbes`
+  on a database with `-i test_web_gantt,web_enterprise`; without
+  `web_enterprise` the dark readings are skipped. Expected values are copied
+  from the spec into `tests/timeline_dependency_probe_values.py`. Three
+  readings are **not compared**, by ruling, and the probe class logs them
+  (`PROBE-SKIPPED`) instead of failing: M4 and M11 (the original's empty
+  outline element; decision D5 says no outline is drawn), and in M49 the
+  `overflow` of the week header (the sticky label would stop following the
+  scroll if it were hidden, T19-2) and its `geometry.x`, which differs by one
+  pixel because of the centring of the focus day by earlier slices (T19-3).
+- **Screenshots:** `--test-tags gantt_dependency_screens --screenshots <dir>`
+  with the mounted directory as described below; the files 75 to 88 land in
+  `<dir>/gantt_view/`.
+- **Prepared records:** the helpers `_tl_build_reschedule_records()` and
+  `_tl_drop_reschedule_records()` of `test.web.gantt.pill` (above) give the
+  chains, loops and date-only records the rescheduling tests use; they are
+  created by the test, never by the demo data, so tests pass with and without
+  demo data.
+
 ## Tests
 
 | Where | What |
@@ -98,8 +149,14 @@ Hidden module, never installed in production. User documentation:
 | `tests/test_drag_host.py` | Backend tests: H30 to H32 views, actions and menus, the `rtl` user helper (and the Arabic unit words reaching the browser), and the undo method `gantt_undo_drag_drop` (reschedule, copy, missing record, empty mapping, unknown kind, access error). |
 | `tests/test_drag_probes.py` + `tests/timeline_drag_probe_values.py` (tag `timeline_probes`, class `TimelineDragProbes`) | Probes M1 to M61 of slice 002b2 in a real Chrome, light and dark, desktop and phone: move, copy, handles, resize, locks, notifications, right-to-left badges, the plan dialog's search bar. Run only these with `--test-tags timeline_probes/test_web_gantt:TimelineDragProbes`. |
 | `static/tests/tours/timeline_multi_tours.js`, `tests/test_multi_tours.py` (class `TestTimelineMultiTours`) | Tours of slice 002b3 for the scenarios that need the live client: selecting by click, drawing and headers, the buttons, the template form popover, the stored records after Add and Delete (checked by the Python test after the tour), the side panel, Load more, dragging onto the grid and onto the drop zone, resizing, closing and reopening, the phone. Real pointer events come from `tests/timeline_real_pointer.py`. |
+| `tests/test_dependency_host.py` (class `TestDependencyHost`) | Backend tests: H42 to H54 load with their attributes, actions and contexts, the buffer fields, the dependency links and buffers kept by a rebuild, the prepared rescheduling records, the restricted user's edit flag. |
+| `tests/test_reschedule.py` (classes `TestReschedule`, `TestRescheduleDates`) | Backend tests of the server rescheduling on the prepared records: both methods, forward, backward and only-stop cases, plain writes (past start, no stop, no dates), the past error and the rollback, cycles, a blocker without dates, property sub-fields, a user who may read but not write, the unknown method, the rollback method, and the same cases on the date-only model in whole days (with the clock frozen where the result depends on it). |
+| `static/tests/tours/timeline_dependency_tours.js`, `tests/test_dependency_tours.py` (class `TestTimelineDependencyTours`) | Tours of slice 002c for the arrows, drawing, removal, the method menu and switch, buffers, the phone and sample cases: which arrows (also after a range step or a search), colours, highlight and layering, handles, drawing with the exact gesture, touch, locked pills, hidden arrows, stored choices, no arrow lit after a gesture. Shared helpers (`realMouse` and the others) are exported from this file. |
+| `static/tests/tours/timeline_reschedule_tours.js`, `tests/test_reschedule_tours.py` (class `TestTimelineRescheduleTours`) | Tours of the rescheduling by a real move or resize: both methods, the notification and Undo, warnings, no-op drops, the phone, the date-only model, a move across rows with Undo, two writes in a row, and the week header label of another year. The H46 and H47 tours use the browser's own clock; the H42 ones use the fixed clock below. |
+| `tests/test_dependency_probes.py` + `tests/timeline_dependency_probe_values.py` (tag `timeline_probes`, class `TimelineDependencyProbes`) | Probes M1 to M50 of slice 002c in a real Chrome, light and dark, desktop and phone: arrows, handles, drawing, the method menu, notifications, buffer bands, the side panel line and the week header. Only these: `--test-tags timeline_probes/test_web_gantt:TimelineDependencyProbes`. |
 | `tests/test_multi_host.py` | Backend tests: H33 to H41 load with their options, the template forms, the explicit default form, and the builder that moves records in place and keeps their ids. |
 | `tests/test_multi_probes.py` + `tests/timeline_multi_probe_values.py` (tag `timeline_probes`, class `TimelineMultiProbes`) | Probes M1 to M74 of slice 002b3 in a real Chrome, light and dark, desktop and phone: selection tint, buttons, popover, panel, strip, drop zone, row header widths, text selection. Only these: `--test-tags timeline_probes/test_web_gantt:TimelineMultiProbes`. |
+| `tests/test_dependency_screens.py` (tag `gantt_dependency_screens`, class `TimelineDependencyScreens`) | The documentation screenshots 75 to 88 of `gantt_view` (arrows, handles, drawing, method menu, buffers, rescheduling, a loop, the date-only model), on demand, not part of the normal run. |
 | `tests/test_multi_screens.py` (tag `gantt_multi_screens`) | The documentation screenshots 53 to 74 of `gantt_view`, on demand, not part of the normal run. |
 | `tests/test_drag_screens.py` (tag `gantt_drag_screens`) | The documentation screenshots 33 to 52 of `gantt_view`, on demand, not part of the normal run. |
 | `tests/test_screens.py` (tag `gantt_view_screens`) | Takes the documentation screenshots on demand, the phone ones on an emulated touch phone; not part of the normal run. |
@@ -142,6 +199,6 @@ copy the ones you keep into `docs/assets/gantt_view/`. Drag tours:
 ## Provenance
 
 Spec packages: slices 002a-gantt-display, 002b-gantt-editing,
-002b2-gantt-drag-resize and 002b3-gantt-multi-create. The provenance record is
+002b2-gantt-drag-resize, 002b3-gantt-multi-create and 002c-gantt-dependencies. The provenance record is
 `provenance/test_web_gantt.yaml`. See
 [docs/module-authoring.md](../../docs/module-authoring.md).

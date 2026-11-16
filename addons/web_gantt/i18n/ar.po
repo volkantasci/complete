@@ -318,3 +318,57 @@ msgstr "إظهار اللوحة أو إخفاؤها"
 #: code:addons/web_gantt/static/src/timeline_side_panel.xml:0
 msgid "Load more"
 msgstr "تحميل المزيد"
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_arrows.js:0
+msgid "Remove this dependency"
+msgstr "إزالة هذا الاعتماد"
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.js:0
+msgid "Manual Reschedule"
+msgstr "إعادة جدولة يدوية"
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.js:0
+msgid "Auto-Reschedule (Use Buffer)"
+msgstr "إعادة جدولة تلقائية (استخدام الهامش)"
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.js:0
+msgid "Auto-Reschedule (Keep Buffer)"
+msgstr "إعادة جدولة تلقائية (الإبقاء على الهامش)"
+
+#. module: web_gantt
+#. odoo-javascript
+#: code:addons/web_gantt/static/src/timeline_reschedule_menu.xml:0
+msgid "Show dependencies"
+msgstr "إظهار الاعتماديات"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Could not move %(record)s: it would start in the past"
+msgstr "تعذر نقل %(record)s: سيبدأ في الماضي"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Records rescheduled"
+msgstr "تمت إعادة جدولة السجلات"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "These dependencies form a loop, so nothing was moved"
+msgstr "تشكل هذه الاعتماديات حلقة، لذلك لم يتم نقل أي شيء"
+
+#. module: web_gantt
+#. odoo-python
+#: code:addons/web_gantt/models/timeline_reschedule.py:0
+msgid "Unknown rescheduling method: %s"
+msgstr "طريقة إعادة الجدولة غير معروفة: %s"

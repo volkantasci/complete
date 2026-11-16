@@ -100,6 +100,10 @@ export class Pill extends models.Model {
             ["finished", "Finished"],
         ],
     });
+    dependency_field = fields.Many2many({ relation: "pill", string: "Blocked by" });
+    dependency_inverted_field = fields.Many2many({ relation: "pill", string: "Blocks" });
+    x_buffer_before = fields.Float({ string: "Buffer before" });
+    x_buffer_after = fields.Float({ string: "Buffer after" });
     pill_properties = fields.Properties({
         string: "Pill Properties",
         definition_record: "parent_id",
@@ -176,6 +180,10 @@ class Pill2 extends models.Model {
     active = fields.Boolean({ default: true });
     date_start = fields.Date();
     date_stop = fields.Date();
+    dependency_field = fields.Many2many({ relation: "pill2", string: "Blocked by" });
+    dependency_inverted_field = fields.Many2many({ relation: "pill2", string: "Blocks" });
+    x_buffer_before = fields.Float({ string: "Buffer before" });
+    x_buffer_after = fields.Float({ string: "Buffer after" });
 
     _views = {
         "form,false": `<form><field name="name"/><field name="date_start"/><field name="date_stop"/></form>`,

@@ -348,17 +348,20 @@ function groupLabel(scaleId, first) {
         case "day":
             return first.toLocaleString(DateTime.DATE_HUGE);
         case "week": {
+            // R27: the year once, at the end, only for a week of another year than the clock's.
+            // The week's year is the year of its numbering (its middle day, as for the number).
+            const middle = first.plus({ days: 3 });
             const last = first.plus({ days: 6 });
-            const withYear = first.year !== DateTime.now().year;
-            const format = withYear
-                ? { month: "short", day: "numeric", year: "numeric" }
-                : { month: "short", day: "numeric" };
-            const number = localNumber(first.plus({ days: 3 }).weekNumber, first);
-            return _t("Week %(number)s, %(from)s - %(to)s", {
-                number,
+            const format = { month: "short", day: "numeric" };
+            let text = _t("Week %(number)s, %(from)s - %(to)s", {
+                number: localNumber(middle.weekNumber, first),
                 from: first.toLocaleString(format),
                 to: last.toLocaleString(format),
             }).toString();
+            if (middle.weekYear !== DateTime.now().year) {
+                text += " " + localNumber(middle.weekYear, first);
+            }
+            return text;
         }
         case "month":
             return first.toLocaleString({ month: "long", year: "numeric" });

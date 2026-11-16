@@ -23,7 +23,7 @@
                     <t t-component="this.searchBarToggler.component" t-props="this.searchBarToggler.props"/>
                 </t>
                 <t t-call="web_gantt.TimelineControls"/>
-                <t t-component="this.props.Renderer" model="this.model" archInfo="this.props.archInfo" editor="this.editor" selection="this.selection" noContentHelp="this.props.info.noContentHelp"/>
+                <t t-component="this.props.Renderer" model="this.model" archInfo="this.props.archInfo" editor="this.editor" selection="this.selection" dependencies="this.dependencies" noContentHelp="this.props.info.noContentHelp"/>
             </Layout>
         </div>
     </t>
@@ -67,6 +67,7 @@
                 <button type="button" class="btn btn-secondary o_tl_collapse_all" t-att-class="{ invisible: !this.hasGroupRows }" t-att-title="this.collapseAllTitle" t-on-click="this.toggleCollapseAll">
                     <i class="oi" t-att-data-icon="this.collapseAllIcon"/>
                 </button>
+                <TimelineRescheduleMenu t-if="this.hasRescheduleMenu" model="this.model" dependencies="this.dependencies"/>
                 <div t-if="this.hasPanel" class="o_tl_panel_tools d-flex align-items-center ms-auto d-print-none">
                     <span t-if="this.panelCountText" class="o_tl_panel_count d-print-none" t-out="this.panelCountText"/>
                     <button type="button" class="btn btn-secondary o_tl_panel_toggle d-print-none" t-att-class="{ active: this.model.panel.open }" title="Show or hide the panel" aria-label="Show or hide the panel" t-on-click="this.togglePanel">
