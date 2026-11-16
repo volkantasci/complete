@@ -70,7 +70,8 @@
     }
 }
 
-// the start handle: above the leading end of the body, its corner line rising to the body
+// the start handle: above the leading end of the body; the dot stands to the leading side and its
+// corner line, on the trailing side of the dot, drops to the body
 .o_tl_connect_handle.o_tl_connect_start {
     inset-inline-start: 0;
     top: -16px;
@@ -78,15 +79,19 @@
     .o_tl_connect_halo,
     .o_tl_connect_corner {
         top: 7px;
+        inset-inline-start: 8px;
+        border-inline-start: 0 solid transparent;
     }
 
     .o_tl_connect_corner {
         border-top: 1px solid var(--o-tl-pill-color);
+        border-inline-end: 1px solid var(--o-tl-pill-color);
     }
 
     .o_tl_connect_halo {
         border-top: 3px solid $o-view-background-color;
-        transform: translate(-2px, -2px);
+        border-inline-end: 3px solid $o-view-background-color;
+        transform: translate(2px, -2px);
     }
 }
 
@@ -110,10 +115,10 @@
     }
 }
 
-// a mirrored grid: the corner lines and their shift swap sides
+// a mirrored grid: the shift of the halos swaps sides
 .o_tl_renderer:dir(rtl) .o_tl_connect_handle {
-    .o_tl_connect_halo {
-        transform: translate(2px, -2px);
+    &.o_tl_connect_start .o_tl_connect_halo {
+        transform: translate(-2px, -2px);
     }
 
     &.o_tl_connect_stop .o_tl_connect_halo {
