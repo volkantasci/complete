@@ -230,8 +230,7 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
         self._draw_tour('h42', 'timeline_002c_a27_draw_from_the_end', ('Overlap C', 'Build'))
 
     def test_a91_tour_touch_draws(self):
-        self._draw_tour('h42', 'timeline_002c_a91_touch', ('Overlap C', 'Build'), touch=True,
-                         mobile=(1600, 900))
+        self._draw_tour('h42', 'timeline_002c_a91_touch', ('Overlap C', 'Build'), touch=True)
 
     def test_a90_tour_nothing_lit_after_a_drawing(self):
         self._draw_tour('h42', 'timeline_002c_a90', ('Overlap C', 'Build'))
@@ -298,8 +297,22 @@ class TestTimelineDependencyTours(RealPointerMixin, HttpCase):
     def test_a65_tour_arrow_follows_moving_pill(self):
         self._buffer_tour('timeline_002c_a65_arrow')
 
-    def test_a69_tour_arrow_follows_resize(self):
+    def test_a69_tour_arrow_does_not_follow_resize(self):
         self._tour('h42', 'timeline_002c_a69')
+
+    def test_a69_tour_arrow_after_release(self):
+        build = self.records['Build']
+        start, stop = build.date_start, build.date_stop
+        self.addCleanup(lambda: build.write({'date_start': start, 'date_stop': stop}))
+        self._tour('h42', 'timeline_002c_a69_release')
+        build.invalidate_recordset()
+        self.assertLess(build.date_stop, stop)
+
+    def test_a93_tour_strips(self):
+        self._tour('h42', 'timeline_002c_a93_strips')
+
+    def test_a94_tour_switch_with_pointer_at_rest(self):
+        self._tour('h42', 'timeline_002c_a94')
 
     def test_a65_tour_phone(self):
         self._buffer_tour('timeline_002c_a65_phone', size='390x844', touch=True)

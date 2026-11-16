@@ -128,7 +128,10 @@ class TimelineDependencyScreens(TimelineProbeCase):
             try:
                 self.arrows(3)
                 self.pointer_at(1300, 260)
-                self.mouse('mouseMoved', 1502, 280)
+                # A27's path: to the handle in 4 steps, through the strip below the pill
+                for i in range(1, 5):
+                    self.mouse('mouseMoved', 1300 + 202 * i / 4, 260 + 20 * i / 4)
+                    time.sleep(.03)
                 self.mouse('mousePressed', 1502, 280, button='left', buttons=1, clickCount=1)
                 for i in range(1, 9):
                     self.mouse('mouseMoved', 1502 + 50 * i / 8, 280 + 60 * i / 8,

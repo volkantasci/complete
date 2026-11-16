@@ -48,8 +48,9 @@ class TimelineDependencyProbes(TimelineProbeCase):
 
     # Readings not compared, by ruling; the values stay verbatim in the values file.
     SKIPPED_READINGS = {
-        # T19-2: `clip` is kept (`hidden` would make the header a scroll container and the label
-        # would stop following the grid scroll, 002b D-5); the label is cut by its cell either way
+        # T19-2, package P1 (M49 place): the overflow reading belongs to the original only; the
+        # package accepts Complete's `clip` (`hidden` would make the header a scroll container and
+        # the label would stop following the grid scroll, 002b D-5) and does not compare it
         # T19-3: 1 px from 002b3's scroll focus placement, an earlier part's rule
         'M49': ('overflow', 'geometry.x'),
     }
@@ -227,6 +228,17 @@ class TimelineDependencyProbes(TimelineProbeCase):
                 self.check('M19', self.handle('Build', 'stop', ' .o_tl_connect_halo'), scheme,
                            viewport, 'halo of the corner line')
 
+    def test_002c_m52_m53_strips(self):
+        """M52, M53: the strips above and below "Build", the pointer on its right part."""
+        for scheme, viewport in self.combos(['M52', 'M53'], ('desktop',)):
+            with self.page(HOST.format('h42'), scheme, viewport):
+                self.pointer_at(1300, 260)
+                self.wait("document.querySelectorAll('.o_tl_connect_strip').length === 2")
+                self.check('M52', "document.querySelector('.o_tl_connect_strip_above')", scheme,
+                           viewport, 'the strip above Build')
+                self.check('M53', "document.querySelector('.o_tl_connect_strip_below')", scheme,
+                           viewport, 'the strip below Build')
+
     def test_002c_m22_m26_drawing(self):
         probes = ['M22', 'M23', 'M24', 'M25', 'M26']
         overlap, build = self.records['Overlap C'], self.records['Build']
@@ -235,7 +247,10 @@ class TimelineDependencyProbes(TimelineProbeCase):
             try:
                 with self.page(HOST.format('h42'), scheme, viewport):
                     self.pointer_at(1300, 260)
-                    self.mouse('mouseMoved', 1502, 280)
+                    # A27's path: to the handle in 4 steps, through the strip below the pill
+                    for i in range(1, 5):
+                        self.mouse('mouseMoved', 1300 + 202 * i / 4, 260 + 20 * i / 4)
+                        time.sleep(.03)
                     self.mouse('mousePressed', 1502, 280, button='left', buttons=1, clickCount=1)
                     for i in range(1, 9):
                         self.mouse('mouseMoved', 1502 + 50 * i / 8, 280 + 60 * i / 8,

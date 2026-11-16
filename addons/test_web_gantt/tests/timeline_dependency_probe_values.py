@@ -1167,4 +1167,32 @@ MEASURED = {
             'geometry.height': '25',
         },
     },
+    'M52': {
+        ('light', 'desktop'): {
+            'geometry.x': '934',
+            'geometry.y': '237',
+            'geometry.width': '576',
+            'geometry.height': '11',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '934',
+            'geometry.y': '237',
+            'geometry.width': '576',
+            'geometry.height': '11',
+        },
+    },
+    'M53': {
+        ('light', 'desktop'): {
+            'geometry.x': '934',
+            'geometry.y': '273',
+            'geometry.width': '576',
+            'geometry.height': '11',
+        },
+        ('dark', 'desktop'): {
+            'geometry.x': '934',
+            'geometry.y': '273',
+            'geometry.width': '576',
+            'geometry.height': '11',
+        },
+    },
 }

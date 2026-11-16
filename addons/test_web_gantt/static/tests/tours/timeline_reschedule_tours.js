@@ -647,21 +647,19 @@ tours.add("timeline_002c_a77_undo_after_row_change", {
                 assert(noticeTexts().join() === "Records rescheduled", `texts ${noticeTexts()}`);
                 assert(inRow("Alpha"), "Test is in Alpha");
                 near(leftOf("Test"), before + DAY, "Test", 2);
-                // A90: the pointer stays still after the release: no arrow is lit, a move of 1 px lights
-                // the arrows of Test
+                // A90: the pointer stays still after the release: no arrow is lit
                 assert(litArrows().length === 0, `nothing is lit, got ${litArrows().length}`);
                 const moveTo = ({ x, y }) =>
                     realMouse([mouse("mouseMoved", x, y, { button: "none", buttons: 0 })]);
-                await moveTo({ x: 1348, y: 305 });
-                // after the reload Test stands in the second lane of Alpha (y 274 to 297), above the
-                // release point (y 305): the 1 px move lights the arrows when the pointer is over Test,
-                // and a move onto Test lights them in this layout
+                // the pointer then moves to (1417, 285), on "Test" in its new place (Alpha row,
+                // x 1317 to 1989, y 273 to 298): the arrow "Build" to "Test" is lit
+                await moveTo({ x: 1417, y: 285 });
                 const over = pillNamed("Test").getBoundingClientRect();
-                if (over.top <= 305 && over.bottom >= 305) {
-                    assert(litArrows().length > 0, "the arrows of Test are lit by the 1 px move");
-                }
-                await moveTo({ x: 1348, y: (over.top + over.bottom) / 2 });
-                assert(litArrows().length > 0, "the arrows of Test are lit with the pointer on it");
+                assert(
+                    over.left <= 1417 && over.right >= 1417 && over.top <= 285 && over.bottom >= 285,
+                    "Test stands under (1417, 285)"
+                );
+                assert(litArrows().length > 0, "the arrow Build to Test is lit");
                 await clickUndo();
                 assert(inRow("Beta"), "Test is back in Beta");
                 near(leftOf("Test"), before, "Test after Undo", 2);
