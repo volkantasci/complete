@@ -43,6 +43,7 @@ import {
     resizedBound,
     rowAcceptsDrop,
 } from "./timeline_drag_math";
+import { TimelineConnectDrag } from "./timeline_connect";
 import { TimelinePillDrag } from "./timeline_drag";
 import { commitDrag, commitResize } from "./timeline_drag_commit";
 import { TimelineArrowLayer, TimelineArrows } from "./timeline_arrows";
@@ -222,21 +223,7 @@ export class TimelineRenderer extends Component {
             pillState: (pill) => this._pillState(pill),
             targetAt: (x, y, grab) => this._targetAt(x, y, grab),
             edges: () => this._visibleBounds(),
-            scrollBy: (dx, dy) => {
-                const renderer = this.rendererRef();
-                const vertical = this._verticalScroller();
-                const before = { left: renderer.scrollLeft, top: vertical.scrollTop };
-                const { maxLeft = Infinity, maxTop = Infinity } = this._gesture || {};
-                // never past the end the grid had when the gesture began
-                const reach = Math.max(maxLeft, Math.abs(before.left));
-                const [low, high] = this._isRtl() ? [-reach, 0] : [0, reach];
-                renderer.scrollLeft = Math.min(Math.max(before.left + dx, low), high);
-                vertical.scrollTop = Math.min(before.top + dy, Math.max(maxTop, before.top));
-                return {
-                    dx: renderer.scrollLeft - before.left,
-                    dy: vertical.scrollTop - before.top,
-                };
-            },
+            scrollBy: (dx, dy) => this._scrollGesture(dx, dy),
             change: (drawing) => this._setDrag(drawing),
             commit: (result) => this._commitDrag(result),
             // a cancelled gesture (Escape, lost pointer) leaves no zone hit for the next release
@@ -246,6 +233,23 @@ export class TimelineRenderer extends Component {
             borderAt: (x, pill, edge) => this._borderAt(x, pill, edge),
             hold: (mode) => this._holdDrag(mode),
             panelOpen: () => this.hasPanel && this.panel.open,
+        });
+        this.connect = new TimelineConnectDrag({
+            canConnect: () => this.canConnect,
+            hovered: () => this.state.hover,
+            blocked: () => this._pillPointer.isHeld || this._selecting.isSelecting,
+            keyOf: (rowId, pillId) => `${rowId}|${pillId}`,
+            targetAt: (x, y) => this._connectTargetAt(x, y),
+            anchorOf: (rowId, pillId, edge) => this._connectAnchor(rowId, pillId, edge),
+            route: (from, to) => this.arrows.drawRoute(from, to),
+            edges: () => this._visibleBounds(),
+            scrollBy: (dx, dy) => this._scrollGesture(dx, dy),
+            panelOpen: () => this.hasPanel && this.panel.open,
+            hold: (on) => this._holdDrag(on ? "connect" : null),
+            rest: (x, y) => {
+                this.state.hover = this._connectTargetAt(x, y)?.key ?? null;
+            },
+            commit: (result) => this._commitConnect(result),
         });
         // where the pressed pill stood (grid coordinates) and how far the grid had scrolled
         this._pressed = null;
@@ -333,6 +337,7 @@ export class TimelineRenderer extends Component {
             }
             this._selecting.destroy();
             this._drag.destroy();
+            this.connect.destroy();
             browser.clearTimeout(this._popoverTimer);
             browser.clearTimeout(this._clickLock);
             if (model._view === access) {
@@ -1301,6 +1306,7 @@ export class TimelineRenderer extends Component {
             // the moved pill stays under the pointer, and the target changes with the grid
             this._drag.refresh();
         }
+        this.connect.refresh();
         this._placeBadges();
     }
 
@@ -1485,8 +1491,8 @@ export class TimelineRenderer extends Component {
         this._pillPointer.enter(pill, row);
     }
 
-    onPillLeave(pill, row) {
-        this._pillPointer.leave(pill, row);
+    onPillLeave(pill, row, ev) {
+        this._pillPointer.leave(pill, row, ev);
     }
 
     /** The resize handles drawn in `pill` (R8, S4); see `TimelinePillPointer`. */
@@ -1497,6 +1503,90 @@ export class TimelineRenderer extends Component {
     /** The press on a pill (R2): a move may follow. `row` is the row descriptor of the pill. */
     onPillPointerDown(ev, pill, row) {
         this._pillPointer.press(ev, pill, row);
+    }
+
+    // ------------------------------------------------------------------------
+    // Drawing a dependency (002c R11, R12)
+    // ------------------------------------------------------------------------
+
+    /** D2, R4: the view draws dependencies and edits. */
+    get canConnect() {
+        const { archInfo, editor } = this.props;
+        return Boolean(editor && archInfo.canEdit) && this.arrows.enabled;
+    }
+
+    keyOfPill(pill, row) {
+        return this._pillPointer.keyOf(pill, row);
+    }
+
+    /** The handles drawn with `pill` (R11); see `TimelineConnectDrag`. */
+    connectHandlesOf(pill, row) {
+        return this.connect.handlesOf(pill, row);
+    }
+
+    /** The classes of the handles' wrapper: the pill's colour, and the source of a drawing. */
+    connectClass(pill, row) {
+        const colour = pill.className.split(" ").find((name) => /^o_tl_color_\d+$/.test(name));
+        return {
+            ...(colour ? { [colour]: true } : {}),
+            o_tl_connect_source: this.connect.isSource(this.keyOfPill(pill, row)),
+        };
+    }
+
+    /** The press on a handle of `pill`: a drawing may follow (R12). */
+    onConnectPointerDown(ev, pill, row, edge) {
+        this.connect.press(ev, { pill, rowId: row.row.id, edge });
+    }
+
+    /** The pill of a record row under the viewport point (a handle counts as its pill), or null. */
+    _connectTargetAt(x, y) {
+        const element = document.elementFromPoint(x, y);
+        const part = element?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle");
+        const rowEl = part?.closest(".o_tl_row[data-row-id]");
+        if (!part || !rowEl || !this.rendererRef()?.contains(part)) {
+            return null;
+        }
+        const pillId = Number(part.dataset.pillId ?? part.closest(".o_tl_connect").dataset.pillId);
+        const rowId = rowEl.dataset.rowId;
+        return { key: `${rowId}|${pillId}`, rowId, pillId };
+    }
+
+    /** The viewport point of the centre of a handle of the pill, or null when it is not drawn. */
+    _connectAnchor(rowId, pillId, edge) {
+        const rowEl = [...this.rendererRef().querySelectorAll(".o_tl_row[data-row-id]")].find(
+            (element) => element.dataset.rowId === rowId
+        );
+        const pillEl = rowEl?.querySelector(`:scope > .o_tl_pills > .o_tl_pill[data-pill-id="${pillId}"]`);
+        return pillEl
+            ? TimelineConnectDrag.centreOf(pillEl.getBoundingClientRect(), edge, this._isRtl())
+            : null;
+    }
+
+    /**
+     * The release of a drawing over another pill (R12.3): one write on the target adds the source
+     * to its dependency field. A refusal is the caller's, as for a move.
+     */
+    _commitConnect({ source, target }) {
+        return this.props.editor.addDependency({ targetId: target.pillId, sourceId: source.pillId });
+    }
+
+    /**
+     * Scrolls the grid by (dx, dy) during a gesture, never past the end the grid had when the
+     * gesture began (R14); returns what was really scrolled.
+     */
+    _scrollGesture(dx, dy) {
+        const renderer = this.rendererRef();
+        const vertical = this._verticalScroller();
+        const before = { left: renderer.scrollLeft, top: vertical.scrollTop };
+        const { maxLeft = Infinity, maxTop = Infinity } = this._gesture || {};
+        const reach = Math.max(maxLeft, Math.abs(before.left));
+        const [low, high] = this._isRtl() ? [-reach, 0] : [0, reach];
+        renderer.scrollLeft = Math.min(Math.max(before.left + dx, low), high);
+        vertical.scrollTop = Math.min(before.top + dy, Math.max(maxTop, before.top));
+        return {
+            dx: renderer.scrollLeft - before.left,
+            dy: vertical.scrollTop - before.top,
+        };
     }
 
     /** Whether a press on `pill` holds it: it moves, or a handle that can resize is pressed (R5). */
@@ -2113,8 +2203,10 @@ export class TimelineRenderer extends Component {
     /** The class of a pill: the pill being held leaves a faded copy where it was (S1). */
     pillClass(pill, row) {
         const drag = this.state.drag;
+        // the source of a drawing lies over the other pills (R12.1)
+        const raised = this.connect.isSource(this.keyOfPill(pill, row)) ? " o_tl_pill_source" : "";
         if (!this._isHeld(drag, pill, row)) {
-            return pill.className;
+            return pill.className + raised;
         }
         // a resized pill is drawn with its new length; a moved one is drawn by its ghost
         return `${pill.className} ${drag.resize ? "o_tl_pill_resizing" : "o_tl_pill_origin"}`;

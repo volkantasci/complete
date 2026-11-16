@@ -141,6 +141,23 @@ export class TimelineArrows {
         };
     }
 
+    /**
+     * The path of the line drawn from the viewport point `from` to `to` (R12.2, routed as an arrow,
+     * the point `to` standing for the target's edge), in the coordinates of the layers; null when
+     * no layer is drawn.
+     */
+    drawRoute(from, to) {
+        const wrapper = this.host.rendererRef()?.querySelector(".o_tl_grid > .o_tl_arrows");
+        const { box } = this.state;
+        if (!wrapper || !box) {
+            return null;
+        }
+        const rect = wrapper.getBoundingClientRect();
+        const origin = { x: rect.left + box.left, y: rect.top + box.top };
+        const local = (point) => ({ x: point.x - origin.x, y: point.y - origin.y });
+        return arrowRoute(local(from), local(to), { rtl: this.host._isRtl() }).d;
+    }
+
     // ------------------------------------------------------------------------
     // Highlight (R9)
     // ------------------------------------------------------------------------
@@ -227,6 +244,11 @@ export class TimelineArrowLayer extends Component {
 
     get removeLabel() {
         return _t("Remove this dependency");
+    }
+
+    /** The line being drawn from a handle (R12): `{source, target, d}`. */
+    get drawing() {
+        return this.arrows.host.connect.drawing;
     }
 
     lit(item) {

@@ -903,6 +903,9 @@
 // 60 % of the palette colour over white. The progress band is the palette colour darkened.
 @mixin o-tl-pill-color($base, $pill) {
     background-color: $pill;
+    // the colour of the drawing handles, which lie beside the pill: the palette colour itself,
+    // not its 60 % mix (002c R11, M16, M18)
+    --o-tl-pill-color: #{$base};
 
     .o_tl_pill_progress {
         background-color: darken($base, 30%);

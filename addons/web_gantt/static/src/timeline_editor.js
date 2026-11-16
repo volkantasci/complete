@@ -159,6 +159,30 @@ export class TimelineEditor {
     }
 
     /**
+     * 002c R12: a dependency was drawn from the pill of `sourceId` to the pill of `targetId`: one
+     * write on the target adds the source to its dependency field, after the writes sent before;
+     * the view reloads, no notification and no Undo. Adding a link that exists changes nothing. A
+     * refused call reloads the view and is passed on, as for a removal.
+     * @param {Object} params
+     * @param {number} params.targetId the record that becomes blocked
+     * @param {number} params.sourceId the blocker to add
+     */
+    addDependency({ targetId, sourceId }) {
+        const { model, services, archInfo } = this;
+        const field = archInfo.dependencyField;
+        return this._queueChange({
+            send: () =>
+                services.orm.write(
+                    model.resModel,
+                    [targetId],
+                    { [field]: [[4, sourceId]] },
+                    { context: model.context }
+                ),
+            reloadOnRefusal: true,
+        });
+    }
+
+    /**
      * 002b3 R22: empty the start and the stop of the record of a pill dropped on the drop zone,
      * sent at once (it does not wait for the writes before it), then the view reloads; no
      * notification and no Undo. A refused call reloads the view (E2) and is passed on.

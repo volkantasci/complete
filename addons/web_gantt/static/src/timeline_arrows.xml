@@ -20,6 +20,14 @@
                         <rect class="o_tl_arrow_cross" x="-4" y="-0.75" width="8" height="1.5" transform="rotate(-45)"/>
                     </g>
                 </svg>
+                <svg t-if="this.drawing.d" class="o_tl_connect_line" t-att-style="this.layerStyle()">
+                    <defs>
+                        <marker class="o_tl_arrow_marker" t-att-id="this.markerId('drawing')" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+                            <path class="o_tl_connect_head" d="M 0 0.5 L 7 4 L 0 7.5 Z"/>
+                        </marker>
+                    </defs>
+                    <path class="o_tl_connect_path" t-att-d="this.drawing.d" t-att-marker-end="`url(#${this.markerId('drawing')})`"/>
+                </svg>
             </t>
         </div>
     </t>

@@ -28,9 +28,16 @@ export class TimelinePillPointer {
         return { movable, resizable: { start: editable && !cutStart, stop: editable && !cutStop } };
     }
 
-    /** Whether a gesture is on (a drawing is shown or the drag is not idle). */
+    /**
+     * Whether a gesture is on (a drawing is shown, the drag is not idle, or a dependency is being
+     * drawn: the highlight of the arrows is frozen, 002c R9).
+     */
     get isHeld() {
-        return Boolean(this.host.state.drag) || this.host._drag.state !== "idle";
+        return (
+            Boolean(this.host.state.drag) ||
+            this.host._drag.state !== "idle" ||
+            this.host.connect.isPressed
+        );
     }
 
     /** The pointer enters a pill: its handles show, unless a gesture is on (R8). */
@@ -44,7 +51,20 @@ export class TimelinePillPointer {
         }
     }
 
-    leave(pill, row) {
+    /**
+     * The pointer leaves a pill, or one of its drawing handles (which lie beside it): not when it
+     * goes from one to the other, the pill is still the one it rests on.
+     */
+    leave(pill, row, ev) {
+        const key = pill && row ? this.keyOf(pill, row) : undefined;
+        const into = ev?.relatedTarget?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle");
+        if (key !== undefined && into) {
+            const rowEl = into.closest(".o_tl_row[data-row-id]");
+            const intoKey = into.dataset.pillKey ?? `${rowEl?.dataset.rowId}|${into.dataset.pillId}`;
+            if (intoKey === key) {
+                return;
+            }
+        }
         this.host.state.hover = null;
         this.host.arrows.unfocusPill(pill && row ? this.keyOf(pill, row) : undefined);
     }
