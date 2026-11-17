@@ -34,7 +34,8 @@ import {
 /**
  * Tours of slice 002d's notes on the earlier parts, on 002c's host H42, with real pointer events at
  * the package's points, the browser clock at Thursday 12 November 2026, 09:00 in a zone three hours
- * ahead of UTC. R1 (A1 to A9): what stays lit after a gesture released without a write.
+ * ahead of UTC. R1 (A1 to A9): what stays lit after a gesture released without a write. R4 (A20 to
+ * A26): what cancels a gesture.
  */
 
 const tours = registry.category("web_tour.tours");
@@ -604,6 +605,223 @@ scenarioTour(
         await gridSettled();
         await pause(1500);
         assertShown(NOTHING, "after the reload");
+    },
+    { writes: 1, pointer: false }
+);
+
+// ---------------------------------------------------------------------------------------------
+// R4 (A20 to A26): what cancels a gesture
+// ---------------------------------------------------------------------------------------------
+
+const OVERLAP_C = { x: 1133, y: 442 };
+
+/** A key put down and lifted by script, as Escape is in the tours above. */
+function pressKey(key) {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    document.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
+}
+
+/** The page marked hidden by script, as the harness cannot hide it; then shown again. */
+function hidePage() {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    delete document.visibilityState;
+}
+
+const buildToTestOnly = () => ({ lit: [buildToTest()], buttons: 1, handles: 2 });
+
+/** A cancelled drawing over "Overlap C": the line is gone, the first arrow stays lit, Overlap C's handles. */
+async function assertDrawingCancelled() {
+    await pause(300);
+    assert(!drawing(), "the line is gone");
+    assertShown(buildToTestOnly(), "after the cancel");
+    assert(
+        handleOwners().every((owner) => owner === idOf("Overlap C")),
+        `the handles are Overlap C's, got ${handleOwners()}`
+    );
+}
+
+/** The release where the pointer is writes nothing; after the next move no arrow is lit. */
+async function releaseAndMove(at, expected) {
+    await realMouse(releaseAt(at), { settle: false });
+    await pause(400);
+    assertShown(expected, "after the release");
+    await moveTo(right(at));
+    await pause(400);
+    // the pointer is over Overlap C: its handles show, and it has no arrow to light
+    assertShown({ lit: [], buttons: 0, handles: 2 }, "after the next move");
+}
+
+// A20: the key "a" cancels a drawing as Escape does, and a move
+scenarioTour("tl_note_a20_key_cancels_a_drawing", async () => {
+    await drawTo(OVERLAP_C);
+    pressKey("a");
+    await assertDrawingCancelled();
+    await releaseAndMove(OVERLAP_C, buildToTestOnly());
+});
+
+scenarioTour("tl_note_a20_key_cancels_a_move", async () => {
+    const end = { x: 1200, y: 260 };
+    await moveTo12(end);
+    pressKey("a");
+    await pause(300);
+    assert(!$(".o_tl_pill_moved"), "the move is cancelled");
+    const expected = { lit: buildArrows(), buttons: 2, handles: 2 };
+    assertShown(expected, "after the cancel");
+    await realMouse(releaseAt(end), { settle: false });
+    await pause(400);
+    assertShown(expected, "after the release");
+    await moveTo(right(end));
+    await pause(400);
+    assertShown(expected, "after the next move (the pointer is on Build)");
+});
+
+// A21: Shift does nothing, the release over Overlap C writes; Control makes a copy, no cancel
+scenarioTour(
+    "tl_note_a21_shift_does_not_cancel",
+    async () => {
+        await drawTo(OVERLAP_C);
+        pressKey("Shift");
+        await pause(200);
+        assert(drawing(), "the drawing goes on");
+        const mark = sentBodies.length;
+        await realMouse(releaseAt(OVERLAP_C), { settle: false });
+        await until(() => callsSince(mark, WRITES).length === 1, "the link is written");
+        await gridSettled();
+    },
+    { writes: 1 }
+);
+
+scenarioTour("tl_note_a21_control_makes_a_copy", async () => {
+    const end = { x: 1200, y: 260 };
+    await moveTo12(end);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Control", bubbles: true }));
+    await pause(200);
+    assert($(".o_tl_pill_moved") && rootHas("o_tl_drag_copy"), "the move became a copy");
+    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Control", bubbles: true }));
+    await pause(200);
+    assert($(".o_tl_pill_moved") && rootHas("o_tl_drag_move"), "and back to a move, not cancelled");
+    escape();
+    await pause(200);
+    await realMouse(releaseAt(end), { settle: false });
+    await pause(300);
+});
+
+// A25: the page marked hidden cancels as Escape does
+scenarioTour("tl_note_a25_hidden_page_cancels", async () => {
+    await drawTo(OVERLAP_C);
+    hidePage();
+    await assertDrawingCancelled();
+    await releaseAndMove(OVERLAP_C, buildToTestOnly());
+});
+
+// A26: a window blur sent by script does not cancel: the release writes
+scenarioTour(
+    "tl_note_a26_lost_focus_does_not_cancel",
+    async () => {
+        await drawTo(OVERLAP_C);
+        window.dispatchEvent(new Event("blur"));
+        await pause(300);
+        assert(drawing(), "the drawing goes on");
+        const mark = sentBodies.length;
+        await realMouse(releaseAt(OVERLAP_C), { settle: false });
+        await until(() => callsSince(mark, WRITES).length === 1, "the link is written");
+        await gridSettled();
+    },
+    { writes: 1 }
+);
+
+// --- touch -------------------------------------------------------------------------------------
+
+/** A tap on Build, then a finger on its end handle drawing to "Overlap C", held 400 ms there. */
+async function touchDrawingHeld() {
+    const box = outerBox();
+    await tapBuild(box);
+    const from = centreOf(handleOf("Build", "stop"));
+    const end = centreOf(pillNamed("Overlap C"));
+    await realMouse([finger("touchStart", from.x, from.y)], { touch: true, settle: false });
+    await pause(400);
+    await realMouse(stepsTo(from, end, 10).map((point) => finger("touchMove", point.x, point.y)), {
+        touch: true,
+        settle: false,
+    });
+    await until(() => drawing(), "the drawing is held");
+    await pause(400);
+    return { end, shown: assertShownNow() };
+}
+
+/** What is lit now: used to compare the state before and after a cancel. */
+function assertShownNow() {
+    return {
+        lit: $$(".o_tl_arrow.o_tl_arrow_lit").map((arrow) => arrow.dataset.arrow).sort(),
+        buttons: $$(".o_tl_arrow_remove").length,
+    };
+}
+
+/** Two fingers: the first at `first`, a second at `second`. */
+const twoFingers = (first, second) => [
+    {
+        type: "touchStart",
+        touchPoints: [
+            { x: first.x, y: first.y, id: 1 },
+            { x: second.x, y: second.y, id: 2 },
+        ],
+    },
+];
+const touchEndAll = () => realMouse([{ type: "touchEnd", touchPoints: [] }], { touch: true, settle: false });
+
+// A22: the touch is cancelled (the harness's touch cancel): nothing written, no arrow lit, Build's handles
+scenarioTour(
+    "tl_note_a22_pointer_cancel",
+    async () => {
+        await touchDrawingHeld();
+        await realMouse([{ type: "touchCancel", touchPoints: [] }], { touch: true, settle: false });
+        for (const when of ["at the cancel", "1 s later"]) {
+            await pause(when === "at the cancel" ? 300 : 1000);
+            assert(!drawing(), `the line is gone ${when}`);
+            assertShown({ lit: [], buttons: 0, handles: 2 }, when);
+            assert(
+                handleOwners().every((owner) => owner === idOf("Build")),
+                `Build keeps its handles ${when}, got ${handleOwners()}`
+            );
+        }
+    },
+    { pointer: false }
+);
+
+// A23: a second finger at (300, the middle of Overlap C), an empty cell of the grid, cancels the
+// drawing as Escape does; both fingers lifting writes nothing and lights nothing
+scenarioTour(
+    "tl_note_a23_second_finger_inside_the_grid",
+    async () => {
+        const { end, shown } = await touchDrawingHeld();
+        const second = { x: 300, y: end.y };
+        await realMouse(twoFingers(end, second), { touch: true, settle: false });
+        await pause(300);
+        assert(!drawing(), "the line is gone");
+        assert(
+            JSON.stringify(assertShownNow()) === JSON.stringify(shown) && shown.lit.length > 0,
+            `the arrows lit at the start stay lit, got ${JSON.stringify(assertShownNow())}`
+        );
+        await touchEndAll();
+        await pause(500);
+        assertShown({ lit: [], buttons: 0, handles: handleCount() }, "after both fingers lifted");
+    },
+    { pointer: false }
+);
+
+// A24: a second finger at (300, 600), below the last row, does not cancel; the lift over Overlap C writes
+scenarioTour(
+    "tl_note_a24_second_finger_outside_the_grid",
+    async () => {
+        const { end } = await touchDrawingHeld();
+        const mark = sentBodies.length;
+        await realMouse(twoFingers(end, { x: 300, y: 600 }), { touch: true, settle: false });
+        await pause(300);
+        assert(drawing(), "the drawing goes on");
+        await touchEndAll();
+        await until(() => callsSince(mark, WRITES).length === 1, "the link is written");
+        await gridSettled();
     },
     { writes: 1, pointer: false }
 );

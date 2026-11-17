@@ -197,3 +197,35 @@ class TestNoteTours(RealPointerMixin, HttpCase):
 
     def test_a18_touch_move_from_untapped_pill(self):
         self._touch_run('tl_note_a18_touch_move_from_untapped_pill', writes=None)
+
+    # -- R4: what cancels a gesture -------------------------------------------------------------
+
+    def test_a20_other_key_cancels(self):
+        self._run('tl_note_a20_key_cancels_a_drawing')
+        self._reset_h42()
+        self._run('tl_note_a20_key_cancels_a_move')
+
+    def test_a21_modifier_keys_do_not_cancel(self):
+        # Shift does nothing: the release over "Overlap C" writes the link (the tour counts the
+        # write; the records are put back)
+        self._run('tl_note_a21_shift_does_not_cancel', writes=None)
+        self._reset_h42()
+        # Control turns a move into a copy; the tour ends it with Escape, nothing is written
+        self._run('tl_note_a21_control_makes_a_copy')
+
+    def test_a22_pointer_cancel(self):
+        self._touch_run('tl_note_a22_pointer_cancel')
+
+    def test_a23_second_finger_inside_the_grid(self):
+        self._touch_run('tl_note_a23_second_finger_inside_the_grid')
+
+    def test_a24_second_finger_outside_the_grid(self):
+        self._touch_run('tl_note_a24_second_finger_outside_the_grid', writes=None)
+
+    def test_a25_hidden_page_cancels(self):
+        # the harness cannot hide the page: the tour marks it hidden by script
+        self._run('tl_note_a25_hidden_page_cancels')
+
+    def test_a26_lost_focus_does_not_cancel(self):
+        # a focus-loss event sent to the window while the button is held: the release writes
+        self._run('tl_note_a26_lost_focus_does_not_cancel', writes=None)

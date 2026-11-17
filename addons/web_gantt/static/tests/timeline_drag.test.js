@@ -923,10 +923,9 @@ test("A24 phone size with a mouse: Ctrl copy of Plan into Beta", async () => {
 // Review Focus
 // ----------------------------------------------------------------------------
 
-test("Focus 1: a gesture ended by blur, pointercancel, a hidden tab or a second finger ends cleanly", async () => {
+test("Focus 1: a gesture ended by pointercancel or a hidden tab ends cleanly (a lost focus and a mouse gesture's second pointer do not, 002d R4)", async () => {
     await mountTimeline();
     const endings = {
-        blur: () => window.dispatchEvent(new Event("blur")),
         pointercancel: (pointerId) =>
             document.dispatchEvent(new PointerEvent("pointercancel", { pointerId, bubbles: true })),
         visibilitychange: () => {
@@ -938,10 +937,6 @@ test("Focus 1: a gesture ended by blur, pointercancel, a hidden tab or a second 
             document.dispatchEvent(new Event("visibilitychange"));
             delete document.visibilityState;
         },
-        "second finger": (pointerId) =>
-            document.dispatchEvent(
-                new PointerEvent("pointerdown", { pointerId: pointerId + 1, bubbles: true })
-            ),
     };
     for (const [name, end] of Object.entries(endings)) {
         let pointerId = 1;

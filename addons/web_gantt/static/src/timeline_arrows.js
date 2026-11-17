@@ -252,6 +252,35 @@ export class TimelineArrows {
     /** Every pointer press and move over the page (capture): the kind of pointer that is in use. */
     pointerSeen(ev) {
         this._pointerType = ev.pointerType;
+        if (ev.pointerType === "touch") {
+            (this._touches ||= new Set()).add(ev.pointerId);
+        }
+    }
+
+    /**
+     * A finger lifts, or the system takes it away (capture, every pointer end of the page). A
+     * finger taken away leaves no arrow lit, even when it only began a scroll (002d R4 point 2),
+     * unless another finger still holds a gesture. After a gesture a second finger cancelled, the
+     * arrows lit at its start go when no finger is left (point 3).
+     */
+    pointerEnded(ev) {
+        if (ev.pointerType !== "touch") {
+            return;
+        }
+        this._touches?.delete(ev.pointerId);
+        const alone = !this._touches?.size;
+        if ((ev.type === "pointercancel" && (alone || !this.isHeld)) || (this._unlitAtLift && alone)) {
+            this._unlight();
+        }
+    }
+
+    /** Nothing lit and nothing kept (the handles belong to the last tapped pill, 002d R3). */
+    _unlight() {
+        this._unlitAtLift = false;
+        this._kept = false;
+        this._holdOutside = false;
+        this.focus.arrowKey = null;
+        this.focus.pillKey = null;
     }
 
     /**
@@ -261,6 +290,7 @@ export class TimelineArrows {
     touchLit(key) {
         this._quietAt = null;
         this._kept = false;
+        this._unlitAtLift = false;
         this.focus.arrowKey = null;
         this.focus.pillKey = key;
     }
@@ -338,11 +368,15 @@ export class TimelineArrows {
     }
 
     /**
-     * The gesture that ends next was cancelled (Escape, a lost pointer): see `reset`. Called by the
+     * The gesture that ends next was cancelled (a key, a second finger, the page hidden; with
+     * `lost`, the pointer taken away): see `reset`. Called by the
      * gesture right before it lets go.
      */
-    cancelGesture() {
-        this._cancelling = true;
+    cancelGesture({ lost = false, finger = false } = {}) {
+        // the system took the pointer away (002d R4 point 2): unlike Escape, nothing stays lit
+        this._cancelling = !lost;
+        // a second finger cancelled it: the lit arrows stay while the fingers are down
+        this._unlitAtLift = finger;
     }
 
     /**

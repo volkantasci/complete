@@ -54,8 +54,10 @@ const MODES = {
  * - `commit(result)`: the release, `{mode, pill, rowId, target}` (`target` may be `null`);
  * - `released(x, y)` (optional): a held gesture is released where nothing is written (no target, or
  *   the pointer back on its starting point), the viewport point of the release (002d R1)
- * - `cancelled()` (optional): a held gesture was cancelled (Escape, lost pointer), no `commit`
- *   follows;
+ * - `cancelled({lost, finger})` (optional): a held gesture was cancelled (a key, the system taking
+ *   the pointer away: `lost`, a second finger: `finger`, the page hidden), no `commit` follows;
+ * - `insideGrid(event)` (optional): whether the event's target lies in the view's grid (a second
+ *   finger elsewhere does not cancel, 002d R4);
  * - `borderAt(x, pill, edge)`: for a resize, the sub-column border nearest to the viewport
  *   abscissa `x` for the edge `edge` of `pill` (kept one sub-column from the other edge), or
  *   `undefined` to keep the previous one (a folded column); the drawing's `target` is then
@@ -226,19 +228,33 @@ export class TimelinePillDrag {
             this._listen(target, "pointerup", once((event) => this._onUp(event)));
             this._listen(target, "pointercancel", once((event) => this._onCancel(event)));
         }
-        // another finger on the screen: the gesture is no longer one finger's
+        // a second finger put down inside the grid ends a touch gesture as Escape does (002d R4
+        // point 3); one outside the grid (below the last row, on the control panel) does not.
+        // A lost window focus does not cancel (point 5): no `blur` listener.
         this._listen(
             doc,
             "pointerdown",
             (event) => {
-                if (event.pointerId !== this._press?.id) {
-                    this._cancel();
+                const press = this._press;
+                if (
+                    !press ||
+                    event.pointerId === press.id ||
+                    press.type !== "touch" ||
+                    event.pointerType !== "touch" ||
+                    this.host.insideGrid?.(event) === false
+                ) {
+                    return;
+                }
+                const { id } = press;
+                const dragging = this.state === "dragging";
+                this._cancel({ finger: true });
+                if (dragging) {
+                    this._awaitRelease(doc, id);
                 }
             },
             { capture: true }
         );
-        // no release will come when the window or the tab loses the focus
-        this._listen(doc.defaultView, "blur", () => this._cancel());
+        // the page hidden: no release will come
         this._listen(doc, "visibilitychange", () => {
             if (doc.visibilityState === "hidden") {
                 this._cancel();
@@ -372,7 +388,8 @@ export class TimelinePillDrag {
 
     _onCancel(ev) {
         if (this._own(ev)) {
-            this._cancel();
+            // the system took the pointer away: unlike Escape, no arrow stays lit (002d R4 point 2)
+            this._cancel({ lost: true });
         }
     }
 
@@ -451,10 +468,11 @@ export class TimelinePillDrag {
         }, DOUBLE_CLICK_GUARD);
     }
 
-    _cancel() {
+    /** `lost`: the pointer was cancelled by the system; `finger`: another finger went down. */
+    _cancel({ lost = false, finger = false } = {}) {
         if (this.state === "dragging") {
             this.host.change(null);
-            this.host.cancelled?.();
+            this.host.cancelled?.({ lost, finger });
         }
         this._finish();
     }

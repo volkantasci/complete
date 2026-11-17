@@ -229,10 +229,12 @@ export class TimelineRenderer extends Component {
             commit: (result) => this._commitDrag(result),
             // a cancelled gesture (Escape, lost pointer) leaves no zone hit for the next release
             // (the arrows lit when it started stay lit, R9, A69, A95)
-            cancelled: () => {
+            // (a pointer the system took away leaves nothing lit, 002d R4)
+            cancelled: (why) => {
                 this._zoneHit = false;
-                this.arrows.cancelGesture();
+                this.arrows.cancelGesture(why);
             },
+            insideGrid: (ev) => this._insideGrid(ev),
             // a release where nothing is written (no target, or back on the starting point): the
             // arrows lit at the start stay lit (002d R1); over the drop zone the record is unscheduled
             released: (x, y) => {
@@ -257,7 +259,8 @@ export class TimelineRenderer extends Component {
             panelOpen: () => this.hasPanel && this.panel.open,
             hold: (on) => this._holdDrag(on ? "connect" : null),
             // a drawing cancelled with Escape or lost: the arrows lit when it started stay lit (R9)
-            cancelled: () => this.arrows.cancelGesture(),
+            cancelled: (why) => this.arrows.cancelGesture(why),
+            insideGrid: (ev) => this._insideGrid(ev),
             // a press on a handle that ends without a drawing is a click away from the popover
             // (002d R2)
             clicked: () => {
@@ -394,6 +397,16 @@ export class TimelineRenderer extends Component {
         this.arrows.refresh();
     }
 
+    /**
+     * Whether the event's target lies in the view's grid: a cell, a pill or a header, not the
+     * empty space below the last row nor anything outside the view (002d R4 point 3).
+     */
+    _insideGrid(ev) {
+        const grid = this.rendererRef()?.querySelector(".o_tl_grid");
+        const target = ev.target;
+        return Boolean(grid && target !== grid && target?.nodeType === 1 && grid.contains(target));
+    }
+
     /** The arrows follow a change of size of the window or of the grid. */
     _watchArrows() {
         const refresh = () => this.refreshArrows();
@@ -405,11 +418,17 @@ export class TimelineRenderer extends Component {
         const onMove = (ev) => this.arrows.pointerMoved(ev);
         // R11: a finger and a mouse light the arrows differently; a press tells which one is in use
         const onDown = (ev) => this.arrows.pointerSeen(ev);
+        // fingers lifting or taken away (002d R4)
+        const onEnd = (ev) => this.arrows.pointerEnded(ev);
         document.addEventListener("pointermove", onMove, true);
         document.addEventListener("pointerdown", onDown, true);
+        document.addEventListener("pointerup", onEnd, true);
+        document.addEventListener("pointercancel", onEnd, true);
         this._unwatchArrows = () => {
             document.removeEventListener("pointermove", onMove, true);
             document.removeEventListener("pointerdown", onDown, true);
+            document.removeEventListener("pointerup", onEnd, true);
+            document.removeEventListener("pointercancel", onEnd, true);
             browser.removeEventListener("resize", refresh);
             observer?.disconnect();
         };
