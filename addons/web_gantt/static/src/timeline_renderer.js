@@ -233,6 +233,13 @@ export class TimelineRenderer extends Component {
                 this._zoneHit = false;
                 this.arrows.cancelGesture();
             },
+            // a release where nothing is written (no target, or back on the starting point): the
+            // arrows lit at the start stay lit (002d R1); over the drop zone the record is unscheduled
+            released: (x, y) => {
+                if (!this._zoneHit) {
+                    this.arrows.releaseWithoutWrite(x, y);
+                }
+            },
             borderAt: (x, pill, edge) => this._borderAt(x, pill, edge),
             hold: (mode) => this._holdDrag(mode),
             panelOpen: () => this.hasPanel && this.panel.open,
@@ -251,6 +258,8 @@ export class TimelineRenderer extends Component {
             hold: (on) => this._holdDrag(on ? "connect" : null),
             // a drawing cancelled with Escape or lost: the arrows lit when it started stay lit (R9)
             cancelled: () => this.arrows.cancelGesture(),
+            // a drawing released over no other pill writes nothing (002d R1)
+            released: (x, y) => this.arrows.releaseWithoutWrite(x, y),
             // the drawing ended: the pill under the pointer shows its handles, but its arrows
             // stay at rest until the pointer moves (R9, A90)
             rest: (x, y) => {

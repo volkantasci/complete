@@ -34,6 +34,8 @@ const CENTRE = { start: { inward: 8, up: -8 }, stop: { inward: 6, up: 8 } };
  *   popover go) or over;
  * - `rest(x, y)`: the drawing ended with the pointer at the viewport point (the pill under it, if
  *   any, shows its handles again, as the pointer entered it);
+ * - `released(x, y)` (optional): a drawing was released over no other pill, so nothing is written
+ *   (002d R1);
  * - `cancelled()` (optional): a drawing that was on was cancelled (Escape, lost pointer), no `commit`;
  * - `commit({source, target})`: the release over another pill; `source` is `{rowId, pillId}`.
  *
@@ -216,6 +218,10 @@ export class TimelineConnectDrag {
         browser.setTimeout(() => {
             this._suppressClick = false;
         }, 0);
+        if (dragging && !target) {
+            // a release where nothing is written: the arrows lit at the start stay lit (002d R1)
+            this.host.released?.(ev.clientX, ev.clientY);
+        }
         this._finish();
         if (dragging) {
             this.host.rest(ev.clientX, ev.clientY);

@@ -267,6 +267,11 @@ export class TimelineArrows {
 
     /** The pointer leaves `key`; nothing changes when another pill was entered first. */
     unfocusPill(key) {
+        // a gesture that ended without a write keeps what was lit until the pointer moves: the
+        // browser's own leave of a pill that a lit arrow's band now covers does not count (R1)
+        if (this._kept) {
+            return;
+        }
         if (!this.isHeld && (key === undefined || this.focus.pillKey === key)) {
             this.focus.pillKey = null;
         }
@@ -308,6 +313,19 @@ export class TimelineArrows {
         // pointer moves (R9, A69, A95)
         this._kept = this._cancelling;
         this._cancelling = false;
+        // 002d R1: a release over the row headers lights nothing; one over the page outside the
+        // view keeps the arrows lit until the pointer moves over the view
+        const released = this._releasedAt;
+        this._releasedAt = null;
+        this._holdOutside = false;
+        if (this._kept && released) {
+            const stack = document.elementsFromPoint(released.x, released.y);
+            if (stack.some((element) => element.closest?.(".o_tl_row_header"))) {
+                this._kept = false;
+            } else {
+                this._holdOutside = true;
+            }
+        }
         if (!this._kept) {
             this.focus.arrowKey = null;
             this.focus.pillKey = null;
@@ -327,6 +345,16 @@ export class TimelineArrows {
         this._cancelling = true;
     }
 
+    /**
+     * The gesture that ends next is released at the viewport point (x, y) where nothing is written
+     * (002d R1): it follows the rule of a cancelled gesture, see `reset`. Called by the gesture
+     * right before it lets go.
+     */
+    releaseWithoutWrite(x, y) {
+        this._cancelling = true;
+        this._releasedAt = { x, y };
+    }
+
     /** The pill under the pointer shows its handles (none on an empty cell). */
     _showHandlesUnderPointer() {
         const at = this._pointer;
@@ -337,6 +365,10 @@ export class TimelineArrows {
     pointerMoved(ev) {
         this._pointer = { x: ev.clientX, y: ev.clientY };
         this._pointerType = ev.pointerType;
+        if (this._kept && this._holdOutside && !this.host.rendererRef()?.contains(ev.target)) {
+            // 002d R1: moves outside the view do not work the highlight out again
+            return;
+        }
         if (ev.pointerType === "touch" && this.host.connect.isPressed && !this.host.connect.isActive) {
             // a finger on a handle crosses an arrow's band before the threshold: that arrow alone is
             // lit when the drawing starts, as for a mouse (R9, A91); no mouse event tells it
@@ -363,6 +395,7 @@ export class TimelineArrows {
                 }
             }
             this._kept = false;
+            this._holdOutside = false;
         }
     }
 

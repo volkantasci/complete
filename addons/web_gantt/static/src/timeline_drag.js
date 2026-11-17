@@ -52,6 +52,8 @@ const MODES = {
  * - `change(drawing)`: what to draw now, `{mode, pill, rowId, target, offset: {x, y}}` (`offset`:
  *   how far the pointer is from where it was pressed, in pixels), or `null` for nothing;
  * - `commit(result)`: the release, `{mode, pill, rowId, target}` (`target` may be `null`);
+ * - `released(x, y)` (optional): a held gesture is released where nothing is written (no target, or
+ *   the pointer back on its starting point), the viewport point of the release (002d R1)
  * - `cancelled()` (optional): a held gesture was cancelled (Escape, lost pointer), no `commit`
  *   follows;
  * - `borderAt(x, pill, edge)`: for a resize, the sub-column border nearest to the viewport
@@ -321,14 +323,23 @@ export class TimelinePillDrag {
             return;
         }
         const dragging = this.state === "dragging";
-        const { pill, rowId, target, line } = this._press;
+        const { pill, rowId, target, line, x, y, x0, y0 } = this._press;
         const mode = dragging ? this._mode : null;
+        // a move or a resize released on the very point it was pressed at changes nothing, whatever
+        // the way it went (002d R1 point 10: no call, no reload, whatever the rescheduling method)
+        const back = dragging && mode !== "copy" && mode !== "panel" && x === x0 && y === y0;
+        if (dragging && (back || !target) && mode !== "panel") {
+            // a release where nothing is written: the arrows lit at the start stay lit (R1)
+            this.host.released?.(x, y);
+        }
         this._finish();
         if (dragging) {
             this.host.change(null);
             // the click that follows is the end of the gesture, not a click on a pill or a cell
             this._expectClick();
-            this.host.commit({ mode, pill, rowId, target, line });
+            if (!back) {
+                this.host.commit({ mode, pill, rowId, target, line });
+            }
         }
     }
 
