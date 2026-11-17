@@ -101,8 +101,10 @@ out: the stage bar (the stage cannot be changed here), the **Wishlisted By**
 button and the publish button. The dialog has no chatter. The title, image,
 kanban state, track date, location, duration, always wishlisted, responsible,
 event, tags, agenda colour and the Speaker, Description and Interactivity pages
-are all there. A new track from a cell or the New button proposes the day at
-midnight, as the other Gantt views do.
+are all there. A new track from a cell proposes the day at midnight, as the
+other Gantt views do; the New button on the Week range proposes the start of the
+week of the focus date as the grid shows it (a Sunday at midnight with the
+default language), not the original's Monday.
 
 The footer, from the left, holds up to four buttons:
 
@@ -195,8 +197,9 @@ of the form's button box, and the view switcher is a menu too.
 
 The module changes the two Community window actions on `event.track` (the
 Events > Tracks menu's and the event's), the event form's Tracks button and the
-form of the track dialog; it adds no model or field. It adds one method on
-tracks, `action_unschedule`, which clears the start and end and keeps the
+form of the track dialog; it adds no model and no stored field, only two
+computed values on the event (the start and the range its Tracks button passes).
+It adds one method on tracks, `action_unschedule`, which clears the start and end and keeps the
 duration, and refuses a call on several records. The button of the event passes
 the earliest start as a UTC date and time and the range, and the Gantt view reads
 the first as a UTC instant and takes its local calendar day as the focus; the

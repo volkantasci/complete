@@ -78,7 +78,9 @@ the middle of the visible cells (the row header column left out). The place is
 worked out as a linear share of the whole loaded period: the focus moment's
 distance from the start of the period, divided by the period's length, times the
 full width of the cells. It is not the date's place inside its own column. On
-the day and week scales, whose columns are equally long, the two are the same;
+the day and week scales, whose columns are equally long, the two are the same
+except across a daylight-saving change, where the scale (in milliseconds) and the
+columns differ by up to an hour of the period (sub-pixel to about 1 px);
 on the month and year scales, whose columns are months of 28 to 31 days drawn at
 one width, they differ by a few pixels, and the share of the whole period is the
 one used. For example, on a Year range of 2029 to 2031 with the focus on 11 June
@@ -1093,9 +1095,9 @@ The cases:
   while the pointer is held still; once the resize has started, every move inside
   the zone scrolls it.
 
-![A move released in its own sub-column, the arrows stay lit, light](../assets/gantt_view/89-released-empty.png)
+![A drawing released on an empty cell, the arrows stay lit, light](../assets/gantt_view/89-released-empty.png)
 
-![A move released in its own sub-column, dark](../assets/gantt_view/89-released-empty-dark.png)
+![A drawing released on an empty cell, dark](../assets/gantt_view/89-released-empty-dark.png)
 
 ![A handle under a held press, light](../assets/gantt_view/90-handle-pressed.png)
 
