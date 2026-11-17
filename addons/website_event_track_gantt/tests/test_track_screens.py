@@ -20,7 +20,7 @@ from odoo.addons.test_web_gantt.tests.timeline_probe import TimelineProbeCase
 from odoo.tests import HttpCase, tagged
 
 from . import test_track_probes as probes
-from .track_fixtures import make_event_users, make_gantt_summit
+from .track_fixtures import make_event_users, make_gantt_summit, use_one_language
 
 _logger = logging.getLogger(__name__)
 
@@ -49,6 +49,7 @@ class TestTrackScreens(TimelineProbeCase):
         admin = cls.env.ref('base.user_admin')
         admin.write({'group_ids': [(4, manager_group.id)]})
         make_event_users(cls.env)
+        use_one_language(cls.env)
         cls.summit = make_gantt_summit(cls.env)
         # the screens show the administrator as the demo data names it, as the tracks' responsible
         admin.partner_id.name = 'Mitchell Admin'

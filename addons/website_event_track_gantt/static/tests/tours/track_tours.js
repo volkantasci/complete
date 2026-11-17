@@ -258,8 +258,23 @@ tours.add("track_a34_tz_west_late", { steps: () => firstDay("TZ west late", "Jul
 
 // --- A36: no button context ---------------------------------------------------------------------
 
+// The tour starts from fresh browser storage: what an earlier visit remembered is wiped and the
+// page loaded again, once (a remembered range reopens the view on its kind, 002a R11).
+const freshStorage = (flag) => ({
+    trigger: ".o_switch_view.o_gantt",
+    expectUnloadPage: true,
+    run() {
+        if (!sessionStorage.getItem(flag)) {
+            sessionStorage.setItem(flag, "1");
+            clearRemembered();
+            location.reload();
+        }
+    },
+});
+
 tours.add("track_a36_without_button_context", {
     steps: () => [
+        freshStorage("track_a36_reloaded"),
         { trigger: ".o_switch_view.o_gantt" },
         { trigger: ".o_tl_renderer" },
         {

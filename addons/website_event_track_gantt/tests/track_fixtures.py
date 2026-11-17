@@ -11,6 +11,25 @@ def _location(env, name):
     return Location.search([('name', '=', name)], limit=1) or Location.create({'name': name})
 
 
+def use_one_language(env):
+    """One active language (N7): a second one adds the ``EN`` button to the title field of the
+    record dialog, which the dialog scenarios, probes and screenshots do not show. Users and
+    partners of another language are moved to English first, so that the language can go."""
+    others = env['res.lang'].search([('active', '=', True), ('code', '!=', 'en_US')])
+    if others:
+        env['res.users'].with_context(active_test=False).search(
+            [('lang', 'in', others.mapped('code'))]).write({'lang': 'en_US'})
+        env['res.partner'].with_context(active_test=False).search(
+            [('lang', 'in', others.mapped('code'))]).write({'lang': 'en_US'})
+        if 'website' in env:
+            # a language of a website cannot be deactivated (the demo data adds some)
+            english = env['res.lang'].search([('code', '=', 'en_US')])
+            env['website'].search([]).write(
+                {'language_ids': [(6, 0, english.ids)], 'default_lang_id': english.id})
+        others.write({'active': False})
+    assert env['res.lang'].search_count([('active', '=', True)]) == 1
+
+
 def make_gantt_summit(env):
     old = env['event.event'].with_context(active_test=False).search([('name', '=', 'Gantt Summit')])
     old.track_ids.with_context(active_test=False).unlink()

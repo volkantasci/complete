@@ -9,7 +9,7 @@ from datetime import datetime
 from odoo.addons.test_web_gantt.tests.timeline_real_pointer import RealPointerMixin
 from odoo.tests import HttpCase, tagged
 
-from .track_fixtures import make_event_users, make_gantt_summit, make_tz_events
+from .track_fixtures import make_event_users, make_gantt_summit, make_tz_events, use_one_language
 
 EVENTS = '/odoo/action-event.action_event_view'
 NOW = datetime(2030, 6, 11, 6, 0)
@@ -27,6 +27,7 @@ class TestTrackTours(RealPointerMixin, HttpCase):
         self.admin.lang = 'en_US'
         self.admin.group_ids = [(4, self.env.ref('event.group_event_manager').id)]
         make_event_users(self.env)
+        use_one_language(self.env)
         self.summit = make_gantt_summit(self.env)
 
     # -- helpers --------------------------------------------------------------------------------
