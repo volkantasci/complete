@@ -94,7 +94,10 @@ class TestTimelineDragHost(TransactionCase):
         self.assertEqual(user.login, 'rtl')
         self.assertEqual(user.lang, 'ar_001')
         self.assertTrue(self.env['res.lang']._lang_get('ar_001').active)
-        self.assertEqual(user.group_ids, admin.group_ids)
+        # the user takes the administrator's groups when it is created (by the demo data at
+        # install); modules installed afterwards may give the administrator more groups
+        self.assertTrue(user.group_ids <= admin.group_ids)
+        self.assertTrue(user.has_group('base.group_system'))
         self.assertEqual(user.tz, admin.tz)
         # asking again returns the same user
         self.assertEqual(self.env[PILL]._tl_rtl_user(self.env), user)
