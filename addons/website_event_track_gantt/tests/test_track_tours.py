@@ -219,6 +219,19 @@ class TestTrackTours(RealPointerMixin, HttpCase):
         self._tour(EVENTS, 'track_a56_refused_move')
         self.assertFalse(self._track('Panel Talk'))
 
+    def test_a56_refused_delete(self):
+        # the server refuses the deletion of "Panel Talk" (deleting a track that is already gone
+        # is a silent no-op in Community, so a rule stands for the refusal)
+        # (a restriction: no group, the operation is allowed only on the records of its domain)
+        self.env['ir.access'].create({
+            'name': 'No deletion of Panel Talk',
+            'model_id': self.env['ir.model']._get_id('event.track'),
+            'operation': 'd',
+            'domain': "[('name', '!=', 'Panel Talk')]",
+        })
+        self._tour(EVENTS, 'track_a56_refused_delete')
+        self.assertTrue(self._track('Panel Talk'))
+
     def test_a56_refused_unschedule(self):
         self._tour(EVENTS, 'track_a56_refused_unschedule')
         self.assertFalse(self._track('Panel Talk'))

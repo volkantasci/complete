@@ -936,6 +936,23 @@ tours.add("track_a56_refused_move", {
         ]),
 });
 
+tours.add("track_a56_refused_delete", {
+    steps: () =>
+        withEvent([
+            ...openConfirmation("Panel Talk"),
+            {
+                trigger: `${confirmation} .modal-footer .btn-primary`,
+                // the test set a rule that makes the server refuse this deletion (deleting a
+                // track that is already gone is a silent no-op in Community)
+                run: "click",
+            },
+            { trigger: ".o_error_dialog" },
+            { trigger: ".o_error_dialog .modal-header .btn-close, .o_error_dialog .modal-footer .btn", run: "click" },
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]),
+        ]),
+});
+
 tours.add("track_a56_refused_unschedule", {
     steps: () =>
         withEvent([

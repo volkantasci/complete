@@ -67,10 +67,15 @@ export class TrackDialogFormController extends FormController {
                 if ((await record.save({ reload: false })) === false) {
                     return;
                 }
-                await this.orm.unlink(record.resModel, [record.resId], {
-                    context: this.props.context,
-                });
-                this.env.dialogData.close();
+                try {
+                    await this.orm.unlink(record.resModel, [record.resId], {
+                        context: this.props.context,
+                    });
+                } finally {
+                    // a refused deletion shows the Community error (the rejection goes on); the
+                    // dialog closes either way, so that the view reloads with the stored values
+                    this.env.dialogData.close();
+                }
             },
         });
     }
