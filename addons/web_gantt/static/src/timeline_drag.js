@@ -429,7 +429,9 @@ export class TimelinePillDrag {
                 return;
             }
             this._forgetRelease();
-            this._expectClick();
+            // a cancelled gesture leaves no waiting time: the next click is a click at once
+            // (002d R2 point 1, A13)
+            this._expectClick({ guard: false });
         };
         const onCancel = (event) => {
             if (event.pointerId === id) {
@@ -449,12 +451,19 @@ export class TimelinePillDrag {
         this._release = null;
     }
 
-    /** Swallow the click of this release, and forget it once the click had its chance. */
-    _expectClick() {
+    /**
+     * Swallow the click of this release, and forget it once the click had its chance. With
+     * `guard`, a double click that begins with it is no click and no double click (R9) for
+     * `DOUBLE_CLICK_GUARD`.
+     */
+    _expectClick({ guard = true } = {}) {
         this._suppressClick = true;
         browser.setTimeout(() => {
             this._suppressClick = false;
         }, 0);
+        if (!guard) {
+            return;
+        }
         this._recent = true;
         browser.clearTimeout(this._recentTimer);
         this._recentTimer = browser.setTimeout(() => {

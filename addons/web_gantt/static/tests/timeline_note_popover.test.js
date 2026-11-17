@@ -197,6 +197,53 @@ test("A13: a mouse press on the body keeps the popover up to 9 px, 10 px starts 
     expect(".o_tl_popover .o_popover_header").toHaveText("Build");
 });
 
+test("A13: after a move cancelled with Escape the next click opens the popover at once, with no waiting time", async () => {
+    freezeTime();
+    await mountDependencies();
+    const body = queryRect(pillEl("Build"));
+    const point = { x: body.left + 267, y: body.top + body.height / 2 };
+    await hover(pillEl("Build"), { position: point });
+    await animationFrame();
+    const held = await drag(pillEl("Build"), { position: point });
+    // 96 px to the left in 10 steps, Escape, the button released
+    for (let i = 1; i <= 10; i++) {
+        await moveHeld(held, point.x - (96 * i) / 10, point.y);
+    }
+    expect(root()).toHaveClass("o_tl_drag_move");
+    await keyDown("Escape");
+    await keyUp("Escape");
+    await held.drop();
+    await animationFrame();
+    // 100 ms later the pill is clicked: its popover opens after its own delay, not after the
+    // 500 ms a completed gesture holds clicks back
+    await advanceTime(100);
+    // (a click a browser counts as the second of a pair, `detail` 2: a completed gesture would
+    // hold it back for half a second as the end of a double click; a cancelled one does not)
+    pillEl("Build").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 2 }));
+    await advanceTime(250);
+    await animationFrame();
+    expect(popover()).toBe(1);
+    expect(".o_tl_popover .o_popover_header").toHaveText("Build");
+    expect(log).toEqual([]);
+});
+
+test("A11: a click on a drawing handle leaves the popover open, Build's arrows lit and its handles shown", async () => {
+    freezeTime();
+    await mountDependencies();
+    await openPopoverWithMouse();
+    const start = centre(queryRect(connectHandle("Build", "stop")));
+    await hover(connectHandle("Build", "stop"), { position: start });
+    await animationFrame();
+    await click(connectHandle("Build", "stop"), { position: start });
+    await advanceTime(400);
+    await animationFrame();
+    expect(popover()).toBe(1);
+    expect(".o_tl_connect_path").toHaveCount(0);
+    expect(lit()).toHaveLength(2);
+    expect(queryAll(".o_tl_connect_handle")).toHaveLength(2);
+    expect(log).toEqual([]);
+});
+
 // ---------------------------------------------------------------------------------------------
 // A finger (R2 points 2 and 3)
 // ---------------------------------------------------------------------------------------------

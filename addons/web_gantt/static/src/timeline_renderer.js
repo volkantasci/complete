@@ -262,12 +262,6 @@ export class TimelineRenderer extends Component {
             // a drawing cancelled with Escape or lost: the arrows lit when it started stay lit (R9)
             cancelled: (why) => this.arrows.cancelGesture(why),
             insideGrid: (ev) => this._insideGrid(ev),
-            // a press on a handle that ends without a drawing is a click away from the popover
-            // (002d R2)
-            clicked: () => {
-                this._cancelPopover();
-                this.popover.close();
-            },
             // a drawing released over no other pill writes nothing (002d R1)
             released: (x, y) => this.arrows.releaseWithoutWrite(x, y),
             // the drawing ended: the pill under the pointer shows its handles, but its arrows

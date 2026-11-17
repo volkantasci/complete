@@ -171,11 +171,17 @@ class TestNoteTours(RealPointerMixin, HttpCase):
     def test_a11_popover_and_a_press_on_the_drawing_handle(self):
         self._run('tl_note_a11_popover_and_drawing_handle')
 
+    def test_a11_a_click_on_the_drawing_handle_keeps_the_popover(self):
+        self._run('tl_note_a11_click_on_the_drawing_handle')
+
     def test_a12_popover_and_a_press_on_the_resize_handle(self):
         self._run('tl_note_a12_popover_and_resize_handle')
 
     def test_a13_popover_and_a_press_on_the_body(self):
         self._run('tl_note_a13_popover_and_body')
+
+    def test_a13_a_click_after_a_cancelled_move_opens_the_popover_at_once(self):
+        self._run('tl_note_a13_click_after_a_cancelled_move')
 
     def test_a14_touch_popover_and_a_finger_on_the_drawing_handle(self):
         self._touch_run('tl_note_a14_touch_drawing_handle')

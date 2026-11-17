@@ -411,6 +411,18 @@ scenarioTour("tl_note_a11_popover_and_drawing_handle", async () => {
     assert(!drawing(), "Escape cancelled the drawing");
 });
 
+// A11, the second path: the handle at (1502, 280) pressed and released without moving (a click on
+// the drawing handle): the popover stays open, Build's two arrows stay lit and its handles show
+scenarioTour("tl_note_a11_click_on_the_drawing_handle", async () => {
+    await openPopoverWithMouse();
+    const from = await reachHandle("Build", "stop", BUILD);
+    await realMouse([...holdEvents(from, []), ...releaseAt(from)], { settle: false });
+    await pause(400);
+    assert(popoverOpen(), "the popover stays open");
+    assert(!drawing(), "nothing is drawn");
+    assertShown({ lit: buildArrows(), buttons: 2, handles: 2 }, "after the click");
+});
+
 scenarioTour("tl_note_a12_popover_and_resize_handle", async () => {
     await openPopoverWithMouse();
     const from = { x: 1505, y: 260 };
@@ -434,6 +446,23 @@ scenarioTour("tl_note_a13_popover_and_body", async () => {
     await realMouse([...holdEvents(from, []), ...releaseAt(from)], { settle: false });
     await pause(400);
     assert(popoverOpen(), "the click opens the popover of Build again");
+});
+
+// A13, the second path: Build pressed at (1300, 260), moved 96 px to the left in 10 steps, Escape,
+// the button released, and Build clicked at (1300, 260) 100 ms later: its popover opens at once
+scenarioTour("tl_note_a13_click_after_a_cancelled_move", async () => {
+    await realMouse(
+        holdEvents(BUILD, stepsTo(BUILD, { x: BUILD.x - 96, y: BUILD.y }, 10)),
+        { settle: false }
+    );
+    await until(() => rootHas("o_tl_drag_move"), "the move starts");
+    escape();
+    await pause(200);
+    await realMouse(releaseAt({ x: BUILD.x - 96, y: BUILD.y }), { settle: false });
+    await pause(100);
+    await realMouse([...holdEvents(BUILD, []), ...releaseAt(BUILD)], { settle: false });
+    await pause(400);
+    assert(popoverOpen(), "the click opens the popover of Build at once");
 });
 
 /** The outer box of "Build" (its body and the 1 px around it) and its middle height. */
