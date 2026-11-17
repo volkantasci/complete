@@ -8,7 +8,9 @@ import {
     getMockEnv,
     getService,
     makeKwArgs,
+    makeMockServer,
     makeTestApp,
+    MockServer,
     models,
     onRpc,
     patchWithCleanup,
@@ -488,4 +490,35 @@ export async function makeTimelineModel({
     const config = parseTimelineArch(parseXML(arch), modelFields);
     const model = new TimelineModel(getMockEnv(), { resModel, fields: modelFields, config, viewId }, { orm });
     return { model, config };
+}
+
+/** The pills of the scratch host by name (H42's records), for the tests of the arrows. */
+export const PILL_ID = {
+    Design: 4,
+    Build: 5,
+    Review: 6,
+    Test: 7,
+    Deploy: 8,
+    Plan: 9,
+    "Long task": 10,
+    "Overlap A": 11,
+    "Overlap B": 12,
+    "Overlap C": 13,
+};
+
+/** Arch attributes of a view with dependencies (H42's). */
+export const DEPENDENCY_ATTRS = `string="Pills" default_range="week" color="x_color"
+    dependency_field="dependency_field" dependency_inverted_field="dependency_inverted_field"`;
+
+/**
+ * Creates the mock server and links H42's three dependencies: Design to Build, Build to Test and
+ * Review to Overlap A. Call it before `mountView`.
+ */
+export async function linkPills() {
+    await makeMockServer();
+    const pills = MockServer.current.env["pill"];
+    const set = (id, sources) => (pills.find((record) => record.id === id).dependency_field = sources);
+    set(PILL_ID.Build, [PILL_ID.Design]);
+    set(PILL_ID.Test, [PILL_ID.Build]);
+    set(PILL_ID["Overlap A"], [PILL_ID.Review]);
 }

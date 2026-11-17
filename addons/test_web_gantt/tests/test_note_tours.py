@@ -1,0 +1,146 @@
+# Copyright 2026 Complete contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+"""Live tours of slice 002d's notes on the earlier parts (R1 to R4), on 002c's host H42.
+
+The package's setup: the browser at 1600 x 900, its clock at Thursday 12 November 2026, 09:00 in a
+time zone three hours ahead of UTC (``Etc/GMT-3``); the records of 002a's host table are put back
+by name before every scenario (``_reset_h42``). The gestures are played with real pointer events
+(``RealPointerMixin``); the tours are in ``timeline_note_tours.js``.
+"""
+from datetime import datetime
+from functools import wraps
+from unittest.mock import patch
+
+from odoo.tests import HttpCase, tagged
+
+from .timeline_real_pointer import RealPointerMixin
+
+PILL = 'test.web.gantt.pill'
+DESKTOP = '1600x900'
+# 09:00 at UTC+3 on D0 = 06:00 UTC
+NOW = datetime(2026, 11, 12, 6)
+ZONE = 'Etc/GMT-3'
+H42_MENU = 'H42 Dependencies by parent'
+LINKS = {'Build': ['Design'], 'Test': ['Build'], 'Overlap A': ['Review']}
+
+
+@tagged('post_install', '-at_install')
+class TestNoteTours(RealPointerMixin, HttpCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        pill = cls.env[PILL]
+        # the demo data (when loaded) holds the same records: start from a clean host
+        pill.with_context(active_test=False).search([]).unlink()
+        cls.env['test.web.gantt.pill2'].with_context(active_test=False).search([]).unlink()
+        cls.records = pill._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+
+    def setUp(self):
+        super().setUp()
+        self.browser_size = DESKTOP
+        self.touch_enabled = False
+        self.env.ref('base.user_admin').lang = 'en_US'
+        self._reset_h42()
+
+    # -- helpers --------------------------------------------------------------------------------
+
+    def _reset_h42(self):
+        """Puts the records of the setup back by name: their dates, parents and the three links."""
+        self.env[PILL]._tl_build_host_records(today='2026-11-12', tz_offset_hours=3)
+        for name, sources in LINKS.items():
+            self.env[PILL].search([('name', '=', name)]).write(
+                {'dependency_field': [(6, 0, [self.records[source].id for source in sources])]})
+        self.env.flush_all()
+
+    def _open_h42(self):
+        """The path that opens the menu "H42 Dependencies by parent" (found by its name)."""
+        menu = self.env['ir.ui.menu'].search([('name', '=', H42_MENU)], limit=1)
+        self.assertTrue(menu, 'the menu of H42 exists')
+        return f'/odoo/action-{menu.action.id}'
+
+    def _state(self):
+        """What a gesture must leave alone: every record's dates and links, by name."""
+        self.env.invalidate_all()
+        return {
+            record.name: (record.date_start, record.date_stop, sorted(record.dependency_field.ids))
+            for record in self.env[PILL].search([])
+        }
+
+    def _tour(self, name):
+        self.start_tour_with_pointer(self._open_h42(), name, login='admin', now=NOW, timezone=ZONE)
+
+    def _counting(self):
+        """Context manager: counts the writes and the rescheduling calls the server receives."""
+        calls = []
+        model = type(self.env[PILL])
+        patches = []
+        for method in ('write', 'web_gantt_reschedule'):
+            original = getattr(model, method)
+
+            def make(original, method):
+                @wraps(original)
+                def counted(records, *args, **kwargs):
+                    calls.append((method, records._name))
+                    return original(records, *args, **kwargs)
+                return counted
+
+            patches.append(patch.object(model, method, make(original, method)))
+
+        class Counting:
+            def __enter__(self_):
+                for item in patches:
+                    item.start()
+                return calls
+
+            def __exit__(self_, *exc):
+                for item in reversed(patches):
+                    item.stop()
+        return Counting()
+
+    def _run(self, name, writes=0):
+        """Runs the tour; a scenario that writes nothing leaves every record as it was."""
+        before = self._state()
+        with self._counting() as calls:
+            self._tour(name)
+        pill_calls = [call for call in calls if call[1] == PILL]
+        if writes:
+            self.assertEqual(len(pill_calls), writes, pill_calls)
+        else:
+            self.assertEqual(pill_calls, [], 'the gesture sent no call to the model')
+        self.assertEqual(self._state(), before)
+
+    # -- R1: a gesture released without a write -------------------------------------------------
+
+    def test_a1_drawing_released_on_empty_cell(self):
+        self._run('tl_note_a1_drawing_on_empty_cell')
+
+    def test_a2_drawing_released_over_column_headers(self):
+        self._run('tl_note_a2_drawing_on_column_headers')
+
+    def test_a3_drawing_released_over_row_headers(self):
+        self._run('tl_note_a3_drawing_on_row_headers')
+
+    def test_a4_drawing_released_on_own_pill(self):
+        self._run('tl_note_a4_drawing_on_own_pill')
+
+    def test_a5_drawing_released_on_a_pill_with_the_dependency(self):
+        # one write on "Test" sends the dependency again; nothing changes
+        self._run('tl_note_a5_drawing_on_a_pill_with_the_dependency', writes=1)
+
+    def test_a6_drawing_released_outside_the_view(self):
+        self._run('tl_note_a6_drawing_outside_the_view')
+
+    def test_a7_move_released_outside_the_view(self):
+        self._run('tl_note_a7_move_outside_the_view')
+
+    def test_a8_move_released_over_the_headers(self):
+        self._run('tl_note_a8_move_on_row_headers')
+        self._reset_h42()
+        self._run('tl_note_a8_move_on_column_headers')
+
+    def test_a9_move_and_resize_released_where_started(self):
+        # no write and no rescheduling call reaches the server (002b2 D3, decision D1)
+        self._run('tl_note_a9_move_released_where_it_started')
+        self._reset_h42()
+        self._run('tl_note_a9_resize_released_where_it_started')
