@@ -72,6 +72,8 @@
 // frame inside 388 x 698, M43); the frame draws the background too
 .o_popover:has(> .o_tl_popover_sheet) {
     inset: auto 0 0 !important;
+    // not dead: the sheet's computed top margin is the measured 144 px (M12, probe on the box)
+    margin-top: $o-tl-popover-sheet-top;
     width: auto;
     height: calc(100% - #{$o-tl-popover-sheet-top});
     max-width: none;
