@@ -98,7 +98,9 @@ speaker's line shows only when the track has a speaker name. The footer has the
 Edit, View, a double click on a pill, **New** and a click on an empty cell open
 the track in a dialog. It is the usual event track form, with three things taken
 out: the stage bar (the stage cannot be changed here), the **Wishlisted By**
-button and the publish button. The dialog has no chatter. The title, image,
+button and the publish button. An empty strip, 16 px tall, stays where the
+stage bar was, so the title starts 24 px below the top of the dialog's body (16
+on the phone). The dialog has no chatter. The title, image,
 kanban state, track date, location, duration, always wishlisted, responsible,
 event, tags, agenda colour and the Speaker, Description and Interactivity pages
 are all there. A new track from a cell proposes the day at midnight, as the
