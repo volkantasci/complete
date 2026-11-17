@@ -110,7 +110,7 @@ tours.add("track_a30_tracks_button_week", {
         },
         { trigger: ".o_switch_view.o_list", run: "click" },
         {
-            trigger: ".o_list_view .o_data_row",
+            trigger: ".o_content .o_list_renderer tbody tr.o_data_row",
             run() {
                 assertEqual($$(".o_data_row").length, 5, "the tracks in the list");
             },
@@ -528,14 +528,14 @@ function footerButtons(dialog = topDialog()) {
     return $$(".modal-footer button", dialog)
         .filter((el) => el.getBoundingClientRect().width > 0)
         .map((el) => {
-            const box = el.getBoundingClientRect();
+            const { left, right } = el.getBoundingClientRect();
             return {
                 text: el.textContent.trim(),
                 tooltip: el.dataset.tooltip || "",
                 icon: !!$(".oi[data-icon='delete']", el),
                 primary: el.classList.contains("btn-primary"),
-                left: box.left,
-                right: box.right,
+                left,
+                right,
             };
         });
 }

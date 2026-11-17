@@ -31,7 +31,7 @@
 
     <!-- The Gantt view of the tracks: rows by location, the colour of the agenda,
          the range opened by the Tracks button of an event. -->
-    <record id="event_track_view_gantt" model="ir.ui.view">
+    <record id="event_track_gantt_timeline" model="ir.ui.view">
         <field name="name">event.track.gantt</field>
         <field name="model">event.track</field>
         <field name="arch" type="xml">

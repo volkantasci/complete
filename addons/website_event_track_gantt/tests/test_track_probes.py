@@ -44,8 +44,8 @@ class TestTrackProbes(TimelineProbeCase):
         HttpCase.setUpClass.__func__(cls)
         cls.has_theme = bool(cls.env['ir.module.module'].search_count(
             [('name', '=', 'web_enterprise'), ('state', '=', 'installed')]))
-        admin = cls.env.ref('base.user_admin')
-        admin.group_ids = [(4, cls.env.ref('event.group_event_manager').id)]
+        manager_group = cls.env.ref('event.group_event_manager')
+        cls.env.ref('base.user_admin').write({'group_ids': [(4, manager_group.id)]})
         make_event_users(cls.env)
         cls.summit = make_gantt_summit(cls.env)
 
