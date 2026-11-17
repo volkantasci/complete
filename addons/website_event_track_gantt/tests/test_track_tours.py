@@ -232,6 +232,14 @@ class TestTrackTours(RealPointerMixin, HttpCase):
         self._tour(EVENTS, 'track_a56_refused_delete')
         self.assertTrue(self._track('Panel Talk'))
 
+    def test_a53_phone(self):
+        """390 x 844 with touch (the mobile mode): the Community's phone layout and its
+        full-screen form."""
+        self.browser_size = '390x844'
+        self.touch_enabled = True
+        self.start_tour_with_pointer(
+            EVENTS, 'track_a53_phone', now=NOW, timezone=ZONE, mobile=(390, 844), login='admin')
+
     def test_a56_refused_unschedule(self):
         self._tour(EVENTS, 'track_a56_refused_unschedule')
         self.assertFalse(self._track('Panel Talk'))

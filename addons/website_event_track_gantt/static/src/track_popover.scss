@@ -1,0 +1,29 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The popover of a track (M5 to M11): lines of 13 px with a line height of 19.5 px, a body of 16 px
+// by 15 px padding around a block that has 10 px above and below its lines and 14 px before them
+// (the label at x 971 where the block starts at 957), and no extra gap under the arrow (the
+// measured box hangs at y 281). Only the popover whose body holds the lines of a track is meant.
+.o_popover:has(> .o_tl_popover:not(.o_tl_popover_sheet) .o_track_popover_lines) {
+    margin-top: 0;
+}
+
+.o_tl_popover .o_card .o_popover_body:has(.o_track_popover_lines) {
+    padding: 16px 15px !important;
+}
+
+// the rounded corners of the popover cut the header band (M6: the band itself has square corners)
+.o_tl_popover:has(.o_track_popover_lines) {
+    overflow: hidden;
+
+    .o_popover_header {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+}
+
+.o_track_popover_lines {
+    padding: 10px 14px;
+    line-height: 19.5px;
+}

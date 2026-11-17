@@ -532,7 +532,7 @@ function footerButtons(dialog = topDialog()) {
             return {
                 text: el.textContent.trim(),
                 tooltip: el.dataset.tooltip || "",
-                icon: !!$(".fa-trash-o", el),
+                icon: !!$(".oi[data-icon='delete']", el),
                 primary: el.classList.contains("btn-primary"),
                 left: box.left,
                 right: box.right,
@@ -994,4 +994,66 @@ tours.add("track_dialog_invalid_form", {
             pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]),
         ]);
     },
+});
+
+// --- A53: the phone (R16) ----------------------------------------------------------------------
+
+tours.add("track_a53_phone", {
+    steps: () => [
+        { trigger: ".o_kanban_view .o_kanban_record", run: clearRemembered },
+        { trigger: ".o_kanban_record:contains('Gantt Summit')", run: "click" },
+        { trigger: ".o_form_view .o_button_more", run: "click" },
+        { trigger: ".o-form-buttonbox-small .oe_stat_button:contains('Tracks')", run: "click" },
+        { trigger: ".o_cp_switch_buttons .dropdown-toggle", run: "click" },
+        { trigger: ".o_bottom_sheet_body button:contains('Gantt')", run: "click" },
+        { trigger: ".o_timeline_view .o_tl_renderer" },
+        gridReady(),
+        {
+            trigger: ".o_tl_renderer .o_tl_row",
+            async run() {
+                await until(() => pillNames().length === 4, "the four pills");
+                assertEqual(rowNames(), ["Undefined Location", "Theatre", "Lauzelle"], "the rows");
+                const dates = $$(".o_tl_col").map((el) => el.dataset.date);
+                assert(dates.includes("2030-06-10"), `10 June loaded in ${dates}`);
+                const box = pillOf("Opening Keynote").getBoundingClientRect();
+                assertEqual([box.x, box.y], [261, 301], "the place of Opening Keynote");
+            },
+        },
+        clickPill("Opening Keynote"),
+        {
+            trigger: ".o_popover .o_tl_popover_sheet",
+            async run() {
+                await until(() => $(".o_track_popover_lines"), "the lines");
+                const lines = texts(".o_track_popover_lines > div");
+                assert(lines[0].startsWith("Start —"), `the first line: ${lines}`);
+                assert(lines[1].startsWith("Proposed By —"), `the second line: ${lines}`);
+                const sheet = $(".o_popover").getBoundingClientRect();
+                assertEqual(
+                    [sheet.bottom, sheet.width > 380],
+                    [window.innerHeight, true],
+                    "a sheet to the bottom, the full width"
+                );
+                assert(sheet.top >= 143 && sheet.top <= 147, `the sheet starts at y ${sheet.top}`);
+            },
+        },
+        { trigger: ".o_tl_popover .o_tl_popover_button:contains('Edit')", run: "click" },
+        { trigger: ".o_dialog .modal-title:contains('Open')" },
+        {
+            trigger: ".o_dialog .modal-footer .o_form_button_save",
+            async run() {
+                // the form slides in from the side
+                await until(() => footerButtons()[0]?.left < 30, "the form in place");
+                assert($(".o_dialog .modal.o_modal_full"), "the form fills the screen");
+                assertEqual(footerNames(), ["Save", "Discard", "Unschedule", "[bin]"], "the footer");
+                const [save, discard, unschedule] = footerButtons();
+                assert(save.primary && !discard.primary && !unschedule.primary, "the ranks");
+                // the Community's phone footer lays its buttons out one under the other
+                const width = window.innerWidth;
+                assert(
+                    footerButtons().every((b) => b.left >= 0 && b.right <= width),
+                    `the buttons lie inside the screen: ${JSON.stringify(footerButtons())}`
+                );
+            },
+        },
+    ],
 });
