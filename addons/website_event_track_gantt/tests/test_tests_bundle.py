@@ -15,9 +15,9 @@ class TestTestsBundle(TransactionCase):
 
     def test_tests_bundle_without_website_sale(self):
         asset = self.env['ir.asset']
-        installed = set(asset._get_installed_addons_list())
-        self.assertNotIn('website_sale', installed)
-        with patch.object(IrAsset, '_get_asset_paths', return_value=self._stand_in()):
+        installed = set(asset._get_installed_addons_list()) - {'website_sale'}
+        with patch.object(IrAsset, '_get_asset_paths', return_value=self._stand_in()), \
+                patch.object(type(asset), '_get_installed_addons_list', return_value=installed):
             tests = asset._get_asset_paths('web.assets_tests', {})
             self.assertEqual([entry[0] for entry in tests], [_OTHER])
             backend = asset._get_asset_paths('web.assets_backend', {})
@@ -28,6 +28,8 @@ class TestTestsBundle(TransactionCase):
 
     def test_real_tests_bundle_has_no_autocomplete_test(self):
         asset = self.env['ir.asset']
+        if 'website_sale' in asset._get_installed_addons_list():
+            self.skipTest('website_sale is installed: the tour is kept on purpose')
         paths = asset._get_asset_paths('web.assets_tests', {})
         marker = 'website_address_autocomplete/static/tests/'
         left = [entry[0] for entry in paths if marker in entry[0]]
