@@ -167,6 +167,72 @@ test("A12: a mouse press on the right resize handle keeps the popover up to 9 px
     expect(log).toEqual([]);
 });
 
+/**
+ * A resize of Build from one of its resize handles, moved `dx` px in 6 steps, cancelled with Escape,
+ * the button released: what is lit then, and after a 1 px move.
+ */
+async function cancelledResize(edge, dx, { withPopover }) {
+    freezeTime();
+    await mountDependencies();
+    if (withPopover) {
+        await openPopoverWithMouse();
+    }
+    const body = queryRect(pillEl("Build"));
+    const x = edge === "stop" ? body.right - 4 : body.left + 4;
+    // near the pill's top edge, above the band of the arrow that ends at its start
+    const point = { x, y: body.top + 2 };
+    await hover(pillEl("Build"), { position: point });
+    await animationFrame();
+    const held = await drag(queryOne(`.o_tl_pill .o_tl_handle_${edge}`), { position: point });
+    const scroller = queryOne(".o_tl_renderer");
+    const before = scroller.scrollLeft;
+    for (let step = 1; step <= 6; step++) {
+        await moveHeld(held, point.x + (dx * step) / 6, point.y);
+        await advanceTime(50);
+    }
+    // held inside the edge zone the grid goes on scrolling: Build moves away from the pointer
+    for (let frame = 0; frame < 30; frame++) {
+        await advanceTime(50);
+        await animationFrame();
+    }
+    expect(root()).toHaveClass("o_tl_drag_resize");
+    const scrolled = scroller.scrollLeft !== before;
+    await keyDown("Escape");
+    await keyUp("Escape");
+    await held.drop();
+    await settle();
+    // the highlight of a gesture that scrolled is worked out once the grid is drawn again
+    await animationFrame();
+    await animationFrame();
+    expect(log).toEqual([]);
+    const at = { x: point.x + dx, y: point.y };
+    return { scrolled, at, litNow: lit().length };
+}
+
+for (const withPopover of [true, false]) {
+    test(`A12 (P1): a resize from Build's right handle during which the grid scrolled lights no arrow after Escape${withPopover ? ", with the popover" : ""}`, async () => {
+        const { scrolled, at, litNow } = await cancelledResize("stop", -30, { withPopover });
+        expect(scrolled).toBe(true);
+        expect(litNow).toBe(0);
+        const target = document.elementFromPoint(at.x + 1, at.y) || queryOne(".o_tl_renderer");
+        await hover(target, { position: { x: at.x + 1, y: at.y } });
+        await animationFrame();
+        expect(lit()).toHaveLength(0);
+    });
+
+    test(`A12 (P1): a resize from Build's left handle with no scroll keeps Build's two arrows lit after Escape${withPopover ? ", with the popover" : ""}`, async () => {
+        const { scrolled, at, litNow } = await cancelledResize("start", 30, { withPopover });
+        expect(scrolled).toBe(false);
+        expect(litNow).toBe(2);
+        expect(queryAll(".o_tl_connect_handle")).toHaveLength(2);
+        const target = document.elementFromPoint(at.x + 1, at.y) || queryOne(".o_tl_renderer");
+        await hover(target, { position: { x: at.x + 1, y: at.y } });
+        await animationFrame();
+        expect(lit()).toHaveLength(2);
+        expect(queryAll(".o_tl_connect_handle")).toHaveLength(2);
+    });
+}
+
 test("A13: a mouse press on the body keeps the popover up to 9 px, 10 px starts the move; a plain click opens it", async () => {
     freezeTime();
     await mountDependencies();
@@ -226,9 +292,8 @@ test("A13: after a move cancelled with Escape the next click opens the popover a
     expect(log).toEqual([]);
 });
 
-test("A13: after a cancelled move a second click at the spot of the release within the guard opens nothing", async () => {
-    freezeTime();
-    await mountDependencies();
+/** A move of Build cancelled with Escape and released: the spot of the release. */
+async function cancelledMoveReleased() {
     const body = queryRect(pillEl("Build"));
     const point = { x: body.left + 267, y: body.top + body.height / 2 };
     await hover(pillEl("Build"), { position: point });
@@ -239,17 +304,57 @@ test("A13: after a cancelled move a second click at the spot of the release with
     }
     await keyDown("Escape");
     await keyUp("Escape");
-    // the drop sends the click of the release, which is swallowed; the second click of the pair
-    // (`detail` 2) is no click either
+    // the drop sends the click of the release, which is swallowed
     await held.drop();
     await advanceTime(50);
-    pillEl("Build").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 2 }));
+}
+
+const clickWith = (detail) =>
+    pillEl("Build").dispatchEvent(new MouseEvent("click", { bubbles: true, detail }));
+const dblclick = () =>
     pillEl("Build").dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }));
-    await advanceTime(600);
+
+test("A13: after a cancelled move a click at the spot of the release opens the popover, though a browser counts it as the second click", async () => {
+    freezeTime();
+    await mountDependencies();
+    await cancelledMoveReleased();
+    clickWith(2);
+    // the browser sends the double click event of that count: it is none
+    dblclick();
+    await advanceTime(1000);
     await animationFrame();
-    expect(popover()).toBe(0);
+    expect(popover()).toBe(1);
     expect(".o_dialog").toHaveCount(0);
     expect(log).toEqual([]);
+});
+
+test("A13: after a cancelled move a double click at the spot of the release opens the record dialog", async () => {
+    freezeTime();
+    await mountDependencies();
+    await cancelledMoveReleased();
+    // the release's click was the first of the series: the user's two clicks count 2 and 3
+    clickWith(2);
+    dblclick();
+    await advanceTime(50);
+    clickWith(3);
+    await advanceTime(1000);
+    await animationFrame();
+    expect(popover()).toBe(0);
+    expect(".o_dialog").toHaveCount(1);
+});
+
+test("A13: after a cancelled move a double click counted from one opens the record dialog as well", async () => {
+    freezeTime();
+    await mountDependencies();
+    await cancelledMoveReleased();
+    clickWith(1);
+    await advanceTime(50);
+    clickWith(2);
+    dblclick();
+    await advanceTime(1000);
+    await animationFrame();
+    expect(popover()).toBe(0);
+    expect(".o_dialog").toHaveCount(1);
 });
 
 test("A11: a click on a drawing handle leaves the popover open, Build's arrows lit and its handles shown", async () => {

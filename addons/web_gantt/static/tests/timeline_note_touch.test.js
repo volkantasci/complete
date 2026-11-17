@@ -139,6 +139,42 @@ test("A17: after a touch drawing is saved no arrow is lit, Build shows its handl
     expect(lit()).toHaveLength(0);
 });
 
+test("A14 (P2): a touch drawing lifted over its own pill writes nothing, lights no arrow, Build keeps its handles until the next tap", async () => {
+    await mountDependencies();
+    await tapBuild();
+    const handle = queryOne(`.o_tl_connect[data-pill-id="${PILL_ID.Build}"] .o_tl_connect_stop`);
+    const start = centre(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    await advanceTime(500);
+    await animationFrame();
+    const over = centre(queryRect(pillEl("Build")));
+    for (let i = 1; i <= 10; i++) {
+        const x = start.x + ((over.x - start.x) * i) / 10;
+        const y = start.y + ((over.y - start.y) * i) / 10;
+        await held.moveTo(document.elementFromPoint(x, y) || queryOne(".o_tl_renderer"), {
+            position: { x, y },
+        });
+        await animationFrame();
+    }
+    expect(".o_tl_connect_path").toHaveCount(1);
+    await held.drop();
+    await settle();
+    expect(log).toEqual([]);
+    for (const wait of [0, 1500]) {
+        await advanceTime(wait);
+        await animationFrame();
+        expect(lit()).toHaveLength(0);
+        expect(".o_tl_arrow_remove").toHaveCount(0);
+        expect(connectHandles("Build")).toHaveLength(2);
+    }
+    // the next tap, on an empty cell, hides them
+    const cell = queryAll(".o_tl_row[data-row-id] .o_tl_cell").at(0);
+    await pointerDown(cell);
+    await advanceTime(600);
+    await animationFrame();
+    expect(handlesOf("Build")).toBe(0);
+});
+
 test("A17: a tap on Overlap C instead shows its handles and popover, no arrow lit", async () => {
     await mountDependencies();
     await tapBuild();

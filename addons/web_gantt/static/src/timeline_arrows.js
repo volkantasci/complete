@@ -1,6 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Component, proxy, t, useProps } from "@odoo/owl";
+import { browser } from "@web/core/browser/browser";
 import { _t } from "@web/core/l10n/translation";
 import { arrowConflict, arrowRoute, ARROW_COLOURS, dependencyPairs } from "./timeline_arrow_math";
 
@@ -272,14 +273,11 @@ export class TimelineArrows {
      * finger taken away leaves no arrow lit, even when it only began a scroll (002d R4 point 2),
      * unless another finger still holds a gesture. After a touch gesture was cancelled (a key, a
      * second finger) the arrows lit at its start go as soon as one finger lifts (point 1, 3); after
-     * a mouse gesture a finger cancelled they go with the release of the mouse button (point 3).
+     * a mouse gesture a finger cancelled they go with the lift of that finger, the button held or not (point 3).
      */
     pointerEnded(ev) {
         if (ev.pointerType !== "touch") {
             this._mouseDown = false;
-            if (this._unlitAtRelease) {
-                this._unlight();
-            }
             return;
         }
         this._touches?.delete(ev.pointerId);
@@ -292,7 +290,6 @@ export class TimelineArrows {
     /** Nothing lit and nothing kept (the handles belong to the last tapped pill, 002d R3). */
     _unlight() {
         this._unlitAtLift = false;
-        this._unlitAtRelease = false;
         this._kept = false;
         this._holdOutside = false;
         this.focus.arrowKey = null;
@@ -307,7 +304,6 @@ export class TimelineArrows {
         this._quietAt = null;
         this._kept = false;
         this._unlitAtLift = false;
-        this._unlitAtRelease = false;
         this.focus.arrowKey = null;
         this.focus.pillKey = key;
     }
@@ -399,6 +395,13 @@ export class TimelineArrows {
                 this._holdOutside = true;
             }
         }
+        // a gesture cancelled after the grid scrolled under it (edge scrolling): the highlight is
+        // worked out from what lies under the pointer once the grid is drawn again, not kept from
+        // the start (002c R9's "or the grid scrolls", 002d R1a)
+        const scrolled =
+            this._scrolled && this._cancelInZone && this._kept && !released && !this._unlitAtLift;
+        this._cancelInZone = false;
+        this._scrolled = false;
         if (!this._kept) {
             this.focus.arrowKey = null;
             this.focus.pillKey = null;
@@ -410,6 +413,39 @@ export class TimelineArrows {
             this._showHandlesUnderPointer({ mouse: this._mouseGesture });
         }
         this._mouseGesture = false;
+        if (scrolled) {
+            this._workOutAfterScroll();
+        }
+    }
+
+    /**
+     * After the cancelled gesture's pill went back to its place: the arrows and the handles follow
+     * what lies under the pointer now, unless the pointer already moved (002d R1a, A12).
+     */
+    _workOutAfterScroll() {
+        const frame = (callback) => browser.requestAnimationFrame(callback);
+        frame(() =>
+            frame(() => {
+                if (!this._quietAt || this.isHeld || !this._pointer) {
+                    return;
+                }
+                const key = this._pillKeyAtPoint(this._pointer.x, this._pointer.y);
+                this._kept = false;
+                this.focus.arrowKey = null;
+                this.focus.pillKey = key;
+                this.host.state.hover = key;
+            })
+        );
+    }
+
+    /** The grid scrolled under the held gesture (edge scrolling). */
+    gestureScrolled() {
+        this._scrolled = true;
+    }
+
+    /** A gesture begins: the grid has not scrolled under it yet. */
+    gestureStarted() {
+        this._scrolled = false;
     }
 
     /**
@@ -417,14 +453,16 @@ export class TimelineArrows {
      * `lost`, the pointer taken away): see `reset`. Called by the
      * gesture right before it lets go.
      */
-    cancelGesture({ lost = false, finger = false, touch = false } = {}) {
+    cancelGesture({ lost = false, finger = false, touch = false, inZone = false } = {}) {
+        // the pointer rests in an edge scrolling zone: with a scroll during the gesture, the highlight
+        // is worked out again at the end (002d R1a)
+        this._cancelInZone = inZone;
         // the system took the pointer away (002d R4 point 2): unlike Escape, nothing stays lit
         this._cancelling = !lost;
         // a touch gesture cancelled by a key or a second finger: the lit arrows stay only while a
-        // finger is down (they go when one lifts); a mouse gesture a finger cancelled: until the
-        // mouse button is released (002d R4 point 1, 3)
-        this._unlitAtLift = !lost && touch;
-        this._unlitAtRelease = !lost && !touch && finger;
+        // finger is down (they go when one lifts); a mouse gesture a finger cancelled: they go at
+        // that finger's lift, whether the mouse button is still held or not (002d R4 point 1, 3)
+        this._unlitAtLift = !lost && (touch || finger);
         this._mouseGesture = !touch;
     }
 
@@ -434,8 +472,11 @@ export class TimelineArrows {
      * right before it lets go.
      */
     releaseWithoutWrite(x, y) {
-        this._cancelling = true;
-        this._releasedAt = { x, y };
+        // the end of a touch gesture lights nothing (002d R3, A14); the pill last tapped keeps
+        // its handles
+        const touch = this.isTouch;
+        this._cancelling = !touch;
+        this._releasedAt = touch ? null : { x, y };
     }
 
     /** The pill under the pointer shows its handles (none on an empty cell). */

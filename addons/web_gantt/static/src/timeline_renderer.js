@@ -735,6 +735,9 @@ export class TimelineRenderer extends Component {
         // a tap leaves the pill in the pointer-over state: its handles show (R11, A91)
         this._pillPointer.tap(ev, pill, row);
         if (this.connect.consumeClick()) {
+            if (this.connect.cancelledClick) {
+                this._drag.noteCancelledClick(ev.detail);
+            }
             ev.stopPropagation();
             return;
         }
@@ -747,6 +750,14 @@ export class TimelineRenderer extends Component {
             // the release of a move or a copy (or of a cancelled one) is no click, and nor is the
             // second click of a double click that began with it (R9, R-T11-1)
             ev.stopPropagation();
+            return;
+        }
+        if (this._drag.isPaired && this._drag.clickDetail(ev.detail) > 1) {
+            // a double click after a cancelled gesture: the browser counted the swallowed click of
+            // the release as its first, so no double click event comes of it (002d R2, A13)
+            this._cancelPopover();
+            this.popover.close();
+            this.props.editor?.openRecord(pill.record.resId);
             return;
         }
         const target = ev.currentTarget;
@@ -771,6 +782,11 @@ export class TimelineRenderer extends Component {
     }
 
     onPillDoubleClick(ev, pill) {
+        if (this._drag.isPaired) {
+            // the second click of the series that began with a cancelled gesture's release is a
+            // first click (002d R2, A13): its popover goes on opening
+            return;
+        }
         this._cancelPopover();
         if (this._drag.justReleased) {
             // the second press of a double click that began with the end of a gesture (R9)
@@ -1708,10 +1724,15 @@ export class TimelineRenderer extends Component {
         const [low, high] = this._isRtl() ? [-reach, 0] : [0, reach];
         renderer.scrollLeft = Math.min(Math.max(before.left + dx, low), high);
         vertical.scrollTop = Math.min(before.top + dy, Math.max(maxTop, before.top));
-        return {
+        const scrolled = {
             dx: renderer.scrollLeft - before.left,
             dy: vertical.scrollTop - before.top,
         };
+        if (scrolled.dx || scrolled.dy) {
+            // the highlight of a gesture cancelled after this is worked out again (002d R1a)
+            this.arrows.gestureScrolled();
+        }
+        return scrolled;
     }
 
     /** Whether a press on `pill` holds it: it moves, or a handle that can resize is pressed (R5). */
@@ -1758,6 +1779,7 @@ export class TimelineRenderer extends Component {
         }
         if (mode && !this._dragMode) {
             // the gesture starts: the popover closes, and the picked cells go (R9)
+            this.arrows.gestureStarted();
             this._cancelPopover();
             this.popover.close();
             if (!this.picked.isEmpty) {

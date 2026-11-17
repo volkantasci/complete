@@ -266,6 +266,38 @@ test("A7: a move released outside the view keeps Build's arrows lit until the po
     expect(shown()).toEqual(NOTHING);
 });
 
+/** The pointer from (x, y0) to the empty point `to` in 6 steps. */
+async function stepDownTo(from, to) {
+    for (let step = 1; step <= 6; step++) {
+        const x = from.x + ((to.x - from.x) * step) / 6;
+        const y = from.y + ((to.y - from.y) * step) / 6;
+        await pointerTo(x, y);
+    }
+}
+
+test("A7 (D5): back in the grid straight down onto an empty cell, both arrows rest", async () => {
+    await mountDependencies();
+    const { held, end } = await move(POINTS.outside);
+    expect(await release(held, end)).toEqual(litWith(BUILD_ARROWS()));
+    await pointerTo(end.x + 1, end.y, end.over);
+    expect(shown()).toEqual(litWith(BUILD_ARROWS()));
+    const empty = emptyPoint();
+    // the straight path: the same x all the way down
+    await pointerTo(empty.x, end.y);
+    await stepDownTo({ x: empty.x, y: end.y }, empty);
+    expect(shown()).toEqual(NOTHING);
+});
+
+test("A7 (D5): back in the grid by a slanting path onto an empty cell, both arrows rest", async () => {
+    await mountDependencies();
+    const { held, end } = await move(POINTS.outside);
+    expect(await release(held, end)).toEqual(litWith(BUILD_ARROWS()));
+    const empty = emptyPoint();
+    const far = { x: empty.x - 250, y: empty.y };
+    await stepDownTo({ x: end.x, y: end.y }, far);
+    expect(shown()).toEqual(NOTHING);
+});
+
 test("A8: a move released over the row headers lights nothing", async () => {
     await mountDependencies();
     const { held, end } = await move(POINTS.rowHeader);

@@ -383,7 +383,9 @@ async function holdBuild({ copy = false, end = null } = {}) {
 /** A point of the row's pills layer that lies on no pill, no arrow and no handle. */
 function emptyPoint() {
     const rect = queryRect(queryAll(".o_tl_pills")[0]);
-    for (let x = rect.right - 30; x > rect.left + 200; x -= 25) {
+    // outside the edge scrolling zone: a gesture cancelled while held in it, after the grid
+    // scrolled, works the highlight out again (002d R1a, P1); 002c's scenario (1300, 225) lies outside
+    for (let x = Math.min(rect.right, window.innerWidth) - 200; x > rect.left + 200; x -= 25) {
         for (let y = rect.top + 4; y < rect.bottom; y += 6) {
             const names = document.elementsFromPoint(x, y).map((element) => element.className?.baseVal ?? element.className);
             if (!names.some((name) => /o_tl_pill|o_tl_arrow|o_tl_connect/.test(name))) {

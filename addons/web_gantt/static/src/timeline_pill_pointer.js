@@ -148,7 +148,13 @@ export class TimelinePillPointer {
 
     /** A finger goes down away from every pill and handle: the pointer-over state ends. */
     touchAway(ev) {
-        if (ev?.pointerType !== "touch" || this.host.arrows.isMouseDown) {
+        if (
+            ev?.pointerType !== "touch" ||
+            this.host.arrows.isMouseDown ||
+            this.host.connect.isPressed ||
+            this.isHeld
+        ) {
+            // a finger put down while a gesture is held is no tap away (002d R3, R4 point 3, A24)
             return;
         }
         if (ev.target?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle, .o_tl_connect_strip")) {

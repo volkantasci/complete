@@ -12,6 +12,52 @@ export { LONG_PRESS };
 const DOUBLE_CLICK_GUARD = 500;
 
 /** Keys that do not cancel a gesture in progress (R2); Ctrl only decides copy or move (R7). */
+/** How long after its lift the tap click of a cancelling finger is still waited for, in ms. */
+const FINGER_CLICK_WAIT = 600;
+
+/**
+ * The finger that cancelled a gesture (002d R4 point 3) does nothing else: its put-down was
+ * stopped by the caller, and here its lift and the click that follows it go no further, so that
+ * no cell dialog, popover or selection comes of them. A mouse click (the release of the gesture's
+ * own button) is not the finger's and is left to the gesture.
+ */
+export function swallowFinger(doc, id) {
+    let timer = null;
+    const stopClick = () => {
+        doc.removeEventListener("click", onClick, true);
+        browser.clearTimeout(timer);
+    };
+    const onClick = (event) => {
+        if (event.pointerType === "mouse") {
+            return;
+        }
+        event.stopPropagation();
+        event.preventDefault();
+        stopClick();
+    };
+    const stopEnd = () => {
+        doc.removeEventListener("pointerup", onUp, true);
+        doc.removeEventListener("pointercancel", onCancel, true);
+    };
+    const onUp = (event) => {
+        if (event.pointerId !== id) {
+            return;
+        }
+        event.stopPropagation();
+        stopEnd();
+        doc.addEventListener("click", onClick, true);
+        timer = browser.setTimeout(stopClick, FINGER_CLICK_WAIT);
+    };
+    const onCancel = (event) => {
+        if (event.pointerId === id) {
+            event.stopPropagation();
+            stopEnd();
+        }
+    };
+    doc.addEventListener("pointerup", onUp, true);
+    doc.addEventListener("pointercancel", onCancel, true);
+}
+
 export const HARMLESS_KEYS = ["Alt", "Control", "Meta", "Shift"];
 
 /**
@@ -89,6 +135,11 @@ export class TimelinePillDrag {
         this._recent = false;
         this._recentTimer = null;
         this._pairSwallowed = false;
+        // the click of a cancelled gesture's release was swallowed (`detail` `_pairBase`): a
+        // browser counts the next click as its second; it does not pair (002d R2 point 1, A13)
+        this._cancelledRelease = false;
+        this._pairBase = 0;
+        this._pairTimer = null;
         // the grid scrolled under the held pointer: the target is worked out again (R14)
         this._edge = new TimelineEdgeScroll({
             edges: () => this.host.edges(),
@@ -130,10 +181,53 @@ export class TimelinePillDrag {
         this._suppressClick = false;
         if (suppressed) {
             this._pairSwallowed = true;
+            if (this._cancelledRelease) {
+                this.noteCancelledClick(detail);
+            }
         } else if (detail <= 1) {
             this._pairSwallowed = false;
         }
         return suppressed;
+    }
+
+    /**
+     * The click of the release of a cancelled gesture was swallowed, with the click count `detail`:
+     * the clicks that follow it in the same series are counted again from one (`clickDetail`).
+     */
+    noteCancelledClick(detail = 1) {
+        this._cancelledRelease = false;
+        this._pairBase = detail || 1;
+        this._armPair();
+    }
+
+    /** The click count of a click, the swallowed click of a cancelled release not counted. */
+    clickDetail(detail) {
+        if (!this._pairBase) {
+            return detail;
+        }
+        if (detail <= this._pairBase) {
+            // a new series of clicks
+            this._dropPair();
+            return detail;
+        }
+        this._armPair();
+        return detail - this._pairBase;
+    }
+
+    /** Whether the current series of clicks began with the release of a cancelled gesture. */
+    get isPaired() {
+        return this._pairBase > 0;
+    }
+
+    _armPair() {
+        browser.clearTimeout(this._pairTimer);
+        this._pairTimer = browser.setTimeout(() => this._dropPair(), DOUBLE_CLICK_GUARD);
+    }
+
+    _dropPair() {
+        browser.clearTimeout(this._pairTimer);
+        this._pairBase = 0;
+        this._pairTimer = null;
     }
 
     /**
@@ -242,6 +336,7 @@ export class TimelinePillDrag {
                 // the finger that ends the gesture starts and lights nothing itself: its event
                 // goes no further (002d R4 point 3)
                 event.stopPropagation();
+                swallowFinger(doc, event.pointerId);
                 this._cancel({ finger: true });
                 if (dragging) {
                     this._awaitRelease(doc, id);
@@ -281,6 +376,7 @@ export class TimelinePillDrag {
 
     destroy() {
         browser.clearTimeout(this._recentTimer);
+        browser.clearTimeout(this._pairTimer);
         this._finish();
         this._forgetRelease();
     }
@@ -431,9 +527,9 @@ export class TimelinePillDrag {
                 return;
             }
             this._forgetRelease();
-            // the click of this release is swallowed, and a double click that begins with it is
-            // none (002b2 R9); a click elsewhere (`detail` 1) is a click at once (002d R2, A13)
-            this._expectClick();
+            // the click of this release is swallowed and pairs with no later click: the next click
+            // is a click at once, a double click after it a double click (002d R2 point 1, A13)
+            this._expectClick({ guard: false, cancelled: true });
         };
         const onCancel = (event) => {
             if (event.pointerId === id) {
@@ -458,8 +554,9 @@ export class TimelinePillDrag {
      * `guard`, a double click that begins with it is no click and no double click (R9) for
      * `DOUBLE_CLICK_GUARD`.
      */
-    _expectClick({ guard = true } = {}) {
+    _expectClick({ guard = true, cancelled = false } = {}) {
         this._suppressClick = true;
+        this._cancelledRelease = cancelled;
         browser.setTimeout(() => {
             this._suppressClick = false;
         }, 0);
@@ -478,7 +575,12 @@ export class TimelinePillDrag {
     _cancel({ lost = false, finger = false } = {}) {
         if (this.state === "dragging") {
             this.host.change(null);
-            this.host.cancelled?.({ lost, finger, touch: this._press?.type === "touch" });
+            this.host.cancelled?.({
+                lost,
+                finger,
+                touch: this._press?.type === "touch",
+                inZone: this._edge.inZone,
+            });
         }
         this._finish();
     }

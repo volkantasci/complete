@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { proxy } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
-import { DRAG_THRESHOLD, HARMLESS_KEYS } from "./timeline_drag";
+import { DRAG_THRESHOLD, HARMLESS_KEYS, swallowFinger } from "./timeline_drag";
 import { MOVE_EDGE, TimelineEdgeScroll } from "./timeline_edge_scroll";
 
 /** Side of the press area of a drawing handle, in px (R11, M15, M17). */
@@ -156,6 +156,7 @@ export class TimelineConnectDrag {
                 // the finger that ends the drawing starts and lights nothing itself: its event
                 // goes no further (002d R4 point 3)
                 event.stopPropagation();
+                swallowFinger(doc, event.pointerId);
                 this._cancel({ finger: true });
                 if (type !== "touch") {
                     this._swallowRelease(doc, id);
@@ -176,6 +177,9 @@ export class TimelineConnectDrag {
     consumeClick() {
         const suppressed = this._suppressClick;
         this._suppressClick = false;
+        // read by the caller right after: the swallowed click was that of a cancelled gesture
+        this.cancelledClick = suppressed && this._cancelledRelease;
+        this._cancelledRelease = false;
         return suppressed;
     }
 
@@ -261,7 +265,12 @@ export class TimelineConnectDrag {
     /** The drawing ends without a write: a key, a lost pointer, another finger, a hidden page. */
     _cancel({ lost = false, finger = false } = {}) {
         if (this.isActive) {
-            this.host.cancelled?.({ lost, finger, touch: this._press?.type === "touch" });
+            this.host.cancelled?.({
+                lost,
+                finger,
+                touch: this._press?.type === "touch",
+                inZone: this._edge.inZone,
+            });
         }
         this._finish();
     }
@@ -288,6 +297,7 @@ export class TimelineConnectDrag {
             if (event.pointerId === id) {
                 done();
                 this._suppressClick = true;
+                this._cancelledRelease = true;
                 browser.setTimeout(() => {
                     this._suppressClick = false;
                 }, 0);
