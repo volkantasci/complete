@@ -5,12 +5,19 @@ import {
     $,
     arrowBetween,
     assert,
+    centreOf,
+    finger,
+    fingerEvents,
     assertShown,
     buildArrows,
+    $$,
     drawing,
     gridReady,
     gridSettled,
+    handleCount,
+    handleOf,
     holdEvents,
+    mouse,
     moveTo,
     pillNamed,
     reachHandle,
@@ -85,17 +92,20 @@ async function releaseAndRead(end, atRelease, then = []) {
 }
 
 /** One scenario: a tour that starts on H42 and runs `scenario`, nothing written unless `writes`. */
-function scenarioTour(name, scenario, { writes = 0 } = {}) {
+function scenarioTour(name, scenario, { writes = 0, pointer = true } = {}) {
     // `writes: null`: the scenario counts the calls itself
     tours.add(name, {
         steps: () => [
             gridReady,
             {
                 trigger: ".o_tl_arrow",
+                timeout: 60000,
                 async run() {
                     await gridSettled();
                     const written = sentBodies.length;
-                    await pointerOnBuild();
+                    if (pointer) {
+                        await pointerOnBuild();
+                    }
                     await scenario();
                     if (writes === null) {
                         return;
@@ -261,3 +271,224 @@ scenarioTour(
     },
     { writes: null }
 );
+
+// ---------------------------------------------------------------------------------------------
+// R2 and D2 (A11 to A16): an open popover and a press that can start a gesture
+// ---------------------------------------------------------------------------------------------
+
+const popoverOpen = () => Boolean($(".o_tl_popover"));
+const escape = () =>
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+const rootHas = (name) => $(".o_timeline_view").classList.contains(name);
+
+/** A click on Build at (1300, 260) with the mouse: its popover is open 400 ms later. */
+async function openPopoverWithMouse() {
+    await realMouse([...holdEvents(BUILD, []), ...releaseAt(BUILD)], { settle: false });
+    await pause(400);
+    assert(popoverOpen(), "the popover of Build is open");
+}
+
+/** The mouse moves to `from`, the button goes down there and rests 300 ms. */
+async function pressAt(from) {
+    await realMouse(holdEvents(from, []), { settle: false });
+    await pause(300);
+}
+
+/** The held pointer goes `distance` px to the left of `from`. */
+const leftBy = (from, distance) =>
+    realMouse([mouse("mouseMoved", from.x - distance, from.y, { buttons: 1 })], { settle: false });
+
+/** The popover is up at 9 px and the gesture `started` is on at 10 px, which closes it. */
+async function checkMouseThreshold(from, started) {
+    assert(popoverOpen(), "the popover stays open under the held button");
+    await leftBy(from, 9);
+    await pause(150);
+    assert(popoverOpen(), "the popover stays open at 9 px");
+    assert(!started(), "nothing started at 9 px");
+    await leftBy(from, 10);
+    await until(started, "the gesture starts at 10 px");
+    assert(!popoverOpen(), "the popover is gone once the gesture started");
+}
+
+/** Escape, then the release where the pointer is: nothing is written. */
+async function escapeAndRelease(at) {
+    escape();
+    await pause(200);
+    await realMouse(releaseAt(at), { settle: false });
+    await pause(300);
+}
+
+scenarioTour("tl_note_a11_popover_and_drawing_handle", async () => {
+    await openPopoverWithMouse();
+    const from = await reachHandle("Build", "stop", BUILD);
+    assert(Math.abs(from.x - 1502) <= 1.5 && Math.abs(from.y - 280) <= 1.5, `the handle, got ${from.x}, ${from.y}`);
+    await pressAt(from);
+    await checkMouseThreshold(from, () => drawing());
+    await escapeAndRelease({ x: from.x - 10, y: from.y });
+    assert(!drawing(), "Escape cancelled the drawing");
+});
+
+scenarioTour("tl_note_a12_popover_and_resize_handle", async () => {
+    await openPopoverWithMouse();
+    const from = { x: 1505, y: 260 };
+    await moveTo(from);
+    await pressAt(from);
+    await checkMouseThreshold(from, () => rootHas("o_tl_drag_resize"));
+    await escapeAndRelease({ x: from.x - 10, y: from.y });
+    assert(!rootHas("o_tl_dragging"), "Escape cancelled the resize");
+});
+
+scenarioTour("tl_note_a13_popover_and_body", async () => {
+    await openPopoverWithMouse();
+    const from = { x: 1200, y: 260 };
+    await moveTo(from);
+    await pressAt(from);
+    await checkMouseThreshold(from, () => rootHas("o_tl_drag_move"));
+    await escapeAndRelease({ x: from.x - 10, y: from.y });
+    assert(!rootHas("o_tl_dragging"), "Escape cancelled the move");
+    // a press and a release without moving is a click: the popover opens
+    await pause(600);
+    await realMouse([...holdEvents(from, []), ...releaseAt(from)], { settle: false });
+    await pause(400);
+    assert(popoverOpen(), "the click opens the popover of Build again");
+});
+
+/** The outer box of "Build" (its body and the 1 px around it) and its middle height. */
+function outerBox() {
+    const body = pillNamed("Build").getBoundingClientRect();
+    return { L: body.left - 1, R: body.right + 1, T: body.top - 1, B: body.bottom + 1, M: (body.top + body.bottom) / 2 };
+}
+
+/** A tap on Build at (L + 368, M): after 600 ms its popover is open and its handles show. */
+async function tapBuild(box) {
+    await realMouse(fingerEvents({ x: box.L + 368, y: box.M }, []), { touch: true, settle: false });
+    await pause(600);
+    assert(popoverOpen(), "the popover of the tap is open after 600 ms");
+    assert(handleCount() === 2, `the tap shows two handles, got ${handleCount()}`);
+}
+
+/** A finger put down at `at` and held 500 ms. */
+async function fingerDown(at) {
+    await realMouse([finger("touchStart", at.x, at.y)], { touch: true, settle: false });
+    await pause(500);
+}
+
+const fingerTo = (x, y) => realMouse([finger("touchMove", x, y)], { touch: true, settle: false });
+const fingerUp = (x, y) => realMouse([finger("touchEnd", x, y)], { touch: true, settle: false });
+
+// A14: a finger on the drawing handle: popover and Build's two arrows up to 8 px, a drawing at 12 px
+scenarioTour("tl_note_a14_touch_drawing_handle", async () => {
+    const box = outerBox();
+    await tapBuild(box);
+    const from = centreOf(handleOf("Build", "stop"));
+    assert(Math.abs(from.x - (box.R - 7)) <= 1.5 && Math.abs(from.y - (box.B + 7)) <= 1.5, `end handle, got ${from.x}, ${from.y}`);
+    await fingerDown(from);
+    assert(popoverOpen(), "the popover stays open under the finger");
+    assertShown({ lit: buildArrows(), buttons: 2, handles: 2 }, "finger down on the handle");
+    await fingerTo(from.x - 8, from.y);
+    await pause(150);
+    assert(popoverOpen(), "the popover stays open at 8 px");
+    assert(!drawing(), "no drawing at 8 px");
+    await fingerTo(from.x - 12, from.y);
+    await until(() => drawing(), "the drawing starts by 12 px");
+    assert(!popoverOpen(), "the popover is gone");
+    // back over Build, lifted there: nothing is written
+    const over = centreOf(pillNamed("Build"));
+    await fingerTo(over.x, over.y);
+    await fingerUp(over.x, over.y);
+    await pause(400);
+}, { pointer: false });
+
+// A15: a finger on the body: popover up to 8 px, the move at 12 px, Escape before lifting
+scenarioTour("tl_note_a15_touch_body", async () => {
+    const box = outerBox();
+    await tapBuild(box);
+    const at = { x: box.L + 267, y: box.M };
+    await fingerDown(at);
+    assert(popoverOpen(), "the popover stays open under the finger");
+    await fingerTo(at.x - 8, at.y);
+    await pause(150);
+    assert(popoverOpen(), "the popover stays open at 8 px");
+    assert(!$(".o_tl_pill_moved"), "no move at 8 px");
+    await fingerTo(at.x - 12, at.y);
+    await until(() => $(".o_tl_pill_moved"), "the move starts by 12 px");
+    assert(!popoverOpen(), "the popover is gone");
+    escape();
+    await pause(300);
+    assert(!$(".o_tl_pill_moved"), "Escape cancelled the move");
+    await fingerUp(at.x - 12, at.y);
+    await pause(400);
+}, { pointer: false });
+
+/**
+ * A16 (decision D2): a finger at `x` (from the box) held 500 ms and moved 60 px in 20 steps (toward
+ * `sign`) moves Build: open at 8 px, closed once the move starts, no resize, the lifted finger
+ * writes the move.
+ */
+function fingerOnHandlePlace(name, pointOf, sign, { tap }) {
+    scenarioTour(
+        name,
+        async () => {
+            const box = outerBox();
+            if (tap) {
+                await tapBuild(box);
+            }
+            const at = { x: pointOf(box), y: box.M };
+            const mark = sentBodies.length;
+            await fingerDown(at);
+            if (tap) {
+                assert(popoverOpen(), "the popover stays open under the finger");
+            }
+            // 3 px a step: the first three steps one by one (6 px and 9 px are still no move)
+            for (let step = 1; step <= 3; step++) {
+                await fingerTo(at.x + sign * 3 * step, at.y);
+                if (step === 2 && tap) {
+                    assert(popoverOpen(), "the popover is open at 6 px");
+                }
+            }
+            await pause(100);
+            assert(!$(".o_tl_pill_moved"), "no move at 9 px");
+            if (tap) {
+                assert(popoverOpen(), "the popover is open at 9 px");
+            }
+            const rest = [];
+            for (let step = 4; step <= 20; step++) {
+                rest.push(finger("touchMove", at.x + sign * 3 * step, at.y));
+            }
+            await realMouse(rest, { touch: true, settle: false });
+            await until(() => $(".o_tl_pill_moved"), "the pill follows the finger");
+            assert(rootHas("o_tl_drag_move") && !rootHas("o_tl_drag_resize"), "a move, never a resize");
+            assert($$(".o_tl_selection_badge").length === 2, "the badges of the move show");
+            assert(!popoverOpen(), "the popover is gone once the move started");
+            await fingerUp(at.x + sign * 60, at.y);
+            await until(() => callsSince(mark, WRITES).length === 1, "the move is written");
+            await gridSettled();
+        },
+        { writes: null, pointer: false }
+    );
+}
+
+const PLACES = [
+    ["r4", (box) => box.R - 4, -1],
+    ["r2", (box) => box.R - 2, -1],
+    ["l1", (box) => box.L + 1, 1],
+    ["l4", (box) => box.L + 4, 1],
+];
+for (const [label, pointOf, sign] of PLACES) {
+    fingerOnHandlePlace(`tl_note_a16_${label}_after_a_tap`, pointOf, sign, { tap: true });
+    fingerOnHandlePlace(`tl_note_a16_${label}_without_a_tap`, pointOf, sign, { tap: false });
+}
+
+// A16: with a mouse a press at (R - 4, M) still resizes
+scenarioTour("tl_note_a16_mouse_resizes", async () => {
+    const body = pillNamed("Build").getBoundingClientRect();
+    const from = { x: body.right - 3, y: 260 };
+    await moveTo(from);
+    await realMouse(holdEvents(from, stepsTo(from, { x: from.x - 60, y: from.y }, 20)), { settle: false });
+    await until(() => rootHas("o_tl_drag_resize"), "a resize starts");
+    assert(!$(".o_tl_pill_moved"), "no move");
+    escape();
+    await pause(200);
+    await realMouse(releaseAt({ x: from.x - 60, y: from.y }), { settle: false });
+    await pause(300);
+});

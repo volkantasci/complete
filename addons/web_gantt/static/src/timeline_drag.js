@@ -209,9 +209,23 @@ export class TimelinePillDrag {
         };
         this.state = "pending";
         const doc = ev.target.ownerDocument;
-        this._listen(doc, "pointermove", (event) => this._onMove(event));
-        this._listen(doc, "pointerup", (event) => this._onUp(event));
-        this._listen(doc, "pointercancel", (event) => this._onCancel(event));
+        // The events of a finger go to the element it went down on, even once that element left
+        // the page: a resize handle under the finger is drawn away as the press begins (nothing
+        // shows handles during a gesture), and its events then no longer reach the document
+        // (002d R2, D2). The element is listened to as well; one event is handled once.
+        const handled = new WeakSet();
+        const once = (handler) => (event) => {
+            if (!handled.has(event)) {
+                handled.add(event);
+                handler(event);
+            }
+        };
+        const both = ev.pointerType === "touch" ? [doc, ev.target] : [doc];
+        for (const target of both) {
+            this._listen(target, "pointermove", once((event) => this._onMove(event)));
+            this._listen(target, "pointerup", once((event) => this._onUp(event)));
+            this._listen(target, "pointercancel", once((event) => this._onCancel(event)));
+        }
         // another finger on the screen: the gesture is no longer one finger's
         this._listen(
             doc,
@@ -234,9 +248,11 @@ export class TimelinePillDrag {
         this._listen(doc, "keyup", (event) => this._onKeyUp(event), { capture: true });
         if (ev.pointerType === "touch") {
             // a held finger would scroll the grid and open the context menu otherwise
-            this._listen(doc, "touchmove", (event) => this._onTouchMove(event), {
-                passive: false,
-            });
+            for (const target of both) {
+                this._listen(target, "touchmove", once((event) => this._onTouchMove(event)), {
+                    passive: false,
+                });
+            }
             this._listen(doc, "contextmenu", (event) => event.preventDefault());
             this._timer = browser.setTimeout(() => {
                 this._timer = null;

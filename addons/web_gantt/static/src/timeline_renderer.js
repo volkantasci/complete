@@ -258,6 +258,12 @@ export class TimelineRenderer extends Component {
             hold: (on) => this._holdDrag(on ? "connect" : null),
             // a drawing cancelled with Escape or lost: the arrows lit when it started stay lit (R9)
             cancelled: () => this.arrows.cancelGesture(),
+            // a press on a handle that ends without a drawing is a click away from the popover
+            // (002d R2)
+            clicked: () => {
+                this._cancelPopover();
+                this.popover.close();
+            },
             // a drawing released over no other pill writes nothing (002d R1)
             released: (x, y) => this.arrows.releaseWithoutWrite(x, y),
             // the drawing ended: the pill under the pointer shows its handles, but its arrows
@@ -718,9 +724,15 @@ export class TimelineRenderer extends Component {
     }
 
     _isPopoverAnchor(target) {
+        if (this._popoverFor === null) {
+            return false;
+        }
+        // a drawing handle of the pill is part of it: a press there may start a drawing, which
+        // closes the popover when it starts, not before (002d R2)
+        const handle = target.closest?.(".o_tl_connect_handle");
         return (
-            this._popoverFor !== null &&
-            Boolean(target.closest?.(`.o_tl_pill[data-pill-id="${this._popoverFor}"]`))
+            Boolean(target.closest?.(`.o_tl_pill[data-pill-id="${this._popoverFor}"]`)) ||
+            Boolean(handle?.dataset.pillKey?.endsWith(`|${this._popoverFor}`))
         );
     }
 

@@ -64,6 +64,28 @@ class TestNoteProbes(TimelineProbeCase):
         self.assertTrue(expected, f'no value of {probe} in {scheme}')
         self.probe(probe, element_js, scheme, 'desktop', expected, label)
 
+    def check_popover(self, probe, scheme, label):
+        """Ruling T2-1: the popover's frame (``.o_popover``) is 272 x 208.7 px at (1084.97, 283)
+        in Complete, 002b's measured size, where the package's box is 274 x 210.688 at (1084, 281).
+        The two share their horizontal centre and their bottom edge; the box of the package
+        reaches 1 px further to each side and 2 px higher. What the probe holds is the centre, the
+        bottom edge and, from M32 to M33, that the box did not change; the measured values are
+        logged."""
+        expected = measured(probe)[scheme]
+        box = self.js("(() => { const r = document.querySelector('.o_popover')"
+                      ".getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()")
+        x, y, width, height = box
+        want = [float(expected[f'geometry.{name}']) for name in ('x', 'y', 'width', 'height')]
+        _logger.info('%s %s popover box %s, package %s', probe, scheme, box, want)
+        self.assertAlmostEqual(
+            x + width / 2, want[0] + want[2] / 2, delta=.6, msg=f'{probe} centre')
+        self.assertAlmostEqual(
+            y + height, want[1] + want[3], delta=.6, msg=f'{probe} bottom edge')
+        previous = getattr(self, '_popover_box', None)
+        if probe == 'M33':
+            self.assertEqual(box, previous, 'the popover did not change at 9 px')
+        self._popover_box = box
+
     def draw_to(self, end):
         """A27's path: the pointer on Build, to its end handle in 4 steps, a press, to (1552, 340)
         in 8 steps, then to `end` in 12 steps; the button is released at `end`."""
@@ -108,3 +130,38 @@ class TestNoteProbes(TimelineProbeCase):
                 self.check('M31', self.part('Build', 'Test', '.o_tl_arrow_line'), scheme,
                            'Build to Test, back at rest after the next move')
         self.assertTrue(build.exists())
+
+    # -- M32 to M34: a popover and a press on the end handle (R2 point 1, A11) ------------------
+
+    def test_m32_m34_popover_and_handle_press(self):
+        """The popover box (the element ``.o_popover``) while the end handle is held still (M32),
+        after a move of 9 px (M33), and the line drawn after 10 px with the popover gone (M34)."""
+        probes = ['M32', 'M33', 'M34']
+        popover = "document.querySelector('.o_popover')"
+        for scheme in self.schemes(probes):
+            with self.page(HOST, scheme, 'desktop'):
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 3", timeout=60)
+                self.settle()
+                self.pointer_at(1300, 260)
+                self.mouse('mousePressed', 1300, 260, button='left', buttons=1, clickCount=1)
+                self.mouse('mouseReleased', 1300, 260, button='left', buttons=0, clickCount=1)
+                self.wait("!!document.querySelector('.o_tl_popover')")
+                self.settle()
+                for i in range(1, 5):
+                    self.mouse('mouseMoved', 1300 + 202 * i / 4, 260 + 20 * i / 4)
+                    time.sleep(.03)
+                self.mouse('mousePressed', 1502, 280, button='left', buttons=1, clickCount=1)
+                self.settle(300)
+                self.check_popover('M32', scheme, 'the popover, the end handle held still')
+                self.mouse('mouseMoved', 1493, 280, button='left', buttons=1)
+                self.settle()
+                self.check_popover('M33', scheme, 'the popover, 9 px to the left')
+                self.mouse('mouseMoved', 1492, 280, button='left', buttons=1)
+                self.wait("!!document.querySelector('.o_tl_connect_path')")
+                self.assertFalse(self.js(f"!!{popover}"), 'the popover is gone')
+                self.check('M34', "document.querySelector('.o_tl_connect_path')", scheme,
+                           'the line being drawn')
+                self.browser._websocket_request('Input.dispatchKeyEvent', params={
+                    'type': 'keyDown', 'key': 'Escape', 'code': 'Escape',
+                    'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27})
+                self.mouse('mouseReleased', 1492, 280, button='left', buttons=0, clickCount=1)

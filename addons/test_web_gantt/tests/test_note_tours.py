@@ -149,3 +149,38 @@ class TestNoteTours(RealPointerMixin, HttpCase):
         self._run('tl_note_a9_move_released_where_it_started')
         self._reset_h42()
         self._run('tl_note_a9_resize_released_where_it_started', writes=None)
+
+    # -- R2 and D2: an open popover and a press that can start a gesture -----------------------
+
+    def _touch_run(self, name, writes=0):
+        """A tour with touch input at desktop size (no mobile mode)."""
+        self.touch_enabled = True
+        try:
+            self._run(name, writes=writes)
+        finally:
+            self.touch_enabled = False
+
+    def test_a11_popover_and_a_press_on_the_drawing_handle(self):
+        self._run('tl_note_a11_popover_and_drawing_handle')
+
+    def test_a12_popover_and_a_press_on_the_resize_handle(self):
+        self._run('tl_note_a12_popover_and_resize_handle')
+
+    def test_a13_popover_and_a_press_on_the_body(self):
+        self._run('tl_note_a13_popover_and_body')
+
+    def test_a14_touch_popover_and_a_finger_on_the_drawing_handle(self):
+        self._touch_run('tl_note_a14_touch_drawing_handle')
+
+    def test_a15_touch_popover_and_a_finger_on_the_body(self):
+        self._touch_run('tl_note_a15_touch_body')
+
+    def test_a16_touch_a_finger_on_a_resize_handle_place_moves_the_pill(self):
+        # the lifted finger writes the move: the records are put back after each tour
+        for label in ('r4', 'r2', 'l1', 'l4'):
+            for tap in ('after_a_tap', 'without_a_tap'):
+                with self.subTest(place=label, tap=tap):
+                    self._touch_run(f'tl_note_a16_{label}_{tap}', writes=None)
+
+    def test_a16_mouse_still_resizes_at_the_end_handle(self):
+        self._run('tl_note_a16_mouse_resizes')
