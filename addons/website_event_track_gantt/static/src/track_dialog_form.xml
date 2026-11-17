@@ -12,7 +12,7 @@
                     string="this.unscheduleLabel"/>
         <button t-if="this.showDelete" type="button" class="btn btn-secondary o_track_delete"
                 data-hotkey="d" data-tooltip="Delete" aria-label="Delete"
-                t-on-click.stop="this.onDeleteClicked"><i class="fa fa-trash-o"/></button>
+                t-on-click.stop="this.onDeleteClicked"><i class="oi" data-icon="delete" role="img"/></button>
     </t>
 
 </templates>
