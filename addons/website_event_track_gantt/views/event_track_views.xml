@@ -24,8 +24,9 @@
                 <attribute name="js_class">track_dialog_form</attribute>
                 <attribute name="class">o_track_dialog</attribute>
             </form>
-            <header position="replace"/>
-            <div name="button_box" position="replace"/>
+            <field name="stage_id" position="replace"/>
+            <button name="%(website_event_track.website_visitor_action_from_track)d" position="replace"/>
+            <field name="is_published" position="replace"/>
         </field>
     </record>
 

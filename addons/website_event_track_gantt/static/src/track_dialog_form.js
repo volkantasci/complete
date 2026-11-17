@@ -1,38 +1,26 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { onWillStart } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { registry } from "@web/core/registry";
-import { user } from "@web/core/user";
 import { formView } from "@web/views/form/form_view";
 import { FormController } from "@web/views/form/form_controller";
 import { executeButtonCallback } from "@web/views/view_button/view_button_hook";
 
 /**
  * The form of the track dialog of the Gantt view. Its footer follows the rights of the user on
- * tracks (read in the browser), not their groups: Save and Unschedule need the write right (Save
+ * tracks (as the server's arch tells), not their groups: Save and Unschedule need the write right (Save
  * of a new track needs the create right), Delete needs the delete right, Discard is always there.
  */
 export class TrackDialogFormController extends FormController {
     setup() {
         super.setup();
-        this.rights = { write: false, create: false, unlink: false };
+        // the server sets create, edit and delete of the form's root to false when the user lacks
+        // the create, write or delete right on tracks: they are the rights, as D3 reads them
+        const { create, edit, delete: unlink } = this.archInfo.activeActions;
+        this.rights = { write: edit, create, unlink };
         this.unscheduleLabel = _t("Unschedule");
         this.unscheduleParams = { type: "object", name: "action_unschedule", close: true };
-        onWillStart(async () => {
-            const check = (operation) => user.checkAccessRight(this.props.resModel, operation);
-            const [write, create, unlink] = await Promise.all([
-                check("write"),
-                check("create"),
-                check("unlink"),
-            ]);
-            this.rights = { write, create, unlink };
-            if (this.props.resId && !write) {
-                // no write right: the form of an existing track is read only
-                this.canEdit = false;
-            }
-        });
     }
 
     get isNewTrack() {

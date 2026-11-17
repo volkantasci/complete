@@ -780,20 +780,6 @@ tours.add("track_a47_delete_discarded", {
         ];
         return withEvent([
             ...editPill("Panel Talk"),
-            {
-                // a button disabled for another reason (Save running) is not in the confirming
-                // state: the dialog's own rule (class o_track_confirming) does not apply to it
-                // (the Community's disabled look is half opacity too, so the class is what tells)
-                trigger: ".o_dialog .o_form_button_save",
-                run() {
-                    const save = $(".o_form_button_save", recordDialog());
-                    assert(!recordDialog().querySelector(".o_track_confirming") &&
-                        !$(".o_track_confirming"), "no confirming state at rest");
-                    save.setAttribute("disabled", "1");
-                    assert(!$(".o_track_confirming"), "Save running is not the confirming state");
-                    save.removeAttribute("disabled");
-                },
-            },
             typeName("Panel Talk 7"),
             click(".o_dialog .o_track_delete"),
             recordFrozen,

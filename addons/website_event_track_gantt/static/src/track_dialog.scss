@@ -7,6 +7,14 @@
     padding-top: 24px;
 }
 
+// The Community's header and button box are kept, less the three elements the dialog drops (R11);
+// a header left without a button or a field draws no bar, what another module adds there stays.
+.o_form_view.o_track_dialog {
+    .o_form_statusbar:not(:has(button, .o_field_widget)) {
+        display: none;
+    }
+}
+
 // While the confirmation of Delete is open the buttons of the record dialog behind it are
 // disabled (the Community rule while a button of the form runs) and drawn at half the opacity,
 // their colours unchanged (R13, M39); they come back when the confirmation closes (M40). The
