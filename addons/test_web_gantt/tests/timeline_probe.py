@@ -30,10 +30,10 @@ GEOMETRY_TOLERANCE = 0.5
 STYLE_TOLERANCE = 0.01
 
 # Moves `new Date()` and `Date.now()` to the host day; the clock then runs on from there.
-CLOCK_SCRIPT = """
+CLOCK_TEMPLATE = """
 (() => {
     const RealDate = Date;
-    const offset = Date.UTC(2026, 10, 11, 21, 30, 0) - RealDate.now();
+    const offset = Date.UTC(%s) - RealDate.now();
     class ShiftedDate extends RealDate {
         constructor(...args) {
             if (args.length === 0) {
@@ -49,6 +49,7 @@ CLOCK_SCRIPT = """
     window.Date = ShiftedDate;
 })();
 """
+CLOCK_SCRIPT = CLOCK_TEMPLATE % '2026, 10, 11, 21, 30, 0'
 
 _NUMBER = r'[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?'
 
@@ -166,8 +167,10 @@ class TimelineProbeCase(HttpCase):
 
     @contextlib.contextmanager
     def page(self, action, scheme='light', viewport='desktop', query='', login='admin',
-             touch=None, mobile=None):
-        """Open ``/odoo/action-<xmlid>`` and wait for the timeline grid (or the list)."""
+             touch=None, mobile=None, clock=CLOCK_SCRIPT, ready=None):
+        """Open ``/odoo/action-<xmlid>`` and wait for the timeline grid (or the list); ``clock``
+        is the script moving the browser clock, ``ready`` the selector that shows the page is
+        drawn."""
         if scheme == 'dark':
             user = self.env['res.users'].search([('login', '=', login)], limit=1)
             self.env['res.users.settings']._find_or_create_for_user(user).color_scheme = 'dark'
@@ -194,14 +197,16 @@ class TimelineProbeCase(HttpCase):
             request('Emulation.setEmulatedMedia', params={'features': [
                 {'name': 'prefers-reduced-motion', 'value': 'reduce'},
             ]})
-            request('Page.addScriptToEvaluateOnNewDocument', params={'source': CLOCK_SCRIPT})
+            request('Page.addScriptToEvaluateOnNewDocument', params={'source': clock})
             url = f'/odoo/action-{action}{query}'
             browser.navigate_to(self.base_url() + url, wait_stop=False)
             self.wait("!!document.querySelector('.o_web_client') || "
                       "location.pathname.startsWith('/web/login')", timeout=120)
             self.assertFalse(self.js("location.pathname.startsWith('/web/login')"),
                              f'{url} redirected to the login page')
-            ready = '.o_list_view' if 'view_type=list' in query else '.o_tl_renderer .o_tl_row'
+            if ready is None:
+                ready = ('.o_list_view' if 'view_type=list' in query
+                         else '.o_tl_renderer .o_tl_row')
             self.wait(f"!!document.querySelector({json.dumps(ready)})", timeout=60)
             self.wait("document.readyState === 'complete'")
             if scheme == 'dark':
