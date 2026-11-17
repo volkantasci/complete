@@ -10,6 +10,7 @@
 }
 
 .o_tl_popover .o_card .o_popover_body:has(.o_track_popover_lines) {
+    // `!important` only beats the same flag on the framework's own body padding
     padding: 16px 15px !important;
 }
 

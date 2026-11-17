@@ -185,6 +185,9 @@ class TestTrackProbes(TimelineProbeCase):
                                want['geometry.x'] + want['geometry.width'] / 2, delta=.6)
         self.assertAlmostEqual(box['geometry.y'] + box['geometry.height'],
                                want['geometry.y'] + want['geometry.height'], delta=.6)
+        # 002a M43: the size of Complete's frame
+        self.assertAlmostEqual(box['geometry.width'], 388, delta=.6, msg='M12 width')
+        self.assertAlmostEqual(box['geometry.height'], 698, delta=.6, msg='M12 height')
 
     def check_in_june(self, probe, scheme, viewport):
         """Question Q-T10-1: the measured pill lies 4 px right of this package's (x 905 against
@@ -227,8 +230,7 @@ class TestTrackProbes(TimelineProbeCase):
                 self.check('M7', block, scheme, 'desktop', 'the block of the lines')
                 label = f"{block}.querySelector('strong')"
                 self.check('M8', label, scheme, 'desktop', 'the label Start')
-                value = (f"{block}.querySelector('div').lastElementChild"
-                         f" || {block}.querySelector('div')")
+                value = f"{block}.querySelector('div').lastElementChild"
                 self.check('M9', value, scheme, 'desktop', 'the value of Start')
                 self.check('M11', f"{popover}.querySelector('.o_tl_popover_button')", scheme,
                            'desktop', 'the Edit button')
