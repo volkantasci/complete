@@ -136,8 +136,8 @@ export class TimelineConnectDrag {
         this._listen(doc, "pointermove", (event) => this._onMove(event));
         this._listen(doc, "pointerup", (event) => this._onUp(event));
         this._listen(doc, "pointercancel", (event) => this._onCancel(event));
-        // a second finger put down inside the grid ends a touch drawing as Escape does (002d R4
-        // point 3); one outside the grid does not. A lost window focus does not cancel (point 5).
+        // a finger put down inside the grid ends a drawing, a mouse drawing too, as Escape does
+        // (002d R4 point 3, T4-1); one outside the grid does not. A lost window focus does not cancel (point 5).
         this._listen(
             doc,
             "pointerdown",
@@ -146,13 +146,17 @@ export class TimelineConnectDrag {
                 if (
                     !press ||
                     event.pointerId === press.id ||
-                    press.type !== "touch" ||
                     event.pointerType !== "touch" ||
                     this.host.insideGrid?.(event) === false
                 ) {
                     return;
                 }
+                // a mouse button still down: its release does nothing
+                const { id, type } = press;
                 this._cancel({ finger: true });
+                if (type !== "touch") {
+                    this._swallowRelease(doc, id);
+                }
             },
             { capture: true }
         );
@@ -254,7 +258,7 @@ export class TimelineConnectDrag {
     /** The drawing ends without a write: a key, a lost pointer, another finger, a hidden page. */
     _cancel({ lost = false, finger = false } = {}) {
         if (this.isActive) {
-            this.host.cancelled?.({ lost, finger });
+            this.host.cancelled?.({ lost, finger, touch: this._press?.type === "touch" });
         }
         this._finish();
     }

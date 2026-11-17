@@ -923,7 +923,7 @@ test("A24 phone size with a mouse: Ctrl copy of Plan into Beta", async () => {
 // Review Focus
 // ----------------------------------------------------------------------------
 
-test("Focus 1: a gesture ended by pointercancel or a hidden tab ends cleanly (a lost focus and a mouse gesture's second pointer do not, 002d R4)", async () => {
+test("Focus 1: a gesture ended by pointercancel or a hidden tab ends cleanly (a lost focus does not, 002d R4)", async () => {
     await mountTimeline();
     const endings = {
         pointercancel: (pointerId) =>

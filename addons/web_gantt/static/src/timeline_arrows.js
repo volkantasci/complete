@@ -252,27 +252,39 @@ export class TimelineArrows {
         return this._pointerType === "touch";
     }
 
+    /** Whether a mouse button is down: a finger put down beside it is no tap away (002d R4). */
+    get isMouseDown() {
+        return Boolean(this._mouseDown);
+    }
+
     /** Every pointer press and move over the page (capture): the kind of pointer that is in use. */
     pointerSeen(ev) {
         this._pointerType = ev.pointerType;
         if (ev.pointerType === "touch") {
             (this._touches ||= new Set()).add(ev.pointerId);
+        } else {
+            this._mouseDown = true;
         }
     }
 
     /**
      * A finger lifts, or the system takes it away (capture, every pointer end of the page). A
      * finger taken away leaves no arrow lit, even when it only began a scroll (002d R4 point 2),
-     * unless another finger still holds a gesture. After a gesture a second finger cancelled, the
-     * arrows lit at its start go when no finger is left (point 3).
+     * unless another finger still holds a gesture. After a touch gesture was cancelled (a key, a
+     * second finger) the arrows lit at its start go as soon as one finger lifts (point 1, 3); after
+     * a mouse gesture a finger cancelled they go with the release of the mouse button (point 3).
      */
     pointerEnded(ev) {
         if (ev.pointerType !== "touch") {
+            this._mouseDown = false;
+            if (this._unlitAtRelease) {
+                this._unlight();
+            }
             return;
         }
         this._touches?.delete(ev.pointerId);
         const alone = !this._touches?.size;
-        if ((ev.type === "pointercancel" && (alone || !this.isHeld)) || (this._unlitAtLift && alone)) {
+        if ((ev.type === "pointercancel" && (alone || !this.isHeld)) || this._unlitAtLift) {
             this._unlight();
         }
     }
@@ -280,6 +292,7 @@ export class TimelineArrows {
     /** Nothing lit and nothing kept (the handles belong to the last tapped pill, 002d R3). */
     _unlight() {
         this._unlitAtLift = false;
+        this._unlitAtRelease = false;
         this._kept = false;
         this._holdOutside = false;
         this.focus.arrowKey = null;
@@ -294,6 +307,7 @@ export class TimelineArrows {
         this._quietAt = null;
         this._kept = false;
         this._unlitAtLift = false;
+        this._unlitAtRelease = false;
         this.focus.arrowKey = null;
         this.focus.pillKey = key;
     }
@@ -392,8 +406,10 @@ export class TimelineArrows {
         this._quietAt = this._pointer ? { ...this._pointer } : { x: NaN, y: NaN };
         if (this._kept) {
             this._recheck = true;
-            this._showHandlesUnderPointer();
+            // a mouse gesture a finger cancelled: the finger is no pointer of the handles
+            this._showHandlesUnderPointer({ mouse: this._mouseGesture });
         }
+        this._mouseGesture = false;
     }
 
     /**
@@ -401,11 +417,15 @@ export class TimelineArrows {
      * `lost`, the pointer taken away): see `reset`. Called by the
      * gesture right before it lets go.
      */
-    cancelGesture({ lost = false, finger = false } = {}) {
+    cancelGesture({ lost = false, finger = false, touch = false } = {}) {
         // the system took the pointer away (002d R4 point 2): unlike Escape, nothing stays lit
         this._cancelling = !lost;
-        // a second finger cancelled it: the lit arrows stay while the fingers are down
-        this._unlitAtLift = finger;
+        // a touch gesture cancelled by a key or a second finger: the lit arrows stay only while a
+        // finger is down (they go when one lifts); a mouse gesture a finger cancelled: until the
+        // mouse button is released (002d R4 point 1, 3)
+        this._unlitAtLift = !lost && touch;
+        this._unlitAtRelease = !lost && !touch && finger;
+        this._mouseGesture = !touch;
     }
 
     /**
@@ -419,8 +439,8 @@ export class TimelineArrows {
     }
 
     /** The pill under the pointer shows its handles (none on an empty cell). */
-    _showHandlesUnderPointer() {
-        if (this.isTouch) {
+    _showHandlesUnderPointer({ mouse = false } = {}) {
+        if (this.isTouch && !mouse) {
             // with touch the handles stay with the pill last tapped (002d R3)
             return;
         }

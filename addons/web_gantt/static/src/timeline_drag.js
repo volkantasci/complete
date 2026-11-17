@@ -221,8 +221,8 @@ export class TimelinePillDrag {
             this._listen(target, "pointerup", once((event) => this._onUp(event)));
             this._listen(target, "pointercancel", once((event) => this._onCancel(event)));
         }
-        // a second finger put down inside the grid ends a touch gesture as Escape does (002d R4
-        // point 3); one outside the grid (below the last row, on the control panel) does not.
+        // a finger put down inside the grid ends a gesture, a mouse gesture too, as Escape does
+        // (002d R4 point 3, T4-1); one outside the grid (below the last row, on the control panel) does not.
         // A lost window focus does not cancel (point 5): no `blur` listener.
         this._listen(
             doc,
@@ -232,7 +232,6 @@ export class TimelinePillDrag {
                 if (
                     !press ||
                     event.pointerId === press.id ||
-                    press.type !== "touch" ||
                     event.pointerType !== "touch" ||
                     this.host.insideGrid?.(event) === false
                 ) {
@@ -476,7 +475,7 @@ export class TimelinePillDrag {
     _cancel({ lost = false, finger = false } = {}) {
         if (this.state === "dragging") {
             this.host.change(null);
-            this.host.cancelled?.({ lost, finger });
+            this.host.cancelled?.({ lost, finger, touch: this._press?.type === "touch" });
         }
         this._finish();
     }

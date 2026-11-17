@@ -234,6 +234,15 @@ class TestNoteTours(RealPointerMixin, HttpCase):
     def test_a23_second_finger_inside_the_grid(self):
         self._touch_run('tl_note_a23_second_finger_inside_the_grid')
 
+    def test_a22_a_key_cancels_a_touch_drawing(self):
+        self._touch_run('tl_note_a22_key_cancels_a_touch_drawing')
+
+    def test_a23_second_finger_lifts_first(self):
+        self._touch_run('tl_note_a23_second_finger_lifts_first')
+
+    def test_a23_a_finger_cancels_a_mouse_drawing(self):
+        self._touch_run('tl_note_a23_finger_cancels_a_mouse_drawing')
+
     def test_a24_second_finger_outside_the_grid(self):
         self._touch_run('tl_note_a24_second_finger_outside_the_grid', writes=None)
 

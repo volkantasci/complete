@@ -948,6 +948,49 @@ scenarioTour(
     { pointer: false }
 );
 
+// A23: the first finger stays down, the second lifts: the arrows lit at the start go out at once;
+// the first finger's lift writes nothing
+scenarioTour(
+    "tl_note_a23_second_finger_lifts_first",
+    async () => {
+        const { end, shown } = await touchDrawingHeld();
+        const second = { x: 300, y: end.y };
+        await realMouse(twoFingers(end, second), { touch: true, settle: false });
+        await pause(300);
+        assert(shown.lit.length > 0 && assertShownNow().lit.length > 0, "the arrows stay lit while both are down");
+        await realMouse([{ type: "touchEnd", touchPoints: [{ x: end.x, y: end.y, id: 1 }] }], {
+            touch: true,
+            settle: false,
+        });
+        await pause(300);
+        assertShown({ lit: [], buttons: 0, handles: handleCount() }, "after the second finger lifted");
+        await touchEndAll();
+        await pause(500);
+        assertShown({ lit: [], buttons: 0, handles: handleCount() }, "after both fingers lifted");
+    },
+    { pointer: false }
+);
+
+// A22: a key cancels a touch drawing: Build to Test stays lit while the finger is down, nothing
+// is lit after it lifts, also 2 s later
+scenarioTour(
+    "tl_note_a22_key_cancels_a_touch_drawing",
+    async () => {
+        const { end } = await touchDrawingHeld();
+        pressKey("a");
+        await pause(300);
+        assert(!drawing(), "the line is gone");
+        assertShown({ lit: [buildToTest()], buttons: 1, handles: 2 }, "the finger still down");
+        await touchEndAll();
+        for (const when of ["at the lift", "2 s later"]) {
+            await pause(when === "at the lift" ? 300 : 2000);
+            assertShown({ lit: [], buttons: 0, handles: handleCount() }, when);
+        }
+        assert(end, "the finger was over Overlap C");
+    },
+    { pointer: false }
+);
+
 // A24: a second finger at (300, 600), below the last row, does not cancel; the lift over Overlap C writes
 scenarioTour(
     "tl_note_a24_second_finger_outside_the_grid",
@@ -963,3 +1006,15 @@ scenarioTour(
     },
     { writes: 1, pointer: false }
 );
+
+// A23, the mouse: a mouse drawing held over Overlap C, a finger put down on the empty cell
+// (300, 430) and lifted: the drawing is cancelled as with Escape; the release of the mouse button
+// writes nothing and leaves no arrow lit
+scenarioTour("tl_note_a23_finger_cancels_a_mouse_drawing", async () => {
+    await drawTo(OVERLAP_C);
+    await realMouse(fingerEvents({ x: 300, y: 430 }, []), { touch: true, settle: false });
+    await assertDrawingCancelled();
+    await realMouse(releaseAt(OVERLAP_C), { settle: false });
+    await pause(400);
+    assertShown({ lit: [], buttons: 0, handles: 2 }, "after the release of the mouse button");
+});

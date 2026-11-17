@@ -154,23 +154,6 @@ async function draw(release) {
 }
 
 
-/** The pointer on Build, then A27's path to `release`; returns the held pointer. */
-async function draw(release) {
-    await hover(pillEl("Build"));
-    await animationFrame();
-    const handle = queryOne(`.o_tl_connect[data-pill-id="${PILL_ID.Build}"] .o_tl_connect_stop`);
-    const start = centre(queryRect(handle));
-    const held = await drag(handle, { position: start });
-    // the pointer crossed the band of "Build" to "Test" before the threshold (R9)
-    controller.selection.renderer.arrows.focusArrow(arrowKey("Build", "Test"));
-    await animationFrame();
-    const around = { x: start.x + 50, y: start.y + 60 };
-    await moveInSteps(held, start, around, 8);
-    const end = release();
-    await moveInSteps(held, around, end, 12);
-    return { held, end };
-}
-
 const overlapC = () => centre(queryRect(pillEl("Overlap C")));
 const BUILD_ARROWS = () => [arrowKey("Design", "Build"), arrowKey("Build", "Test")];
 
@@ -328,16 +311,52 @@ test("R4: a second cancel cause after a cancel is harmless", async () => {
     await settle();
     expect(writesOf()).toEqual([]);
     expect(".o_tl_connect_path").toHaveCount(0);
-    expect(lit().length).toBeLessThan(3);
+    // Escape cancelled it: Build to Test stays lit, and none of the later causes lit another
+    expect(shown()).toEqual(litWith([arrowKey("Build", "Test")], 2));
 });
 
-test("R4: a finger put down while a mouse gesture is held does not cancel it", async () => {
+test("A23: a finger put down inside the grid cancels a mouse drawing as Escape does", async () => {
     await mountDependencies();
     const { held } = await draw(overlapC);
     const cell = pillEl("Overlap C").closest(".o_tl_row").querySelector(".o_tl_cell");
     finger("pointerdown", cell, 77);
     await animationFrame();
+    expect(".o_tl_connect_path").toHaveCount(0);
+    expect(shown()).toEqual(litWith([arrowKey("Build", "Test")], 2));
+    expect(handleEls("Overlap C")).toHaveLength(2);
+    finger("pointerup", cell, 77);
+    await settle();
+    expect(shown()).toEqual(litWith([arrowKey("Build", "Test")], 2));
+    // the release of the mouse button writes nothing and leaves no arrow lit
+    await held.drop();
+    await settle();
+    expect(writesOf()).toEqual([]);
+    expect(lit()).toHaveLength(0);
+    expect(".o_tl_arrow_remove").toHaveCount(0);
+});
+
+test("A23: a finger put down inside the grid cancels a mouse move; the release writes nothing", async () => {
+    await mountDependencies();
+    const { held } = await moveBuild();
+    const cell = pillEl("Overlap C").closest(".o_tl_row").querySelector(".o_tl_cell");
+    finger("pointerdown", cell, 77);
+    await animationFrame();
+    expect(".o_tl_pill_moved").toHaveCount(0);
+    expect(shown()).toEqual(litWith(BUILD_ARROWS(), 2));
+    finger("pointerup", cell, 77);
+    await held.drop();
+    await settle();
+    expect(writesOf()).toEqual([]);
+    expect(lit()).toHaveLength(0);
+});
+
+test("A24: a finger put down outside the grid does not cancel a mouse drawing", async () => {
+    await mountDependencies();
+    const { held } = await draw(overlapC);
+    finger("pointerdown", queryOne(".o_control_panel"), 77);
+    await animationFrame();
     expect(".o_tl_connect_path").toHaveCount(1);
+    finger("pointerup", queryOne(".o_control_panel"), 77);
     await held.drop();
     await settle();
     expect(log.filter((entry) => entry === "write")).toHaveLength(1);
@@ -442,7 +461,7 @@ test("A22: a finger put on a pill that turns into a scroll (pointer cancel) leav
     expect(writesOf()).toEqual([]);
 });
 
-test("A23: a second finger inside the grid cancels a touch drawing; both lifting lights nothing", async () => {
+test("A23: a second finger inside the grid cancels a touch drawing; the arrows go out when one finger lifts", async () => {
     await mountDependencies();
     const held = await touchDrawingHeld();
     const during = shown();
@@ -451,16 +470,54 @@ test("A23: a second finger inside the grid cancels a touch drawing; both lifting
     finger("pointerdown", cell, 77);
     await animationFrame();
     expect(".o_tl_connect_path").toHaveCount(0);
-    // the arrows lit at the start stay lit while the first finger stays down
+    // the arrows lit at the start stay lit while both fingers stay down
     expect(lit().map((arrow) => arrow.dataset.arrow).sort()).toEqual(during.lit);
     expect(".o_tl_arrow_remove").toHaveCount(during.lit.length);
+    // the first finger lifts, the second stays down: nothing lit, nothing written
     await held.drop();
-    await settle();
-    expect(lit().length).toBeGreaterThan(0);
-    finger("pointerup", cell, 77);
     await settle();
     expect(lit()).toHaveLength(0);
     expect(".o_tl_arrow_remove").toHaveCount(0);
+    finger("pointerup", cell, 77);
+    await settle();
+    expect(lit()).toHaveLength(0);
+    expect(writesOf()).toEqual([]);
+});
+
+test("A23: the arrows lit at the start go out as soon as the second finger lifts, the first still down", async () => {
+    await mountDependencies();
+    const held = await touchDrawingHeld();
+    const cell = pillEl("Overlap C").closest(".o_tl_row").querySelector(".o_tl_cell");
+    finger("pointerdown", cell, 77);
+    await animationFrame();
+    expect(lit().length).toBeGreaterThan(0);
+    finger("pointerup", cell, 77);
+    await animationFrame();
+    expect(lit()).toHaveLength(0);
+    expect(".o_tl_arrow_remove").toHaveCount(0);
+    await held.drop();
+    await settle();
+    expect(writesOf()).toEqual([]);
+    expect(lit()).toHaveLength(0);
+});
+
+test("A22: a touch drawing cancelled by the key a keeps Build to Test lit only while the finger is down", async () => {
+    await mountDependencies();
+    const held = await touchDrawingHeld();
+    await keyDown("a");
+    await keyUp("a");
+    await settle();
+    expect(".o_tl_connect_path").toHaveCount(0);
+    expect(shown().lit).toEqual([arrowKey("Build", "Test")]);
+    expect(".o_tl_arrow_remove").toHaveCount(1);
+    await held.drop();
+    await settle();
+    for (const wait of [0, 2000]) {
+        await advanceTime(wait);
+        await animationFrame();
+        expect(lit()).toHaveLength(0);
+        expect(".o_tl_arrow_remove").toHaveCount(0);
+    }
     expect(writesOf()).toEqual([]);
 });
 
