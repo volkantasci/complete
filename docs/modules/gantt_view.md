@@ -21,8 +21,9 @@ that follow when you move one, and can show free time around pills (see
 The view has no menu of its own. It appears in any window action whose view
 modes include **Gantt**, next to the other views in the view switcher, or as
 the first view of such an action. The first Community applications that use it
-arrive in later slices; until then it is reached through actions written by
-other modules, such as the scratch host of the hidden test module
+arrive in later slices. The first one is the tracks of an event (see
+[Event Tracks Timeline](event_track_gantt.md)); besides it the view is reached
+through actions written by other modules, such as the scratch host of the hidden test module
 [`test_web_gantt`](../../addons/test_web_gantt/README.md), used for the
 screenshots below. The search bar of the action (filters, group by, favourites)
 applies as usual.
@@ -71,6 +72,18 @@ left out), taken exactly and not rounded to a column: on the Year range the
 middle lies inside a month, and going Week, Day, Month, Year and back to Week
 brings you to the same day each time. Scrolling by hand moves that date too, in
 every range, and the New button reads it as well.
+
+When the view is first shown, the grid scrolls so that the focus date lies in
+the middle of the visible cells (the row header column left out). The place is
+worked out as a linear share of the whole loaded period: the focus moment's
+distance from the start of the period, divided by the period's length, times the
+full width of the cells. It is not the date's place inside its own column. On
+the day and week scales, whose columns are equally long, the two are the same;
+on the month and year scales, whose columns are months of 28 to 31 days drawn at
+one width, they differ by a few pixels, and the share of the whole period is the
+one used. For example, on a Year range of 2029 to 2031 with the focus on 11 June
+2030, the June column starts 4 px further right than it would if the focus were
+placed by its position inside June.
 
 ![The range menu, light](../assets/gantt_view/09-range-menu.png)
 
@@ -256,6 +269,15 @@ with the dates, and a small primary button in its footer: **Edit** when the
 view allows editing, **View** otherwise. The button closes the popover and
 opens the record in a dialog (see
 [Opening, editing and deleting](#opening-editing-and-deleting-a-record)).
+
+An open popover stays open while a press on its pill is held and the pointer has
+moved less than the ten pixels that start a gesture; it closes when the gesture
+starts. This holds for a press on the body, on a resize handle and on a drawing
+handle with a mouse, and for a finger held on the body or on a drawing handle
+with touch at desktop size, however long the finger is held. A click on a
+drawing handle, pressed and released without a drawing, leaves the popover open.
+After a move cancelled with Escape the next click on that pill opens its popover
+at once, without the short delay.
 
 A view definition can supply its own content in the manner of a card: a body,
 a header and a footer, or the identifier of a card view to borrow its fields
@@ -813,9 +835,18 @@ move is never taken for a click.
   refusing row or nowhere does nothing. A release that would change nothing (the
   same place, or a row whose values the record already holds) writes nothing,
   shows no notification and does not reload. If you drop on a closed group row,
-  it opens once the server has accepted the change.
+  it opens once the server has accepted the change. What the arrows show after
+  such a release is told under [The arrows](#the-arrows).
 - **Escape**, or any other key except Alt, Ctrl, Meta and Shift, cancels the
   move, as does the browser cancelling the pointer or the tab being hidden.
+  Ctrl switches a move into a copy and Shift does nothing; neither cancels. A
+  second pointer put down inside the grid (on a cell, a pill, a row or column
+  header or an arrow) cancels the gesture too, a second finger during a touch gesture, and also a finger during a gesture
+  made with the mouse. A second finger below the
+  last row or in the control panel does not. Losing the focus of the window
+  while the page stays visible does **not** cancel: the gesture goes on and the
+  release writes. See [Cancelling a gesture](#cancelling-a-gesture) for what is
+  left lit.
 
 ![A pill being moved, light](../assets/gantt_view/34-moving.png)
 
@@ -1019,11 +1050,69 @@ bands and the rescheduling also work on a phone (see [below](#dependencies-on-a-
   state: at Escape and after the release with the pointer still, the arrows lit
   when the gesture started stay lit with their buttons and the pill under the
   pointer shows its handles again (none on an empty cell); at the pointer's next
-  move the highlight follows the pointer again.
+  move the highlight follows the pointer again. The same holds for every release
+  that writes nothing, see [After a gesture that writes nothing](#after-a-gesture-that-writes-nothing).
 
 ![The arrows of the pill under the pointer, light](../assets/gantt_view/76-pill-hover.png)
 
 ![The arrows of the pill under the pointer, dark](../assets/gantt_view/76-pill-hover-dark.png)
+
+#### After a gesture that writes nothing
+
+A move, a resize or a drawing released where nothing is written, or cancelled,
+keeps the state it started in: the arrows that were lit when the gesture began
+stay lit with their remove buttons, the pill under the pointer shows its handles,
+and the next move of the pointer over the grid works the highlight out again.
+The cases:
+
+- A drawing released on an empty cell, over the column headers, over its own pill
+  or outside the view keeps the arrow lit at its start (the drawing's own pill
+  shows its handles when it is released over it). A drawing released over the
+  row headers leaves no arrow lit. A drawing released on a pill that already
+  depends on the source writes the link again and reloads, so it ends as a write
+  does, with nothing lit until the pointer moves.
+- A move released outside the view or over the column headers keeps the pill's
+  arrows lit; over the row headers it leaves none lit. After a release outside the
+  view, the lit arrows stay until the pointer moves over the grid again; moves
+  elsewhere do not work the highlight out.
+- A release **that changes nothing** is decided by the sub-column under the
+  pointer, not by the pixel: a release anywhere in the starting sub-column of the
+  starting row, the press point included, changes no date, and for a move no row
+  either. A move of that kind with the manual method, or in a view without a
+  dependency field, writes and reloads nothing and keeps the lit state above. A
+  move with a method that uses buffers still calls the rescheduling method once
+  with no value: the server writes nothing, the success notification with Undo
+  shows, the view reloads and nothing is lit until the pointer moves. A resize
+  that changes nothing makes no call with any method and keeps the lit state. A
+  copy always creates the duplicate.
+- The band of an arrow begins at the outer edge of its source pill, not at the
+  pill's body: on the last column of the pill's outer box both of the pill's
+  arrows are still lit and its handles are gone, and from the next pixel the
+  pointer is on the band and that arrow alone is lit.
+- A resize handle pressed inside the 150 px edge zone does not scroll the grid
+  while the pointer is held still; once the resize has started, every move inside
+  the zone scrolls it.
+
+![A move released in its own sub-column, the arrows stay lit, light](../assets/gantt_view/89-released-empty.png)
+
+![A move released in its own sub-column, dark](../assets/gantt_view/89-released-empty-dark.png)
+
+![A handle under a held press, light](../assets/gantt_view/90-handle-pressed.png)
+
+![A handle under a held press, dark](../assets/gantt_view/90-handle-pressed-dark.png)
+
+#### Cancelling a gesture
+
+Besides Escape, any key except Alt, Ctrl, Meta and Shift cancels a move, a copy,
+a resize or a drawing and writes nothing; the arrows lit at its start stay lit,
+and after the next move the pill under the pointer keeps its handles and only the
+arrows go out. A touch gesture cancelled by a key keeps the arrows lit only while
+the finger stays down. When the browser takes the touch away (a pointer cancel),
+nothing is written, a drawing's line disappears and, unlike with Escape, **no
+arrow stays lit**. A second finger put down inside the grid cancels the gesture;
+the arrows lit at its start stay lit while both fingers are down and go out as
+soon as one lifts. The page becoming hidden (another tab shown) cancels as Escape
+does, and losing the window's focus alone does not.
 
 ### Drawing and removing a dependency
 
@@ -1058,12 +1147,31 @@ shows its handles and buttons, because they write the link, not the pill.
   popover but lights none of its arrows; a finger put down on a handle lights
   the pill's arrows with their buttons, and a move draws the same way. During
   the drawing only the arrow lit when it started stays lit, and after the save
-  none is.
+  none is. The handles belong to the **pill last tapped**, not to the finger of a
+  gesture: after a touch drawing from a tapped pill to another one, the tapped
+  pill still shows its handles, the target shows none and no arrow is lit. This
+  lasts until the next touch: a tap on an empty cell hides the handles, and a tap
+  on another pill shows that pill's handles and opens its popover. A finger put
+  down on a pill that was not tapped lights its arrows and shows no handles; when
+  it is lifted without moving it is a tap, and the light goes out; after a touch
+  move from there nothing is lit and no handles show. Which pill was tapped is
+  decided by the place of the tap: when a record has two pills, only the tapped
+  one shows handles, and after a write moves the tapped pill away, a pill that
+  now lies at the place of the tap shows them.
+- **A finger on a pill's end.** At desktop size with touch, a finger put down on
+  the place of either resize handle (the first and last 8 px of the pill) moves
+  the pill, by the same hold and threshold as a finger on its body, and an open
+  popover stays until the move starts. There is no resize by touch; a mouse
+  press on the same place still resizes, and the phone is unchanged.
 - **Removing.** A highlighted arrow shows a small round button with a cross at
   the middle of its route, named "Remove this dependency" for assistive
   technology. A click removes the source from the target's dependencies (one
   write on the target) and reloads. There is no confirmation and no Undo; a
   refused write shows the usual error.
+
+![The state after a touch drawing, light](../assets/gantt_view/91-touch-saved.png)
+
+![The state after a touch drawing, dark](../assets/gantt_view/91-touch-saved-dark.png)
 
 ![The remove button under the pointer, light](../assets/gantt_view/77-button-hover.png)
 
@@ -1453,7 +1561,12 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
 
 ## Not included yet
 
-The Gantt views of employees, attendances, event tracks and time off are
-delivered in later slices, as are the parts that project tasks and work orders
+**Known difference.** With touch input at desktop size the control bar is 4 px
+taller than with a mouse in Complete, where the original differs by 14 px; this
+is left to a later batch.
+
+The Gantt views of employees, attendances and time off are
+delivered in later slices (the event tracks view is described in
+[Event Tracks Timeline](event_track_gantt.md)), as are the parts that project tasks and work orders
 add to rescheduling (working calendars, conflicts with other tasks, planned
 record highlight, dashed arrows).
