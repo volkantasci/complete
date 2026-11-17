@@ -14,6 +14,10 @@
     'installable': True,
     'data': [
         'views/event_track_views.xml',
+        'views/event_event_views.xml',
     ],
+    'assets': {
+        'web.assets_tests': ['website_event_track_gantt/static/tests/tours/**/*'],
+    },
     'uninstall_hook': 'restore_track_actions',
 }

@@ -6,5 +6,6 @@ from . import (
     test_tests_bundle,
     test_track_actions,
     test_track_plan,
+    test_track_tours,
     test_unschedule,
 )

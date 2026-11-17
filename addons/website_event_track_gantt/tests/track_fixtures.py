@@ -48,6 +48,9 @@ def make_gantt_summit(env):
 def _user(env, name, login, group_xmlid):
     user = env['res.users'].search([('login', '=', login)], limit=1)
     if user:
+        # a user found by login gets the same two groups as a new one
+        user.write({'group_ids': [(6, 0, [
+            env.ref('base.group_user').id, env.ref(group_xmlid).id])]})
         return user
     return env['res.users'].with_context(no_reset_password=True).create({
         'name': name,

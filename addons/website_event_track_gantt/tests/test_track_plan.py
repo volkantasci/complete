@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from datetime import datetime
 
+from lxml import etree
 from odoo import fields
 from odoo.tests.common import TransactionCase
 
@@ -71,3 +72,17 @@ class TestTrackPlan(TransactionCase):
         summit = make_gantt_summit(self.env)['event']
         self.assertEqual(fields.Datetime.to_string(summit.track_plan_start), '2030-06-10 06:00:00')
         self.assertEqual(summit.track_plan_scale, 'week')
+
+    def test_a57_arch_tracks_button_context(self):
+        arch = self.env['event.event'].get_view(
+            self.env.ref('website_event_track.event_event_view_form').id)['arch']
+        form = etree.fromstring(arch)
+        button = form.xpath("//div[@name='button_box']/button[field[@name='track_count']]")
+        self.assertEqual(len(button), 1)
+        self.assertEqual(
+            button[0].get('context'),
+            "{'initialDate': track_plan_start, 'default_scale': track_plan_scale}")
+        for name in ('track_plan_start', 'track_plan_scale'):
+            field = form.xpath(f"//field[@name='{name}']")
+            self.assertEqual(len(field), 1)
+            self.assertEqual(field[0].get('invisible'), '1')

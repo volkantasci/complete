@@ -12,4 +12,25 @@
     <record id="website_event_track.action_event_track_from_event" model="ir.actions.act_window">
         <field name="view_mode">kanban,list,form,gantt,calendar,graph,activity</field>
     </record>
+    <!-- The Gantt view of the tracks: rows by location, the colour of the agenda,
+         the range opened by the Tracks button of an event. -->
+    <record id="event_track_view_gantt" model="ir.ui.view">
+        <field name="name">event.track.gantt</field>
+        <field name="model">event.track</field>
+        <field name="arch" type="xml">
+            <gantt string="Tracks" date_start="date" date_stop="date_end" color="color"
+                   default_group_by="location_id" dynamic_range="1">
+                <field name="partner_name"/>
+                <popover>
+                    <templates>
+                        <t t-name="popover-header"><field name="name"/></t>
+                        <t t-name="popover-body">
+                            <div><strong style="font-weight: 700">Start —</strong> <field name="date"/></div>
+                            <div t-if="record.partner_name.raw_value"><strong style="font-weight: 700">Proposed By —</strong> <field name="partner_name"/></div>
+                        </t>
+                    </templates>
+                </popover>
+            </gantt>
+        </field>
+    </record>
 </odoo>
