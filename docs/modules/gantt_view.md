@@ -279,7 +279,12 @@ handle with a mouse, and for a finger held on the body or on a drawing handle
 with touch at desktop size, however long the finger is held. A click on a
 drawing handle, pressed and released without a drawing, leaves the popover open.
 After a move cancelled with Escape the next click on that pill opens its popover
-at once, without the short delay.
+at once, without the short delay; a click at the very spot where the cancelled
+gesture was released opens it too, and a double click there opens the record
+dialog. The cancelled gesture's own press and release never pair with the next
+click into a double click, and the click lock that follows clicks on cells does not
+apply to pills. (After a gesture that was **completed**, a click counted as the
+second of a pair that began with its release is still held back.)
 
 A view definition can supply its own content in the manner of a card: a body,
 a header and a footer, or the identifier of a card view to borrow its fields
@@ -844,7 +849,9 @@ move is never taken for a click.
   Ctrl switches a move into a copy and Shift does nothing; neither cancels. A
   second pointer put down inside the grid (on a cell, a pill, a row or column
   header or an arrow) cancels the gesture too, a second finger during a touch gesture, and also a finger during a gesture
-  made with the mouse. A second finger below the
+  made with the mouse. The finger that cancels does nothing else: no dialog,
+  popover, selection or new gesture, on a cell, a pill, a header or an arrow, lifted
+  before or after the mouse button is released. A second finger below the
   last row or in the control panel does not. Losing the focus of the window
   while the page stays visible does **not** cancel: the gesture goes on and the
   release writes. See [Cancelling a gesture](#cancelling-a-gesture) for what is
@@ -1052,7 +1059,9 @@ bands and the rescheduling also work on a phone (see [below](#dependencies-on-a-
   state: at Escape and after the release with the pointer still, the arrows lit
   when the gesture started stay lit with their buttons and the pill under the
   pointer shows its handles again (none on an empty cell); at the pointer's next
-  move the highlight follows the pointer again. The same holds for every release
+  move the highlight follows the pointer again. When the grid scrolled during the
+  gesture (edge scrolling), the highlight is worked out from what lies under the
+  pointer at Escape instead. The same holds for every release
   that writes nothing, see [After a gesture that writes nothing](#after-a-gesture-that-writes-nothing).
 
 ![The arrows of the pill under the pointer, light](../assets/gantt_view/76-pill-hover.png)
@@ -1093,7 +1102,10 @@ The cases:
   pointer is on the band and that arrow alone is lit.
 - A resize handle pressed inside the 150 px edge zone does not scroll the grid
   while the pointer is held still; once the resize has started, every move inside
-  the zone scrolls it.
+  the zone scrolls it. A resize cancelled after such a scroll leaves no arrow lit
+  (the pill moved away from the pointer); one that did not scroll, such as one from
+  the left handle, keeps the pill's arrows lit, with or without its popover open
+  before the press.
 
 ![A drawing released on an empty cell, the arrows stay lit, light](../assets/gantt_view/89-released-empty.png)
 
@@ -1111,9 +1123,12 @@ and after the next move the pill under the pointer keeps its handles and only th
 arrows go out. A touch gesture cancelled by a key keeps the arrows lit only while
 the finger stays down. When the browser takes the touch away (a pointer cancel),
 nothing is written, a drawing's line disappears and, unlike with Escape, **no
-arrow stays lit**. A second finger put down inside the grid cancels the gesture;
-the arrows lit at its start stay lit while both fingers are down and go out as
-soon as one lifts. The page becoming hidden (another tab shown) cancels as Escape
+arrow stays lit**. A second finger put down inside the grid cancels the gesture,
+and a finger put down inside the grid cancels a gesture made with the mouse; that
+finger does nothing else, not even when it lifts (no dialog, popover or selection).
+The arrows lit at the start stay lit while the finger or both fingers are down and
+go out as soon as that finger, or one of the two, lifts, whether the mouse button is
+still held or not. The page becoming hidden (another tab shown) cancels as Escape
 does, and losing the window's focus alone does not.
 
 ### Drawing and removing a dependency
@@ -1151,7 +1166,9 @@ shows its handles and buttons, because they write the link, not the pill.
   the drawing only the arrow lit when it started stays lit, and after the save
   none is. The handles belong to the **pill last tapped**, not to the finger of a
   gesture: after a touch drawing from a tapped pill to another one, the tapped
-  pill still shows its handles, the target shows none and no arrow is lit. This
+  pill still shows its handles, the target shows none and no arrow is lit; the same
+  holds when the drawing is lifted over its own pill (nothing written) and after a
+  write made while a second finger rests below the last row. This
   lasts until the next touch: a tap on an empty cell hides the handles, and a tap
   on another pill shows that pill's handles and opens its popover. A finger put
   down on a pill that was not tapped lights its arrows and shows no handles; when
