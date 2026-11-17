@@ -1,0 +1,18 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+
+    <t t-name="website_event_track_gantt.DialogButtons">
+        <button t-if="this.showSave" type="button" class="btn btn-primary o_form_button_save"
+                data-hotkey="q" t-on-click.stop="() => this.saveButtonClicked({closable: true})">Save</button>
+        <button type="button" class="btn btn-secondary o_form_button_cancel"
+                data-hotkey="x" t-on-click.stop="this.discard">Discard</button>
+        <ViewButton t-if="this.showUnschedule" className="'btn btn-secondary o_track_unschedule'"
+                    record="this.model.root" clickParams="this.unscheduleParams"
+                    string="this.unscheduleLabel"/>
+        <button t-if="this.showDelete" type="button" class="btn btn-secondary o_track_delete"
+                data-hotkey="d" data-tooltip="Delete" aria-label="Delete"
+                t-on-click.stop="this.onDeleteClicked"><i class="fa fa-trash-o"/></button>
+    </t>
+
+</templates>

@@ -134,3 +134,98 @@ class TestTrackTours(RealPointerMixin, HttpCase):
                 ('Unplaced Talk', datetime(2030, 6, 12, 10, 0), False, False),
             ])
         self._tour(EVENTS, 'track_a55_demo_event')
+
+    # -- the record dialog ----------------------------------------------------------------------
+
+    def _track(self, name):
+        return self.env['event.track'].search([('name', '=', name)], limit=1)
+
+    def _popular_track(self):
+        """A track two visitors wishlisted (stands in for the demo "First Day Wrapup")."""
+        track = self.summit['tracks']['Opening Keynote']
+        for index in range(2):
+            visitor = self.env['website.visitor'].create({'access_token': f'{index:032x}'})
+            self.env['event.track.visitor'].create({
+                'track_id': track.id, 'visitor_id': visitor.id, 'is_wishlisted': True})
+        track.invalidate_recordset()
+        self.assertEqual(track.wishlist_visitor_count, 2)
+
+    def test_a41_admin_footer(self):
+        self._tour(EVENTS, 'track_a41_admin_footer')
+        self.assertEqual(self._track('Wood Joinery').name, 'Wood Joinery')
+
+    def test_a42_dialog_form(self):
+        self._popular_track()
+        self._tour(EVENTS, 'track_a42_dialog_form')
+
+    def test_a43_save_and_discard(self):
+        self._tour(EVENTS, 'track_a43_save_and_discard')
+        track = self._track('Wood Joinery 2')
+        self.assertTrue(track)
+        self.assertFalse(self._track('Dropped Name'))
+        track.name = 'Wood Joinery'
+
+    def test_a44_unschedule(self):
+        track = self.summit['tracks']['Panel Talk']
+        self._tour(EVENTS, 'track_a44_unschedule')
+        track.invalidate_recordset()
+        self.assertFalse(track.date)
+        self.assertFalse(track.date_end)
+        self.assertEqual(track.duration, 5.0)
+
+    def test_a46_delete_confirmed(self):
+        track = self.summit['tracks']['Panel Talk']
+        self._tour(EVENTS, 'track_a46_delete_confirmed')
+        self.assertFalse(track.exists())
+
+    def test_a47_delete_discarded(self):
+        track = self.summit['tracks']['Panel Talk']
+        self._tour(EVENTS, 'track_a47_delete_discarded')
+        self.assertTrue(track.exists())
+        self.assertEqual(track.name, 'Panel Talk')
+
+    def test_a48_new_dialog(self):
+        self._tour(EVENTS, 'track_a48_new_dialog')
+        self.assertTrue(self._track('Fresh Track'))
+        self._track('Fresh Track').unlink()
+
+    def test_a48_new_dialog_organizer(self):
+        self._tour(EVENTS, 'track_a48_new_dialog_organizer', login='evuser')
+        track = self._track('Organizer Track')
+        self.assertTrue(track)
+        track.unlink()
+
+    def test_a49_events_user(self):
+        track = self.summit['tracks']['Panel Talk']
+        self._tour(EVENTS, 'track_a49_events_user', login='evuser')
+        track.invalidate_recordset()
+        self.assertEqual(track.name, 'Panel Talk 2')
+        self.assertFalse(track.date)
+        self.assertEqual(track.duration, 4.0)
+
+    def test_a49_events_user_drag(self):
+        track = self.summit['tracks']['Panel Talk']
+        self._tour(EVENTS, 'track_a49_events_user_drag', login='evuser')
+        track.invalidate_recordset()
+        self.assertEqual(track.date, datetime(2030, 6, 12, 8, 0))
+
+    def test_a50_registration_desk(self):
+        track = self.summit['tracks']['Panel Talk']
+        self._tour(EVENTS, 'track_a50_registration_desk', login='evdesk')
+        track.invalidate_recordset()
+        self.assertEqual(track.date, datetime(2030, 6, 11, 8, 0))
+
+    def test_a56_refused_write(self):
+        self._tour(EVENTS, 'track_a56_refused_move')
+        self.assertFalse(self._track('Panel Talk'))
+
+    def test_a56_refused_unschedule(self):
+        self._tour(EVENTS, 'track_a56_refused_unschedule')
+        self.assertFalse(self._track('Panel Talk'))
+
+    def test_track_dialog_invalid_form(self):
+        track = self.summit['tracks']['Wood Joinery']
+        self._tour(EVENTS, 'track_dialog_invalid_form')
+        track.invalidate_recordset()
+        self.assertTrue(track.exists())
+        self.assertEqual(track.date, datetime(2030, 6, 10, 9, 0))

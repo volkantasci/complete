@@ -1,5 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
 
 /**
@@ -391,6 +392,11 @@ const clickPill = (name) => ({
     async run() {
         await until(() => pillOf(name), `the pill ${name}`);
         pillOf(name).click();
+        // a click that lands while the view still reloads is lost: click again
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        if (!$(".o_tl_popover") && !$(".o_dialog")) {
+            pillOf(name).click();
+        }
     },
 });
 
@@ -511,4 +517,464 @@ tours.add("track_focus_dirty_form", {
             },
         },
     ],
+});
+
+// --- the record dialog (A41 to A50, A56) ------------------------------------------------------------
+
+const topDialog = () => $$(".o_dialog").at(-1);
+const dialogOf = (title) => $$(".o_dialog").find((el) => $(".modal-title", el)?.textContent.trim() === title);
+/** The visible footer buttons of the dialog on top: text, tooltip and geometry. */
+function footerButtons(dialog = topDialog()) {
+    return $$(".modal-footer button", dialog)
+        .filter((el) => el.getBoundingClientRect().width > 0)
+        .map((el) => {
+            const box = el.getBoundingClientRect();
+            return {
+                text: el.textContent.trim(),
+                tooltip: el.dataset.tooltip || "",
+                icon: !!$(".fa-trash-o", el),
+                primary: el.classList.contains("btn-primary"),
+                left: box.left,
+                right: box.right,
+            };
+        });
+}
+const footerNames = (dialog) => footerButtons(dialog).map((b) => b.text || (b.icon ? "[bin]" : ""));
+const noDialog = { trigger: "body:not(:has(.o_dialog))" };
+
+/** The popover of a pill, its Edit (View) button, and the dialog it opens. */
+const editPill = (name, title = "Open") => [
+    clickPill(name),
+    { trigger: ".o_tl_popover .o_tl_popover_button", run: "click" },
+    { trigger: `.o_dialog .modal-title:contains("${title}")` },
+    { trigger: ".o_dialog .modal-footer button" },
+];
+const nameInput = ".o_dialog .o_field_widget[name='name'] input";
+const typeName = (value) => ({ trigger: nameInput, run: `edit ${value}` });
+const pillsAre = (names) => ({
+    trigger: ".o_tl_renderer",
+    async run() {
+        await until(() => JSON.stringify([...pillNames()].sort()) === JSON.stringify([...names].sort()),
+            `the pills ${names}, got ${pillNames()}`);
+    },
+});
+const click = (trigger) => ({ trigger, run: "click" });
+/** The Delete confirmation is the dialog on top. */
+const confirmation = ".o_dialog:has(.modal-title:contains('Delete Track'))";
+
+async function trackId(name) {
+    const [row] = await rpc("/web/dataset/call_kw/event.track/search_read", {
+        model: "event.track",
+        method: "search_read",
+        args: [[["name", "=", name]]],
+        kwargs: { fields: ["id"], limit: 1 },
+    });
+    return row && row.id;
+}
+async function dropTrack(name) {
+    const id = await trackId(name);
+    assert(id, `the track ${name} exists`);
+    await rpc("/web/dataset/call_kw/event.track/unlink", {
+        model: "event.track",
+        method: "unlink",
+        args: [[id]],
+        kwargs: {},
+    });
+}
+
+tours.add("track_a41_admin_footer", {
+    steps: () =>
+        withEvent([
+            ...editPill("Wood Joinery"),
+            {
+                trigger: ".o_dialog .modal-footer .o_form_button_save",
+                run() {
+                    assertEqual(footerNames(), ["Save", "Discard", "Unschedule", "[bin]"], "the footer");
+                    const [save, discard, unschedule, bin] = footerButtons();
+                    assertEqual(bin.tooltip, "Delete", "the bin's tooltip");
+                    assert(save.primary && !discard.primary && !unschedule.primary, "the ranks");
+                    assertEqual(
+                        [discard.left - save.right, unschedule.left - discard.right, bin.left - unschedule.right],
+                        [8, 8, 8],
+                        "the gaps"
+                    );
+                    const content = $(".modal-content", topDialog()).getBoundingClientRect();
+                    assert(save.left - content.left < 30, "left-aligned");
+                    assert(bin.right < content.left + content.width / 2, "the bin is not pushed right");
+                    // 002b's own Remove button does not show
+                    assert(!$(".o_form_button_remove", topDialog()), "no second Delete");
+                },
+            },
+            { trigger: ".o_dialog .modal-footer .o_form_button_cancel", run: "press alt+q" },
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]),
+            ...editPill("Wood Joinery"),
+            { trigger: ".o_dialog .modal-footer .o_form_button_cancel", run: "press alt+x" },
+            noDialog,
+            ...editPill("Wood Joinery"),
+            { trigger: ".o_dialog .modal-footer .o_form_button_cancel", run: "press alt+d" },
+            {
+                trigger: `${confirmation} .modal-footer`,
+                run() {
+                    assertEqual(footerNames(dialogOf("Delete Track")), ["Delete", "Discard"], "the confirmation");
+                },
+            },
+            { trigger: `${confirmation} .modal-footer button`, run: "press Escape" },
+            { trigger: "body:not(:has(.modal-title:contains('Delete Track')))" },
+            { trigger: ".o_dialog .modal-title:contains('Open')" },
+        ]),
+});
+
+const FIELDS = [
+    "name", "website_image", "kanban_state", "date", "location_id", "duration",
+    "wishlisted_by_default", "user_id", "event_id", "tag_ids", "color",
+];
+
+tours.add("track_a42_dialog_form", {
+    steps: () =>
+        withEvent([
+            ...editPill("Opening Keynote"),
+            {
+                trigger: ".o_dialog .o_field_widget[name='name']",
+                run() {
+                    const dialog = topDialog();
+                    assert(!$(".o_statusbar_status, .o_field_statusbar", dialog), "no stage bar");
+                    assert(!$(".oe_stat_button", dialog), "no statistics button, wishlisted or not");
+                    assert(!$("[name='is_published']", dialog), "no publish button");
+                    assert(!$(".o-mail-Chatter", dialog), "no chatter");
+                    for (const name of FIELDS) {
+                        assert($(`.o_field_widget[name='${name}']`, dialog), `the field ${name}`);
+                    }
+                    assertEqual(
+                        texts(".o_notebook_headers .nav-link", dialog),
+                        ["Speaker", "Description", "Interactivity"],
+                        "the pages"
+                    );
+                },
+            },
+            { trigger: ".o_dialog .o_form_button_cancel", run: "click" },
+            noDialog,
+            // the same track in the Kanban view of the same action: the stage bar and the button
+            click(".o_switch_view.o_kanban"),
+            click(".o_kanban_record:contains('Opening Keynote')"),
+            {
+                trigger: ".o_form_view .o_statusbar_status",
+                run() {
+                    assert(
+                        texts(".o_form_view .oe_stat_button").some((text) => text.includes("Wishlisted By")),
+                        "the Community button"
+                    );
+                },
+            },
+        ]),
+});
+
+tours.add("track_a43_save_and_discard", {
+    steps: () =>
+        withEvent([
+            ...editPill("Wood Joinery"),
+            typeName("Wood Joinery 2"),
+            click(".o_dialog .o_form_button_save"),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery 2"]),
+            ...editPill("Wood Joinery 2"),
+            typeName("Dropped Name"),
+            click(".o_dialog .o_form_button_cancel"),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery 2"]),
+        ]),
+});
+
+tours.add("track_a44_unschedule", {
+    steps: () =>
+        withEvent([
+            ...editPill("Panel Talk"),
+            { trigger: ".o_dialog .o_field_widget[name='duration'] input", run: "edit 5:00" },
+            click(".o_dialog .o_track_unschedule"),
+            noDialog,
+            {
+                trigger: ".o_tl_renderer",
+                async run() {
+                    await until(() => !pillNames().includes("Panel Talk"), "the pill is gone");
+                    assert(!$(".o_notification"), "no notification");
+                    assert(!$(".modal"), "no confirmation");
+                },
+            },
+            click(".o_switch_view.o_list"),
+            { trigger: ".o_list_view .o_data_row:contains('Panel Talk')" },
+        ]),
+});
+
+const openConfirmation = (name) => [
+    ...editPill(name),
+    click(".o_dialog .o_track_delete"),
+    { trigger: `${confirmation} .modal-footer button` },
+];
+
+tours.add("track_a46_delete_confirmed", {
+    steps: () =>
+        withEvent([
+            ...openConfirmation("Panel Talk"),
+            {
+                trigger: `${confirmation} .modal-footer button`,
+                run() {
+                    const box = dialogOf("Delete Track");
+                    const [del, discard] = footerButtons(box);
+                    assertEqual([del.text, discard.text], ["Delete", "Discard"], "the buttons");
+                    assert(del.primary && !discard.primary, "Delete is the primary button");
+                    assert($(".modal-body", box).textContent.trim().length > 0, "a question");
+                },
+            },
+            click(`${confirmation} .modal-footer .btn-primary`),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Wood Joinery"]),
+        ]),
+});
+
+tours.add("track_a47_delete_discarded", {
+    steps: () => {
+        const stays = [
+            { trigger: "body:not(:has(.modal-title:contains('Delete Track')))" },
+            {
+                trigger: ".o_dialog .modal-title:contains('Open')",
+                run() {
+                    assertEqual(footerNames(), ["Save", "Discard", "Unschedule", "[bin]"], "the dialog");
+                    assertEqual($(nameInput).value, "Panel Talk 7", "the unsaved change is still there");
+                },
+            },
+        ];
+        return withEvent([
+            ...editPill("Panel Talk"),
+            typeName("Panel Talk 7"),
+            click(".o_dialog .o_track_delete"),
+            click(`${confirmation} .modal-footer .btn-secondary`),
+            ...stays,
+            click(".o_dialog .o_track_delete"),
+            click(`${confirmation} .btn-close`),
+            ...stays,
+            click(".o_dialog .o_track_delete"),
+            { trigger: `${confirmation} .modal-footer button`, run: "press Escape" },
+            ...stays,
+            click(".o_dialog .o_form_button_cancel"),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]),
+        ]);
+    },
+});
+
+const newDialog = [
+    click(".o_tl_button_add"),
+    { trigger: ".o_dialog .modal-title:contains('Create')" },
+    { trigger: ".o_dialog .modal-footer button" },
+];
+
+tours.add("track_a48_new_dialog", {
+    steps: () =>
+        withEvent([
+            ...newDialog,
+            {
+                trigger: ".o_dialog .o_form_button_save",
+                run() {
+                    assertEqual(footerNames(), ["Save", "Discard"], "a new track's footer");
+                },
+            },
+            typeName("Fresh Track"),
+            click(".o_dialog .o_form_button_save"),
+            noDialog,
+            ...editPill("Fresh Track"),
+            {
+                trigger: ".o_dialog .o_track_delete",
+                run() {
+                    assertEqual(footerNames(), ["Save", "Discard", "Unschedule", "[bin]"], "after Save");
+                },
+            },
+            click(".o_dialog .o_form_button_cancel"),
+        ]),
+});
+
+tours.add("track_a48_new_dialog_organizer", {
+    steps: () =>
+        withEvent([
+            ...newDialog,
+            {
+                trigger: ".o_dialog .o_form_button_save",
+                run() {
+                    assertEqual(footerNames(), ["Save", "Discard"], "the organizer's new track");
+                },
+            },
+            typeName("Organizer Track"),
+            click(".o_dialog .o_form_button_save"),
+            noDialog,
+            { trigger: ".o_tl_renderer" },
+        ]),
+});
+
+tours.add("track_a49_events_user", {
+    steps: () => {
+        const footer = {
+            trigger: ".o_dialog .o_form_button_save",
+            run() {
+                assertEqual(footerNames(), ["Save", "Discard", "Unschedule"], "the organizer's footer");
+            },
+        };
+        const untouched = pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]);
+        return withEvent([
+            ...editPill("Panel Talk"),
+            footer,
+            typeName("Panel Talk 1"),
+            click(".o_dialog .o_form_button_cancel"),
+            noDialog,
+            untouched,
+            ...editPill("Panel Talk"),
+            typeName("Panel Talk 1"),
+            click(".o_dialog .modal-header .btn-close"),
+            noDialog,
+            untouched,
+            ...editPill("Panel Talk"),
+            typeName("Panel Talk 1"),
+            { trigger: nameInput, run: "press Escape" },
+            noDialog,
+            untouched,
+            ...editPill("Panel Talk"),
+            typeName("Panel Talk 2"),
+            click(".o_dialog .o_form_button_save"),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk 2", "Wood Joinery"]),
+            ...editPill("Panel Talk 2"),
+            click(".o_dialog .o_track_unschedule"),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Wood Joinery"]),
+        ]);
+    },
+});
+
+/** Press 30 px inside the left end of the pill, move 192 px right in 12 steps, release. */
+async function dragPillOneDay(name) {
+    const box = pillOf(name).getBoundingClientRect();
+    const from = { x: box.left + 30, y: box.top + box.height / 2 };
+    const moves = [];
+    for (let step = 1; step <= 12; step++) {
+        moves.push(mouse("mouseMoved", from.x + 16 * step, from.y, { buttons: 1 }));
+    }
+    await realMouse([
+        mouse("mouseMoved", from.x, from.y, { button: "none", buttons: 0 }),
+        mouse("mousePressed", from.x, from.y, { buttons: 1, clickCount: 1 }),
+        ...moves,
+        mouse("mouseReleased", from.x + 192, from.y, { buttons: 0, clickCount: 1 }),
+    ]);
+    return box.left;
+}
+
+tours.add("track_a49_events_user_drag", {
+    steps: () =>
+        withEvent([
+            {
+                trigger: ".o_tl_pill",
+                async run() {
+                    await until(() => pillOf("Panel Talk"), "the pill");
+                    const before = await dragPillOneDay("Panel Talk");
+                    await until(
+                        () => pillOf("Panel Talk").getBoundingClientRect().left > before + 150,
+                        "the pill moved one day"
+                    );
+                },
+            },
+        ]),
+});
+
+tours.add("track_a50_registration_desk", {
+    steps: () =>
+        withEvent([
+            {
+                trigger: ".o_tl_pill",
+                async run() {
+                    await until(() => pillOf("Panel Talk"), "the pill");
+                    assert(!$(".o_tl_button_add"), "no New button");
+                    const before = pillOf("Panel Talk").getBoundingClientRect().left;
+                    await dragPillOneDay("Panel Talk");
+                    await new Promise((resolve) => setTimeout(resolve, 300));
+                    assertEqual(pillOf("Panel Talk").getBoundingClientRect().left, before, "the pill stays");
+                    assert(!$(".modal"), "no dialog after the attempt");
+                },
+            },
+            clickPill("Panel Talk"),
+            {
+                trigger: ".o_tl_popover .o_tl_popover_button",
+                run() {
+                    assertEqual(texts(".o_tl_popover .o_tl_popover_button")[0], "View", "the button");
+                },
+            },
+            click(".o_tl_popover .o_tl_popover_button"),
+            { trigger: ".o_dialog .modal-title:contains('Open')" },
+            {
+                trigger: ".o_dialog .modal-footer .o_form_button_cancel",
+                run() {
+                    assertEqual(footerNames(), ["Discard"], "Discard alone");
+                    assert(!$("input", $(".o_field_widget[name='name']", topDialog())), "read only");
+                },
+            },
+        ]),
+});
+
+const missingError = ".o_error_dialog, .modal:has(.modal-title:contains('Missing'))";
+
+tours.add("track_a56_refused_move", {
+    steps: () =>
+        withEvent([
+            {
+                trigger: ".o_tl_pill",
+                async run() {
+                    await until(() => pillOf("Panel Talk"), "the pill");
+                    await dropTrack("Panel Talk");
+                    await dragPillOneDay("Panel Talk");
+                },
+            },
+            { trigger: missingError },
+            { trigger: ".o_dialog .modal-header .btn-close, .o_dialog .modal-footer .btn", run: "click" },
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Wood Joinery"]),
+        ]),
+});
+
+tours.add("track_a56_refused_unschedule", {
+    steps: () =>
+        withEvent([
+            ...editPill("Panel Talk"),
+            {
+                trigger: ".o_dialog .o_track_unschedule",
+                async run() {
+                    await dropTrack("Panel Talk");
+                    $(".o_dialog .o_track_unschedule").click();
+                },
+            },
+            { trigger: missingError },
+            { trigger: ".o_dialog .modal-header .btn-close, .o_dialog .modal-footer .btn", run: "click" },
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Wood Joinery"]),
+        ]),
+});
+
+tours.add("track_dialog_invalid_form", {
+    steps: () => {
+        const stillThere = {
+            trigger: ".o_dialog .o_field_invalid",
+            run() {
+                assertEqual(texts(".o_dialog .modal-title").at(-1), "Open", "the dialog stays");
+                assertEqual(footerNames(), ["Save", "Discard", "Unschedule", "[bin]"], "the footer");
+            },
+        };
+        return withEvent([
+            ...editPill("Wood Joinery"),
+            { trigger: nameInput, run: "clear" },
+            click(".o_dialog .o_track_unschedule"),
+            stillThere,
+            click(".o_dialog .o_track_delete"),
+            click(`${confirmation} .modal-footer .btn-primary`),
+            { trigger: "body:not(:has(.modal-title:contains('Delete Track')))" },
+            stillThere,
+            click(".o_dialog .o_form_button_cancel"),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]),
+        ]);
+    },
 });
