@@ -24,6 +24,7 @@ from . import (
     test_multi_screens,
     test_multi_tours,
     test_note_probes,
+    test_note_screens,
     test_note_tours,
     test_probes,
     test_reschedule,
