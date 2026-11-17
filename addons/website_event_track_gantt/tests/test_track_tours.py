@@ -184,6 +184,12 @@ class TestTrackTours(RealPointerMixin, HttpCase):
         self.assertTrue(track.exists())
         self.assertEqual(track.name, 'Panel Talk')
 
+    def test_a47_delete_invalid(self):
+        track = self.summit['tracks']['Panel Talk']
+        self._tour(EVENTS, 'track_a47_delete_invalid')
+        self.assertTrue(track.exists())
+        self.assertEqual(track.name, 'Panel Talk')
+
     def test_a48_new_dialog(self):
         self._tour(EVENTS, 'track_a48_new_dialog')
         self.assertTrue(self._track('Fresh Track'))
@@ -217,6 +223,17 @@ class TestTrackTours(RealPointerMixin, HttpCase):
 
     def test_a56_refused_write(self):
         self._tour(EVENTS, 'track_a56_refused_move')
+        self.assertFalse(self._track('Panel Talk'))
+
+    def test_a56_save_deleted(self):
+        # Save on a track deleted meanwhile: the missing-record error, the dialog stays open
+        self._tour(EVENTS, 'track_a56_save_deleted')
+        self.assertFalse(self._track('Panel Talk'))
+        self.assertFalse(self._track('Panel Talk 9'))
+
+    def test_a56_delete_deleted(self):
+        # Delete on a track deleted meanwhile: no error, both dialogs close, the view reloads
+        self._tour(EVENTS, 'track_a56_delete_deleted')
         self.assertFalse(self._track('Panel Talk'))
 
     def test_a56_refused_delete(self):

@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // The popover of a track (M5 to M11): lines of 13 px with a line height of 19.5 px, a body of 16 px
-// by 15 px padding around a block that has 10 px above and below its lines and 14 px before them
-// (the label at x 971 where the block starts at 957), and no extra gap under the arrow (the
-// measured box hangs at y 281). Only the popover whose body holds the lines of a track is meant.
-.o_popover:has(> .o_tl_popover:not(.o_tl_popover_sheet) .o_track_popover_lines) {
-    margin-top: 0;
-}
-
-.o_tl_popover .o_card .o_popover_body:has(.o_track_popover_lines) {
+// padding around a block that has 10 px above and below its lines and 14 px before them
+// (the label at x 971 where the block starts at 957). The frame inside the outer box is 272 x
+// 208.688 px (M45), as the lines make it. Only the popover whose body holds the lines of a track
+// is meant.
+.o_popover .o_tl_popover .o_card .o_popover_body:has(.o_track_popover_lines) {
     // `!important` only beats the same flag on the framework's own body padding
-    padding: 16px 15px !important;
+    padding: 16px !important;
 }
 
 // the rounded corners of the popover cut the header band (M6: the band itself has square corners)
@@ -29,8 +26,7 @@
     line-height: 19.5px;
 }
 
-// The record dialog without its stage bar: the sheet keeps 24 px above the title, the room the
-// form leaves there when the bar is present (screens S4 to S7).
-.o_form_view.o_track_dialog .o_form_sheet {
-    padding-top: 24px;
+// the label of a line is bold (M8: weight 700)
+.o_track_popover_label {
+    font-weight: 700;
 }

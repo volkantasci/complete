@@ -528,7 +528,7 @@ function footerButtons(dialog = topDialog()) {
     return $$(".modal-footer button", dialog)
         .filter((el) => el.getBoundingClientRect().width > 0)
         .map((el) => {
-            const { left, right } = el.getBoundingClientRect();
+            const { left, right, top, bottom, width, height } = el.getBoundingClientRect();
             return {
                 text: el.textContent.trim(),
                 tooltip: el.dataset.tooltip || "",
@@ -536,9 +536,41 @@ function footerButtons(dialog = topDialog()) {
                 primary: el.classList.contains("btn-primary"),
                 left,
                 right,
+                top,
+                bottom,
+                width,
+                height,
             };
         });
 }
+/** The record dialog (the one with the track form), also while the confirmation lies over it. */
+const recordDialog = () => $$(".o_dialog").find((el) => $(".o_track_dialog", el));
+/** Disabled state and opacity of each footer button of the record dialog (R13, M39, M40). */
+const recordButtonStates = () =>
+    $$(".modal-footer button", recordDialog())
+        .filter((el) => el.getBoundingClientRect().width > 0)
+        .map((el) => [el.disabled, getComputedStyle(el).opacity]);
+/** While the confirmation is open the record dialog's four buttons are disabled at half opacity. */
+const recordFrozen = {
+    trigger: ".o_dialog:has(.modal-title:contains('Delete Track')) .modal-footer button",
+    run() {
+        const states = recordButtonStates();
+        assertEqual(states, Array(4).fill([true, "0.5"]), "disabled, drawn at half opacity");
+        // a click on a disabled button does nothing
+        $(".o_form_button_cancel", recordDialog()).click();
+        assert(recordDialog(), "Discard of the record dialog does not react");
+    },
+};
+/** After the confirmation closes they are back at full opacity and react again. */
+const recordThawed = {
+    trigger: "body:not(:has(.modal-title:contains('Delete Track')))",
+    async run() {
+        await until(
+            () => JSON.stringify(recordButtonStates()) === JSON.stringify(Array(4).fill([false, "1"])),
+            `enabled, at full opacity, got ${JSON.stringify(recordButtonStates())}`
+        );
+    },
+};
 const footerNames = (dialog) => footerButtons(dialog).map((b) => b.text || (b.icon ? "[bin]" : ""));
 const noDialog = { trigger: "body:not(:has(.o_dialog))" };
 
@@ -734,7 +766,7 @@ tours.add("track_a46_delete_confirmed", {
 tours.add("track_a47_delete_discarded", {
     steps: () => {
         const stays = [
-            { trigger: "body:not(:has(.modal-title:contains('Delete Track')))" },
+            recordThawed,
             {
                 trigger: ".o_dialog .modal-title:contains('Open')",
                 run() {
@@ -747,12 +779,15 @@ tours.add("track_a47_delete_discarded", {
             ...editPill("Panel Talk"),
             typeName("Panel Talk 7"),
             click(".o_dialog .o_track_delete"),
+            recordFrozen,
             click(`${confirmation} .modal-footer .btn-secondary`),
             ...stays,
             click(".o_dialog .o_track_delete"),
+            recordFrozen,
             click(`${confirmation} .btn-close`),
             ...stays,
             click(".o_dialog .o_track_delete"),
+            recordFrozen,
             { trigger: `${confirmation} .modal-footer button`, run: "press Escape" },
             ...stays,
             click(".o_dialog .o_form_button_cancel"),
@@ -760,6 +795,33 @@ tours.add("track_a47_delete_discarded", {
             pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]),
         ]);
     },
+});
+
+// A47, the second part: the title emptied, then Delete and the confirmation's Delete (R13, T9-3)
+tours.add("track_a47_delete_invalid", {
+    steps: () =>
+        withEvent([
+            ...editPill("Panel Talk"),
+            { trigger: nameInput, run: "clear" },
+            click(".o_dialog .o_track_delete"),
+            recordFrozen,
+            click(`${confirmation} .modal-footer .btn-primary`),
+            recordThawed,
+            {
+                trigger: ".o_dialog .o_field_invalid",
+                async run() {
+                    assertEqual(texts(".o_dialog .modal-title").at(-1), "Open", "the dialog stays");
+                    // the Community notification about the required fields
+                    await until(
+                        () => texts(".o_notification").some((t) => t.includes("Missing required fields")),
+                        "the notification about missing required fields"
+                    );
+                },
+            },
+            click(".o_dialog .o_form_button_cancel"),
+            noDialog,
+            pillsAre(["Closing Words", "Opening Keynote", "Panel Talk", "Wood Joinery"]),
+        ]),
 });
 
 const newDialog = [
@@ -776,6 +838,17 @@ tours.add("track_a48_new_dialog", {
                 trigger: ".o_dialog .o_form_button_save",
                 run() {
                     assertEqual(footerNames(), ["Save", "Discard"], "a new track's footer");
+                },
+            },
+            {
+                // New proposes Sunday 9 June 2030, 12:00 AM: the start of the week of the focus
+                // date as the grid shows it (002b R2, D2; the original's Monday 10 is the defect)
+                trigger: ".o_dialog .o_field_widget[name='date']",
+                run() {
+                    const widget = $(".o_dialog .o_field_widget[name='date']");
+                    const value = $("input", widget)?.value ?? widget.textContent.trim();
+                    // (9 June 2030 is a Sunday)
+                    assertEqual(value, "Jun 9, 12:00 AM", "Track Date");
                 },
             },
             typeName("Fresh Track"),
@@ -916,7 +989,10 @@ tours.add("track_a50_registration_desk", {
         ]),
 });
 
-const missingError = ".o_error_dialog, .modal:has(.modal-title:contains('Missing'))";
+// the Community error for a missing record (the dialog titled "Missing Record")
+const missingError = ".modal:has(.modal-title:contains('Missing Record'))";
+const missingDialog = () =>
+    $$(".modal").find((el) => $(".modal-title", el)?.textContent.includes("Missing Record"));
 
 tours.add("track_a56_refused_move", {
     steps: () =>
@@ -968,6 +1044,56 @@ tours.add("track_a56_refused_unschedule", {
             { trigger: ".o_dialog .modal-header .btn-close, .o_dialog .modal-footer .btn", run: "click" },
             noDialog,
             pillsAre(["Closing Words", "Opening Keynote", "Wood Joinery"]),
+        ]),
+});
+
+// E1: the dialog of "Panel Talk" is open when another session deletes the track
+const droppedMeanwhile = {
+    trigger: ".o_dialog .o_track_unschedule",
+    async run() {
+        await dropTrack("Panel Talk");
+    },
+};
+const afterwards = pillsAre(["Closing Words", "Opening Keynote", "Wood Joinery"]);
+
+tours.add("track_a56_save_deleted", {
+    steps: () =>
+        withEvent([
+            ...editPill("Panel Talk"),
+            droppedMeanwhile,
+            typeName("Panel Talk 9"),
+            click(".o_dialog .o_form_button_save"),
+            { trigger: missingError },
+            { trigger: `${missingError} .modal-footer .btn`, run: "click" },
+            {
+                // the error lay over the record dialog, which stays open
+                trigger: ".o_dialog .modal-title:contains('Open')",
+                async run() {
+                    await until(() => !missingDialog(), "the error is closed");
+                    assertEqual($(nameInput).value, "Panel Talk 9", "the dialog keeps its change");
+                },
+            },
+            click(".o_dialog .o_form_button_cancel"),
+            noDialog,
+        ]),
+});
+
+tours.add("track_a56_delete_deleted", {
+    steps: () =>
+        withEvent([
+            ...editPill("Panel Talk"),
+            droppedMeanwhile,
+            click(".o_dialog .o_track_delete"),
+            click(`${confirmation} .modal-footer .btn-primary`),
+            // no error: both dialogs close and the view reloads without the track
+            noDialog,
+            afterwards,
+            {
+                trigger: ".o_tl_renderer",
+                run() {
+                    assert(!$(".modal"), "no error");
+                },
+            },
         ]),
 });
 
@@ -1027,13 +1153,15 @@ tours.add("track_a53_phone", {
                 const lines = texts(".o_track_popover_lines > div");
                 assert(lines[0].startsWith("Start —"), `the first line: ${lines}`);
                 assert(lines[1].startsWith("Proposed By —"), `the second line: ${lines}`);
+                // the outer box (M12) and the frame 1 px inside it (002a M43, Q4)
                 const sheet = $(".o_popover").getBoundingClientRect();
                 assertEqual(
-                    [sheet.bottom, sheet.width > 380],
-                    [window.innerHeight, true],
-                    "a sheet to the bottom, the full width"
+                    [sheet.x, sheet.y, sheet.width, sheet.height, sheet.bottom],
+                    [0, 144, 390, 700, window.innerHeight],
+                    "the sheet to the bottom, the full width, from y 144"
                 );
-                assert(sheet.top >= 143 && sheet.top <= 147, `the sheet starts at y ${sheet.top}`);
+                const frame = $(".o_popover > .o_tl_popover_sheet").getBoundingClientRect();
+                assertEqual([frame.x, frame.y, frame.width, frame.height], [1, 145, 388, 698], "the frame");
             },
         },
         { trigger: ".o_tl_popover .o_tl_popover_button:contains('Edit')", run: "click" },
@@ -1042,17 +1170,25 @@ tours.add("track_a53_phone", {
             trigger: ".o_dialog .modal-footer .o_form_button_save",
             async run() {
                 // the form slides in from the side
-                await until(() => footerButtons()[0]?.left < 30, "the form in place");
+                await until(() => footerButtons()[0]?.left === 15.5, "the form in place");
                 assert($(".o_dialog .modal.o_modal_full"), "the form fills the screen");
                 assertEqual(footerNames(), ["Save", "Discard", "Unschedule", "[bin]"], "the footer");
                 const [save, discard, unschedule] = footerButtons();
                 assert(save.primary && !discard.primary && !unschedule.primary, "the ranks");
-                // the Community's phone footer lays its buttons out one under the other
-                const width = window.innerWidth;
-                assert(
-                    footerButtons().every((b) => b.left >= 0 && b.right <= width),
-                    `the buttons lie inside the screen: ${JSON.stringify(footerButtons())}`
+                // the phone footer stacks its buttons one under the other, each as wide as the
+                // footer (359 x 37 px from x 15.5), 8 px apart (R16, M48, M49)
+                const buttons = footerButtons();
+                assertEqual(
+                    buttons.map((b) => [b.left, b.width, b.height]),
+                    Array(4).fill([15.5, 359, 37]),
+                    "the places and sizes of the buttons"
                 );
+                assertEqual(
+                    buttons.slice(1).map((b, i) => b.top - buttons[i].bottom),
+                    [8, 8, 8],
+                    "the gaps between the buttons"
+                );
+                assertEqual([buttons[0].top, buttons[3].top], [656.5, 791.5], "Save and the bin");
             },
         },
     ],

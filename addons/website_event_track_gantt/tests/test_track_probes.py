@@ -1,17 +1,21 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Probes of the tracks Gantt bridge (M1 to M26 and M46; M19 is the original's and asks nothing).
+"""Probes of the tracks Gantt bridge (M1 to M26, M39, M40, M45, M46, M48 and M49; M19 is the
+original's and asks nothing).
 
 Run only these: ``--test-tags /website_event_track_gantt:TestTrackProbes``. The dark scheme needs
 ``web_enterprise``; without it the dark probes are skipped. The values are in
 ``track_probe_values``. The browser clock is Tuesday 11 June 2030 09:00 (UTC+3).
 
 Elements read: M1, M2, M4, M25, M26 the pill ``.o_tl_pill``; M46 the header ``.o_tl_col`` of June
-2030; M3 the title box of the row header ``.o_tl_row_name``; M5, M12 the popover ``.o_popover``; M6
-its header ``.o_popover_header``; M7, M10 the block of the lines inside ``.o_popover_body``; M8 the
-bold label, M9 the value; M11 the button ``.o_tl_popover_button``; M13 the footer ``.modal-footer``
-of the record dialog; M14 to M17 its buttons, M18 the bin icon; M20, M21 the buttons of the new
-track's dialog; M22 the box ``.modal-content`` of the confirmation, M23, M24 its buttons.
+2030; M3 the title box of the row header ``.o_tl_row_name``; M5, M12 the outer popover box
+``.o_popover``, M45 the frame inside it ``.o_tl_popover``; M6 its header ``.o_popover_header``;
+M7, M10 the block of the lines inside ``.o_popover_body``; M8 the bold label, M9 the value; M11
+the button ``.o_tl_popover_button``; M13 the footer ``.modal-footer`` of the record dialog; M14 to
+M17 its buttons, M18 the bin icon; M20, M21 the buttons of the new track's dialog; M22 the box
+``.modal-content`` of the confirmation, M23, M24 its buttons; M39, M40 Save of the record dialog
+while the confirmation is open and after Discard; M48, M49 Save and the bin button of the record
+dialog on the phone.
 """
 import json
 import logging
@@ -126,68 +130,25 @@ class TestTrackProbes(TimelineProbeCase):
         return {name: float(value) for name, value in measured(probe)[scheme].items()
                 if name.startswith('geometry.')}
 
-    def check_frame(self, probe, scheme, viewport):
-        """The popover's frame (``.o_popover``) is the frame of 002a's measure (M43): 272 px wide
-        on a desktop screen, where this package's box is 274 x 210.688 (ruling T10-1, question
-        Q-T2-1). What is held is the centre, the bottom edge, the height and everything but the
-        position and the width; the frame is transparent (the content draws the background, M43),
-        so the background is read on the content. Both boxes are logged."""
-        want = self.box_values(probe, scheme)
-        box = self.geometry("document.querySelector('.o_popover')")
-        _logger.info('%s %s popover frame %s, package %s', probe, scheme, box, want)
-        expected = measured(probe)[scheme]
-        self.check(probe, "document.querySelector('.o_popover')", scheme, viewport,
-                   'the popover box', skip=('background-color', 'geometry.x', 'geometry.y',
-                                            'geometry.width', 'geometry.height'))
-        self.probe(probe, "document.querySelector('.o_tl_popover')", scheme, viewport,
-                   {'background-color': expected['background-color']}, 'the popover content')
-        self.assertAlmostEqual(
-            box['geometry.x'] + box['geometry.width'] / 2,
-            want['geometry.x'] + want['geometry.width'] / 2, delta=.6, msg=f'{probe} centre')
-        self.assertAlmostEqual(
-            box['geometry.y'] + box['geometry.height'],
-            want['geometry.y'] + want['geometry.height'], delta=.6, msg=f'{probe} bottom edge')
-        self.assertAlmostEqual(box['geometry.height'], want['geometry.height'], delta=.6,
-                               msg=f'{probe} height')
-
-    def check_in_frame(self, probe, element_js, scheme, label):
-        """A part of the popover: everything as measured, but x and width, which follow the frame
-        (T10-1): the part lies as far from the frame's left edge, and is as much narrower than the
-        measured width as the frame is narrower than the measured box (2 px)."""
-        want = self.box_values(probe, scheme)
-        frame = self.box_values('M5', scheme)
-        box = self.geometry("document.querySelector('.o_popover')")
-        shift = box['geometry.x'] - frame['geometry.x']
-        narrower = frame['geometry.width'] - box['geometry.width']
-        names = ('geometry.x', 'geometry.width')
-        self.check(probe, element_js, scheme, 'desktop', label,
-                   skip=[n for n in names if n in want])
-        part = self.geometry(element_js)
-        if 'geometry.x' in want:
-            self.assertAlmostEqual(part['geometry.x'], want['geometry.x'] + shift, delta=.6,
-                                   msg=f'{probe} x')
-        if 'geometry.width' in want:
-            self.assertAlmostEqual(part['geometry.width'], want['geometry.width'] - narrower,
-                                   delta=.6, msg=f'{probe} width')
+    def check_box(self, probe, scheme):
+        """The outer box of the popover (``.o_popover``, the box M5 names), every value of the
+        package, 274 x 210.688 px at (940, 281): its border, corners and shadow, and the
+        background; then the frame inside it (``.o_tl_popover``, 002a M43, M45): 272 x 208.688 px,
+        1 px inside the outer box on each side."""
+        self.check(probe, "document.querySelector('.o_popover')", scheme, 'desktop',
+                   'the outer popover box')
+        self.check('M45', "document.querySelector('.o_popover > .o_tl_popover')", scheme,
+                   'desktop', 'the popover frame')
 
     def check_sheet(self, scheme):
-        """The sheet (``.o_popover``) is 388 x 698 px at (1, 146) in Complete, 002a's measure
-        (M43), where this package's box is 390 x 700 at (0, 144) with a top margin of 144 (ruling
-        T10-1, question Q-T2-1): what is held is the bottom edge, the centre, the colours, the
-        border and the rounded top corners; both boxes are logged."""
-        want = self.box_values('M12', scheme)
-        box = self.geometry("document.querySelector('.o_popover')")
-        _logger.info('M12 %s sheet %s, package %s', scheme, box, want)
+        """The sheet (``.o_popover``, M12) is the outer box, 390 x 700 px at (0, 144) with its top
+        margin of 144, every value of the package; the frame inside it (``.o_tl_popover_sheet``,
+        002a M43) is 388 x 698 px at (1, 145)."""
         self.check('M12', "document.querySelector('.o_popover')", scheme, 'phone',
-                   'the popover sheet', skip=('margin-top', 'geometry.x', 'geometry.y',
-                                              'geometry.width', 'geometry.height'))
-        self.assertAlmostEqual(box['geometry.x'] + box['geometry.width'] / 2,
-                               want['geometry.x'] + want['geometry.width'] / 2, delta=.6)
-        self.assertAlmostEqual(box['geometry.y'] + box['geometry.height'],
-                               want['geometry.y'] + want['geometry.height'], delta=.6)
-        # 002a M43: the size of Complete's frame
-        self.assertAlmostEqual(box['geometry.width'], 388, delta=.6, msg='M12 width')
-        self.assertAlmostEqual(box['geometry.height'], 698, delta=.6, msg='M12 height')
+                   'the popover sheet')
+        self.probe('M45', "document.querySelector('.o_popover > .o_tl_popover')", scheme, 'phone',
+                   {'geometry.x': '1', 'geometry.y': '145', 'geometry.width': '388',
+                    'geometry.height': '698'}, 'the sheet frame')
 
     def check_in_june(self, probe, scheme, viewport):
         """The pill of the year range, every value as measured, x included (002d R18: the focus
@@ -214,9 +175,9 @@ class TestTrackProbes(TimelineProbeCase):
             with self.open(EVENTS, scheme, 'desktop'):
                 self.open_tracks()
                 self.open_popover('Wood Joinery')
-                self.check_frame('M5', scheme, 'desktop')
+                self.check_box('M5', scheme)
                 header = f"{popover}.querySelector('.o_popover_header')"
-                self.check_in_frame('M6', header, scheme, 'the header')
+                self.check('M6', header, scheme, 'desktop', 'the header')
                 block = f"{popover}.querySelector('.o_track_popover_lines')"
                 self.check('M7', block, scheme, 'desktop', 'the block of the lines')
                 label = f"{block}.querySelector('strong')"
@@ -233,7 +194,7 @@ class TestTrackProbes(TimelineProbeCase):
     # -- M13 to M18, M22 to M24: the record dialog and the confirmation -------------------------
 
     def test_m13_m18_m22_m24_dialog(self):
-        probes = ['M13', 'M14', 'M15', 'M16', 'M17', 'M18', 'M22', 'M23', 'M24']
+        probes = ['M13', 'M14', 'M15', 'M16', 'M17', 'M18', 'M22', 'M23', 'M24', 'M39', 'M40']
         for scheme in self.schemes(probes):
             with self.open(EVENTS, scheme, 'desktop'):
                 self.open_tracks()
@@ -261,6 +222,15 @@ class TestTrackProbes(TimelineProbeCase):
                            'desktop', 'Delete')
                 self.check('M24', f"{top}.querySelector('.modal-footer .btn-secondary')", scheme,
                            'desktop', 'Discard')
+                # R13: the buttons of the record dialog behind the confirmation are disabled
+                save = f"{dialog}.querySelector('.o_form_button_save')"
+                self.assertTrue(self.js(f"{save}.disabled"), 'Save is disabled')
+                self.check('M39', save, scheme, 'desktop', 'Save behind the confirmation')
+                self.real_click(f"{top}.querySelector('.modal-footer .btn-secondary')")
+                self.wait("document.querySelectorAll('.o_dialog').length === 1", timeout=30)
+                self.wait(f"!{save}.disabled")
+                self.settle()
+                self.check('M40', save, scheme, 'desktop', 'Save after Discard')
 
     # -- M20, M21: the new track's dialog -------------------------------------------------------
 
@@ -303,6 +273,25 @@ class TestTrackProbes(TimelineProbeCase):
             with self.open(TRACKS_MENU, scheme, 'phone', query='?debug=1'):
                 self.show_gantt(phone=True)
                 self.check_in_june('M26', scheme, 'phone')
+
+    # -- M48, M49: the stacked footer of the record dialog on the phone ------------------------
+
+    def test_m48_m49_phone_footer(self):
+        for scheme in self.schemes(['M48', 'M49']):
+            with self.open(EVENTS, scheme, 'phone'):
+                self.open_tracks(phone=True)
+                self.open_popover('Opening Keynote')
+                self.tap("document.querySelector('.o_tl_popover_button')")
+                self.wait("!!document.querySelector('.o_dialog .o_track_delete')", timeout=30)
+                # the form slides in from the side
+                self.wait("document.querySelector('.o_dialog .o_form_button_save')"
+                          ".getBoundingClientRect().x < 30", timeout=30)
+                self.settle()
+                dialog = "document.querySelector('.o_dialog')"
+                self.check('M48', f"{dialog}.querySelector('.o_form_button_save')", scheme,
+                           'phone', 'Save, first of the stacked footer')
+                self.check('M49', f"{dialog}.querySelector('.o_track_delete')", scheme, 'phone',
+                           'the bin button, last of the stacked footer')
 
     # -- M4, M12: the phone (A53) ---------------------------------------------------------------
 

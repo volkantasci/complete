@@ -1,7 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 """Measured values of the original for the tracks Gantt bridge (spec.md, "Measured values"):
-probes M1 to M26 and M46 (M19 is the original's footer for an Events User, which decision D3
+probes M1 to M26, M39, M40, M45, M46, M48 and M49 (M5, M12, M32 and M33 name the outer popover box,
+M45 the frame inside it; M19 is the original's footer for an Events User, which decision D3
 corrects; it asks nothing of Complete and has no row here).
 
 ``TRACK_PROBES`` is a list of rows ``(probe, scheme, viewport, prop, value)``; the helper
@@ -1180,6 +1181,41 @@ TRACK_PROBES = [
     ('M46', 'dark', 'desktop', 'geometry.y', '182'),
     ('M46', 'dark', 'desktop', 'geometry.width', '100'),
     ('M46', 'dark', 'desktop', 'geometry.height', '25'),
+    # M39, M40: the Save button of the record dialog while the confirmation is open, and after
+    ('M39', 'light', 'desktop', 'opacity', '0.5'),
+    ('M39', 'light', 'desktop', 'color', 'rgba(255, 255, 255, 1)'),
+    ('M39', 'light', 'desktop', 'background-color', 'rgba(113, 75, 103, 1)'),
+    ('M39', 'dark', 'desktop', 'opacity', '0.5'),
+    ('M39', 'dark', 'desktop', 'color', 'rgba(255, 255, 255, 1)'),
+    ('M39', 'dark', 'desktop', 'background-color', 'rgba(146, 66, 125, 1)'),
+    ('M40', 'light', 'desktop', 'opacity', '1'),
+    ('M40', 'dark', 'desktop', 'opacity', '1'),
+    # M45: the frame inside the outer box of M5 (002a M43's box)
+    ('M45', 'light', 'desktop', 'geometry.x', '941'),
+    ('M45', 'light', 'desktop', 'geometry.y', '282'),
+    ('M45', 'light', 'desktop', 'geometry.width', '272'),
+    ('M45', 'light', 'desktop', 'geometry.height', '208.688'),
+    ('M45', 'dark', 'desktop', 'geometry.x', '941'),
+    ('M45', 'dark', 'desktop', 'geometry.y', '282'),
+    ('M45', 'dark', 'desktop', 'geometry.width', '272'),
+    ('M45', 'dark', 'desktop', 'geometry.height', '208.688'),
+    # M48, M49: the stacked footer of the record dialog on the phone, Save and the bin button
+    ('M48', 'light', 'phone', 'geometry.x', '15.5'),
+    ('M48', 'light', 'phone', 'geometry.y', '656.5'),
+    ('M48', 'light', 'phone', 'geometry.width', '359'),
+    ('M48', 'light', 'phone', 'geometry.height', '37'),
+    ('M48', 'dark', 'phone', 'geometry.x', '15.5'),
+    ('M48', 'dark', 'phone', 'geometry.y', '656.5'),
+    ('M48', 'dark', 'phone', 'geometry.width', '359'),
+    ('M48', 'dark', 'phone', 'geometry.height', '37'),
+    ('M49', 'light', 'phone', 'geometry.x', '15.5'),
+    ('M49', 'light', 'phone', 'geometry.y', '791.5'),
+    ('M49', 'light', 'phone', 'geometry.width', '359'),
+    ('M49', 'light', 'phone', 'geometry.height', '37'),
+    ('M49', 'dark', 'phone', 'geometry.x', '15.5'),
+    ('M49', 'dark', 'phone', 'geometry.y', '791.5'),
+    ('M49', 'dark', 'phone', 'geometry.width', '359'),
+    ('M49', 'dark', 'phone', 'geometry.height', '37'),
 ]
 
 

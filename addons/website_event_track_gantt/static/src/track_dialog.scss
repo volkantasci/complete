@@ -1,0 +1,15 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The record dialog without its stage bar: the sheet keeps 24 px above the title, the room the
+// form leaves there when the bar is present (screens S4 to S7).
+.o_form_view.o_track_dialog .o_form_sheet {
+    padding-top: 24px;
+}
+
+// While the confirmation of Delete is open the buttons of the record dialog behind it are
+// disabled (the Community rule while a button of the form runs) and drawn at half the opacity,
+// their colours unchanged (R13, M39); they come back when the confirmation closes (M40).
+.o_dialog:has(.o_track_dialog) .modal-footer .btn:disabled {
+    opacity: 0.5;
+}

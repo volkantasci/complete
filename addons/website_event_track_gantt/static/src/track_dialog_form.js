@@ -7,6 +7,7 @@ import { registry } from "@web/core/registry";
 import { user } from "@web/core/user";
 import { formView } from "@web/views/form/form_view";
 import { FormController } from "@web/views/form/form_controller";
+import { executeButtonCallback } from "@web/views/view_button/view_button_hook";
 
 /**
  * The form of the track dialog of the Gantt view. Its footer follows the rights of the user on
@@ -53,31 +54,47 @@ export class TrackDialogFormController extends FormController {
         );
     }
 
-    /** Ask, then save what is pending, delete the track and close the dialog. */
+    /**
+     * Ask, then save what is pending, delete the track and close the dialog. While the
+     * confirmation is open the buttons of the record dialog are disabled, as the Community does
+     * while a button of a form runs (R13, M39); they come back when it closes (M40).
+     */
     onDeleteClicked() {
-        this.dialogService.add(ConfirmationDialog, {
-            title: _t("Delete Track"),
-            body: _t("Should this track really be deleted?"),
-            confirmLabel: _t("Delete"),
-            cancelLabel: _t("Discard"),
-            cancel: () => {},
-            confirm: async () => {
-                const record = this.model.root;
-                // an invalid form stays open, with its validation shown, and nothing is deleted
-                if ((await record.save({ reload: false })) === false) {
-                    return;
-                }
-                try {
-                    await this.orm.unlink(record.resModel, [record.resId], {
-                        context: this.props.context,
-                    });
-                } finally {
-                    // a refused deletion shows the Community error (the rejection goes on); the
-                    // dialog closes either way, so that the view reloads with the stored values
-                    this.env.dialogData.close();
-                }
-            },
-        });
+        return executeButtonCallback(
+            this.ui.activeElement,
+            () =>
+                new Promise((resolve) => {
+                    this.dialogService.add(
+                        ConfirmationDialog,
+                        {
+                            title: _t("Delete Track"),
+                            body: _t("Should this track really be deleted?"),
+                            confirmLabel: _t("Delete"),
+                            cancelLabel: _t("Discard"),
+                            cancel: () => {},
+                            confirm: () => this.deleteTrack(),
+                        },
+                        { onClose: resolve }
+                    );
+                })
+        );
+    }
+
+    async deleteTrack() {
+        const record = this.model.root;
+        // an invalid form stays open, with its validation shown, and nothing is deleted
+        if ((await record.save({ reload: false })) === false) {
+            return;
+        }
+        try {
+            await this.orm.unlink(record.resModel, [record.resId], {
+                context: this.props.context,
+            });
+        } finally {
+            // a refused deletion shows the Community error (the rejection goes on); the dialog
+            // closes either way, so that the view reloads with the stored values
+            this.env.dialogData.close();
+        }
     }
 }
 
