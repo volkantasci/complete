@@ -12,5 +12,8 @@
     'auto_install': True,
     'application': False,
     'installable': True,
-    'data': [],
+    'data': [
+        'views/event_track_views.xml',
+    ],
+    'uninstall_hook': 'restore_track_actions',
 }

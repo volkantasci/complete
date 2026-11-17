@@ -1,0 +1,15 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <!-- Menu action: Gantt joins the view modes; the timeline opens on the whole
+         year and the tracks are grouped by location. -->
+    <record id="website_event_track.action_event_track" model="ir.actions.act_window">
+        <field name="view_mode">kanban,list,form,gantt,calendar,graph,activity</field>
+        <field name="context">{'default_scale': 'year', 'search_default_location': 1}</field>
+    </record>
+
+    <!-- Action opened from an event: same view modes, context untouched. -->
+    <record id="website_event_track.action_event_track_from_event" model="ir.actions.act_window">
+        <field name="view_mode">kanban,list,form,gantt,calendar,graph,activity</field>
+    </record>
+</odoo>
