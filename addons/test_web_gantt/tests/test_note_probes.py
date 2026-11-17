@@ -66,22 +66,19 @@ class TestNoteProbes(TimelineProbeCase):
         self.probe(probe, element_js, scheme, 'desktop', expected, label)
 
     def check_popover(self, probe, scheme, label):
-        """Ruling T2-1: the popover's frame (``.o_popover``) is 272 x 208.7 px at (1084.97, 283)
-        in Complete, 002b's measured size, where the package's box is 274 x 210.688 at (1084, 281).
-        The two share their horizontal centre and their bottom edge; the box of the package
-        reaches 1 px further to each side and 2 px higher. What the probe holds is the centre, the
-        bottom edge and, from M32 to M33, that the box did not change; the measured values are
-        logged."""
+        """The outer box of the popover (``.o_popover``, 002d Q4) as the package measures it, 274 x
+        210.688 px at (1084, 281), every value compared; its frame ``.o_tl_popover`` (002a M43) lies
+        1 px inside on each side (M45); from M32 to M33 the box did not change."""
         expected = measured(probe)[scheme]
-        box = self.js("(() => { const r = document.querySelector('.o_popover')"
-                      ".getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()")
-        x, y, width, height = box
-        want = [float(expected[f'geometry.{name}']) for name in ('x', 'y', 'width', 'height')]
-        _logger.info('%s %s popover box %s, package %s', probe, scheme, box, want)
-        self.assertAlmostEqual(
-            x + width / 2, want[0] + want[2] / 2, delta=.6, msg=f'{probe} centre')
-        self.assertAlmostEqual(
-            y + height, want[1] + want[3], delta=.6, msg=f'{probe} bottom edge')
+        self.probe(probe, "document.querySelector('.o_popover')", scheme, 'desktop', expected,
+                   label)
+        rect = ("(() => { const r = document.querySelector(%r).getBoundingClientRect();"
+                " return [r.x, r.y, r.width, r.height]; })()")
+        box = self.js(rect % '.o_popover')
+        frame = self.js(rect % '.o_popover > .o_tl_popover')
+        inside = (box[0] + 1, box[1] + 1, box[2] - 2, box[3] - 2)
+        for got, want in zip(frame, inside, strict=True):
+            self.assertAlmostEqual(got, want, delta=.6, msg=f'{probe} frame {frame} in {box}')
         previous = getattr(self, '_popover_box', None)
         if probe == 'M33':
             self.assertEqual(box, previous, 'the popover did not change at 9 px')

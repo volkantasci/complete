@@ -21,11 +21,12 @@ $o-tl-group-today-bg: #FCFAF3 !default;
 $o-tl-unavailable-bg: #E9ECEF !default;
 
 // Track of a progress bar (M47), and the distance from the top of the screen to the popover sheet
-// of a phone. That distance is a measure of the 390 x 844 capture (844 - 698 = 146 px); the sheet
-// reaches the bottom of the screen, so on a taller or shorter screen it is as much taller or
-// shorter (its height is the screen height minus this distance).
+// of a phone. That distance is a measure of the 390 x 844 capture (844 - 700 = 144 px, the outer
+// box of the sheet with its 1 px border; the frame inside starts at 145 px); the sheet reaches the
+// bottom of the screen, so on a taller or shorter screen it is as much taller or shorter (its
+// height is the screen height minus this distance).
 $o-tl-progress-track: $o-border-color !default;
-$o-tl-popover-sheet-top: 146px !default;
+$o-tl-popover-sheet-top: 144px !default;
 
 // Size of the header rows and of a pill, in pixels.
 $o-tl-header-height: 25px !default;
@@ -48,12 +49,14 @@ $o-tl-custom-line-padding-x: 20.525px !default;
 
 // The popover: the band behind the record name, and the room around the lines of its body.
 $o-tl-popover-header-bg: $o-gray-200 !default;
-$o-tl-popover-body-padding-x: 30px !default;
+$o-tl-popover-body-padding-x: 31px !default;
 $o-tl-popover-body-padding-y: 23.5px !default;
 $o-tl-popover-body-font-size: 13px !default;
 // the height of a line stays the one of the page text, so the popover keeps its height
 $o-tl-popover-body-line-height: 21px !default;
-$o-tl-popover-footer-padding-start: 15px !default;
+$o-tl-popover-footer-padding-start: 16px !default;
+// the frame of a popover on a desktop screen is two pixels taller above its body than the lines
+// alone make it (002d M45: 208.688 px inside an outer box of 210.688)
 $o-tl-popover-extra-gap: 2px !default;
 
 // The highlight of a selection being drawn (M1): the view's own teal, the same in both schemes.
