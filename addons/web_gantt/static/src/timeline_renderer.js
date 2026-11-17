@@ -583,6 +583,13 @@ export class TimelineRenderer extends Component {
         if (best.classList.contains("o_tl_folded")) {
             return column.start.startOf("day");
         }
+        const span = this._linearSpan();
+        if (span) {
+            const point = this._isRtl() ? span.right - x : x - span.left;
+            const fraction = Math.min(Math.max(point / (span.right - span.left), 0), 1);
+            const whole = span.stop - span.start;
+            return span.start.plus({ milliseconds: Math.min(fraction * whole, whole - 1) });
+        }
         const rect = best.getBoundingClientRect();
         const share = this._isRtl() ? (rect.right - x) / rect.width : (x - rect.left) / rect.width;
         const length = column.stop - column.start;
@@ -591,9 +598,32 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * Put the start of the day of `date` at the focus place (R39: the focus is the start of the
-     * focus day, so on the week scale the focus column starts at that place; on the
-     * year scale the focus lies inside its month column); false when it is not shown.
+     * The cells as one linear scale (R18): the loaded period and the viewport edges of its cells,
+     * or null when a folded run makes the columns unequal.
+     */
+    _linearSpan() {
+        const { columns } = this.data;
+        const headers = this._headers();
+        if (!columns.length || headers.length !== columns.length) {
+            return null;
+        }
+        if (headers.some((header) => header.classList.contains("o_tl_folded"))) {
+            return null;
+        }
+        const first = headers[0].getBoundingClientRect();
+        const last = headers.at(-1).getBoundingClientRect();
+        return {
+            start: columns[0].start,
+            stop: columns.at(-1).stop,
+            left: Math.min(first.left, last.left),
+            right: Math.max(first.right, last.right),
+        };
+    }
+
+    /**
+     * Put the start of the day of `date` at the focus place (R39, R18 of 002d: the focus is a
+     * linear share of the whole loaded period, not a place inside its column;
+     * the focus is the start of the focus day); false when it is not shown.
      */
     _centreDate(date) {
         const { columns } = this.data;
@@ -607,6 +637,14 @@ export class TimelineRenderer extends Component {
             .at(-1);
         if (!header) {
             return false;
+        }
+        const span = this._linearSpan();
+        if (span) {
+            const share = (from - span.start) / (span.stop - span.start);
+            const point = (span.right - span.left) * share;
+            const at = this._isRtl() ? span.right - point : span.left + point;
+            this.rendererRef().scrollLeft += at - this._focusX();
+            return true;
         }
         const rect = header.getBoundingClientRect();
         const column = columns[index];

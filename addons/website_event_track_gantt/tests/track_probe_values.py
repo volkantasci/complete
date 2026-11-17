@@ -1,8 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 """Measured values of the original for the tracks Gantt bridge (spec.md, "Measured values"):
-probes M1 to M26 (M19 is the original's footer for an Events User, which decision D3 corrects; it
-asks nothing of Complete and has no row here).
+probes M1 to M26 and M46 (M19 is the original's footer for an Events User, which decision D3
+corrects; it asks nothing of Complete and has no row here).
 
 ``TRACK_PROBES`` is a list of rows ``(probe, scheme, viewport, prop, value)``; the helper
 ``measured`` turns the rows of one probe into the ``{scheme: {prop: value}}`` mapping the probes
@@ -1172,6 +1172,14 @@ TRACK_PROBES = [
     ('M37', 'dark', 'desktop', 'stroke', 'rgba(211, 65, 59, 0.5)'),
     ('M38', 'light', 'desktop', 'display', 'none'),
     ('M38', 'dark', 'desktop', 'display', 'none'),
+    ('M46', 'light', 'desktop', 'geometry.x', '904'),
+    ('M46', 'light', 'desktop', 'geometry.y', '182'),
+    ('M46', 'light', 'desktop', 'geometry.width', '100'),
+    ('M46', 'light', 'desktop', 'geometry.height', '25'),
+    ('M46', 'dark', 'desktop', 'geometry.x', '904'),
+    ('M46', 'dark', 'desktop', 'geometry.y', '182'),
+    ('M46', 'dark', 'desktop', 'geometry.width', '100'),
+    ('M46', 'dark', 'desktop', 'geometry.height', '25'),
 ]
 
 

@@ -1,17 +1,17 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Probes of the tracks Gantt bridge (M1 to M26; M19 is the original's and asks nothing).
+"""Probes of the tracks Gantt bridge (M1 to M26 and M46; M19 is the original's and asks nothing).
 
 Run only these: ``--test-tags /website_event_track_gantt:TestTrackProbes``. The dark scheme needs
 ``web_enterprise``; without it the dark probes are skipped. The values are in
 ``track_probe_values``. The browser clock is Tuesday 11 June 2030 09:00 (UTC+3).
 
-Elements read: M1, M2, M4, M25, M26 the pill ``.o_tl_pill``; M3 the title box of the row header
-``.o_tl_row_name``; M5, M12 the popover ``.o_popover``; M6 its header ``.o_popover_header``; M7,
-M10 the block of the lines inside ``.o_popover_body``; M8 the bold label, M9 the value; M11 the
-button ``.o_tl_popover_button``; M13 the footer ``.modal-footer`` of the record dialog; M14 to M17
-its buttons, M18 the bin icon; M20, M21 the buttons of the new track's dialog; M22 the box
-``.modal-content`` of the confirmation, M23, M24 its buttons.
+Elements read: M1, M2, M4, M25, M26 the pill ``.o_tl_pill``; M46 the header ``.o_tl_col`` of June
+2030; M3 the title box of the row header ``.o_tl_row_name``; M5, M12 the popover ``.o_popover``; M6
+its header ``.o_popover_header``; M7, M10 the block of the lines inside ``.o_popover_body``; M8 the
+bold label, M9 the value; M11 the button ``.o_tl_popover_button``; M13 the footer ``.modal-footer``
+of the record dialog; M14 to M17 its buttons, M18 the bin icon; M20, M21 the buttons of the new
+track's dialog; M22 the box ``.modal-content`` of the confirmation, M23, M24 its buttons.
 """
 import json
 import logging
@@ -190,18 +190,9 @@ class TestTrackProbes(TimelineProbeCase):
         self.assertAlmostEqual(box['geometry.height'], 698, delta=.6, msg='M12 height')
 
     def check_in_june(self, probe, scheme, viewport):
-        """Question Q-T10-1: the measured pill lies 4 px right of this package's (x 905 against
-        901 on a desktop, 232 against 228 on the phone): the focus of the year range lies 4 px
-        further right there. What is held is the pill inside the June column and every
-        other value as measured; both x are logged."""
-        june = self.geometry("[...document.querySelectorAll('.o_tl_col')]"
-                             ".find((c) => c.dataset.date === '2030-06-01')")
-        pill = self.geometry(self.pill('Panel Talk'))
-        _logger.info('%s pill x %s, June column x %s, measured x %s', probe,
-                     pill['geometry.x'], june['geometry.x'], measured(probe)[scheme]['geometry.x'])
-        self.assertAlmostEqual(pill['geometry.x'], june['geometry.x'] + 1, delta=.6)
-        self.check(probe, self.pill('Panel Talk'), scheme, viewport, 'Panel Talk, June',
-                   skip=('geometry.x',))
+        """The pill of the year range, every value as measured, x included (002d R18: the focus
+        of the view is a linear share of the whole period, so June 2030 starts at x 904)."""
+        self.check(probe, self.pill('Panel Talk'), scheme, viewport, 'Panel Talk, June')
 
     # -- M1 to M3: pills and a row header -------------------------------------------------------
 
@@ -287,7 +278,17 @@ class TestTrackProbes(TimelineProbeCase):
                         ".filter((b) => b.getBoundingClientRect().width > 0).at(-1)")
                 self.check('M21', last, scheme, 'desktop', 'Discard of the new track')
 
-    # -- M25, M26: the menu, year range ---------------------------------------------------------
+    # -- M25, M26, M46: the menu, year range ----------------------------------------------------
+
+    def test_a58_m46_year_range_header(self):
+        for scheme in self.schemes(['M46']):
+            with self.open(TRACKS_MENU, scheme, 'desktop', query='?debug=1&view_type=gantt',
+                           ready='.o_tl_renderer .o_tl_row'):
+                self.wait("document.querySelectorAll('.o_tl_pill').length > 0", timeout=60)
+                self.settle()
+                self.check('M46', "[...document.querySelectorAll('.o_tl_col')]"
+                           ".find((c) => c.dataset.date === '2030-06-01')", scheme, 'desktop',
+                           'the June header')
 
     def test_m25_year_range(self):
         for scheme in self.schemes(['M25']):
