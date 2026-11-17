@@ -556,6 +556,7 @@ const recordFrozen = {
     run() {
         const states = recordButtonStates();
         assertEqual(states, Array(4).fill([true, "0.5"]), "disabled, drawn at half opacity");
+        assert($(".o_track_confirming .modal-footer"), "the dialog is in the confirming state");
         // a click on a disabled button does nothing
         $(".o_form_button_cancel", recordDialog()).click();
         assert(recordDialog(), "Discard of the record dialog does not react");
@@ -566,7 +567,9 @@ const recordThawed = {
     trigger: "body:not(:has(.modal-title:contains('Delete Track')))",
     async run() {
         await until(
-            () => JSON.stringify(recordButtonStates()) === JSON.stringify(Array(4).fill([false, "1"])),
+            () =>
+                !$(".o_track_confirming") &&
+                JSON.stringify(recordButtonStates()) === JSON.stringify(Array(4).fill([false, "1"])),
             `enabled, at full opacity, got ${JSON.stringify(recordButtonStates())}`
         );
     },
@@ -777,6 +780,20 @@ tours.add("track_a47_delete_discarded", {
         ];
         return withEvent([
             ...editPill("Panel Talk"),
+            {
+                // a button disabled for another reason (Save running) is not in the confirming
+                // state: the dialog's own rule (class o_track_confirming) does not apply to it
+                // (the Community's disabled look is half opacity too, so the class is what tells)
+                trigger: ".o_dialog .o_form_button_save",
+                run() {
+                    const save = $(".o_form_button_save", recordDialog());
+                    assert(!recordDialog().querySelector(".o_track_confirming") &&
+                        !$(".o_track_confirming"), "no confirming state at rest");
+                    save.setAttribute("disabled", "1");
+                    assert(!$(".o_track_confirming"), "Save running is not the confirming state");
+                    save.removeAttribute("disabled");
+                },
+            },
             typeName("Panel Talk 7"),
             click(".o_dialog .o_track_delete"),
             recordFrozen,
@@ -1070,6 +1087,9 @@ tours.add("track_a56_save_deleted", {
                 trigger: ".o_dialog .modal-title:contains('Open')",
                 async run() {
                     await until(() => !missingDialog(), "the error is closed");
+                    // no reload after the error: the view still shows the deleted track's pill
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    assert(pillNames().includes("Panel Talk"), "the view did not reload");
                     assertEqual($(nameInput).value, "Panel Talk 9", "the dialog keeps its change");
                 },
             },

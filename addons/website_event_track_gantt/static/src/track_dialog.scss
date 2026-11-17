@@ -9,7 +9,9 @@
 
 // While the confirmation of Delete is open the buttons of the record dialog behind it are
 // disabled (the Community rule while a button of the form runs) and drawn at half the opacity,
-// their colours unchanged (R13, M39); they come back when the confirmation closes (M40).
-.o_dialog:has(.o_track_dialog) .modal-footer .btn:disabled {
+// their colours unchanged (R13, M39); they come back when the confirmation closes (M40). The
+// class is set on the dialog only while the confirmation is open: a button disabled while Save
+// runs keeps the Community's look.
+.o_track_confirming .modal-footer .btn:disabled {
     opacity: 0.5;
 }

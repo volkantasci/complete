@@ -60,8 +60,11 @@ export class TrackDialogFormController extends FormController {
      * while a button of a form runs (R13, M39); they come back when it closes (M40).
      */
     onDeleteClicked() {
+        const dialogEl = this.ui.activeElement;
+        // the half opacity belongs to this state only, not to every disabled button (M39)
+        dialogEl.classList.add("o_track_confirming");
         return executeButtonCallback(
-            this.ui.activeElement,
+            dialogEl,
             () =>
                 new Promise((resolve) => {
                     this.dialogService.add(
@@ -77,7 +80,7 @@ export class TrackDialogFormController extends FormController {
                         { onClose: resolve }
                     );
                 })
-        );
+        ).finally(() => dialogEl.classList.remove("o_track_confirming"));
     }
 
     async deleteTrack() {
