@@ -131,7 +131,8 @@ export class TimelinePillPointer {
             found.find((entry) => entry.key === current && entry.strip && !entry.dx)?.key ??
             found.find((entry) => entry.body && !entry.dx)?.key ??
             found.find((entry) => entry.strip && !entry.dx)?.key ??
-            nearest(found.filter((entry) => entry.body)) ??
+            // the tapped pill itself, moved away, shows none (R3)
+            nearest(found.filter((entry) => entry.body && entry.key !== current)) ??
             null;
         if (key !== current) {
             this.host.state.hover = key;

@@ -214,16 +214,41 @@ test("A13: after a move cancelled with Escape the next click opens the popover a
     await keyUp("Escape");
     await held.drop();
     await animationFrame();
-    // 100 ms later the pill is clicked: its popover opens after its own delay, not after the
-    // 500 ms a completed gesture holds clicks back
+    // 100 ms later the pill is clicked, 96 px away from the press: a browser counts it as a first
+    // click (`detail` 1), so its popover opens after its own delay with no waiting time; only the
+    // click counted as the second of a pair that began with the release is held back (002b2 R9)
     await advanceTime(100);
-    // (a click a browser counts as the second of a pair, `detail` 2: a completed gesture would
-    // hold it back for half a second as the end of a double click; a cancelled one does not)
-    pillEl("Build").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 2 }));
+    pillEl("Build").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
     await advanceTime(250);
     await animationFrame();
     expect(popover()).toBe(1);
     expect(".o_tl_popover .o_popover_header").toHaveText("Build");
+    expect(log).toEqual([]);
+});
+
+test("A13: after a cancelled move a second click at the spot of the release within the guard opens nothing", async () => {
+    freezeTime();
+    await mountDependencies();
+    const body = queryRect(pillEl("Build"));
+    const point = { x: body.left + 267, y: body.top + body.height / 2 };
+    await hover(pillEl("Build"), { position: point });
+    await animationFrame();
+    const held = await drag(pillEl("Build"), { position: point });
+    for (let i = 1; i <= 10; i++) {
+        await moveHeld(held, point.x - (96 * i) / 10, point.y);
+    }
+    await keyDown("Escape");
+    await keyUp("Escape");
+    // the drop sends the click of the release, which is swallowed; the second click of the pair
+    // (`detail` 2) is no click either
+    await held.drop();
+    await advanceTime(50);
+    pillEl("Build").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 2 }));
+    pillEl("Build").dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }));
+    await advanceTime(600);
+    await animationFrame();
+    expect(popover()).toBe(0);
+    expect(".o_dialog").toHaveCount(0);
     expect(log).toEqual([]);
 });
 

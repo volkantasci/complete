@@ -8,6 +8,7 @@ import { localization } from "@web/core/l10n/localization";
 import { TimelineController } from "@web_gantt/timeline_controller";
 
 import {
+    at,
     DEPENDENCY_ATTRS,
     linkPills,
     PILL_ID,
@@ -211,4 +212,36 @@ test("A17: after a write moves the tapped pill away, the pill now at the place o
     await advanceTime(600);
     await animationFrame();
     expect(handlesOf("Review")).toBe(0);
+});
+
+/** A tap on Build at its own x (a point no other pill's box holds), then a write changes Build. */
+async function tapBuildThenWrite(values) {
+    freezeTime();
+    mockTouch(true);
+    const build = queryRect(pillEl("Build"));
+    const at0 = { x: build.left + build.width / 2, y: (build.top + build.bottom) / 2 };
+    await click(pillEl("Build"), { position: at0 });
+    await advanceTime(600);
+    await animationFrame();
+    expect(connectHandles("Build")).toHaveLength(2);
+    Object.assign(MockServer.current.env.pill.find((record) => record.name === "Build"), values);
+    await controller.model.reload();
+    await advanceTime(100);
+    await animationFrame();
+}
+
+test("A17: after a write moves the tapped pill to another row, the moved pill shows no handles, with the tap at its own x", async () => {
+    await mountDependencies();
+    await tapBuildThenWrite({ parent_id: 2 });
+    expect(connectHandles("Build")).toHaveLength(0);
+    expect(resizeHandles("Build")).toHaveLength(0);
+    expect(lit()).toHaveLength(0);
+});
+
+test("A17: after a write moves the tapped pill sideways in its row, the moved pill shows no handles", async () => {
+    await mountDependencies();
+    await tapBuildThenWrite({ date_start: at(3, "09:00"), date_stop: at(5, "18:00") });
+    expect(connectHandles("Build")).toHaveLength(0);
+    expect(resizeHandles("Build")).toHaveLength(0);
+    expect(lit()).toHaveLength(0);
 });

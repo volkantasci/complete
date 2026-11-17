@@ -153,6 +153,9 @@ export class TimelineConnectDrag {
                 }
                 // a mouse button still down: its release does nothing
                 const { id, type } = press;
+                // the finger that ends the drawing starts and lights nothing itself: its event
+                // goes no further (002d R4 point 3)
+                event.stopPropagation();
                 this._cancel({ finger: true });
                 if (type !== "touch") {
                     this._swallowRelease(doc, id);

@@ -239,6 +239,9 @@ export class TimelinePillDrag {
                 }
                 const { id } = press;
                 const dragging = this.state === "dragging";
+                // the finger that ends the gesture starts and lights nothing itself: its event
+                // goes no further (002d R4 point 3)
+                event.stopPropagation();
                 this._cancel({ finger: true });
                 if (dragging) {
                     this._awaitRelease(doc, id);
@@ -428,9 +431,9 @@ export class TimelinePillDrag {
                 return;
             }
             this._forgetRelease();
-            // a cancelled gesture leaves no waiting time: the next click is a click at once
-            // (002d R2 point 1, A13)
-            this._expectClick({ guard: false });
+            // the click of this release is swallowed, and a double click that begins with it is
+            // none (002b2 R9); a click elsewhere (`detail` 1) is a click at once (002d R2, A13)
+            this._expectClick();
         };
         const onCancel = (event) => {
             if (event.pointerId === id) {

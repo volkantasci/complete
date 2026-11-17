@@ -350,6 +350,42 @@ test("A23: a finger put down inside the grid cancels a mouse move; the release w
     expect(lit()).toHaveLength(0);
 });
 
+test("A23 (T4-1): a finger put down on a pill with arrows cancels a mouse drawing and lights nothing; the arrows go out at the mouse release", async () => {
+    await mountDependencies();
+    const { held } = await draw(overlapC);
+    const review = pillEl("Review");
+    finger("pointerdown", review, 77);
+    await animationFrame();
+    expect(".o_tl_connect_path").toHaveCount(0);
+    expect(shown()).toEqual(litWith([arrowKey("Build", "Test")], 2));
+    finger("pointerup", review, 77);
+    await settle();
+    expect(shown()).toEqual(litWith([arrowKey("Build", "Test")], 2));
+    await held.drop();
+    await settle();
+    expect(writesOf()).toEqual([]);
+    expect(lit()).toHaveLength(0);
+    expect(".o_tl_arrow_remove").toHaveCount(0);
+});
+
+test("A23 (T4-1): a finger put down on a pill with arrows cancels a mouse move and lights nothing; the arrows go out at the mouse release", async () => {
+    await mountDependencies();
+    const { held } = await moveBuild();
+    const review = pillEl("Review");
+    finger("pointerdown", review, 77);
+    await animationFrame();
+    expect(".o_tl_pill_moved").toHaveCount(0);
+    expect(shown()).toEqual(litWith(BUILD_ARROWS(), 2));
+    finger("pointerup", review, 77);
+    await settle();
+    expect(shown()).toEqual(litWith(BUILD_ARROWS(), 2));
+    await held.drop();
+    await settle();
+    expect(writesOf()).toEqual([]);
+    expect(lit()).toHaveLength(0);
+    expect(".o_tl_arrow_remove").toHaveCount(0);
+});
+
 test("A24: a finger put down outside the grid does not cancel a mouse drawing", async () => {
     await mountDependencies();
     const { held } = await draw(overlapC);
@@ -522,19 +558,30 @@ test("A22: a touch drawing cancelled by the key a keeps Build to Test lit only w
 });
 
 for (const [place, pick] of [
-    ["a pill", () => pillEl("Overlap C")],
+    ["a pill without arrows", () => pillEl("Overlap C")],
+    ["a pill with arrows", () => pillEl("Review")],
     ["a header of the grid", () => queryAll(".o_tl_col").at(0)],
 ]) {
-    test(`A23: a second finger on ${place} cancels a touch drawing`, async () => {
+    test(`A23: a second finger on ${place} cancels a touch drawing and starts or lights nothing`, async () => {
         await mountDependencies();
         const held = await touchDrawingHeld();
+        const during = shown();
         finger("pointerdown", pick(), 78);
         await animationFrame();
         expect(".o_tl_connect_path").toHaveCount(0);
+        // the arrows of the start stay lit while both fingers are down, no others join them
+        expect(shown().lit).toEqual(during.lit);
         await held.drop();
-        finger("pointerup", pick(), 78);
         await settle();
         expect(lit()).toHaveLength(0);
+        finger("pointerup", pick(), 78);
+        await settle();
+        await advanceTime(2000);
+        await animationFrame();
+        expect(lit()).toHaveLength(0);
+        expect(".o_tl_arrow_remove").toHaveCount(0);
+        expect(".o_tl_connect_path").toHaveCount(0);
+        expect(".o_tl_pill_moved").toHaveCount(0);
         expect(writesOf()).toEqual([]);
     });
 }

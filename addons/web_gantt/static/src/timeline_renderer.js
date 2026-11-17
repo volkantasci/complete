@@ -599,7 +599,10 @@ export class TimelineRenderer extends Component {
 
     /**
      * The cells as one linear scale (R18): the loaded period and the viewport edges of its cells,
-     * or null when a folded run makes the columns unequal.
+     * or null when a folded run makes the columns unequal. The scale is in milliseconds: a range
+     * that crosses a daylight-saving change has a day of 23 or 25 hours, so a place worked out on
+     * it differs from the place of the same moment by column by up to an hour of the period
+     * (sub-pixel to about 1 px).
      */
     _linearSpan() {
         const { columns } = this.data;
