@@ -7,6 +7,9 @@
  * a press on it starts. `host` is the renderer: it owns the `state` (`hover`, `drag`), the
  * `_drag` gesture, `data`, `props`, `isMultiSelect` and the helpers named below.
  */
+/** The strips above and below a pill's outer box (002c R11), in px. */
+const STRIP = 11;
+
 export class TimelinePillPointer {
     constructor(host) {
         this.host = host;
@@ -51,6 +54,10 @@ export class TimelinePillPointer {
         if (this.host.arrows.isTouch && !tapped) {
             return;
         }
+        if (!tapped) {
+            // a mouse resting on a pill: the place of an earlier tap is forgotten
+            this._tapPlace = null;
+        }
         if (!this.isHeld) {
             this.host.state.hover = this.keyOf(pill, row);
             // R9: the arrows of a pill of a record row light up (not for a tap, R11)
@@ -71,6 +78,63 @@ export class TimelinePillPointer {
         if (ev.pointerType === "touch") {
             this.enter(pill, row, { lit: false, tapped: true });
             this.host.arrows.unfocusPill(this.keyOf(pill, row));
+            this._tapPlace = this._placeOf(ev);
+        }
+    }
+
+    /** The place of a tap in grid coordinates (it scrolls with the grid), or null. */
+    _placeOf(ev) {
+        const grid = this.host.rendererRef()?.querySelector(".o_tl_grid");
+        if (!grid || !Number.isFinite(ev.clientX)) {
+            return null;
+        }
+        const box = grid.getBoundingClientRect();
+        return { x: ev.clientX - box.left, y: ev.clientY - box.top };
+    }
+
+    /**
+     * The grid was drawn again (a write moved pills, the view reloaded): the handles go with the
+     * place of the last tap, not with the record (002d R3, A17). The pill last tapped keeps them
+     * while it still covers the place; otherwise the pill that now covers it shows them (its body
+     * first, then the strips of 11 px above and below its outer box that its handles bring), then
+     * the pill that lies at the height of the tap in the lane the tapped pill left (ruling T16-1),
+     * or none. Nothing changes while a gesture is on or no tap was made.
+     */
+    settle() {
+        const place = this._tapPlace;
+        if (!place || this.isHeld || !this.host.arrows.isTouch) {
+            return;
+        }
+        const grid = this.host.rendererRef()?.querySelector(".o_tl_grid");
+        if (!grid) {
+            return;
+        }
+        const box = grid.getBoundingClientRect();
+        const x = box.left + place.x;
+        const y = box.top + place.y;
+        const found = [];
+        for (const pillEl of grid.querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]")) {
+            if (pillEl.classList.contains("o_tl_pill_moved")) {
+                continue;
+            }
+            const rect = pillEl.getBoundingClientRect();
+            const key = `${pillEl.closest(".o_tl_row[data-row-id]").dataset.rowId}|${pillEl.dataset.pillId}`;
+            const dx = Math.max(rect.left - 1 - x, x - (rect.right + 1), 0);
+            const inY = (extra) => y >= rect.top - 1 - extra && y < rect.bottom + 1 + extra;
+            found.push({ key, dx, body: inY(0), strip: inY(STRIP) });
+        }
+        const current = this.host.state.hover;
+        // where the finger was (the pill, its body, its strips), then the pill that lies at the
+        // finger's height (the lane the tapped pill left), the nearest one along the lane
+        const nearest = (list) => list.sort((a, b) => a.dx - b.dx)[0]?.key;
+        const key =
+            found.find((entry) => entry.key === current && entry.strip && !entry.dx)?.key ??
+            found.find((entry) => entry.body && !entry.dx)?.key ??
+            found.find((entry) => entry.strip && !entry.dx)?.key ??
+            nearest(found.filter((entry) => entry.body)) ??
+            null;
+        if (key !== current) {
+            this.host.state.hover = key;
         }
     }
 
@@ -83,10 +147,14 @@ export class TimelinePillPointer {
 
     /** A finger goes down away from every pill and handle: the pointer-over state ends. */
     touchAway(ev) {
-        if (ev?.pointerType !== "touch" || !this.host.state.hover) {
+        if (ev?.pointerType !== "touch") {
             return;
         }
         if (ev.target?.closest?.(".o_tl_pill[data-pill-id], .o_tl_connect_handle, .o_tl_connect_strip")) {
+            return;
+        }
+        this._tapPlace = null;
+        if (!this.host.state.hover) {
             return;
         }
         this.host.state.hover = null;

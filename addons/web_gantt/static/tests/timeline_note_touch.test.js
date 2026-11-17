@@ -3,8 +3,9 @@
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { click, drag, pointerDown, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
-import { mountView, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
+import { MockServer, mountView, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
+import { TimelineController } from "@web_gantt/timeline_controller";
 
 import {
     DEPENDENCY_ATTRS,
@@ -27,11 +28,18 @@ setupTimelineFixtures();
 const ARCH = timelineArch(DEPENDENCY_ATTRS);
 
 let log;
+let controller;
 
 beforeEach(async () => {
     mockTimeZone(3);
     mockDate("2026-11-11 21:30:00");
     patchWithCleanup(localization, { weekStart: 7 });
+    patchWithCleanup(TimelineController.prototype, {
+        setup() {
+            super.setup(...arguments);
+            controller = this;
+        },
+    });
     log = [];
     timelineMock.beforeReply = () => {};
     onRpc("write", ({ args }) => {
@@ -173,4 +181,34 @@ test("A18: a finger on a pill not tapped before lights its arrows, no handles; a
     expect(lit()).toHaveLength(0);
     expect(handlesOf("Build")).toBe(0);
     expect(handlesOf("Overlap C")).toBe(0);
+});
+
+test("A17: after a write moves the tapped pill away, the pill now at the place of the tap shows its handles", async () => {
+    await mountDependencies();
+    freezeTime();
+    mockTouch(true);
+    // a tap on Build at the x of "Review", which lies in the lane below
+    const review = queryRect(pillEl("Review"));
+    const build = queryRect(pillEl("Build"));
+    const at = { x: review.left + review.width / 2, y: (build.top + build.bottom) / 2 };
+    await click(pillEl("Build"), { position: at });
+    await advanceTime(600);
+    await animationFrame();
+    expect(connectHandles("Build")).toHaveLength(2);
+    expect(handlesOf("Review")).toBe(0);
+    // the write moves Build one row down: "Review", which lay in the lane below, now lies where
+    // the finger was
+    MockServer.current.env.pill.find((record) => record.name === "Build").parent_id = 2;
+    await controller.model.reload();
+    await advanceTime(100);
+    await animationFrame();
+    expect(connectHandles("Build")).toHaveLength(0);
+    expect(resizeHandles("Build")).toHaveLength(0);
+    expect(connectHandles("Review")).toHaveLength(2);
+    expect(lit()).toHaveLength(0);
+    // a tap on an empty cell ends it
+    await pointerDown(queryAll(".o_tl_row[data-row-id] .o_tl_cell").at(0));
+    await advanceTime(600);
+    await animationFrame();
+    expect(handlesOf("Review")).toBe(0);
 });

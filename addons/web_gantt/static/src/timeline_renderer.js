@@ -351,6 +351,8 @@ export class TimelineRenderer extends Component {
             this._placeBadges();
             this._observeArrowGrid?.();
             this.refreshArrows();
+            // 002d R3: the handles go with the place of the last tap
+            this._pillPointer.settle();
         });
         onWillUnmount(() => {
             this._unwatchArrows?.();

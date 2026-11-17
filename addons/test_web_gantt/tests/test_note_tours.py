@@ -205,7 +205,8 @@ class TestNoteTours(RealPointerMixin, HttpCase):
         # one write on "Overlap C" (the link); the records are put back after each tour
         for name in ('tl_note_a17_after_touch_drawing_saved',
                      'tl_note_a17_tap_on_an_empty_cell',
-                     'tl_note_a17_tap_on_another_pill'):
+                     'tl_note_a17_tap_on_another_pill',
+                     'tl_note_a17_tap_then_move_one_row_down'):
             with self.subTest(tour=name):
                 self._touch_run(name, writes=None)
 

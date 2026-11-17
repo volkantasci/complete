@@ -695,6 +695,35 @@ scenarioTour(
     { writes: 1, pointer: false }
 );
 
+// A17: a tap on Build, then a touch move of Build one row down (finger on (L + 368, M), held 600 ms,
+// 80 px down in 20 steps, lifted): after the write and the reload Build shows no handles and
+// "Review", whose lower strip now covers the tapped place, shows its handles
+scenarioTour(
+    "tl_note_a17_tap_then_move_one_row_down",
+    async () => {
+        const box = outerBox();
+        await tapBuild(box);
+        const at = { x: box.L + 368, y: box.M };
+        const mark = sentBodies.length;
+        await fingerDown(at);
+        await pause(100);
+        await realMouse(stepsTo(at, { x: at.x, y: at.y + 80 }, 20).map((point) => finger("touchMove", point.x, point.y)), {
+            touch: true,
+            settle: false,
+        });
+        await fingerUp(at.x, at.y + 80);
+        await until(() => callsSince(mark, WRITES).length === 1, "the move is written");
+        await gridSettled();
+        await pause(1000);
+        assertShown({ lit: [], buttons: 0, handles: 2 }, "after the reload");
+        assert(
+            handleOwners().every((owner) => owner === idOf("Review")),
+            `the handles are Review's, got ${handleOwners()}`
+        );
+    },
+    { writes: 1, pointer: false }
+);
+
 // A18: no tap before; a finger on Build's body lights its two arrows with their buttons, no
 // handles; moved 96 px to the left in 10 steps and lifted, the move is written; after the reload
 // nothing is lit and no handles show
