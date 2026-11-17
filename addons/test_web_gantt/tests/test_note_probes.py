@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Probes of slice 002d's notes on the earlier parts (M27 to M38), on 002c's host H42.
+"""Probes of slice 002d's notes on the earlier parts (M27 to M38, M41 to M44, M47), on 002c's
+host H42.
 
 Run only these: ``--test-tags /test_web_gantt:TestNoteProbes``. The dark scheme needs
 ``web_enterprise``; without it the dark probes are skipped. The values are in
@@ -130,6 +131,68 @@ class TestNoteProbes(TimelineProbeCase):
                 self.check('M31', self.part('Build', 'Test', '.o_tl_arrow_line'), scheme,
                            'Build to Test, back at rest after the next move')
         self.assertTrue(build.exists())
+
+    # -- M41 to M43: where the band of an arrow begins (R1a, A9) --------------------------------
+
+    def test_m41_m43_band_begins_at_the_outer_box(self):
+        """The pointer from (1300, 260) to (1506, 260), over the end of Build's body: the line of
+        "Design" to "Build" is lit (M41); then at (1509, 260), Build's outer right edge, on the band
+        of "Build" to "Test": it is back at rest (M42); the band is 13 px wide with square ends
+        and the box of the arrow (M43)."""
+        probes = ['M41', 'M42', 'M43']
+        for scheme in self.schemes(probes):
+            with self.page(HOST, scheme, 'desktop'):
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 3", timeout=60)
+                self.settle()
+                self.pointer_at(1300, 260)
+                for i in range(1, 7):
+                    self.mouse('mouseMoved', 1300 + 206 * i / 6, 260)
+                    time.sleep(.03)
+                self.settle()
+                self.check('M41', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
+                           'Design to Build, the pointer over the end of Build')
+                self.pointer_at(1509, 260)
+                self.check('M42', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
+                           'Design to Build, the pointer on the band')
+                self.check('M43', self.part('Build', 'Test', '.o_tl_arrow_band'), scheme,
+                           'the band of Build to Test')
+
+    # -- M44, M47: a resize released where it started (R1a, A9) --------------------------------
+
+    def test_m44_m47_resize_released_where_it_started(self):
+        """Review's right handle pressed at (1121, 285), moved to (1060, 285) and back, released:
+        the line of "Review" to "Overlap A" is still lit (M44) and Review did not move (M47). The
+        package measures Review's outer box (its body and 1 px around it): the body is 1 px inside
+        on each side (ruling T15-2)."""
+        probes = ['M44', 'M47']
+        for scheme in self.schemes(probes):
+            with self.page(HOST, scheme, 'desktop'):
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 3", timeout=60)
+                self.settle()
+                self.pointer_at(1077, 285)
+                for i in range(1, 4):
+                    self.mouse('mouseMoved', 1077 + 44 * i / 3, 285)
+                    time.sleep(.03)
+                self.mouse('mousePressed', 1121, 285, button='left', buttons=1, clickCount=1)
+                for i in range(1, 6):
+                    self.mouse('mouseMoved', 1121 - 61 * i / 5, 285, button='left', buttons=1)
+                    time.sleep(.03)
+                for i in range(1, 6):
+                    self.mouse('mouseMoved', 1060 + 61 * i / 5, 285, button='left', buttons=1)
+                    time.sleep(.03)
+                self.mouse('mouseReleased', 1121, 285, button='left', buttons=0, clickCount=1)
+                self.settle(600)
+                self.check('M44', self.part('Review', 'Overlap A', '.o_tl_arrow_line'), scheme,
+                           'Review to Overlap A, still lit')
+                outer = measured('M47')[scheme]
+                body = {
+                    'geometry.x': str(float(outer['geometry.x']) + 1),
+                    'geometry.y': str(float(outer['geometry.y']) + 1),
+                    'geometry.width': str(float(outer['geometry.width']) - 2),
+                    'geometry.height': str(float(outer['geometry.height']) - 2),
+                }
+                self.probe('M47', self.pill('Review'), scheme, 'desktop', body,
+                           'the pill Review after the release')
 
     # -- M32 to M34: a popover and a press on the end handle (R2 point 1, A11) ------------------
 

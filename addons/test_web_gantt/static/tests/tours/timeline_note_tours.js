@@ -5,6 +5,8 @@ import {
     $,
     arrowBetween,
     assert,
+    chooseLine,
+    clearChoices,
     centreOf,
     finger,
     fingerEvents,
@@ -20,6 +22,7 @@ import {
     idOf,
     mouse,
     moveTo,
+    openMethodMenu,
     pillNamed,
     reachHandle,
     realMouse,
@@ -215,65 +218,142 @@ scenarioTour("tl_note_a8_move_on_column_headers", async () => {
     ]);
 });
 
-// A9: a move to (1340, 260) in 5 steps and back in 5, released: no call, no reload, Build's two
-// arrows lit and its handles shown; after the next move Build's two arrows are lit
-scenarioTour("tl_note_a9_move_released_where_it_started", async () => {
+/** What the browser kept of the method choice is not left to the next tour. */
+async function chooseManualMethod() {
+    clearChoices();
+    await openMethodMenu();
+    await chooseLine("Manual Reschedule");
+    // the data is loaded again 500 ms after the choice, and the method applies from then on
+    await pause(900);
+    await gridSettled();
+}
+
+/** Build pressed at (1300, 260), moved to (1340, 260) in 5 steps, back to `back` in 5, released there. */
+async function moveAndBack(back) {
     const away = { x: BUILD.x + 40, y: BUILD.y };
-    await realMouse(holdEvents(BUILD, [...stepsTo(BUILD, away, 5), ...stepsTo(away, BUILD, 5)]), {
+    await realMouse(holdEvents(BUILD, [...stepsTo(BUILD, away, 5), ...stepsTo(away, back, 5)]), {
         settle: false,
     });
     await until(() => $(".o_tl_pill_moved"), "the pill is held");
-    const expected = { lit: buildArrows(), buttons: 2, handles: 2 };
-    await releaseAndRead(BUILD, expected, [{ to: right(BUILD), expected }]);
-    assert(!$(".o_tl_pill_moved"), "the pill is back");
-});
+}
 
-// A9: the right resize handle pressed at (1505, 260), moved to (1440, 260) in 5 steps and back in 5,
-// released. The handle lies in the edge zone of a resize (002b2 R14), so Complete's grid may scroll
-// under the held pointer. What the tour asserts is what Complete does on this exact path: when the
-// grid did not scroll, nothing is called and Build's two arrows stay lit, and the next move onto the
-// band of "Build" to "Test" lights that arrow alone; when it did scroll, the pointer back on the
-// press pixel is not back on the starting border, so the release is a real resize and is written
-// (ruling T1-1, T1-3). The result is logged for the report.
+// A9, manual method: Build moved to (1340, 260) in 5 steps and back to (1310, 260) in 5 (its
+// starting sub-column, 10 px right of the press point), released: no call, no reload, Build's two
+// arrows lit and its handles shown; after the next move Build's two arrows are lit. The same when
+// it is released exactly at (1300, 260).
+scenarioTour(
+    "tl_note_a9_move_released_where_it_started",
+    async () => {
+        await chooseManualMethod();
+        try {
+            await pointerOnBuild();
+            const mark = sentBodies.length;
+            const expected = { lit: buildArrows(), buttons: 2, handles: 2 };
+            for (const back of [{ x: 1310, y: 260 }, BUILD]) {
+                await moveAndBack(back);
+                await releaseAndRead(back, expected, [{ to: right(back), expected }]);
+                assert(!$(".o_tl_pill_moved"), "the pill is back");
+            }
+            assert(callsSince(mark, WRITES).length === 0, "no call is sent");
+            assert(callsSince(mark, RELOADS).length === 0, "the view does not reload");
+        } finally {
+            clearChoices();
+        }
+    },
+    { writes: null, pointer: false }
+);
+
+// A9, the default method (keep buffer): the same move released at (1310, 260) makes one call of the
+// rescheduling method with no value, the success notification with Undo shows, the view reloads and
+// no arrow is lit until the pointer moves (002c R16 point 4, A44)
+scenarioTour(
+    "tl_note_a9_keep_buffer_move_released_where_it_started",
+    async () => {
+        clearChoices();
+        const mark = sentBodies.length;
+        await moveAndBack({ x: 1310, y: 260 });
+        await realMouse(releaseAt({ x: 1310, y: 260 }), { settle: false });
+        await until(() => callsSince(mark, RELOADS).length > 0, "the view reloads");
+        await gridSettled();
+        await pause(400);
+        const calls = callsSince(mark, /"method":\s*"web_gantt_reschedule"/);
+        assert(calls.length === 1, `one rescheduling call, got ${calls.length}`);
+        assert(/"args":\s*\[\s*\{\s*\}/.test(calls[0]), `no value: ${calls[0]}`);
+        assert(
+            [...document.querySelectorAll(".o_notification_buttons button")].some(
+                (button) => button.textContent.trim() === "Undo"
+            ),
+            "the success notification with Undo"
+        );
+        assertShown({ lit: [], buttons: 0, handles: 2 }, "after the reload");
+    },
+    { writes: 1, pointer: true }
+);
+
+// A9, resize: with the pointer on "Review" at (1077, 285), to Review's right resize handle at
+// (1121, 285) in 3 steps, pressed, moved to (1060, 285) in 5 steps and back to (1121, 285) in 5,
+// released. The handle lies outside the 150 px edge zone: the grid does not scroll (Review keeps its
+// place, M47), no call is sent, "Review" to "Overlap A" stays lit with its button and Review's
+// handles show (M44); after the next move to (1122, 285), still over Review's body (the band begins
+// at x 1125), the same arrow stays lit and the handles show.
 scenarioTour(
     "tl_note_a9_resize_released_where_it_started",
     async () => {
+        clearChoices();
         const mark = sentBodies.length;
-        const from = { x: 1505, y: 260 };
-        const away = { x: 1440, y: 260 };
-        const scroll = () => $(".o_tl_renderer").scrollLeft;
-        const before = scroll();
-        await moveTo(from);
+        const from = { x: 1121, y: 285 };
+        const away = { x: 1060, y: 285 };
+        await moveTo(REST.review);
+        await pause(300);
+        const before = pillNamed("Review").getBoundingClientRect();
+        const scrollBefore = $(".o_tl_renderer").scrollLeft;
+        await realMouse(
+            stepsTo(REST.review, from, 3).map(({ x, y }) =>
+                mouse("mouseMoved", x, y, { button: "none", buttons: 0 })
+            ),
+            { settle: false }
+        );
         await realMouse(holdEvents(from, [...stepsTo(from, away, 5), ...stepsTo(away, from, 5)]), {
             settle: false,
         });
         await until(() => $(".o_tl_pill_resizing"), "the pill is held by its handle");
-        const scrolled = scroll() !== before;
-        const shown = () => ({
-            lit: [...document.querySelectorAll(".o_tl_arrow.o_tl_arrow_lit")].map((a) => a.dataset.arrow).sort(),
-            buttons: document.querySelectorAll(".o_tl_arrow_remove").length,
-        });
         await realMouse(releaseAt(from), { settle: false });
         await pause(600);
         await gridSettled();
-        const writes = callsSince(mark, WRITES).length;
-        console.warn(`A9 RESIZE EVIDENCE scrolled=${scrolled} writes=${writes} shift=${scroll() - before}`);
-        if (scrolled) {
-            assert(writes === 1, `the grid scrolled, so the release is a resize: 1 write, got ${writes}`);
-            return;
-        }
-        assert(writes === 0, "the grid did not scroll: nothing is written");
+        const after = pillNamed("Review").getBoundingClientRect();
+        assert($(".o_tl_renderer").scrollLeft === scrollBefore, "the grid does not scroll (M47)");
+        assert(after.left === before.left && after.width === before.width, "Review stays where it was (M47)");
+        assert(callsSince(mark, WRITES).length === 0, "no call is sent");
         assert(callsSince(mark, RELOADS).length === 0, "the view does not reload");
-        const both = { lit: buildArrows(), buttons: 2 };
-        assert(JSON.stringify(shown()) === JSON.stringify(both), `at the release: ${JSON.stringify(shown())}`);
-        const end = Math.round(pillNamed("Build").getBoundingClientRect().right);
-        await moveTo({ x: end, y: 260 });
+        const reviewToOverlap = arrowBetween("Review", "Overlap A").dataset.arrow;
+        const expected = { lit: [reviewToOverlap], buttons: 1, handles: 2 };
+        assertShown(expected, "at the release");
+        await moveTo({ x: 1122, y: 285 });
         await pause(400);
-        const alone = { lit: [buildToTest()], buttons: 1 };
-        assert(JSON.stringify(shown()) === JSON.stringify(alone), `after the next move: ${JSON.stringify(shown())}`);
+        assertShown(expected, "after the next move to (1122, 285)");
     },
-    { writes: null }
+    { writes: null, pointer: false }
 );
+
+// R1a, where the band of an arrow begins (M41 to M43): the pointer moved from (1300, 260) to
+// (1506, 260) is over the end of Build's body (both arrows lit, the handles shown); at x 1508, the
+// outer box's last column, both stay lit and the handles are gone; from x 1509 the band of
+// "Build" to "Test" alone is lit
+scenarioTour("tl_note_a9_band_begins_at_the_outer_box", async () => {
+    const stop = { x: 1506, y: 260 };
+    await realMouse(
+        stepsTo(BUILD, stop, 6).map(({ x, y }) => mouse("mouseMoved", x, y, { button: "none", buttons: 0 })),
+        { settle: false }
+    );
+    await pause(400);
+    assertShown({ lit: buildArrows(), buttons: 2, handles: 2 }, "at (1506, 260)");
+    await moveTo({ x: 1508, y: 260 });
+    await pause(400);
+    assertShown({ lit: buildArrows(), buttons: 2, handles: 0 }, "at (1508, 260)");
+    await moveTo({ x: 1509, y: 260 });
+    await pause(400);
+    assertShown({ lit: [buildToTest()], buttons: 1, handles: 0 }, "at (1509, 260)");
+});
 
 // ---------------------------------------------------------------------------------------------
 // R2 and D2 (A11 to A16): an open popover and a press that can start a gesture

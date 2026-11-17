@@ -10,6 +10,9 @@ let layerCount = 0;
 const ALPHA_REST = 0.5;
 const ALPHA_LIT = 1;
 
+/** A pill's outer box reaches this far outside its body, in pixels (002a M1). */
+const OUTER_INSET = 1;
+
 /**
  * The arrows between dependent pills (002c R4 to R10). `host` is the renderer: it owns the rows
  * of the layout, the pills in the DOM, the pill pointer (`_pillPointer.isHeld` freezes the
@@ -316,9 +319,35 @@ export class TimelineArrows {
         if (this.isHeld || this.isQuiet || this.isTouch) {
             return;
         }
-        this.focus.arrowKey = key;
-        this.focus.pillKey = null;
+        // a pill's outer box is one pixel wider than its body, over the arrows' bands: the pointer
+        // on that ring lights the pill's arrows, with no handles; the band begins outside the box
+        // (002d R1a, M41 to M43)
+        const ring = ev ? this._ringPillKey(key, ev.clientX, ev.clientY) : null;
+        this.focus.arrowKey = ring ? null : key;
+        this.focus.pillKey = ring;
         this.host.state.hover = null;
+    }
+
+    /**
+     * The key of the end pill of the arrow `key` whose outer box (its body and one pixel around)
+     * holds the point but whose body does not, or null.
+     */
+    _ringPillKey(key, x, y) {
+        const root = this.host.rendererRef();
+        const ends = key.split(">");
+        for (const pillEl of root?.querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]") ?? []) {
+            const pillKey = `${pillEl.closest(".o_tl_row[data-row-id]").dataset.rowId}|${pillEl.dataset.pillId}`;
+            if (!ends.includes(pillKey)) {
+                continue;
+            }
+            const box = pillEl.getBoundingClientRect();
+            const inside = (inset) =>
+                x >= box.left - inset && x < box.right + inset && y >= box.top - inset && y < box.bottom + inset;
+            if (inside(OUTER_INSET) && !inside(0)) {
+                return pillKey;
+            }
+        }
+        return null;
     }
 
     /**

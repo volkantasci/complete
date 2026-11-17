@@ -1,7 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 """Measured values of the original for slice 002d's notes on the earlier parts (spec.md,
-"Measured values"): probes M27 to M38 on 002c's host H42, in the scenarios of R1 to R3.
+"Measured values"): probes M27 to M38, M41 to M44 and M47 on 002c's host H42, in the scenarios of
+R1 to R3.
 
 ``NOTE_PROBES`` is a list of rows ``(probe, scheme, prop, value)``, all at desktop size; the
 helper ``measured`` turns the rows of one probe into the ``{scheme: {prop: value}}`` mapping the
@@ -67,6 +68,32 @@ NOTE_PROBES = [
     ('M37', 'dark', 'stroke', 'rgba(211, 65, 59, 0.5)'),
     ('M38', 'light', 'display', 'none'),
     ('M38', 'dark', 'display', 'none'),
+    ('M41', 'light', 'stroke', 'rgba(143, 143, 143, 1)'),
+    ('M41', 'dark', 'stroke', 'rgba(143, 143, 143, 1)'),
+    ('M42', 'light', 'stroke', 'rgba(143, 143, 143, 0.5)'),
+    ('M42', 'dark', 'stroke', 'rgba(143, 143, 143, 0.5)'),
+    ('M43', 'light', 'stroke-width', '13'),
+    ('M43', 'light', 'stroke-linecap', 'butt'),
+    ('M43', 'light', 'geometry.x', '1096'),
+    ('M43', 'light', 'geometry.y', '260.5'),
+    ('M43', 'light', 'geometry.width', '442'),
+    ('M43', 'light', 'geometry.height', '66'),
+    ('M43', 'dark', 'stroke-width', '13'),
+    ('M43', 'dark', 'stroke-linecap', 'butt'),
+    ('M43', 'dark', 'geometry.x', '1096'),
+    ('M43', 'dark', 'geometry.y', '260.5'),
+    ('M43', 'dark', 'geometry.width', '442'),
+    ('M43', 'dark', 'geometry.height', '66'),
+    ('M44', 'light', 'stroke', 'rgba(211, 65, 59, 1)'),
+    ('M44', 'dark', 'stroke', 'rgba(211, 65, 59, 1)'),
+    ('M47', 'light', 'geometry.x', '1029'),
+    ('M47', 'light', 'geometry.y', '273'),
+    ('M47', 'light', 'geometry.width', '96'),
+    ('M47', 'light', 'geometry.height', '25'),
+    ('M47', 'dark', 'geometry.x', '1029'),
+    ('M47', 'dark', 'geometry.y', '273'),
+    ('M47', 'dark', 'geometry.width', '96'),
+    ('M47', 'dark', 'geometry.height', '25'),
 ]
 
 

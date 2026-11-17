@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { drag, hover, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { animationFrame, advanceTime } from "@odoo/hoot-mock";
-import { mountView, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
+import { makeMockServer, mountView, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 import { TimelineController } from "@web_gantt/timeline_controller";
 
@@ -282,59 +282,184 @@ test("A8: a move released over the column headers keeps Build's arrows lit, no h
     expect(shown()).toEqual(NOTHING);
 });
 
-test("A9: a move released where it started writes nothing, reloads nothing, keeps the arrows lit", async () => {
-    await mountDependencies();
+/** The manual method: a move that changes nothing sends nothing (002b2 D3). */
+function chooseManual() {
+    controller.model.rescheduleMethod = "manual";
+}
+
+/**
+ * Build pressed in the middle of a sub-column (0.3 of a column from its left, inside Build's body),
+ * moved `away` px right in 5 steps, back to `back` px right of the press point in 5. `back` stays
+ * inside the sub-column (R1a decides by the sub-column, not by the pixel).
+ */
+async function moveAndBack(away, back) {
     await hover(pillEl("Build"));
     await animationFrame();
-    const start = centre(queryRect(pillEl("Build")));
+    const body = queryRect(pillEl("Build"));
+    const column = queryAll(".o_tl_col")
+        .map((element) => queryRect(element))
+        .find(
+            (rect) =>
+                rect.left > Math.max(body.left, 400) + 20 &&
+                rect.right < Math.min(body.right, window.innerWidth) - 20
+        );
+    const start = { x: column.left + column.width * 0.3, y: body.top + body.height / 2 };
     const held = await drag(pillEl("Build"), { position: start });
-    const away = { x: start.x + 40, y: start.y };
-    await moveInSteps(held, start, away, 5);
-    await moveInSteps(held, away, start, 5);
-    const atRelease = await release(held, start);
-    expect(atRelease).toEqual(litWith(BUILD_ARROWS(), 2));
+    const far = { x: start.x + away, y: start.y };
+    const end = { x: start.x + back, y: start.y };
+    await moveInSteps(held, start, far, 5);
+    await moveInSteps(held, far, end, 5);
+    return { held, start, end };
+}
+
+test("A9: with the manual method a move released in its starting sub-column writes nothing, reloads nothing, keeps the arrows lit", async () => {
+    await mountDependencies();
+    chooseManual();
+    // 2 px right of the press point: the same sub-column, not the same pixel (R1a)
+    const { held, start, end } = await moveAndBack(40, 2);
+    expect(end.x).not.toBe(start.x);
+    expect(await release(held, end)).toEqual(litWith(BUILD_ARROWS(), 2));
     expect(handleEls("Build")).toHaveLength(2);
     expect(log).toEqual([]);
-    await pointerTo(start.x + 1, start.y);
+    await pointerTo(end.x + 1, end.y);
     expect(shown()).toEqual(litWith(BUILD_ARROWS(), 2));
     expect(log).toEqual([]);
 });
 
-test("A9: a resize released where it started writes nothing, then the band of Build to Test lights that arrow alone", async () => {
+test("A9: with the manual method a move released exactly where it was pressed does the same", async () => {
     await mountDependencies();
-    // the handle lies well inside the area: the grid does not scroll while it is held
-    queryOne(".o_tl_renderer").scrollLeft += 450;
+    chooseManual();
+    const { held, end } = await moveAndBack(40, 0);
+    expect(await release(held, end)).toEqual(litWith(BUILD_ARROWS(), 2));
+    expect(log).toEqual([]);
+    await pointerTo(end.x + 1, end.y);
+    expect(shown()).toEqual(litWith(BUILD_ARROWS(), 2));
+});
+
+test("A9: with a view without a method a move released in its starting sub-column writes nothing", async () => {
+    await makeMockServer();
+    await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: timelineArch(""),
+        groupBy: ["parent_id"],
+    });
     await animationFrame();
+    await animationFrame();
+    log.length = 0;
+    const { held } = await moveAndBack(40, 2);
+    await held.drop();
+    await settle();
+    expect(log).toEqual([]);
+    expect(queryAll(".o_tl_pill_moved")).toHaveLength(0);
+});
+
+test("A9: with keep buffer a move released in its starting sub-column calls the rescheduling method once, with no value", async () => {
+    await mountDependencies();
+    const calls = [];
+    onRpc("web_gantt_reschedule", ({ args }) => {
+        calls.push(args[0]);
+        log.push("reschedule");
+        return { type: "success", message: "Records rescheduled", old_vals_per_pill_id: {} };
+    });
+    const { held, end } = await moveAndBack(40, 2);
+    await held.drop();
+    await settle();
+    await advanceTime(300);
+    expect(log.filter((entry) => entry === "reschedule")).toHaveLength(1);
+    expect(log).toInclude("reload");
+    expect(log).not.toInclude("write");
+    expect(calls).toEqual([{}]);
+    // the view reloaded: nothing is lit until the pointer moves
+    expect(shown().lit).toEqual([]);
+    expect(end.x).toBeGreaterThan(0);
+});
+
+/** Makes room right of Review's end handle, so that the resize is not in the 150 px edge zone. */
+async function reviewHandle() {
+    const handle = () => queryOne(`.o_tl_pill[data-pill-id="${PILL_ID.Review}"] .o_tl_handle[data-edge='stop']`);
+    await hover(pillEl("Review"));
+    await animationFrame();
+    const renderer = queryOne(".o_tl_renderer");
+    const room = areaRight() - centre(queryRect(handle())).x;
+    if (room < 200) {
+        renderer.scrollLeft += 200 - room;
+        await animationFrame();
+        await hover(pillEl("Review"));
+        await animationFrame();
+    }
+    return handle();
+}
+
+const REVIEW_ARROW = () => arrowKey("Review", "Overlap A");
+
+test("A9: a resize released where it started calls nothing, keeps Review's arrow lit and its handles, the grid does not scroll", async () => {
+    await mountDependencies();
+    const handle = await reviewHandle();
+    const pillBefore = queryRect(pillEl("Review"));
+    const scrollBefore = queryOne(".o_tl_renderer").scrollLeft;
+    const start = centre(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    const away = { x: start.x - 61, y: start.y };
+    await moveInSteps(held, start, away, 5);
+    await moveInSteps(held, away, start, 5);
+    await held.drop();
+    await settle();
+    // M47: the pill is where it was, the grid did not scroll
+    expect(queryOne(".o_tl_renderer").scrollLeft).toBe(scrollBefore);
+    const pillAfter = queryRect(pillEl("Review"));
+    expect(pillAfter.left).toBe(pillBefore.left);
+    expect(pillAfter.width).toBe(pillBefore.width);
+    expect(log).toEqual([]);
+    // M44: the arrow is still lit, with its button; the handles of Review show
+    expect(shown().lit).toEqual([REVIEW_ARROW()]);
+    expect(queryAll(".o_tl_arrow_remove")).toHaveLength(1);
+    expect(handleEls("Review")).toHaveLength(2);
+    // the next move, one pixel left, is still over Review's body: the band begins at its outer edge
+    await pointerTo(start.x - 1, start.y);
+    expect(shown().lit).toEqual([REVIEW_ARROW()]);
+    expect(handleEls("Review")).toHaveLength(2);
+    expect(log).toEqual([]);
+});
+
+test("A9: a resize pressed in the edge zone but held still does not scroll the grid before it starts", async () => {
+    await mountDependencies();
     await hover(pillEl("Build"));
     await animationFrame();
     const handle = queryOne(".o_tl_handle[data-edge='stop']");
     const start = centre(queryRect(handle));
     const held = await drag(handle, { position: start });
-    const scrollBefore = queryOne(".o_tl_renderer").scrollLeft;
-    const away = { x: start.x - 65, y: start.y };
-    await moveInSteps(held, start, away, 5);
-    await moveInSteps(held, away, start, 5);
+    freezeTime();
+    const before = queryOne(".o_tl_renderer").scrollLeft;
+    await advanceTime(1000);
+    await animationFrame();
+    expect(queryOne(".o_tl_renderer").scrollLeft).toBe(before);
     await held.drop();
-    await settle();
-    expect(log).toEqual([]);
-    expect(lit().map((arrow) => arrow.dataset.arrow).sort()).toEqual([...BUILD_ARROWS()].sort());
-    expect(queryAll(".o_tl_arrow_remove")).toHaveLength(2);
-    // the pointer on the band of "Build" to "Test", where it leaves Build's body
-    const band = queryRect(`.o_tl_arrow[data-arrow="${arrowKey("Build", "Test")}"]`);
-    const pillBox = queryRect(pillEl("Build"));
-    let onBand = { x: pillBox.right + 1, y: start.y };
-    for (let x = pillBox.right - 2; x < pillBox.right + 12; x++) {
-        if (document.elementFromPoint(x, start.y)?.closest(".o_tl_arrow")) {
-            onBand = { x, y: start.y };
-            break;
-        }
+});
+
+test("R1a: Build's arrows at the end of its body, on its outer box and on the band (M41, M42)", async () => {
+    await mountDependencies();
+    // Build's end lies well inside the page
+    const overshoot = queryRect(pillEl("Build")).right - (areaRight() - 200);
+    if (overshoot > 0) {
+        queryOne(".o_tl_renderer").scrollLeft += overshoot;
+        await animationFrame();
     }
-    await pointerTo(onBand.x, onBand.y);
-    await settle();
-    expect(queryOne(".o_tl_renderer").scrollLeft).toBe(scrollBefore);
-    expect(band.width).toBeGreaterThan(0);
+    await hover(pillEl("Build"));
+    await animationFrame();
+    const body = queryRect(pillEl("Build"));
+    const y = body.top + body.height / 2;
+    const both = litWith(BUILD_ARROWS(), 2);
+    // inside the body, two pixels from its end (M41): both arrows, the handles
+    await pointerTo(body.right - 2, y);
+    expect(shown()).toEqual(both);
+    // the outer box's last column: both arrows stay lit, the handles are gone
+    await pointerTo(body.right + 0.5, y);
+    expect(shown()).toEqual(litWith(BUILD_ARROWS(), 0));
+    // from the outer box's edge on: the band of "Build" to "Test" alone (M42)
+    await pointerTo(body.right + 1.5, y);
     expect(shown().lit).toEqual([arrowKey("Build", "Test")]);
-    expect(log).toEqual([]);
+    expect(shown().handles).toBe(0);
 });
 
 /** Right end of the scrolling area (the scrollbar is not part of it). */

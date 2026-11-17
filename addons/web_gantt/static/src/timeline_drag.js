@@ -52,8 +52,11 @@ const MODES = {
  * - `change(drawing)`: what to draw now, `{mode, pill, rowId, target, offset: {x, y}}` (`offset`:
  *   how far the pointer is from where it was pressed, in pixels), or `null` for nothing;
  * - `commit(result)`: the release, `{mode, pill, rowId, target}` (`target` may be `null`);
+ * - `changesNothing({mode, pill, rowId, target})` (optional): whether the release would change
+ *   nothing and call nothing (a move or a resize in its starting sub-column, 002d R1a); a move
+ *   that an automatic method still sends to the server (002c R16 point 4) is not that case;
  * - `released(x, y)` (optional): a held gesture is released where nothing is written (no target, or
- *   the pointer back on its starting point), the viewport point of the release (002d R1)
+ *   `changesNothing`), the viewport point of the release (002d R1)
  * - `cancelled({lost, finger})` (optional): a held gesture was cancelled (a key, the system taking
  *   the pointer away: `lost`, a second finger: `finger`, the page hidden), no `commit` follows;
  * - `insideGrid(event)` (optional): whether the event's target lies in the view's grid (a second
@@ -89,15 +92,7 @@ export class TimelinePillDrag {
         // the grid scrolled under the held pointer: the target is worked out again (R14)
         this._edge = new TimelineEdgeScroll({
             edges: () => this.host.edges(),
-            scrollBy: (dx, dy) => {
-                const done = this.host.scrollBy(dx, dy);
-                if (this._press && done) {
-                    // how far the grid went under the held pointer since the press (002d R1)
-                    this._press.scrollX += done.dx || 0;
-                    this._press.scrollY += done.dy || 0;
-                }
-                return done;
-            },
+            scrollBy: (dx, dy) => this.host.scrollBy(dx, dy),
             onScrolled: () => this.refresh(),
             axes: "xy",
         });
@@ -206,8 +201,6 @@ export class TimelinePillDrag {
             copy: ev.ctrlKey === true,
             grab,
             target: null,
-            scrollX: 0,
-            scrollY: 0,
         };
         this.state = "pending";
         const doc = ev.target.ownerDocument;
@@ -365,14 +358,16 @@ export class TimelinePillDrag {
             return;
         }
         const dragging = this.state === "dragging";
-        const { pill, rowId, target, line, x, y, x0, y0, scrollX, scrollY } = this._press;
+        const { pill, rowId, target, line, x, y } = this._press;
         const mode = dragging ? this._mode : null;
-        // a move or a resize released on the very point it was pressed at, in grid coordinates (the
-        // grid did not scroll under it), changes nothing, whatever the way it went (002d R1 point 10: no call, no reload, whatever the rescheduling method)
-        const back = dragging && mode !== "copy" && mode !== "panel" && x === x0 && y === y0
-            && scrollX === 0 && scrollY === 0;
-        if (dragging && (back || !target) && mode !== "panel") {
-            // a release where nothing is written: the arrows lit at the start stay lit (R1)
+        // a release where nothing is written: no target, or a move or a resize that changes
+        // nothing (n = 0 sub-columns and, for a move, the row's values already held; 002d R1a):
+        // the arrows lit at the start stay lit (R1)
+        const nothing =
+            dragging &&
+            mode !== "panel" &&
+            (!target || this.host.changesNothing?.({ mode, pill, rowId, target }) === true);
+        if (nothing) {
             this.host.released?.(x, y);
         }
         this._finish();
@@ -380,7 +375,7 @@ export class TimelinePillDrag {
             this.host.change(null);
             // the click that follows is the end of the gesture, not a click on a pill or a cell
             this._expectClick();
-            if (!back) {
+            if (!nothing || !target) {
                 this.host.commit({ mode, pill, rowId, target, line });
             }
         }

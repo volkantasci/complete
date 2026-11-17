@@ -145,10 +145,18 @@ class TestNoteTours(RealPointerMixin, HttpCase):
         self._run('tl_note_a8_move_on_column_headers')
 
     def test_a9_move_and_resize_released_where_started(self):
-        # no write and no rescheduling call reaches the server (002b2 D3, decision D1)
+        # manual method: no write and no rescheduling call (002b2 D3, decision D1); the choice is
+        # kept by the browser, so it is a new browser for each tour
         self._run('tl_note_a9_move_released_where_it_started')
         self._reset_h42()
-        self._run('tl_note_a9_resize_released_where_it_started', writes=None)
+        # keep buffer: the move calls the rescheduling method once, with no value (002c A44); the
+        # tour counts the browser's calls (the method writes on the server as well)
+        self._run('tl_note_a9_keep_buffer_move_released_where_it_started', writes=None)
+        self._reset_h42()
+        # the resize changes nothing and calls nothing, with the default method
+        self._run('tl_note_a9_resize_released_where_it_started')
+        self._reset_h42()
+        self._run('tl_note_a9_band_begins_at_the_outer_box')
 
     # -- R2 and D2: an open popover and a press that can start a gesture -----------------------
 

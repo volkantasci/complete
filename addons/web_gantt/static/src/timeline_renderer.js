@@ -46,7 +46,7 @@ import {
 import { bufferSpan, subColumnHoursAt } from "./timeline_buffers";
 import { TimelineConnectDrag } from "./timeline_connect";
 import { TimelinePillDrag } from "./timeline_drag";
-import { commitDrag, commitResize } from "./timeline_drag_commit";
+import { commitDrag, commitResize, releaseChangesNothing } from "./timeline_drag_commit";
 import { TimelineArrowLayer, TimelineArrows } from "./timeline_arrows";
 import { TimelinePillPointer } from "./timeline_pill_pointer";
 import { badgeText, columnPeriod, partPeriod, rowValueChain } from "./timeline_editing";
@@ -227,6 +227,7 @@ export class TimelineRenderer extends Component {
             scrollBy: (dx, dy) => this._scrollGesture(dx, dy),
             change: (drawing) => this._setDrag(drawing),
             commit: (result) => this._commitDrag(result),
+            changesNothing: (result) => releaseChangesNothing(this, result),
             // a cancelled gesture (Escape, lost pointer) leaves no zone hit for the next release
             // (the arrows lit when it started stay lit, R9, A69, A95)
             // (a pointer the system took away leaves nothing lit, 002d R4)
