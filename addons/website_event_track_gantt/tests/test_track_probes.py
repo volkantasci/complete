@@ -1,6 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Probes of the tracks Gantt bridge (M1 to M26, M39, M40, M45, M46, M48 and M49; M19 is the
+"""Probes of the tracks Gantt bridge (M1 to M26, M39, M40, M45, M46, M48 to M65; M19 is the
 original's and asks nothing).
 
 Run only these: ``--test-tags /website_event_track_gantt:TestTrackProbes``. The dark scheme needs
@@ -15,7 +15,8 @@ the button ``.o_tl_popover_button``; M13 the footer ``.modal-footer`` of the rec
 M17 its buttons, M18 the bin icon; M20, M21 the buttons of the new track's dialog; M22 the box
 ``.modal-content`` of the confirmation, M23, M24 its buttons; M39, M40 Save of the record dialog
 while the confirmation is open and after Discard; M48, M49 Save and the bin button of the record
-dialog on the phone.
+dialog on the phone; M50 to M65 the places of the dialog's content (body, empty header strip,
+labels, tab bar, image).
 """
 import json
 import logging
@@ -23,7 +24,7 @@ import logging
 from odoo.addons.test_web_gantt.tests.timeline_probe import CLOCK_TEMPLATE, TimelineProbeCase
 from odoo.tests import HttpCase, tagged
 
-from .track_fixtures import make_event_users, make_gantt_summit
+from .track_fixtures import make_event_users, make_gantt_summit, use_one_language
 from .track_probe_values import measured
 
 SCHEMES = ('light', 'dark')
@@ -51,6 +52,7 @@ class TestTrackProbes(TimelineProbeCase):
         manager_group = cls.env.ref('event.group_event_manager')
         cls.env.ref('base.user_admin').write({'group_ids': [(4, manager_group.id)]})
         make_event_users(cls.env)
+        use_one_language(cls.env)
         cls.summit = make_gantt_summit(cls.env)
 
     # -- helpers --------------------------------------------------------------------------------
@@ -292,6 +294,67 @@ class TestTrackProbes(TimelineProbeCase):
                            'phone', 'Save, first of the stacked footer')
                 self.check('M49', f"{dialog}.querySelector('.o_track_delete')", scheme, 'phone',
                            'the bin button, last of the stacked footer')
+
+    # -- M50 to M65: the places of the dialog's content (R11, vertical layout) ------------------
+
+    def check_places(self, probes, scheme, viewport, label):
+        """The boxes of the form's content, as measured from the dialog body: the body, the
+        label "Title", the label "Track Date", the tab bar and the track image; the empty header
+        strip too where the probe has one (M51, desktop)."""
+        # the original's captures draw no scrollbars: the body's width is the same with or without
+        # the form scrolling inside it (M51, M54, M55 read the width and the right edge)
+        self.js("document.head.appendChild(Object.assign(document.createElement('style'), "
+                "{textContent: '* { scrollbar-width: none !important; }'}))")
+        self.settle()
+        dialog = "document.querySelector('.o_dialog')"
+        body, strip, title, date, tabs, image = probes
+        self.check(body, f"{dialog}.querySelector('.modal-body')", scheme, viewport,
+                   'the dialog body')
+        if strip:
+            self.check(strip, f"{dialog}.querySelector('.o_form_statusbar')", scheme, viewport,
+                       'the empty header strip')
+        for probe, text in ((title, 'Title'), (date, 'Track Date')):
+            self.check(probe, f"[...{dialog}.querySelectorAll('.o_form_sheet label')]"
+                       f".find((e) => e.textContent.trim() === {json.dumps(text)})", scheme,
+                       viewport, f'the label {text}')
+        self.check(tabs, f"{dialog}.querySelector('.o_notebook_headers')", scheme, viewport,
+                   'the tab bar')
+        self.check(image, f"{dialog}.querySelector('.o_form_sheet .o_field_image')", scheme,
+                   viewport, 'the track image')
+
+    def test_m50_m55_record_dialog_places(self):
+        probes = ['M50', 'M51', 'M52', 'M53', 'M54', 'M55']
+        for scheme in self.schemes(probes):
+            with self.open(EVENTS, scheme, 'desktop'):
+                self.open_tracks()
+                self.open_popover('Panel Talk')
+                self.tap("document.querySelector('.o_tl_popover_button')")
+                self.wait("!!document.querySelector('.o_dialog .o_track_delete')", timeout=30)
+                self.settle()
+                self.check_places(probes, scheme, 'desktop', 'record dialog')
+
+    def test_m56_m60_new_dialog_places(self):
+        probes = ['M56', None, 'M57', 'M58', 'M59', 'M60']
+        for scheme in self.schemes(['M56', 'M57', 'M58', 'M59', 'M60']):
+            with self.open(EVENTS, scheme, 'desktop'):
+                self.open_tracks()
+                self.tap("document.querySelector('.o_tl_button_add')")
+                self.wait("!!document.querySelector('.o_dialog .o_form_button_save')", timeout=30)
+                self.settle()
+                self.check_places(probes, scheme, 'desktop', 'new dialog')
+
+    def test_m61_m65_phone_dialog_places(self):
+        probes = ['M61', None, 'M62', 'M63', 'M64', 'M65']
+        for scheme in self.schemes(['M61', 'M62', 'M63', 'M64', 'M65']):
+            with self.open(EVENTS, scheme, 'phone'):
+                self.open_tracks(phone=True)
+                self.open_popover('Opening Keynote')
+                self.tap("document.querySelector('.o_tl_popover_button')")
+                self.wait("!!document.querySelector('.o_dialog .o_track_delete')", timeout=30)
+                self.wait("document.querySelector('.o_dialog .o_form_button_save')"
+                          ".getBoundingClientRect().x < 30", timeout=30)
+                self.settle()
+                self.check_places(probes, scheme, 'phone', 'phone record dialog')
 
     # -- M4, M12: the phone (A53) ---------------------------------------------------------------
 

@@ -1,17 +1,21 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The record dialog without its stage bar: the sheet keeps 24 px above the title, the room the
-// form leaves there when the bar is present (screens S4 to S7).
-.o_form_view.o_track_dialog .o_form_sheet {
-    padding-top: 24px;
-}
-
-// The Community's header and button box are kept, less the three elements the dialog drops (R11);
-// a header left without a button or a field draws no bar, what another module adds there stays.
+// The record dialog without its stage bar keeps the form's header strip, empty and 16 px tall
+// (8 px above and below, nothing inside), where the bar was: the sheet starts 16 px below the top
+// of the dialog body and the label of the title 8 px lower (R11, M51, M52). A header that holds
+// a button or a field another module adds keeps the Community's bar.
 .o_form_view.o_track_dialog {
     .o_form_statusbar:not(:has(button, .o_field_widget)) {
-        display: none;
+        box-sizing: border-box;
+        height: 16px;
+        min-height: 0;
+        padding: 8px 0;
+        // on the phone the title sits 16 px below the top of the body, the strip is 8 px (M62)
+        @media (max-width: 767.98px) {
+            height: 8px;
+            padding-top: 0;
+        }
     }
 }
 
