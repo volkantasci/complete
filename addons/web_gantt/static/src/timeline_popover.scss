@@ -80,7 +80,8 @@
     width: auto;
     height: calc(100% - #{$o-tl-popover-sheet-top});
     max-width: none;
-    border-radius: 0;
+    // the top corners are rounded (002d M12)
+    border-radius: 8px 8px 0 0;
     transform: none !important;
 }
 
