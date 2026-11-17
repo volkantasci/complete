@@ -1322,8 +1322,16 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
 
     # -- A86 / A124 login page ----------------------------------------------------------
 
+    def _plain_login_layout(self):
+        # With Website installed, its own layout replaces the login page's layout; these
+        # scenarios look at the web client's login page, so that view is switched off.
+        view = self.env.ref('website.login_layout', raise_if_not_found=False)
+        if view:
+            view.active = False
+
     def test_A86_login_page(self):
         # a remembered dark scheme does not reach the login page (E4)
+        self._plain_login_layout()
         with self.page('/web/login', scheme='dark', login=None):
             self.wait("!!document.querySelector('.oe_login_form')")
             self.assertEqual(
@@ -1345,6 +1353,7 @@ class TestThemeCalendarFormSettings(ShellProbeCase):
             self.assertNotEqual(card['box-shadow'], 'none')
 
     def test_A124_login_card_corners(self):
+        self._plain_login_layout()
         for size, touch in (((1600, 900), False), ((390, 844), True)):
             with self.page('/web/login', scheme='light', login=None, size=size, touch=touch):
                 self.wait("!!document.querySelector('.oe_login_form')")
