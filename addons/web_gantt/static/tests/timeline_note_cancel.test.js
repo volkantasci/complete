@@ -335,14 +335,7 @@ test("R4: a finger put down while a mouse gesture is held does not cancel it", a
     await mountDependencies();
     const { held } = await draw(overlapC);
     const cell = pillEl("Overlap C").closest(".o_tl_row").querySelector(".o_tl_cell");
-    cell.dispatchEvent(
-        new PointerEvent("pointerdown", {
-            pointerId: 77,
-            pointerType: "touch",
-            bubbles: true,
-            cancelable: true,
-        })
-    );
+    finger("pointerdown", cell, 77);
     await animationFrame();
     expect(".o_tl_connect_path").toHaveCount(1);
     await held.drop();
