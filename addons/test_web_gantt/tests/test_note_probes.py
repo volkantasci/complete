@@ -106,7 +106,7 @@ class TestNoteProbes(TimelineProbeCase):
     # -- M27 to M31: a drawing released on an empty cell (R1 point 1, A1) -----------------------
 
     def test_m27_m31_released_on_empty_cell(self):
-        probes = ['M27', 'M28', 'M29', 'M30', 'M31']
+        probes = ['M27', 'M28', 'M29', 'M31']
         build = self.records['Build']
         for scheme in self.schemes(probes):
             with self.page(HOST, scheme, 'desktop'):
@@ -119,7 +119,8 @@ class TestNoteProbes(TimelineProbeCase):
                            'the remove button of Build to Test')
                 self.check('M29', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
                            'Design to Build at rest')
-                # T1-2: no handle is shown; Complete draws no wrapper then
+                # M30 is not compared on Complete (it reads a hidden strip it does not
+                # draw, N4): A1 checks that no handle shows
                 wrapper = self.js(
                     "document.querySelectorAll('.o_tl_connect[data-pill-id=\"' + "
                     f"({self.pill('Build')}).dataset.pillId + '\"]').length")
@@ -159,8 +160,7 @@ class TestNoteProbes(TimelineProbeCase):
     def test_m44_m47_resize_released_where_it_started(self):
         """Review's right handle pressed at (1121, 285), moved to (1060, 285) and back, released:
         the line of "Review" to "Overlap A" is still lit (M44) and Review did not move (M47). The
-        package measures Review's outer box (its body and 1 px around it): the body is 1 px inside
-        on each side (ruling T15-2)."""
+        package reads the body of "Review" (1030, 274, 94 x 23, P4)."""
         probes = ['M44', 'M47']
         for scheme in self.schemes(probes):
             with self.page(HOST, scheme, 'desktop'):
@@ -181,15 +181,7 @@ class TestNoteProbes(TimelineProbeCase):
                 self.settle(600)
                 self.check('M44', self.part('Review', 'Overlap A', '.o_tl_arrow_line'), scheme,
                            'Review to Overlap A, still lit')
-                outer = measured('M47')[scheme]
-                body = {
-                    'geometry.x': str(float(outer['geometry.x']) + 1),
-                    'geometry.y': str(float(outer['geometry.y']) + 1),
-                    'geometry.width': str(float(outer['geometry.width']) - 2),
-                    'geometry.height': str(float(outer['geometry.height']) - 2),
-                }
-                self.probe('M47', self.pill('Review'), scheme, 'desktop', body,
-                           'the pill Review after the release')
+                self.check('M47', self.pill('Review'), scheme, 'the pill Review after the release')
 
     # -- M32 to M34: a popover and a press on the end handle (R2 point 1, A11) ------------------
 
@@ -243,9 +235,10 @@ class TestNoteProbes(TimelineProbeCase):
         "Overlap C" written and the view reloaded, 1.5 s on. M35 is the strip above Build's pill,
         which holds its start handle (``.o_tl_connect_strip_above`` of the wrapper): the size and
         x of the package, and y 11 px above the pill's outer box (the package's y follows the
-        original's control bar, Complete's is taller). M36 and M38: no wrapper is drawn (T1-2).
+        original's control bar, Complete's is taller). M36 and M38 are not compared on
+        Complete (N4): A17 checks that no handle shows.
         M37 is the line of the new arrow at rest."""
-        probes = ['M35', 'M36', 'M37', 'M38']
+        probes = ['M35', 'M37']
         for scheme in self.schemes(probes):
             # the records of the host: no link into "Overlap C" yet (a former scheme wrote one)
             self.records['Overlap C'].dependency_field = [(5,)]
@@ -289,7 +282,7 @@ class TestNoteProbes(TimelineProbeCase):
                 self.assertAlmostEqual(box['geometry.y'] + box['geometry.height'], top, delta=.6,
                                        msg='M35 the strip lies right above the outer box of Build')
                 self.assertTrue(self.js(f"!{self.wrapper_of('Overlap C')}"),
-                                'M36 Overlap C shows no handles (no wrapper is drawn)')
+                                'A17 Overlap C shows no handle (no wrapper is drawn)')
                 self.check('M37', self.part('Build', 'Overlap C', '.o_tl_arrow_line'), scheme,
                            'the new arrow at rest')
                 # the next tap, on the empty cell 23 px above Build's outer box
@@ -297,5 +290,5 @@ class TestNoteProbes(TimelineProbeCase):
                 self.touch_event('touchEnd', None, None)
                 self.settle(600)
                 self.assertTrue(self.js(f"!{self.wrapper_of('Build')}"),
-                                'M38 Build shows no handles after a tap on an empty cell')
+                                'A17 Build shows no handle after a tap on an empty cell')
         self.assertTrue(self.records['Build'].exists())

@@ -535,9 +535,9 @@ scenarioTour("tl_note_a15_touch_body", async () => {
 /**
  * A16 (decision D2): a finger at `x` (from the box) held 500 ms and moved 60 px in 20 steps (toward
  * `sign`) moves Build: open at 8 px, closed once the move starts, no resize, the lifted finger
- * writes the move.
+ * writes the move (a call; 60 px change no date, 130 px move Build by 12 hours, N2, A16).
  */
-function fingerOnHandlePlace(name, pointOf, sign, { tap }) {
+function fingerOnHandlePlace(name, pointOf, sign, { tap, distance = 60 }) {
     scenarioTour(
         name,
         async () => {
@@ -565,14 +565,16 @@ function fingerOnHandlePlace(name, pointOf, sign, { tap }) {
             }
             const rest = [];
             for (let step = 4; step <= 20; step++) {
-                rest.push(finger("touchMove", at.x + sign * 3 * step, at.y));
+                // 3 px a step up to 60 px; a longer path ends at `distance` in the same steps
+                const offset = 9 + ((distance - 9) * (step - 3)) / 17;
+                rest.push(finger("touchMove", at.x + sign * offset, at.y));
             }
             await realMouse(rest, { touch: true, settle: false });
             await until(() => $(".o_tl_pill_moved"), "the pill follows the finger");
             assert(rootHas("o_tl_drag_move") && !rootHas("o_tl_drag_resize"), "a move, never a resize");
             assert($$(".o_tl_selection_badge").length === 2, "the badges of the move show");
             assert(!popoverOpen(), "the popover is gone once the move started");
-            await fingerUp(at.x + sign * 60, at.y);
+            await fingerUp(at.x + sign * distance, at.y);
             await until(() => callsSince(mark, WRITES).length === 1, "the move is written");
             await gridSettled();
         },
@@ -589,6 +591,11 @@ const PLACES = [
 for (const [label, pointOf, sign] of PLACES) {
     fingerOnHandlePlace(`tl_note_a16_${label}_after_a_tap`, pointOf, sign, { tap: true });
     fingerOnHandlePlace(`tl_note_a16_${label}_without_a_tap`, pointOf, sign, { tap: false });
+}
+
+// A16, 130 px: the lift writes the move, 12 hours (the test reads the dates)
+for (const [label, pointOf, sign] of [...PLACES, ["r12", (box) => box.R - 12, -1]]) {
+    fingerOnHandlePlace(`tl_note_a16_${label}_after_a_tap_far`, pointOf, sign, { tap: true, distance: 130 });
 }
 
 // A16: with a mouse a press at (R - 4, M) still resizes
@@ -1009,12 +1016,114 @@ scenarioTour(
 
 // A23, the mouse: a mouse drawing held over Overlap C, a finger put down on the empty cell
 // (300, 430) and lifted: the drawing is cancelled as with Escape; the release of the mouse button
-// writes nothing and leaves no arrow lit
+// writes nothing and leaves no arrow lit; the finger's lift puts the arrows out and opens nothing
 scenarioTour("tl_note_a23_finger_cancels_a_mouse_drawing", async () => {
     await drawTo(OVERLAP_C);
     await realMouse(fingerEvents({ x: 300, y: 430 }, []), { touch: true, settle: false });
-    await assertDrawingCancelled();
+    // the finger's lift put the arrows out (the button still held) and opened nothing (R4 point 3)
+    await pause(300);
+    assert(!drawing(), "the line is gone");
+    assertShown({ lit: [], buttons: 0, handles: 2 }, "after the finger's lift");
+    nothingElseOpen("after the finger's lift");
     await realMouse(releaseAt(OVERLAP_C), { settle: false });
     await pause(400);
     assertShown({ lit: [], buttons: 0, handles: 2 }, "after the release of the mouse button");
+    nothingElseOpen("after the release");
 });
+
+// --- F1 (R4 point 3): the finger that cancels a gesture does nothing else ----------------------
+
+const FINGER_AT = {
+    cell: { x: 300, y: 430 },
+    plan: { x: 1000, y: 220 },
+    row_header: { x: 100, y: 430 },
+    column_header: { x: 800, y: 194 },
+    band: { x: 1300, y: 293 },
+};
+const fingerDownAt = ({ x, y }) =>
+    realMouse([finger("touchStart", x, y)], { touch: true, settle: false });
+const fingerLift = () => realMouse([{ type: "touchEnd", touchPoints: [] }], { touch: true, settle: false });
+const nothingElseOpen = (when) => {
+    assert(!$(".o_dialog"), `no dialog ${when}`);
+    assert(!popoverOpen(), `no popover ${when}`);
+    assert(!$(".o_tl_selection_badge"), `no selection ${when}`);
+};
+
+/** What each gesture is, how it is held and what is lit while it is, and where its button is. */
+const HELD_GESTURES = {
+    async drawing() {
+        await pointerOnBuild();
+        await drawTo(OVERLAP_C);
+        return { end: OVERLAP_C, expected: buildToTestOnly() };
+    },
+    async move() {
+        await pointerOnBuild();
+        const end = { x: BUILD.x - 96, y: BUILD.y };
+        await moveTo12(end);
+        return { end, expected: { lit: buildArrows(), buttons: 2, handles: 2 } };
+    },
+    async resize() {
+        await moveTo(REST.review);
+        await pause(300);
+        const from = { x: 1121, y: 285 };
+        await realMouse(
+            stepsTo(REST.review, from, 3).map(({ x, y }) => mouse("mouseMoved", x, y, { button: "none", buttons: 0 })),
+            { settle: false }
+        );
+        const end = { x: from.x - 61, y: from.y };
+        await realMouse(holdEvents(from, stepsTo(from, end, 6)), { settle: false });
+        await until(() => rootHas("o_tl_drag_resize"), "the resize starts");
+        return {
+            end,
+            expected: { lit: [arrowBetween("Review", "Overlap A").dataset.arrow], buttons: 1, handles: 2 },
+        };
+    },
+};
+
+for (const [gesture, hold] of Object.entries(HELD_GESTURES)) {
+    for (const [place, at] of Object.entries(FINGER_AT)) {
+        scenarioTour(
+            `tl_note_a23_f1_${gesture}_${place}`,
+            async () => {
+                for (const order of ["lifted before the release", "lifted after the release"]) {
+                    const { end, expected } = await hold();
+                    await fingerDownAt(at);
+                    await pause(300);
+                    assert(!drawing() && !$(".o_tl_pill_moved") && !rootHas("o_tl_drag_resize"), `cancelled (${order})`);
+                    assertShown(expected, `the arrows of the start stay lit while the finger is down (${order})`);
+                    nothingElseOpen(`at the put-down (${order})`);
+                    const gone = { lit: [], buttons: 0, handles: expected.handles };
+                    if (order === "lifted before the release") {
+                        await fingerLift();
+                        await pause(1000);
+                        assertShown(gone, "the arrows go out at the finger's lift, the button held");
+                        nothingElseOpen("after the lift");
+                        await realMouse(releaseAt(end), { settle: false });
+                    } else {
+                        await realMouse(releaseAt(end), { settle: false });
+                        await pause(400);
+                        assertShown(expected, "still lit after the release, the finger down");
+                        await fingerLift();
+                    }
+                    await pause(1000);
+                    assertShown(gone, `after both ${order}`);
+                    nothingElseOpen(`after both (${order})`);
+                    // the next round starts clean: a move of the pointer onto Build
+                    await moveTo(REST.test);
+                    await pause(300);
+                }
+            },
+            { pointer: false }
+        );
+    }
+}
+
+// F1's control: a plain tap on the empty cell, no gesture held, opens the cell's dialog
+scenarioTour(
+    "tl_note_a23_f1_plain_tap",
+    async () => {
+        await realMouse(fingerEvents(FINGER_AT.cell, []), { touch: true, settle: false });
+        await until(() => $(".o_dialog"), "a tap on the empty cell opens its dialog");
+    },
+    { pointer: false }
+);

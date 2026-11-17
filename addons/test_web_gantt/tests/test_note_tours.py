@@ -168,6 +168,14 @@ class TestNoteTours(RealPointerMixin, HttpCase):
         finally:
             self.touch_enabled = False
 
+    def _touch_tour(self, name):
+        """The tour alone, with touch input at desktop size; the records stay as it left them."""
+        self.touch_enabled = True
+        try:
+            self._tour(name)
+        finally:
+            self.touch_enabled = False
+
     def test_a11_popover_and_a_press_on_the_drawing_handle(self):
         self._run('tl_note_a11_popover_and_drawing_handle')
 
@@ -195,6 +203,29 @@ class TestNoteTours(RealPointerMixin, HttpCase):
             for tap in ('after_a_tap', 'without_a_tap'):
                 with self.subTest(place=label, tap=tap):
                     self._touch_run(f'tl_note_a16_{label}_{tap}', writes=None)
+
+    def test_a16_a_60_px_move_changes_no_date(self):
+        before = self._state()
+        for label in ('r4', 'l1'):
+            with self.subTest(place=label):
+                self._touch_tour(f'tl_note_a16_{label}_after_a_tap')
+                # the call goes out with no value (R1a): every date is as it was
+                self.assertEqual(self._state(), before)
+        self._reset_h42()
+
+    def test_a16_a_130_px_move_writes_twelve_hours(self):
+        # Build: 12 Nov 06:00 to 14 Nov 15:00 UTC; left 12 hours earlier, right 12 hours later
+        left = (datetime(2026, 11, 11, 18), datetime(2026, 11, 14, 3))
+        right = (datetime(2026, 11, 12, 18), datetime(2026, 11, 15, 3))
+        places = (('r4', left), ('r2', left), ('r12', left), ('l1', right), ('l4', right))
+        for label, expected in places:
+            with self.subTest(place=label):
+                self._reset_h42()
+                self._touch_tour(f'tl_note_a16_{label}_after_a_tap_far')
+                self.env.invalidate_all()
+                build = self.env[PILL].search([('name', '=', 'Build')])
+                self.assertEqual((build.date_start, build.date_stop), expected)
+        self._reset_h42()
 
     def test_a16_mouse_still_resizes_at_the_end_handle(self):
         self._run('tl_note_a16_mouse_resizes')
@@ -242,6 +273,14 @@ class TestNoteTours(RealPointerMixin, HttpCase):
 
     def test_a23_a_finger_cancels_a_mouse_drawing(self):
         self._touch_run('tl_note_a23_finger_cancels_a_mouse_drawing')
+
+    def test_a23_f1_the_cancelling_finger_does_nothing_else(self):
+        for gesture in ('drawing', 'move', 'resize'):
+            for place in ('cell', 'plan', 'row_header', 'column_header', 'band'):
+                with self.subTest(gesture=gesture, place=place):
+                    self._touch_run(f'tl_note_a23_f1_{gesture}_{place}')
+        # the control: a plain tap on the empty cell opens its dialog
+        self._touch_run('tl_note_a23_f1_plain_tap')
 
     def test_a24_second_finger_outside_the_grid(self):
         self._touch_run('tl_note_a24_second_finger_outside_the_grid', writes=None)
