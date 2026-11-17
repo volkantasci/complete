@@ -269,6 +269,10 @@ export class TimelineRenderer extends Component {
             // the drawing ended: the pill under the pointer shows its handles, but its arrows
             // stay at rest until the pointer moves (R9, A90)
             rest: (x, y) => {
+                if (this.arrows.isTouch) {
+                    // with touch the handles stay with the pill last tapped (002d R3)
+                    return;
+                }
                 this.state.hover = this._connectTargetAt(x, y)?.key ?? null;
             },
             commit: (result) => this._commitConnect(result),
@@ -1548,6 +1552,7 @@ export class TimelineRenderer extends Component {
 
     /** The press on a pill (R2): a move may follow. `row` is the row descriptor of the pill. */
     onPillPointerDown(ev, pill, row) {
+        this._pillPointer.touchDown(ev, pill, row);
         this._pillPointer.press(ev, pill, row);
     }
 

@@ -357,6 +357,10 @@ export class TimelineArrows {
 
     /** The pill under the pointer shows its handles (none on an empty cell). */
     _showHandlesUnderPointer() {
+        if (this.isTouch) {
+            // with touch the handles stay with the pill last tapped (002d R3)
+            return;
+        }
         const at = this._pointer;
         this.host.state.hover = at ? this._pillKeyAtPoint(at.x, at.y) : null;
     }

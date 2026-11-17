@@ -42,8 +42,15 @@ export class TimelinePillPointer {
         );
     }
 
-    /** The pointer enters a pill: its handles show, unless a gesture is on (R8). */
-    enter(pill, row, { lit = true } = {}) {
+    /**
+     * The pointer enters a pill: its handles show, unless a gesture is on (R8). With touch the
+     * handles follow the pill last tapped, not where a finger goes (002d R3): the events a finger
+     * leaves behind (the browser's mouse enter) change nothing; only `tap` sets them (`tapped`).
+     */
+    enter(pill, row, { lit = true, tapped = false } = {}) {
+        if (this.host.arrows.isTouch && !tapped) {
+            return;
+        }
         if (!this.isHeld) {
             this.host.state.hover = this.keyOf(pill, row);
             // R9: the arrows of a pill of a record row light up (not for a tap, R11)
@@ -56,11 +63,21 @@ export class TimelinePillPointer {
     /**
      * A tap on a pill (it also opens its popover) leaves it in the pointer-over state, as a mouse
      * resting on it would: its handles show until a finger touches elsewhere (R11, A91). Its
-     * arrows stay at rest: a finger on a handle lights them.
+     * arrows stay at rest: a finger on a handle lights them. What lit while the finger was down
+     * on the pill goes with the tap. The pill stays the last tapped one, by its key (the row and
+     * the record), through the reloads that follow a write, until a finger touches elsewhere.
      */
     tap(ev, pill, row) {
         if (ev.pointerType === "touch") {
-            this.enter(pill, row, { lit: false });
+            this.enter(pill, row, { lit: false, tapped: true });
+            this.host.arrows.unfocusPill(this.keyOf(pill, row));
+        }
+    }
+
+    /** A finger goes down on a pill's body: its arrows light as for a pointer arriving (R9, 002d R3). */
+    touchDown(ev, pill, row) {
+        if (ev.pointerType === "touch" && row.kind === "pills") {
+            this.host.arrows.touchLit(this.keyOf(pill, row));
         }
     }
 
@@ -81,6 +98,10 @@ export class TimelinePillPointer {
      * not when it goes from one to the other, the pill is still the one it rests on.
      */
     leave(pill, row, ev) {
+        if (this.host.arrows.isTouch) {
+            // a finger leaves no pointer to leave: `touchAway` ends the pill's state (002d R3)
+            return;
+        }
         const key = pill && row ? this.keyOf(pill, row) : undefined;
         const into = ev?.relatedTarget?.closest?.(
             ".o_tl_pill[data-pill-id], .o_tl_connect_handle, .o_tl_connect_strip"

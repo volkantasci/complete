@@ -165,3 +165,77 @@ class TestNoteProbes(TimelineProbeCase):
                     'type': 'keyDown', 'key': 'Escape', 'code': 'Escape',
                     'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27})
                 self.mouse('mouseReleased', 1492, 280, button='left', buttons=0, clickCount=1)
+
+    # -- M35 to M38: touch, after a drawing is saved (R3, A17) ---------------------------------
+
+    def touch_event(self, kind, x, y):
+        self.browser._websocket_request('Input.dispatchTouchEvent', params={
+            'type': kind, 'touchPoints': [] if x is None else [{'x': x, 'y': y, 'id': 1}],
+        })
+
+    def wrapper_of(self, name):
+        """The wrapper of the drawing handles of a pill, or null (T1-2: drawn only while shown)."""
+        return ("document.querySelector('.o_tl_connect[data-pill-id=\"' + "
+                f"({self.pill(name)}).dataset.pillId + '\"]')")
+
+    def test_m35_m38_touch_handles(self):
+        """Touch input at desktop size (no mobile mode): a tap on Build, the drawing of A91 to
+        "Overlap C" written and the view reloaded, 1.5 s on. M35 is the strip above Build's pill,
+        which holds its start handle (``.o_tl_connect_strip_above`` of the wrapper): the size and
+        x of the package, and y 11 px above the pill's outer box (the package's y follows the
+        original's control bar, Complete's is taller). M36 and M38: no wrapper is drawn (T1-2).
+        M37 is the line of the new arrow at rest."""
+        probes = ['M35', 'M36', 'M37', 'M38']
+        for scheme in self.schemes(probes):
+            # the records of the host: no link into "Overlap C" yet (a former scheme wrote one)
+            self.records['Overlap C'].dependency_field = [(5,)]
+            self.env.flush_all()
+            with self.page(HOST, scheme, 'desktop', touch=True, mobile=False):
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 3", timeout=60)
+                self.settle()
+                body = self.geometry(self.pill('Build'))
+                left, top = body['geometry.x'] - 1, body['geometry.y'] - 1
+                right = body['geometry.x'] + body['geometry.width'] + 1
+                bottom = body['geometry.y'] + body['geometry.height'] + 1
+                middle = body['geometry.y'] + body['geometry.height'] / 2
+                # a tap at (L + 368, M), 600 ms
+                self.touch_event('touchStart', left + 368, middle)
+                self.touch_event('touchEnd', None, None)
+                self.settle(600)
+                self.wait(f"!!{self.wrapper_of('Build')}")
+                # a finger on (R - 7, B + 7) held 400 ms, to the middle of "Overlap C" in 10 steps,
+                # held 400 ms, lifted
+                other = self.geometry(self.pill('Overlap C'))
+                end = (other['geometry.x'] + other['geometry.width'] / 2,
+                       other['geometry.y'] + other['geometry.height'] / 2)
+                start = (right - 7, bottom + 7)
+                self.touch_event('touchStart', *start)
+                self.settle(400)
+                for i in range(1, 11):
+                    self.touch_event('touchMove', start[0] + (end[0] - start[0]) * i / 10,
+                                     start[1] + (end[1] - start[1]) * i / 10)
+                    time.sleep(.03)
+                self.settle(400)
+                self.touch_event('touchEnd', None, None)
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 4", timeout=30)
+                self.settle(1500)
+                strip = f"{self.wrapper_of('Build')}.querySelector('.o_tl_connect_strip_above')"
+                expected = {key: value for key, value in measured('M35')[scheme].items()
+                            if key in ('display', 'geometry.x', 'geometry.width',
+                                       'geometry.height')}
+                self.probe('M35', strip, scheme, 'desktop', expected, 'the start handle strip')
+                box = self.geometry(strip)
+                # the strip ends where the pill's outer box begins: the package's 251 + 11 = 262
+                self.assertAlmostEqual(box['geometry.y'] + box['geometry.height'], top, delta=.6,
+                                       msg='M35 the strip lies right above the outer box of Build')
+                self.assertTrue(self.js(f"!{self.wrapper_of('Overlap C')}"),
+                                'M36 Overlap C shows no handles (no wrapper is drawn)')
+                self.check('M37', self.part('Build', 'Overlap C', '.o_tl_arrow_line'), scheme,
+                           'the new arrow at rest')
+                # the next tap, on the empty cell 23 px above Build's outer box
+                self.touch_event('touchStart', 1300, top - 23)
+                self.touch_event('touchEnd', None, None)
+                self.settle(600)
+                self.assertTrue(self.js(f"!{self.wrapper_of('Build')}"),
+                                'M38 Build shows no handles after a tap on an empty cell')
+        self.assertTrue(self.records['Build'].exists())

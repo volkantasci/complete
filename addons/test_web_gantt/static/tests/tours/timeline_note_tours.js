@@ -17,6 +17,7 @@ import {
     handleCount,
     handleOf,
     holdEvents,
+    idOf,
     mouse,
     moveTo,
     pillNamed,
@@ -26,6 +27,7 @@ import {
     REST,
     sentBodies,
     stepsTo,
+    strokeOf,
     until,
 } from "./timeline_dependency_tours";
 
@@ -492,3 +494,116 @@ scenarioTour("tl_note_a16_mouse_resizes", async () => {
     await realMouse(releaseAt({ x: from.x - 60, y: from.y }), { settle: false });
     await pause(300);
 });
+
+// ---------------------------------------------------------------------------------------------
+// R3 (A17, A18): with touch at desktop size the handles follow the pill last tapped
+// ---------------------------------------------------------------------------------------------
+
+/** The owners (pill ids) of the drawing handles shown now. */
+function handleOwners() {
+    return $$(".o_tl_connect_handle").map((handle) => handle.closest(".o_tl_connect").dataset.pillId);
+}
+
+const arrows = () => $$(".o_tl_arrow");
+const redAtRest =() => strokeOf(arrowBetween("Build", "Overlap C"));
+
+/**
+ * A17's state: a tap on Build at (L + 368, M), 600 ms; a finger on (R - 7, B + 7) held 400 ms, to the
+ * middle of "Overlap C" in 10 steps, held 400 ms, lifted; the link is written and the view reloads.
+ * Returns the outer box of Build.
+ */
+async function touchDrawingSaved() {
+    const box = outerBox();
+    await tapBuild(box);
+    const from = centreOf(handleOf("Build", "stop"));
+    const end = centreOf(pillNamed("Overlap C"));
+    const mark = sentBodies.length;
+    await realMouse([finger("touchStart", from.x, from.y)], { touch: true, settle: false });
+    await pause(400);
+    await realMouse(stepsTo(from, end, 10).map((point) => finger("touchMove", point.x, point.y)), {
+        touch: true,
+        settle: false,
+    });
+    await pause(400);
+    await fingerUp(end.x, end.y);
+    await until(() => callsSince(mark, WRITES).length === 1, "the link is written");
+    await until(() => arrows().length === 4, "the new arrow");
+    return box;
+}
+
+/** What A17 sees 1.5 s and 3 s after the lift: no arrow lit, Build's handles, none on Overlap C. */
+function assertBuildKeepsItsHandles(when) {
+    assertShown({ lit: [], buttons: 0, handles: 2 }, when);
+    assert(
+        handleOwners().every((owner) => owner === idOf("Build")),
+        `the handles are Build's, got ${handleOwners()}`
+    );
+    assert(!$(`.o_tl_connect[data-pill-id="${idOf("Overlap C")}"]`), "Overlap C shows no handles");
+}
+
+scenarioTour(
+    "tl_note_a17_after_touch_drawing_saved",
+    async () => {
+        await touchDrawingSaved();
+        await pause(1500);
+        assertBuildKeepsItsHandles("1.5 s after the lift");
+        assert(redAtRest() === "rgba(211, 65, 59, 0.5)", `the new arrow at rest, got ${redAtRest()}`);
+        await pause(1500);
+        assertBuildKeepsItsHandles("3 s after the lift");
+    },
+    { writes: 1, pointer: false }
+);
+
+scenarioTour(
+    "tl_note_a17_tap_on_an_empty_cell",
+    async () => {
+        const box = await touchDrawingSaved();
+        await pause(1500);
+        assertBuildKeepsItsHandles("1.5 s after the lift");
+        // the empty cell, 23 px above the box of Build
+        await realMouse(fingerEvents({ x: 1300, y: box.T - 23 }, []), { touch: true, settle: false });
+        await pause(600);
+        assertShown(NOTHING, "after a tap on the empty cell");
+    },
+    { writes: 1, pointer: false }
+);
+
+scenarioTour(
+    "tl_note_a17_tap_on_another_pill",
+    async () => {
+        await touchDrawingSaved();
+        await pause(1500);
+        await realMouse(fingerEvents(centreOf(pillNamed("Overlap C")), []), { touch: true, settle: false });
+        await pause(600);
+        assert(popoverOpen(), "the popover of Overlap C is open");
+        assertShown({ lit: [], buttons: 0, handles: 2 }, "after a tap on Overlap C");
+        assert(
+            handleOwners().every((owner) => owner === idOf("Overlap C")),
+            `the handles are Overlap C's, got ${handleOwners()}`
+        );
+    },
+    { writes: 1, pointer: false }
+);
+
+// A18: no tap before; a finger on Build's body lights its two arrows with their buttons, no
+// handles; moved 96 px to the left in 10 steps and lifted, the move is written; after the reload
+// nothing is lit and no handles show
+scenarioTour(
+    "tl_note_a18_touch_move_from_untapped_pill",
+    async () => {
+        const box = outerBox();
+        const at = { x: box.L + 267, y: box.M };
+        const mark = sentBodies.length;
+        await fingerDown(at);
+        assertShown({ lit: buildArrows(), buttons: 2, handles: 0 }, "finger down on the body");
+        const path = stepsTo(at, { x: at.x - 96, y: at.y }, 10);
+        await realMouse(path.map((point) => finger("touchMove", point.x, point.y)), { touch: true, settle: false });
+        await until(() => $(".o_tl_pill_moved"), "the move starts");
+        await fingerUp(at.x - 96, at.y);
+        await until(() => callsSince(mark, WRITES).length === 1, "the move is written");
+        await gridSettled();
+        await pause(1500);
+        assertShown(NOTHING, "after the reload");
+    },
+    { writes: 1, pointer: false }
+);

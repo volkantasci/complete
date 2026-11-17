@@ -184,3 +184,16 @@ class TestNoteTours(RealPointerMixin, HttpCase):
 
     def test_a16_mouse_still_resizes_at_the_end_handle(self):
         self._run('tl_note_a16_mouse_resizes')
+
+    # -- R3: which pill shows its handles after a touch gesture ---------------------------------
+
+    def test_a17_after_touch_drawing_saved(self):
+        # one write on "Overlap C" (the link); the records are put back after each tour
+        for name in ('tl_note_a17_after_touch_drawing_saved',
+                     'tl_note_a17_tap_on_an_empty_cell',
+                     'tl_note_a17_tap_on_another_pill'):
+            with self.subTest(tour=name):
+                self._touch_run(name, writes=None)
+
+    def test_a18_touch_move_from_untapped_pill(self):
+        self._touch_run('tl_note_a18_touch_move_from_untapped_pill', writes=None)

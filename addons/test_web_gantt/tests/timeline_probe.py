@@ -166,7 +166,7 @@ class TimelineProbeCase(HttpCase):
 
     @contextlib.contextmanager
     def page(self, action, scheme='light', viewport='desktop', query='', login='admin',
-             touch=None):
+             touch=None, mobile=None):
         """Open ``/odoo/action-<xmlid>`` and wait for the timeline grid (or the list)."""
         if scheme == 'dark':
             user = self.env['res.users'].search([('login', '=', login)], limit=1)
@@ -186,7 +186,8 @@ class TimelineProbeCase(HttpCase):
             self.browser = browser
             request = browser._websocket_request
             request('Emulation.setDeviceMetricsOverride', params={
-                'width': width, 'height': height, 'deviceScaleFactor': 1, 'mobile': touch,
+                'width': width, 'height': height, 'deviceScaleFactor': 1,
+                'mobile': touch if mobile is None else mobile,
             })
             request('Emulation.setTouchEmulationEnabled', params={'enabled': touch})
             request('Emulation.setTimezoneOverride', params={'timezoneId': 'Etc/GMT-3'})
