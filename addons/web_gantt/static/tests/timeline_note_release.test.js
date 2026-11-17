@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { drag, hover, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { animationFrame, advanceTime } from "@odoo/hoot-mock";
 import { mountView, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
@@ -302,11 +302,15 @@ test("A9: a move released where it started writes nothing, reloads nothing, keep
 
 test("A9: a resize released where it started writes nothing, then the band of Build to Test lights that arrow alone", async () => {
     await mountDependencies();
+    // the handle lies well inside the area: the grid does not scroll while it is held
+    queryOne(".o_tl_renderer").scrollLeft += 450;
+    await animationFrame();
     await hover(pillEl("Build"));
     await animationFrame();
     const handle = queryOne(".o_tl_handle[data-edge='stop']");
     const start = centre(queryRect(handle));
     const held = await drag(handle, { position: start });
+    const scrollBefore = queryOne(".o_tl_renderer").scrollLeft;
     const away = { x: start.x - 65, y: start.y };
     await moveInSteps(held, start, away, 5);
     await moveInSteps(held, away, start, 5);
@@ -318,9 +322,62 @@ test("A9: a resize released where it started writes nothing, then the band of Bu
     // the pointer on the band of "Build" to "Test", where it leaves Build's body
     const band = queryRect(`.o_tl_arrow[data-arrow="${arrowKey("Build", "Test")}"]`);
     const pillBox = queryRect(pillEl("Build"));
-    const onBand = { x: pillBox.right + 1, y: start.y };
+    let onBand = { x: pillBox.right + 1, y: start.y };
+    for (let x = pillBox.right - 2; x < pillBox.right + 12; x++) {
+        if (document.elementFromPoint(x, start.y)?.closest(".o_tl_arrow")) {
+            onBand = { x, y: start.y };
+            break;
+        }
+    }
     await pointerTo(onBand.x, onBand.y);
+    await settle();
+    expect(queryOne(".o_tl_renderer").scrollLeft).toBe(scrollBefore);
     expect(band.width).toBeGreaterThan(0);
     expect(shown().lit).toEqual([arrowKey("Build", "Test")]);
     expect(log).toEqual([]);
+});
+
+/** Right end of the scrolling area (the scrollbar is not part of it). */
+const areaRight = () => {
+    const renderer = queryOne(".o_tl_renderer");
+    return queryRect(renderer).left + renderer.clientLeft + renderer.clientWidth;
+};
+
+test("A9: a resize held near the edge that scrolls the grid and returns to the press pixel writes", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await animationFrame();
+    const handle = queryOne(".o_tl_handle[data-edge='stop']");
+    const start = centre(queryRect(handle));
+    const held = await drag(handle, { position: start });
+    freezeTime();
+    const before = queryOne(".o_tl_renderer").scrollLeft;
+    // 40 px from the right end: the zone of a resize scrolls the grid
+    await moveInSteps(held, start, { x: areaRight() - 40, y: start.y }, 5);
+    await advanceTime(250);
+    await animationFrame();
+    expect(queryOne(".o_tl_renderer").scrollLeft).toBeGreaterThan(before + 50);
+    await moveInSteps(held, { x: areaRight() - 40, y: start.y }, start, 5);
+    await held.drop();
+    await settle();
+    // the grid is not where it was under the pointer: a real resize, written
+    expect(log.filter((entry) => entry === "reschedule")).toHaveLength(1);
+});
+
+test("A9: a move held near the edge that scrolls the grid and returns to the press pixel writes", async () => {
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await animationFrame();
+    const start = centre(queryRect(pillEl("Build")));
+    const held = await drag(pillEl("Build"), { position: start });
+    freezeTime();
+    const before = queryOne(".o_tl_renderer").scrollLeft;
+    await moveInSteps(held, start, { x: areaRight() - 10, y: start.y }, 5);
+    await advanceTime(500);
+    await animationFrame();
+    expect(queryOne(".o_tl_renderer").scrollLeft).toBeGreaterThan(before + 50);
+    await moveInSteps(held, { x: areaRight() - 10, y: start.y }, start, 5);
+    await held.drop();
+    await settle();
+    expect(log.filter((entry) => entry === "reschedule")).toHaveLength(1);
 });

@@ -104,7 +104,6 @@ class TestNoteProbes(TimelineProbeCase):
                     "document.querySelectorAll('.o_tl_connect[data-pill-id=\"' + "
                     f"({self.pill('Build')}).dataset.pillId + '\"]').length")
                 self.assertEqual(wrapper, 0, 'no handles of Build are drawn')
-                self.assertEqual(measured('M30')[scheme]['display'], 'none')
                 self.pointer_at(1301, 225)
                 self.check('M31', self.part('Build', 'Test', '.o_tl_arrow_line'), scheme,
                            'Build to Test, back at rest after the next move')

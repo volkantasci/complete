@@ -87,7 +87,15 @@ export class TimelinePillDrag {
         // the grid scrolled under the held pointer: the target is worked out again (R14)
         this._edge = new TimelineEdgeScroll({
             edges: () => this.host.edges(),
-            scrollBy: (dx, dy) => this.host.scrollBy(dx, dy),
+            scrollBy: (dx, dy) => {
+                const done = this.host.scrollBy(dx, dy);
+                if (this._press && done) {
+                    // how far the grid went under the held pointer since the press (002d R1)
+                    this._press.scrollX += done.dx || 0;
+                    this._press.scrollY += done.dy || 0;
+                }
+                return done;
+            },
             onScrolled: () => this.refresh(),
             axes: "xy",
         });
@@ -196,6 +204,8 @@ export class TimelinePillDrag {
             copy: ev.ctrlKey === true,
             grab,
             target: null,
+            scrollX: 0,
+            scrollY: 0,
         };
         this.state = "pending";
         const doc = ev.target.ownerDocument;
@@ -323,11 +333,12 @@ export class TimelinePillDrag {
             return;
         }
         const dragging = this.state === "dragging";
-        const { pill, rowId, target, line, x, y, x0, y0 } = this._press;
+        const { pill, rowId, target, line, x, y, x0, y0, scrollX, scrollY } = this._press;
         const mode = dragging ? this._mode : null;
-        // a move or a resize released on the very point it was pressed at changes nothing, whatever
-        // the way it went (002d R1 point 10: no call, no reload, whatever the rescheduling method)
-        const back = dragging && mode !== "copy" && mode !== "panel" && x === x0 && y === y0;
+        // a move or a resize released on the very point it was pressed at, in grid coordinates (the
+        // grid did not scroll under it), changes nothing, whatever the way it went (002d R1 point 10: no call, no reload, whatever the rescheduling method)
+        const back = dragging && mode !== "copy" && mode !== "panel" && x === x0 && y === y0
+            && scrollX === 0 && scrollY === 0;
         if (dragging && (back || !target) && mode !== "panel") {
             // a release where nothing is written: the arrows lit at the start stay lit (R1)
             this.host.released?.(x, y);

@@ -86,6 +86,7 @@ async function releaseAndRead(end, atRelease, then = []) {
 
 /** One scenario: a tour that starts on H42 and runs `scenario`, nothing written unless `writes`. */
 function scenarioTour(name, scenario, { writes = 0 } = {}) {
+    // `writes: null`: the scenario counts the calls itself
     tours.add(name, {
         steps: () => [
             gridReady,
@@ -96,6 +97,9 @@ function scenarioTour(name, scenario, { writes = 0 } = {}) {
                     const written = sentBodies.length;
                     await pointerOnBuild();
                     await scenario();
+                    if (writes === null) {
+                        return;
+                    }
                     assert(
                         callsSince(written, WRITES).length === writes,
                         `${writes} write(s) expected, got ${callsSince(written, WRITES).length}`
@@ -212,29 +216,48 @@ scenarioTour("tl_note_a9_move_released_where_it_started", async () => {
 });
 
 // A9: the right resize handle pressed at (1505, 260), moved to (1440, 260) in 5 steps and back in 5,
-// released: no call, Build's two arrows stay lit; after the next move onto the band of "Build" to
-// "Test" (at the end of Build's body), that arrow alone is lit
-scenarioTour("tl_note_a9_resize_released_where_it_started", async () => {
-    const from = { x: 1505, y: 260 };
-    const away = { x: 1440, y: 260 };
-    await moveTo(from);
-    await realMouse(holdEvents(from, [...stepsTo(from, away, 5), ...stepsTo(away, from, 5)]), {
-        settle: false,
-    });
-    await until(() => $(".o_tl_pill_resizing"), "the pill is held by its handle");
-    const shown = () => ({
-        lit: [...document.querySelectorAll(".o_tl_arrow.o_tl_arrow_lit")].map((a) => a.dataset.arrow).sort(),
-        buttons: document.querySelectorAll(".o_tl_arrow_remove").length,
-    });
-    await realMouse(releaseAt(from), { settle: false });
-    await pause(400);
-    const both = { lit: buildArrows(), buttons: 2 };
-    assert(JSON.stringify(shown()) === JSON.stringify(both), `at the release: ${JSON.stringify(shown())}`);
-    // the band of "Build" to "Test" starts where Build's body ends; the grid scrolled while the
-    // handle was held near the right edge (002b2 R14), so the place is read (ruling T1-4)
-    const end = Math.round(pillNamed("Build").getBoundingClientRect().right);
-    await moveTo({ x: end, y: 260 });
-    await pause(400);
-    const alone = { lit: [buildToTest()], buttons: 1 };
-    assert(JSON.stringify(shown()) === JSON.stringify(alone), `after the next move: ${JSON.stringify(shown())}`);
-});
+// released. The handle lies in the edge zone of a resize (002b2 R14), so Complete's grid may scroll
+// under the held pointer. What the tour asserts is what Complete does on this exact path: when the
+// grid did not scroll, nothing is called and Build's two arrows stay lit, and the next move onto the
+// band of "Build" to "Test" lights that arrow alone; when it did scroll, the pointer back on the
+// press pixel is not back on the starting border, so the release is a real resize and is written
+// (ruling T1-1, T1-3). The result is logged for the report.
+scenarioTour(
+    "tl_note_a9_resize_released_where_it_started",
+    async () => {
+        const mark = sentBodies.length;
+        const from = { x: 1505, y: 260 };
+        const away = { x: 1440, y: 260 };
+        const scroll = () => $(".o_tl_renderer").scrollLeft;
+        const before = scroll();
+        await moveTo(from);
+        await realMouse(holdEvents(from, [...stepsTo(from, away, 5), ...stepsTo(away, from, 5)]), {
+            settle: false,
+        });
+        await until(() => $(".o_tl_pill_resizing"), "the pill is held by its handle");
+        const scrolled = scroll() !== before;
+        const shown = () => ({
+            lit: [...document.querySelectorAll(".o_tl_arrow.o_tl_arrow_lit")].map((a) => a.dataset.arrow).sort(),
+            buttons: document.querySelectorAll(".o_tl_arrow_remove").length,
+        });
+        await realMouse(releaseAt(from), { settle: false });
+        await pause(600);
+        await gridSettled();
+        const writes = callsSince(mark, WRITES).length;
+        console.warn(`A9 RESIZE EVIDENCE scrolled=${scrolled} writes=${writes} shift=${scroll() - before}`);
+        if (scrolled) {
+            assert(writes === 1, `the grid scrolled, so the release is a resize: 1 write, got ${writes}`);
+            return;
+        }
+        assert(writes === 0, "the grid did not scroll: nothing is written");
+        assert(callsSince(mark, RELOADS).length === 0, "the view does not reload");
+        const both = { lit: buildArrows(), buttons: 2 };
+        assert(JSON.stringify(shown()) === JSON.stringify(both), `at the release: ${JSON.stringify(shown())}`);
+        const end = Math.round(pillNamed("Build").getBoundingClientRect().right);
+        await moveTo({ x: end, y: 260 });
+        await pause(400);
+        const alone = { lit: [buildToTest()], buttons: 1 };
+        assert(JSON.stringify(shown()) === JSON.stringify(alone), `after the next move: ${JSON.stringify(shown())}`);
+    },
+    { writes: null }
+);
