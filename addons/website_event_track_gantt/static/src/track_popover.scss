@@ -28,3 +28,9 @@
     padding: 10px 14px;
     line-height: 19.5px;
 }
+
+// The record dialog without its stage bar: the sheet keeps 24 px above the title, the room the
+// form leaves there when the bar is present (screens S4 to S7).
+.o_form_view.o_track_dialog .o_form_sheet {
+    padding-top: 24px;
+}

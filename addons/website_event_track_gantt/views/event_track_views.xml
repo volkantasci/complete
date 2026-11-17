@@ -22,6 +22,7 @@
         <field name="arch" type="xml">
             <form position="attributes">
                 <attribute name="js_class">track_dialog_form</attribute>
+                <attribute name="class">o_track_dialog</attribute>
             </form>
             <header position="replace"/>
             <div name="button_box" position="replace"/>
