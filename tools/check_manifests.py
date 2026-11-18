@@ -25,6 +25,8 @@ COMPATIBILITY_NAMES = frozenset({
     "web_gantt",  # slice 002a
     "test_web_gantt",  # slice 002a
     "website_event_track_gantt",  # slice 002d
+    "hr_gantt",  # slice 002d2-gantt-hr-rows
+    "hr_attendance_gantt",  # slice 002d2-gantt-hr-rows
 })
 LICENSES = {"AGPL-3", "LGPL-3"}
 
