@@ -1164,7 +1164,19 @@ for (const [name, to] of [
         const lit = { lit: buildArrows(), buttons: 2, handles: 0 };
         await releaseAndRead(OUTSIDE, lit, [{ to: right(OUTSIDE), expected: lit }]);
         // from (1301, 60) in 6 steps; straight down ends at (1300, 225), right above Build
-        await walkTo(right(OUTSIDE), to, 6);
+        // one step at a time: once the pointer is back over the grid both arrows rest, on the way too
+        let seenInGrid = 0;
+        let previous = right(OUTSIDE);
+        for (const point of stepsTo(previous, to, 6)) {
+            await walkTo(previous, point, 1);
+            previous = point;
+            await pause(150);
+            if (document.elementFromPoint(point.x, point.y)?.closest(".o_tl_cell, .o_tl_pill")) {
+                seenInGrid++;
+                assertShown(NOTHING, `both arrows rest at (${point.x}, ${point.y}) on the way`);
+            }
+        }
+        assert(seenInGrid >= 1, "the path reached the grid");
         await pause(400);
         assertShown(NOTHING, `both arrows rest at (${to.x}, ${to.y})`);
     });
@@ -1230,11 +1242,12 @@ for (const withPopover of [true, false]) {
         assert(scroller.scrollLeft === before, "the grid does not scroll");
         escape();
         await pause(300);
+        // M66: Build's two arrows stay lit with their buttons, and Build's handles show, at Escape
+        const kept = { lit: buildArrows(), buttons: 2, handles: 2 };
+        assertShown(kept, "Build's arrows and handles at Escape (M66)");
         await realMouse(releaseAt(end), { settle: false });
         await pause(400);
-        // M66: Build's two arrows stay lit with their buttons, and Build's handles show
-        const kept = { lit: buildArrows(), buttons: 2, handles: 2 };
-        assertShown(kept, "Build's arrows and handles after Escape and the release (M66)");
+        assertShown(kept, "Build's arrows and handles after the release (M66)");
         // M67: the same after a 1 px move, still over Build
         await moveTo({ x: end.x + 1, y: end.y });
         await pause(400);
@@ -1282,5 +1295,28 @@ for (const [label, counts] of [["counted_from_one", [1, 2]], ["counted_by_the_br
         await until(() => $(".o_dialog"), "the double click at the release spot opens the record dialog", 1000);
         await pause(800);
         assert(!popoverOpen(), "no popover beside the dialog");
+    });
+}
+
+// --- A12, R2 point 1: a click at (938, 260) on Build while "Design" to "Build" is lit ----------
+
+for (const [name, counts, check] of [
+    ["tl_note_a12_click_over_the_lit_arrows_button", [1], () => until(() => popoverOpen(), "the click opens Build's popover", 1000)],
+    [
+        "tl_note_a12_double_click_over_the_lit_arrows_button",
+        [1, 2],
+        () => until(() => $(".o_dialog"), "the double click opens Build's record dialog", 1000),
+    ],
+]) {
+    scenarioTour(name, async () => {
+        const spot = { x: 938, y: 260 };
+        await walkTo(BUILD, spot, 3);
+        await pause(300);
+        assertShown({ lit: buildArrows(), buttons: 2, handles: 2 }, "Build's arrows and handles under the pointer");
+        for (const count of counts) {
+            await realMouse(clickEvents(spot, count), { settle: false });
+            await pause(60);
+        }
+        await check();
     });
 }

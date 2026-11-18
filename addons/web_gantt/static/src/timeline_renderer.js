@@ -79,9 +79,9 @@ const BADGE_HEIGHT = 20;
 const FOLDED_WIDTH = 36;
 /** The space between the side panel's box and the drop zone, above and below it (002b3 R22). */
 const DROP_ZONE_MARGIN = 16;
-/** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
-/** The first and last px of a pill's body that resize it (002b2 R8). */
+/** The first and last px of a pill's body that resize it: the width of `.o_tl_handle` (002b2 R8). */
 const RESIZE_ZONE = 8;
+/** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
 export const CELL_CLICK_LOCK = 1000;
 /** ... and this long after the popover closes, unless a lock already runs (R7). */
 export const POPOVER_CLOSE_LOCK = 250;
@@ -733,7 +733,7 @@ export class TimelineRenderer extends Component {
      * between and cancels it (R30). The open popover closes on the click itself (click away) and
      * the new one opens, so another pill swaps the popovers.
      */
-    onPillClick(ev, pill, row) {
+    onPillClick(ev, pill, row, element = null) {
         // a tap leaves the pill in the pointer-over state: its handles show (R11, A91)
         this._pillPointer.tap(ev, pill, row);
         if (this.connect.consumeClick()) {
@@ -762,7 +762,7 @@ export class TimelineRenderer extends Component {
             this.props.editor?.openRecord(pill.record.resId);
             return;
         }
-        const target = ev.currentTarget;
+        const target = element ?? ev.currentTarget;
         browser.clearTimeout(this._popoverTimer);
         if (this.popover.isOpen && this._popoverFor === pill.id) {
             // a second click on the anchor of the open popover closes it, without flicker
@@ -1632,30 +1632,38 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * A press on an arrow (its band, or the remove button of a lit one) inside the box of one of the
-     * arrow's own pills: the pill wins, as for the highlight (`focusArrow`); the press is the
-     * pill's, a resize on the first or last 8 px of its body, a move elsewhere on it (002d R1a,
-     * A12: Build's left handle at (938, 260) lies under the remove button of "Design" to
-     * "Build"). A press on an arrow over another pill, or away from pills, is the arrow's own.
+     * The own pill of the arrow `arrowKey` whose body holds the viewport point, with what the pill
+     * handlers need: `{pill, row, element, rect}`, or null. Inside the box of one of its own
+     * pills an arrow's band and button give way to the pill: the highlight (`focusArrow`), the
+     * press, the click and the double click are the pill's (002d R1a, A12: Build's left handle at
+     * (938, 260) lies under the remove button of "Design" to "Build"). Events on an arrow over
+     * another pill, or away from pills, are the arrow's own (002c A75, A76).
      */
-    pressThrough(ev) {
-        if (ev.button !== 0 || ev.pointerType === "touch" || this.data.isSample || this.isMultiSelect) {
-            return;
-        }
-        const end = this.arrows.endPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+    _ownPillAt(arrowKey, x, y) {
+        const end = this.arrows.endPillAt(arrowKey, x, y);
         if (!end?.body) {
-            return;
+            return null;
         }
-        const [rowId, pillId] = [end.key.slice(0, end.key.lastIndexOf("|")), end.key.slice(end.key.lastIndexOf("|") + 1)];
+        const cut = end.key.lastIndexOf("|");
+        const [rowId, pillId] = [end.key.slice(0, cut), end.key.slice(cut + 1)];
         const row = this.layout.rows.find((r) => r.kind === "pills" && r.row.id === rowId);
         const pill = row?.pills.find((p) => String(p.id) === pillId);
         const element = [...this.rendererRef().querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]")].find(
             (el) => el.dataset.pillId === pillId && el.closest(".o_tl_row").dataset.rowId === rowId
         );
-        if (!pill || !element) {
+        return pill && element ? { pill, row, element, rect: element.getBoundingClientRect() } : null;
+    }
+
+    /** A press on an arrow inside its own pill is the pill's: a resize on the 8 px ends, else a move. */
+    pressThrough(ev) {
+        if (ev.button !== 0 || ev.pointerType === "touch" || this.data.isSample || this.isMultiSelect) {
             return;
         }
-        const rect = element.getBoundingClientRect();
+        const own = this._ownPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+        if (!own) {
+            return;
+        }
+        const { pill, row, element, rect } = own;
         const rtl = this._isRtl();
         let edge = null;
         if (ev.clientX < rect.left + RESIZE_ZONE) {
@@ -1667,15 +1675,25 @@ export class TimelineRenderer extends Component {
             edge = null;
         }
         ev.stopPropagation();
-        this._throughPress = true;
-        const clear = () => browser.setTimeout(() => (this._throughPress = false), 0);
-        ev.target.ownerDocument.addEventListener("pointerup", clear, { once: true, capture: true });
         this._pillPointer.press(ev, pill, row, { element, handle: edge });
     }
 
-    /** The click that ends a press taken through an arrow is no click on its remove button. */
-    consumeThroughPress() {
-        return Boolean(this._throughPress);
+    /** A click on an arrow inside its own pill is a click on the pill (its popover, 002d R2). */
+    clickThrough(ev) {
+        const own = this._ownPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+        if (own) {
+            ev.stopPropagation();
+            this.onPillClick(ev, own.pill, own.row, own.element);
+        }
+    }
+
+    /** A double click on an arrow inside its own pill opens the pill's record (002b). */
+    dblClickThrough(ev) {
+        const own = this._ownPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+        if (own) {
+            ev.stopPropagation();
+            this.onPillDoubleClick(ev, own.pill);
+        }
     }
 
     // ------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { click, drag, hover, keyDown, keyUp, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
+import { click, dblclick as doubleClick, drag, hover, keyDown, keyUp, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import { mountView, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
@@ -256,7 +256,7 @@ test("A12: a press on a resize handle under a lit arrow's remove button starts t
     await held.drop();
     await settle();
     expect(log).toEqual([]);
-    // pressed and released on the button without moving: still no removal
+    // pressed and released on the button without moving: no removal
     const again = await drag(ring, { position: spot });
     await again.drop();
     await settle();
@@ -286,6 +286,63 @@ test("A12: the pointer on a lit arrow's remove button over its own pill lights t
     await advanceTime(100);
     await animationFrame();
     expect(lit()).toHaveLength(0);
+});
+
+/** Build under the pointer, then the spots of Build's start that its own arrow covers. */
+async function ownArrowSpots() {
+    await hover(pillEl("Build"));
+    await animationFrame();
+    const ring = queryOne(`.o_tl_arrow[data-arrow$="|${PILL_ID.Build}"] .o_tl_arrow_remove_ring`);
+    const middle = centre(queryRect(ring));
+    const body = queryRect(pillEl("Build"));
+    const button = { x: body.left + 4, y: middle.y };
+    // a spot of the band over Build's body that is not the button
+    let band = null;
+    for (let x = body.left + 12; x < body.left + 40 && !band; x += 2) {
+        for (let y = body.top + 2; y < body.bottom - 2 && !band; y += 2) {
+            const top = document.elementFromPoint(x, y);
+            if (top?.closest(".o_tl_arrow") && !top.closest(".o_tl_arrow_remove")) {
+                band = { x, y, element: top };
+            }
+        }
+    }
+    return { ring, button, band };
+}
+
+test("A12: a click over Build's own arrow's button or band opens Build's popover", async () => {
+    freezeTime();
+    await mountDependencies();
+    const { ring, button, band } = await ownArrowSpots();
+    expect(band).not.toBe(null);
+    await click(ring, { position: button });
+    await advanceTime(600);
+    await animationFrame();
+    expect(popover()).toBe(1);
+    expect(".o_tl_popover .o_popover_header").toHaveText("Build");
+    expect(log).toEqual([]);
+    // a click elsewhere closes it; the band, then, the same
+    await click(document.body, { position: { x: 5, y: 5 } });
+    await advanceTime(600);
+    await animationFrame();
+    expect(popover()).toBe(0);
+    await hover(band.element, { position: band });
+    await animationFrame();
+    await click(band.element, { position: band });
+    await advanceTime(600);
+    await animationFrame();
+    expect(popover()).toBe(1);
+    expect(log).toEqual([]);
+});
+
+test("A12: a double click over Build's own arrow's button opens Build's record dialog", async () => {
+    freezeTime();
+    await mountDependencies();
+    const { ring, button } = await ownArrowSpots();
+    await doubleClick(ring, { position: button });
+    await advanceTime(600);
+    await animationFrame();
+    expect(".o_dialog").toHaveCount(1);
+    expect(log).toEqual([]);
 });
 
 test("A13: a mouse press on the body keeps the popover up to 9 px, 10 px starts the move; a plain click opens it", async () => {

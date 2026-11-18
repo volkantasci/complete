@@ -4,7 +4,7 @@
     <t t-name="web_gantt.TimelineArrows">
         <div class="o_tl_arrows">
             <t t-if="this.arrows.state.box">
-                <svg t-foreach="this.arrows.state.items" t-as="item" t-key="item.key" class="o_tl_arrow" t-att-class="this.classOf(item)" t-att-style="this.layerStyle()" t-att-data-arrow="item.key" t-on-mouseenter="(ev) => this.arrows.focusArrow(item.key, ev)" t-on-mousemove="(ev) => this.arrows.focusArrow(item.key, ev)" t-on-mouseleave="(ev) => this.arrows.unfocusArrow(item.key, ev)" t-on-pointerdown="(ev) => this.arrows.host.pressThrough(ev)">
+                <svg t-foreach="this.arrows.state.items" t-as="item" t-key="item.key" class="o_tl_arrow" t-att-class="this.classOf(item)" t-att-style="this.layerStyle()" t-att-data-arrow="item.key" t-on-mouseenter="(ev) => this.arrows.focusArrow(item.key, ev)" t-on-mousemove="(ev) => this.arrows.focusArrow(item.key, ev)" t-on-mouseleave="(ev) => this.arrows.unfocusArrow(item.key, ev)" t-on-pointerdown="(ev) => this.arrows.host.pressThrough(ev)" t-on-click="(ev) => this.arrows.host.clickThrough(ev)" t-on-dblclick="(ev) => this.arrows.host.dblClickThrough(ev)">
                     <defs>
                         <marker class="o_tl_arrow_marker" t-att-id="this.markerId(item_index)" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
                             <path class="o_tl_arrow_head" d="M 0 0 L 8 4 L 0 8 L 4 4 Z" t-att-style="`fill: ${this.colourOf(item)}; stroke: ${this.colourOf(item)}`"/>
@@ -12,7 +12,7 @@
                     </defs>
                     <path class="o_tl_arrow_line" t-att-d="item.d" t-att-marker-end="`url(#${this.markerId(item_index)})`" t-att-style="`stroke: ${this.colourOf(item)}`"/>
                     <path class="o_tl_arrow_band" t-att-d="item.d"/>
-                    <g t-if="this.lit(item) and this.arrows.canRemove" class="o_tl_arrow_remove" role="button" t-att-aria-label="this.removeLabel" t-att-transform="`translate(${item.mid.x} ${item.mid.y})`" t-on-click="() => this.onRemove(item)">
+                    <g t-if="this.lit(item) and this.arrows.canRemove" class="o_tl_arrow_remove" role="button" t-att-aria-label="this.removeLabel" t-att-transform="`translate(${item.mid.x} ${item.mid.y})`" t-on-click="(ev) => this.onRemove(item, ev)">
                         <title t-out="this.removeLabel"/>
                         <circle class="o_tl_arrow_remove_ring" cx="0" cy="0" r="7.375"/>
                         <rect class="o_tl_arrow_cross" x="-4" y="-0.75" width="8" height="1.5" transform="rotate(45)"/>

@@ -555,16 +555,22 @@ export class TimelineArrows {
     }
 
     _pillKeyAtPoint(x, y) {
-        for (const element of document.elementsFromPoint(x, y)) {
+        const stack = document.elementsFromPoint(x, y);
+        for (const element of stack) {
             if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {
                 return null;
             }
             // a lit arrow's band hides the pill under it (R9), except one of its own pills, which
-            // wins over the band (002d R1a)
-            const arrow = element.closest?.(".o_tl_arrow");
-            if (arrow) {
-                const end = this.endPillAt(arrow.dataset.arrow, x, y);
-                return end?.body ? end.key : null;
+            // wins over the band (002d R1a): every arrow of the stack is looked at
+            if (element.closest?.(".o_tl_arrow")) {
+                for (const other of stack) {
+                    const arrow = other.closest?.(".o_tl_arrow");
+                    const end = arrow ? this.endPillAt(arrow.dataset.arrow, x, y) : null;
+                    if (end?.body) {
+                        return end.key;
+                    }
+                }
+                return null;
             }
             const strip = element.closest?.(".o_tl_connect_strip, .o_tl_connect_handle");
             if (strip && this.host.rendererRef()?.contains(strip)) {
@@ -639,9 +645,10 @@ export class TimelineArrowLayer extends Component {
         return `${this.arrows.uid}_${index}`;
     }
 
-    async onRemove(item) {
-        if (this.arrows.host.consumeThroughPress()) {
-            // the press went to the resize handle beneath the button (002d R1a, A12)
+    async onRemove(item, ev) {
+        if (this.arrows.endPillAt(item.key, ev.clientX, ev.clientY)?.body) {
+            // the button gives way to its own pill: the click goes on to the arrow's layer, which
+            // hands it to the pill (002d R1a, A12)
             return;
         }
         // awaited: a refusal is raised again here and reaches the Community error handler

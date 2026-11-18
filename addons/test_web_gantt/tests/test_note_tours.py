@@ -200,6 +200,10 @@ class TestNoteTours(RealPointerMixin, HttpCase):
             with self.subTest(tour=name):
                 self._run(name)
 
+    def test_a12_click_and_double_click_over_the_lit_arrows_button(self):
+        self._run('tl_note_a12_click_over_the_lit_arrows_button')
+        self._run('tl_note_a12_double_click_over_the_lit_arrows_button')
+
     def test_a13_click_and_double_click_at_the_release_spot(self):
         for label in ('counted_from_one', 'counted_by_the_browser'):
             with self.subTest(label=label):
