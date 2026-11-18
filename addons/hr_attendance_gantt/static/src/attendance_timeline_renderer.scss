@@ -1,0 +1,41 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R17, R24: the fill of the bar in the status colour at 75 % (theme roles); the label's colour
+// comes from the text roles (the `text-warning` and `text-danger` classes), the muted one is
+// 002a's own.
+.o_tl_progress_fill {
+    &.o_hag_fill_success {
+        background-color: rgba($o-success, .75);
+    }
+
+    &.o_hag_fill_warning {
+        background-color: rgba($o-warning, .75);
+    }
+
+    &.o_hag_fill_danger {
+        background-color: rgba($o-danger, .75);
+    }
+}
+
+// R18: a row without a bar keeps the bar's space, so the header is as tall as the others
+.o_hag_bar_space {
+    visibility: hidden;
+}
+
+// R20: the helper is under the grid, which keeps its height; the helper's own box is not a
+// layer over the grid here
+.o_tl_box.o_hag_with_helper > .o_tl_renderer {
+    flex: 0 0 auto;
+}
+
+.o_hag_helper {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+
+    > .o_view_nocontent {
+        position: static;
+        top: auto;
+    }
+}

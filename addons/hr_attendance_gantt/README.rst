@@ -11,8 +11,16 @@ feature).
 Features
 ========
 
-At this stage the module is an installable shell. The Gantt view of the
-attendances arrives with the next parts of this slice.
+The Gantt view of the attendances is registered as the view variant
+``attendance_gantt`` on top of the employee variant of ``hr_gantt``: one period
+per range, the open attendances drawn up to the moment of loading, the hours
+worked label and bar of each employee row (its long form follows the width of
+the window), red names for employees without a contract and the Community's
+empty-view helper under the grid.
+
+Extension points for the next part of the slice (002d3): the renderer's
+``onPillClick`` and ``onPillDoubleClick`` (the popover and the record dialog),
+the editor's ``openRecord`` and creation path, all unchanged for now.
 
 Installation
 ============

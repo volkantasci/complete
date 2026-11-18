@@ -13,5 +13,14 @@
     'application': False,
     'installable': True,
     'data': ['views/hr_attendance_gantt_views.xml'],
+    'assets': {
+        'web.assets_backend': [
+            'hr_attendance_gantt/static/src/**/*',
+        ],
+        'web.assets_unit_tests': [
+            'hr_attendance_gantt/static/tests/**/*.test.js',
+            'hr_attendance_gantt/static/tests/attendance_test_helpers.js',
+        ],
+    },
     'uninstall_hook': 'restore_attendance_action',
 }
