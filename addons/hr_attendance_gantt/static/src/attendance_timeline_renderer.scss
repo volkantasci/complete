@@ -65,3 +65,8 @@
         }
     }
 }
+
+// M23: the progress tooltip of this view has corners of 11 px (the theme's tooltips are pills)
+.popover:has(> .o-tooltip .o_hag_tip) .o-tooltip {
+    border-radius: 11px;
+}

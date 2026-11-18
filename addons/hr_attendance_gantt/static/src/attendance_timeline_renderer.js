@@ -95,7 +95,10 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
             return null;
         }
         // the phone is always narrower than 1400 px: the short form
-        return progressView(entry, { wide: this._wide && !this.ui.isSmall });
+        const view = progressView(entry, { wide: this._wide && !this.ui.isSmall });
+        // the info of the tooltip's template (M23)
+        view.tipInfo = view.tooltip ? JSON.stringify({ text: view.tooltip }) : null;
+        return view;
     }
 
     /** R19: whether the row header's name is drawn in the danger colour. */

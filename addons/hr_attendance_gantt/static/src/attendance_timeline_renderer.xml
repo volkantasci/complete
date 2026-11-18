@@ -4,6 +4,10 @@
     <!-- The grid of 002a with: the name in the danger colour for an employee without a contract (R19),
          the label and bar classes of R17, the space of the bar kept when there is none (R18), and
          the empty-view helper under the grid (R20). -->
+    <!-- The progress tooltip of the attendance view: the framework's text in a template of its own,
+         so that the stylesheet can give this tooltip alone its 11 px corners (M23). -->
+    <t t-name="hr_attendance_gantt.ProgressTip"><span class="o_hag_tip" t-out="text"/></t>
+
     <t t-name="hr_attendance_gantt.AttendanceTimelineRenderer" t-inherit="web_gantt.TimelineRenderer" t-inherit-mode="primary">
         <xpath expr="//div[hasclass('o_tl_box')]" position="attributes">
             <attribute name="t-att-class">{ o_tl_box_sample: layout.isSample, o_hag_with_helper: this.showsHelper }</attribute>
@@ -13,6 +17,12 @@
         </xpath>
         <xpath expr="//span[hasclass('o_tl_progress_label')]" position="attributes">
             <attribute name="t-att-class">row.progress.labelClass</attribute>
+            <attribute name="t-att-data-tooltip-template">row.progress.tooltip and 'hr_attendance_gantt.ProgressTip'</attribute>
+            <attribute name="t-att-data-tooltip-info">row.progress.tipInfo</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('o_tl_progress')]" position="attributes">
+            <attribute name="t-att-data-tooltip-template">row.progress.tooltip and 'hr_attendance_gantt.ProgressTip'</attribute>
+            <attribute name="t-att-data-tooltip-info">row.progress.tipInfo</attribute>
         </xpath>
         <xpath expr="//div[hasclass('o_tl_progress_fill')]" position="attributes">
             <attribute name="t-att-class">row.progress.fillClass</attribute>
