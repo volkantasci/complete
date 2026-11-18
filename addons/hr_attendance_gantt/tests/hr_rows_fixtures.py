@@ -1,10 +1,11 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Prepared records of slice 002d2's acceptance scenarios, as plain functions of ``env``.
+"""Records of slice 002d2's acceptance scenarios, as plain functions of ``env``.
 
-Nothing here depends on the launcher: ``make_prepared`` and ``remove_prepared``
-take an Odoo environment (the administrator's) and nothing else, so the
-bridge's test fixtures can take them over unchanged.
+``make_prepared`` and ``remove_prepared`` build and delete the "prepared records"
+of acceptance.md; the launcher ``tools/odoo_at_instant.py`` calls them on a demo
+database too. They need the schedule "40 hours/week": the demo data have it, a
+test without demo data passes one made by ``make_whole_day_schedule``.
 """
 
 from datetime import datetime
@@ -54,7 +55,23 @@ def _dt(text):
     return datetime.strptime(text, "%Y-%m-%d %H:%M") if text else False
 
 
-def _schedules(env):
+def make_whole_day_schedule(env, name=DEMO_SCHEDULE):
+    """A schedule of the demo's shape: whole working days Monday to Friday, 8 hours each."""
+    return env["resource.calendar"].create({"name": name, "full_time_required_hours": 40})
+
+
+def find_demo_schedule(env):
+    """The demo's "40 hours/week" schedule, or a clear error when the database lacks it."""
+    schedule = env["resource.calendar"].search([("name", "=", DEMO_SCHEDULE)], limit=1)
+    if not schedule:
+        raise LookupError(
+            f'The working schedule "{DEMO_SCHEDULE}" does not exist (a database without demo '
+            "data has none): pass one, for instance from make_whole_day_schedule(env)."
+        )
+    return schedule
+
+
+def _schedules(env, demo):
     lines = []
     for dow in range(4):  # Monday to Thursday, 8:00-12:00 and 13:00-17:00
         for hour_from, hour_to in ((8, 12), (13, 17)):
@@ -86,7 +103,6 @@ def _schedules(env):
             "hours_per_day": 0,
         }
     )
-    demo = Calendar.search([("name", "=", DEMO_SCHEDULE)], limit=1)
     return {"split": split, "flex": flex, "free": free, "demo": demo}
 
 
@@ -111,17 +127,23 @@ def _employee(env, name, calendar, tracked, attendances):
     return employee
 
 
-def make_prepared(env, night=False, holiday=False):
-    """Create the prepared records (after removing any left by an earlier run)."""
+def make_prepared(env, night=False, holiday=False, demo_schedule=None):
+    """Create the prepared records (after removing any left by an earlier run).
+
+    ``demo_schedule`` is the "40 hours/week" schedule to use; by default the demo's,
+    which must exist (``LookupError`` otherwise). Returns the records by name.
+    """
+    demo_schedule = demo_schedule or find_demo_schedule(env)
     remove_prepared(env)
-    calendars = _schedules(env)
+    calendars = _schedules(env, demo_schedule)
+    made = {}
     for name, (key, tracked, attendances) in EMPLOYEES.items():
-        _employee(env, name, calendars[key], tracked, attendances)
+        made[name] = _employee(env, name, calendars[key], tracked, attendances)
     if night:
         name, key, tracked, attendances = NIGHT
-        _employee(env, name, calendars[key], tracked, attendances)
+        made[name] = _employee(env, name, calendars[key], tracked, attendances)
     if holiday:
-        env["resource.calendar.leaves"].create(
+        made[HOLIDAY_NAME] = env["resource.calendar.leaves"].create(
             {
                 "name": HOLIDAY_NAME,
                 "calendar_id": calendars["demo"].id,
@@ -130,6 +152,7 @@ def make_prepared(env, night=False, holiday=False):
             }
         )
     env.flush_all()
+    return made
 
 
 def remove_prepared(env):

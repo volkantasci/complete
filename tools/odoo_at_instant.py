@@ -151,17 +151,17 @@ def _env(database: str):
     return cr, env
 
 
-COUNT_MODELS = (
-    ("hr.attendance", "attendances"),
-    ("hr.employee", "employees"),
-    ("resource.calendar", "schedules"),
-    ("resource.calendar.leaves", "leaves"),
-)
+def _fixtures():
+    """The Attendances bridge's test fixtures (the prepared-record builders and their names)."""
+    from odoo.addons.hr_attendance_gantt.tests import hr_rows_fixtures
+
+    return hr_rows_fixtures
 
 
 def counts(env) -> dict:
     """Records of each prepared kind: by name for the Gantt ones, plus totals."""
-    like = [("name", "=like", "Gantt %")]
+    fixtures = _fixtures()
+    like = [("name", "=like", fixtures.PREFIX + "%")]
     employees = env["hr.employee"].with_context(active_test=False).search(like)
     return {
         "gantt attendances": env["hr.attendance"].search_count(
@@ -172,7 +172,7 @@ def counts(env) -> dict:
         .with_context(active_test=False)
         .search_count(like),
         "gantt holidays": env["resource.calendar.leaves"].search_count(
-            [("name", "=", "Gantt Holiday")]
+            [("name", "=", fixtures.HOLIDAY_NAME)]
         ),
         "all attendances": env["hr.attendance"].search_count([]),
         "all employees": env["hr.employee"].with_context(active_test=False).search_count([]),
@@ -228,7 +228,7 @@ def check_demo(env) -> int:
     archived = employees.filtered(lambda e: not e.active)
     print(f"employees: {len(employees)}, archived: {len(archived)}")
     differences: list[str] = []
-    demo = employees.filtered(lambda e: not e.name.startswith("Gantt "))
+    demo = employees.filtered(lambda e: not e.name.startswith(_fixtures().PREFIX))
     if len(demo) != 22:
         differences.append(f"demo employee count {len(demo)} != 22")
     if archived:
@@ -258,7 +258,7 @@ def check_demo(env) -> int:
             f"contracts {contracts} | attendances {shown}"
         )
         name = employee.name
-        if name.startswith("Gantt "):
+        if name.startswith(_fixtures().PREFIX):
             continue  # prepared records (shown above), not part of the demo table
         if name in EXPECTED:
             want_att, want_con = EXPECTED[name]
@@ -300,8 +300,6 @@ def main(argv: list[str] | None = None) -> int:
     if ns.command == "run":
         run_odoo(ns.at, ns.odoo_args)
         return 0
-    from hr_rows_prepared import make_prepared, remove_prepared
-
     cr, env = _env(ns.database)
     try:
         status = 0
@@ -309,10 +307,11 @@ def main(argv: list[str] | None = None) -> int:
             status = check_demo(env)
         else:
             print_counts("before", counts(env))
+            fixtures = _fixtures()
             if ns.command == "prepare":
-                make_prepared(env, night=ns.night, holiday=ns.holiday)
+                fixtures.make_prepared(env, night=ns.night, holiday=ns.holiday)
             else:
-                remove_prepared(env)
+                fixtures.remove_prepared(env)
             cr.commit()
             print_counts("after", counts(env))
         return status
