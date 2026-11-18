@@ -118,7 +118,11 @@ class TestHrRowsScreens(probes.HrProbes):
         self.env.flush_all()
 
     def prepared_screens(self):
-        make_prepared(self.env, demo_schedule=self.schedule)
+        # the prepared attendances are drawn as the spec's single pills of the default work entry
+        # type: the Community's time rules would split their overtime into pills of another type
+        make_prepared(
+            self.env(context=dict(self.env.context, skip_time_rules=True)),
+            demo_schedule=self.schedule)
         self.archive_others(PREFIX)
         self.env.flush_all()
 
