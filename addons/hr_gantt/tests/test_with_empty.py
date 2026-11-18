@@ -110,6 +110,20 @@ class TestWithEmpty(TransactionCase):
             '!', '&', ('date', '=', '2026-11-03'), ('employee_id.name', '=', 'HRG A')]
         self.assertEqual(len(self._call(mixed)['groups']), 3)
 
+    def test_r9_or_mixing_employee_leaf_and_dropped_leaf_keeps_every_employee(self):
+        domain = NAME_FILTER + [
+            '|', ('employee_id', '=', self.emp_b.id), ('date', '=', '2026-11-03')]
+        result = self._call(domain)
+        self.assertEqual(
+            self._rows(result), [('HRG A', [self.loc_2.id]), ('HRG B', []), ('HRG C', [])])
+        self.assertEqual(result['length'], 3)
+
+    def test_r9_offset_past_the_end_gives_no_group_and_the_true_length(self):
+        result = self._call(limit=20, offset=20)
+        self.assertEqual(result['groups'], [])
+        self.assertEqual(result['records'], [])
+        self.assertEqual(result['length'], 3)
+
     def test_r9_related_field_repeating_employee_field(self):
         # ``employee_name`` is the model's related field ``employee_id.name``
         result = self._call([('employee_name', 'ilike', 'HRG B')])

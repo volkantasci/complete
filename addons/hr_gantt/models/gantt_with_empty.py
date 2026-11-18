@@ -82,7 +82,12 @@ class Base(models.AbstractModel):
 
         wanted = Domain(domain or []) & self._access_domain('read')
         converted, _dropped = self._hrg_convert(wanted, field_name)
-        related = self.env[field.comodel_name]
+        # the rows are the related records whose records the user may read (the converted read
+        # rule), which the user may not be able to read themselves: search with sudo, in the
+        # companies the user works in
+        related = self.env[field.comodel_name].sudo()
+        if 'company_id' in related._fields:
+            converted = converted & Domain('company_id', 'in', [*self.env.companies.ids, False])
         if not any(c.field_expr.split('.')[0] == 'active' for c in converted.iter_conditions()):
             related = related.with_context(active_test=True)
         else:
