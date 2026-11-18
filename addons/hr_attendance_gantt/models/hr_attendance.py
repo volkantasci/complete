@@ -1,9 +1,11 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
+from odoo.tools.date_utils import sum_intervals
 
 
 class HrAttendance(models.Model):
@@ -69,16 +71,17 @@ class HrAttendance(models.Model):
 
         The Community's per-employee intervals are used: they read each contract period's
         schedule in the employee's time zone and place the hours at the same clock time
-        in the user's. They are computed with the rights of the system (R22), a day more
-        on each side of the period so that a shift of the clock hours across the period's
-        edge is not lost, then cut to the period. Other fields get the base answer.
+        in the user's. They are computed with the rights of the system (R22), two days more
+        on each side of the period (a shift between time zones can exceed a day) so that a
+        shift of the clock hours across the period's edge is not lost, then cut to the period.
+        Other fields get the base answer.
         """
         if group_field != 'employee_id':
             return super()._gantt_unavailability(
                 group_field, record_ids, period_start, period_stop, scale_name)
         if not record_ids or not period_start or not period_stop:
             return {}
-        margin = timedelta(days=1)
+        margin = timedelta(days=2)
         start = fields.Datetime.to_datetime(period_start).replace(tzinfo=UTC)
         stop = fields.Datetime.to_datetime(period_stop).replace(tzinfo=UTC)
         employees = self.env['hr.employee'].sudo().with_context(active_test=False)
@@ -97,3 +100,92 @@ class HrAttendance(models.Model):
     @staticmethod
     def _hag_naive(moment: datetime) -> datetime:
         return moment.astimezone(UTC).replace(tzinfo=None)
+
+    @api.model
+    def _gantt_progress_bar(self, group_field, record_ids, period_start, period_stop):
+        """Hours worked and hours expected of the employee rows (R16, R18, R22).
+
+        Returns ``{employee id: {'value', 'max_value', 'hag_fully_flexible', 'hag_tracked'}}``.
+        The value counts only the attendances the user may read (no sudo); the maximum and
+        the flags read schedules and contracts with the rights of the system. Only internal
+        users get values; any other field than the employee is refused (E10).
+        """
+        if not self.env.user._is_internal():
+            return {}
+        if group_field != 'employee_id':
+            raise UserError(self.env._(
+                "Progress bars are only available for the employee field of attendances."))
+        if not record_ids or not period_start or not period_stop:
+            return {}
+        start = fields.Datetime.to_datetime(period_start)
+        stop = fields.Datetime.to_datetime(period_stop)
+        worked = self._hag_hours_worked(record_ids, start, stop)
+        zone = ZoneInfo(self.env.context.get('tz') or self.env.user.tz or 'UTC')
+        first_day = start.replace(tzinfo=UTC).astimezone(zone).date()
+        after_last_day = (
+            (stop - timedelta(microseconds=1)).replace(tzinfo=UTC).astimezone(zone).date()
+            + timedelta(days=1))
+        employees = self.env['hr.employee'].sudo().with_context(active_test=False)
+        result = {}
+        for employee in employees.browse(record_ids):
+            maximum, fully_flexible = self._hag_hours_expected(
+                employee, first_day, after_last_day, zone)
+            result[employee.id] = {
+                'value': worked.get(employee.id, 0.0),
+                'max_value': maximum,
+                'hag_fully_flexible': fully_flexible,
+                'hag_tracked': bool(employee.attendance_based),
+            }
+        return result
+
+    @api.model
+    def _hag_hours_worked(self, employee_ids, start, stop):
+        """D2: hours of each employee's closed attendances inside ``[start, stop]`` (naive UTC).
+
+        An attendance inside counts with its stored worked hours; one that crosses a bound
+        counts with its part's length less the part's share of its break. Only attendances
+        the user may read are seen.
+        """
+        attendances = self.search([
+            ('employee_id', 'in', employee_ids),
+            ('check_out', '!=', False),
+            ('check_in', '<', stop),
+            ('check_out', '>', start),
+        ])
+        worked = {}
+        for attendance in attendances:
+            check_in, check_out = attendance.check_in, attendance.check_out
+            if check_in >= start and check_out <= stop:
+                hours = attendance.worked_hours
+            else:
+                length = (check_out - check_in).total_seconds() / 3600
+                part = (min(check_out, stop) - max(check_in, start)).total_seconds() / 3600
+                hours = part * (1 - attendance.break_duration / length) if length else 0.0
+            employee_id = attendance.employee_id.id
+            worked[employee_id] = worked.get(employee_id, 0.0) + hours
+        return worked
+
+    @api.model
+    def _hag_hours_expected(self, employee, first_day, after_last_day, zone):
+        """The hours expected of a (sudo) employee over whole days of the user's zone (R16 point 2).
+
+        Returns ``(hours, fully flexible)``. The schedule at the period's start decides the
+        kind: fully flexible gives 0, flexible the weekly formula, any other the Community's
+        expected attendances of each contract period (company-wide leaves taken off).
+        """
+        overlapping = employee._get_versions_with_contract_overlap_with_period(
+            first_day, after_last_day - timedelta(days=1))
+        calendar = (
+            employee._get_version(first_day).resource_calendar_id if overlapping
+            else employee.resource_calendar_id)
+        if calendar._is_fully_flexible():
+            return 0.0, True
+        if calendar._is_flexible():
+            days = (after_last_day - first_day).days
+            weeks, rest = divmod(days, 7)
+            per_week = calendar.hours_per_week
+            return weeks * per_week + min(rest * calendar.hours_per_day, per_week), False
+        intervals = employee._get_expected_attendances(
+            datetime.combine(first_day, time.min, zone),
+            datetime.combine(after_last_day, time.min, zone))
+        return sum_intervals(intervals), False

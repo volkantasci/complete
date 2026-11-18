@@ -103,6 +103,21 @@ class TestUnavailability(HrRowsCase, TransactionCase):
             [('11 23:00', '12 23:00')],
         )
 
+    def test_r15_holiday_on_the_hourly_schedule_greys_the_day(self):
+        made = make_prepared(self.env, holiday=True, demo_schedule=self.schedule)
+        hourly = made['Gantt Hourly'].resource_calendar_id
+        self.env['resource.calendar.leaves'].create({
+            'name': 'Gantt Holiday', 'calendar_id': hourly.id,
+            'date_from': utc('2026-11-11 23:00'), 'date_to': utc('2026-11-12 23:00'),
+        })
+        thursday = (utc('2026-11-11 23:00'), utc('2026-11-12 23:00'))
+        self.assertEqual(
+            self.unavailable('Gantt Hourly', thursday, employees=made),
+            [('11 23:00', '12 23:00')],
+        )
+        # the day before is unchanged
+        self.assertEqual(len(self.unavailable('Gantt Hourly', employees=made)), 3)
+
     def test_r15_other_field_base(self):
         found = self.Attendance._gantt_unavailability(
             'create_uid', [self.env.uid], *DAY, 'day')
