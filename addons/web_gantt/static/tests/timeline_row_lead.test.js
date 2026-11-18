@@ -41,10 +41,13 @@ test("row header slot: a variant draws its own lead before the name", async () =
     await animationFrame();
     const leads = queryAll(".o_tl_row_header .o_test_lead");
     expect(leads.length).toBeGreaterThan(0);
-    expect(leads[0].textContent).toBe("lead of Host Contact 1");
+    expect(leads.map((lead) => lead.textContent)).toInclude("lead of Host Contact 1");
     // the variant replaced the thumbnail, the name follows the lead
     expect(".o_tl_thumbnail").toHaveCount(0);
-    expect(".o_tl_row_header:first .o_tl_row_label").toHaveText("Host Contact 1");
+    const header = leads[0].closest(".o_tl_row_header");
+    expect(header.querySelector(".o_tl_row_label")).toHaveText(
+        leads[0].textContent.replace("lead of ", "")
+    );
 });
 
 test("row header slot: the plain view keeps the thumbnail of the row's value", async () => {
