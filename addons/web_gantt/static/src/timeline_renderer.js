@@ -46,7 +46,7 @@ import {
 import { bufferSpan, subColumnHoursAt } from "./timeline_buffers";
 import { TimelineConnectDrag } from "./timeline_connect";
 import { TimelinePillDrag } from "./timeline_drag";
-import { commitDrag, commitResize } from "./timeline_drag_commit";
+import { commitDrag, commitResize, releaseChangesNothing } from "./timeline_drag_commit";
 import { TimelineArrowLayer, TimelineArrows } from "./timeline_arrows";
 import { TimelinePillPointer } from "./timeline_pill_pointer";
 import { badgeText, columnPeriod, partPeriod, rowValueChain } from "./timeline_editing";
@@ -79,6 +79,8 @@ const BADGE_HEIGHT = 20;
 const FOLDED_WIDTH = 36;
 /** The space between the side panel's box and the drop zone, above and below it (002b3 R22). */
 const DROP_ZONE_MARGIN = 16;
+/** The first and last px of a pill's body that resize it: the width of `.o_tl_handle` (002b2 R8). */
+const RESIZE_ZONE = 8;
 /** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
 export const CELL_CLICK_LOCK = 1000;
 /** ... and this long after the popover closes, unless a lock already runs (R7). */
@@ -227,11 +229,21 @@ export class TimelineRenderer extends Component {
             scrollBy: (dx, dy) => this._scrollGesture(dx, dy),
             change: (drawing) => this._setDrag(drawing),
             commit: (result) => this._commitDrag(result),
+            changesNothing: (result) => releaseChangesNothing(this, result),
             // a cancelled gesture (Escape, lost pointer) leaves no zone hit for the next release
             // (the arrows lit when it started stay lit, R9, A69, A95)
-            cancelled: () => {
+            // (a pointer the system took away leaves nothing lit, 002d R4)
+            cancelled: (why) => {
                 this._zoneHit = false;
-                this.arrows.cancelGesture();
+                this.arrows.cancelGesture(why);
+            },
+            insideGrid: (ev) => this._insideGrid(ev),
+            // a release where nothing is written (no target, or back on the starting point): the
+            // arrows lit at the start stay lit (002d R1); over the drop zone the record is unscheduled
+            released: (x, y) => {
+                if (!this._zoneHit) {
+                    this.arrows.releaseWithoutWrite(x, y);
+                }
             },
             borderAt: (x, pill, edge) => this._borderAt(x, pill, edge),
             hold: (mode) => this._holdDrag(mode),
@@ -250,10 +262,17 @@ export class TimelineRenderer extends Component {
             panelOpen: () => this.hasPanel && this.panel.open,
             hold: (on) => this._holdDrag(on ? "connect" : null),
             // a drawing cancelled with Escape or lost: the arrows lit when it started stay lit (R9)
-            cancelled: () => this.arrows.cancelGesture(),
+            cancelled: (why) => this.arrows.cancelGesture(why),
+            insideGrid: (ev) => this._insideGrid(ev),
+            // a drawing released over no other pill writes nothing (002d R1)
+            released: (x, y) => this.arrows.releaseWithoutWrite(x, y),
             // the drawing ended: the pill under the pointer shows its handles, but its arrows
             // stay at rest until the pointer moves (R9, A90)
             rest: (x, y) => {
+                if (this.arrows.isTouch) {
+                    // with touch the handles stay with the pill last tapped (002d R3)
+                    return;
+                }
                 this.state.hover = this._connectTargetAt(x, y)?.key ?? null;
             },
             commit: (result) => this._commitConnect(result),
@@ -334,6 +353,8 @@ export class TimelineRenderer extends Component {
             this._placeBadges();
             this._observeArrowGrid?.();
             this.refreshArrows();
+            // 002d R3: the handles go with the place of the last tap
+            this._pillPointer.settle();
         });
         onWillUnmount(() => {
             this._unwatchArrows?.();
@@ -375,6 +396,16 @@ export class TimelineRenderer extends Component {
         this.arrows.refresh();
     }
 
+    /**
+     * Whether the event's target lies in the view's grid: a cell, a pill or a header, not the
+     * empty space below the last row nor anything outside the view (002d R4 point 3).
+     */
+    _insideGrid(ev) {
+        const grid = this.rendererRef()?.querySelector(".o_tl_grid");
+        const target = ev.target;
+        return Boolean(grid && target !== grid && target?.nodeType === 1 && grid.contains(target));
+    }
+
     /** The arrows follow a change of size of the window or of the grid. */
     _watchArrows() {
         const refresh = () => this.refreshArrows();
@@ -386,11 +417,17 @@ export class TimelineRenderer extends Component {
         const onMove = (ev) => this.arrows.pointerMoved(ev);
         // R11: a finger and a mouse light the arrows differently; a press tells which one is in use
         const onDown = (ev) => this.arrows.pointerSeen(ev);
+        // fingers lifting or taken away (002d R4)
+        const onEnd = (ev) => this.arrows.pointerEnded(ev);
         document.addEventListener("pointermove", onMove, true);
         document.addEventListener("pointerdown", onDown, true);
+        document.addEventListener("pointerup", onEnd, true);
+        document.addEventListener("pointercancel", onEnd, true);
         this._unwatchArrows = () => {
             document.removeEventListener("pointermove", onMove, true);
             document.removeEventListener("pointerdown", onDown, true);
+            document.removeEventListener("pointerup", onEnd, true);
+            document.removeEventListener("pointercancel", onEnd, true);
             browser.removeEventListener("resize", refresh);
             observer?.disconnect();
         };
@@ -548,6 +585,13 @@ export class TimelineRenderer extends Component {
         if (best.classList.contains("o_tl_folded")) {
             return column.start.startOf("day");
         }
+        const span = this._linearSpan();
+        if (span) {
+            const point = this._isRtl() ? span.right - x : x - span.left;
+            const fraction = Math.min(Math.max(point / (span.right - span.left), 0), 1);
+            const whole = span.stop - span.start;
+            return span.start.plus({ milliseconds: Math.min(fraction * whole, whole - 1) });
+        }
         const rect = best.getBoundingClientRect();
         const share = this._isRtl() ? (rect.right - x) / rect.width : (x - rect.left) / rect.width;
         const length = column.stop - column.start;
@@ -556,9 +600,35 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * Put the start of the day of `date` at the focus place (R39: the focus is the start of the
-     * focus day, so on the week scale the focus column starts at that place; on the
-     * year scale the focus lies inside its month column); false when it is not shown.
+     * The cells as one linear scale (R18): the loaded period and the viewport edges of its cells,
+     * or null when a folded run makes the columns unequal. The scale is in milliseconds: a range
+     * that crosses a daylight-saving change has a day of 23 or 25 hours, so a place worked out on
+     * it differs from the place of the same moment by column by up to an hour of the period
+     * (sub-pixel to about 1 px).
+     */
+    _linearSpan() {
+        const { columns } = this.data;
+        const headers = this._headers();
+        if (!columns.length || headers.length !== columns.length) {
+            return null;
+        }
+        if (headers.some((header) => header.classList.contains("o_tl_folded"))) {
+            return null;
+        }
+        const first = headers[0].getBoundingClientRect();
+        const last = headers.at(-1).getBoundingClientRect();
+        return {
+            start: columns[0].start,
+            stop: columns.at(-1).stop,
+            left: Math.min(first.left, last.left),
+            right: Math.max(first.right, last.right),
+        };
+    }
+
+    /**
+     * Put the start of the day of `date` at the focus place (R39, R18 of 002d: the focus is a
+     * linear share of the whole loaded period, not a place inside its column;
+     * the focus is the start of the focus day); false when it is not shown.
      */
     _centreDate(date) {
         const { columns } = this.data;
@@ -572,6 +642,14 @@ export class TimelineRenderer extends Component {
             .at(-1);
         if (!header) {
             return false;
+        }
+        const span = this._linearSpan();
+        if (span) {
+            const share = (from - span.start) / (span.stop - span.start);
+            const point = (span.right - span.left) * share;
+            const at = this._isRtl() ? span.right - point : span.left + point;
+            this.rendererRef().scrollLeft += at - this._focusX();
+            return true;
         }
         const rect = header.getBoundingClientRect();
         const column = columns[index];
@@ -655,10 +733,13 @@ export class TimelineRenderer extends Component {
      * between and cancels it (R30). The open popover closes on the click itself (click away) and
      * the new one opens, so another pill swaps the popovers.
      */
-    onPillClick(ev, pill, row) {
+    onPillClick(ev, pill, row, element = null) {
         // a tap leaves the pill in the pointer-over state: its handles show (R11, A91)
         this._pillPointer.tap(ev, pill, row);
         if (this.connect.consumeClick()) {
+            if (this.connect.cancelledClick) {
+                this._drag.noteCancelledClick(ev.detail);
+            }
             ev.stopPropagation();
             return;
         }
@@ -673,7 +754,15 @@ export class TimelineRenderer extends Component {
             ev.stopPropagation();
             return;
         }
-        const target = ev.currentTarget;
+        if (this._drag.isPaired && this._drag.clickDetail(ev.detail) > 1) {
+            // a double click after a cancelled gesture: the browser counted the swallowed click of
+            // the release as its first, so no double click event comes of it (002d R2, A13)
+            this._cancelPopover();
+            this.popover.close();
+            this.props.editor?.openRecord(pill.record.resId);
+            return;
+        }
+        const target = element ?? ev.currentTarget;
         browser.clearTimeout(this._popoverTimer);
         if (this.popover.isOpen && this._popoverFor === pill.id) {
             // a second click on the anchor of the open popover closes it, without flicker
@@ -695,6 +784,11 @@ export class TimelineRenderer extends Component {
     }
 
     onPillDoubleClick(ev, pill) {
+        if (this._drag.isPaired) {
+            // the second click of the series that began with a cancelled gesture's release is a
+            // first click (002d R2, A13): its popover goes on opening
+            return;
+        }
         this._cancelPopover();
         if (this._drag.justReleased) {
             // the second press of a double click that began with the end of a gesture (R9)
@@ -709,9 +803,15 @@ export class TimelineRenderer extends Component {
     }
 
     _isPopoverAnchor(target) {
+        if (this._popoverFor === null) {
+            return false;
+        }
+        // a drawing handle of the pill is part of it: a press there may start a drawing, which
+        // closes the popover when it starts, not before (002d R2)
+        const handle = target.closest?.(".o_tl_connect_handle");
         return (
-            this._popoverFor !== null &&
-            Boolean(target.closest?.(`.o_tl_pill[data-pill-id="${this._popoverFor}"]`))
+            Boolean(target.closest?.(`.o_tl_pill[data-pill-id="${this._popoverFor}"]`)) ||
+            Boolean(handle?.dataset.pillKey?.endsWith(`|${this._popoverFor}`))
         );
     }
 
@@ -1527,7 +1627,73 @@ export class TimelineRenderer extends Component {
 
     /** The press on a pill (R2): a move may follow. `row` is the row descriptor of the pill. */
     onPillPointerDown(ev, pill, row) {
+        this._pillPointer.touchDown(ev, pill, row);
         this._pillPointer.press(ev, pill, row);
+    }
+
+    /**
+     * The own pill of the arrow `arrowKey` whose body holds the viewport point, with what the pill
+     * handlers need: `{pill, row, element, rect}`, or null. Inside the box of one of its own
+     * pills an arrow's band and button give way to the pill: the highlight (`focusArrow`), the
+     * press, the click and the double click are the pill's (002d R1a, A12: Build's left handle at
+     * (938, 260) lies under the remove button of "Design" to "Build"). Events on an arrow over
+     * another pill, or away from pills, are the arrow's own (002c A75, A76).
+     */
+    _ownPillAt(arrowKey, x, y) {
+        const end = this.arrows.endPillAt(arrowKey, x, y);
+        if (!end?.body) {
+            return null;
+        }
+        const cut = end.key.lastIndexOf("|");
+        const [rowId, pillId] = [end.key.slice(0, cut), end.key.slice(cut + 1)];
+        const row = this.layout.rows.find((r) => r.kind === "pills" && r.row.id === rowId);
+        const pill = row?.pills.find((p) => String(p.id) === pillId);
+        const element = [...this.rendererRef().querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]")].find(
+            (el) => el.dataset.pillId === pillId && el.closest(".o_tl_row").dataset.rowId === rowId
+        );
+        return pill && element ? { pill, row, element, rect: element.getBoundingClientRect() } : null;
+    }
+
+    /** A press on an arrow inside its own pill is the pill's: a resize on the 8 px ends, else a move. */
+    pressThrough(ev) {
+        if (ev.button !== 0 || ev.pointerType === "touch" || this.data.isSample || this.isMultiSelect) {
+            return;
+        }
+        const own = this._ownPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+        if (!own) {
+            return;
+        }
+        const { pill, row, element, rect } = own;
+        const rtl = this._isRtl();
+        let edge = null;
+        if (ev.clientX < rect.left + RESIZE_ZONE) {
+            edge = rtl ? "stop" : "start";
+        } else if (ev.clientX >= rect.right - RESIZE_ZONE) {
+            edge = rtl ? "start" : "stop";
+        }
+        if (edge && !this._pillState(pill).resizable[edge]) {
+            edge = null;
+        }
+        ev.stopPropagation();
+        this._pillPointer.press(ev, pill, row, { element, handle: edge });
+    }
+
+    /** A click on an arrow inside its own pill is a click on the pill (its popover, 002d R2). */
+    clickThrough(ev) {
+        const own = this._ownPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+        if (own) {
+            ev.stopPropagation();
+            this.onPillClick(ev, own.pill, own.row, own.element);
+        }
+    }
+
+    /** A double click on an arrow inside its own pill opens the pill's record (002b). */
+    dblClickThrough(ev) {
+        const own = this._ownPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+        if (own) {
+            ev.stopPropagation();
+            this.onPillDoubleClick(ev, own.pill);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -1625,10 +1791,15 @@ export class TimelineRenderer extends Component {
         const [low, high] = this._isRtl() ? [-reach, 0] : [0, reach];
         renderer.scrollLeft = Math.min(Math.max(before.left + dx, low), high);
         vertical.scrollTop = Math.min(before.top + dy, Math.max(maxTop, before.top));
-        return {
+        const scrolled = {
             dx: renderer.scrollLeft - before.left,
             dy: vertical.scrollTop - before.top,
         };
+        if (scrolled.dx || scrolled.dy) {
+            // the highlight of a gesture cancelled after this is worked out again (002d R1a)
+            this.arrows.gestureScrolled();
+        }
+        return scrolled;
     }
 
     /** Whether a press on `pill` holds it: it moves, or a handle that can resize is pressed (R5). */
@@ -1675,6 +1846,7 @@ export class TimelineRenderer extends Component {
         }
         if (mode && !this._dragMode) {
             // the gesture starts: the popover closes, and the picked cells go (R9)
+            this.arrows.gestureStarted();
             this._cancelPopover();
             this.popover.close();
             if (!this.picked.isEmpty) {

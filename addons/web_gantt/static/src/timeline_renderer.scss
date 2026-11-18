@@ -282,6 +282,8 @@
     flex: 1 1 auto;
     min-width: 0;
     padding: 0 4px 0 0;
+    // the box of the title reads 25 px of line height, the label inside is 27 px tall (002d M3)
+    line-height: 25px;
 }
 
 .o_tl_row_label {

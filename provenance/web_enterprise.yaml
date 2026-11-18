@@ -1,12 +1,12 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: web_enterprise
-slice: 002b2-gantt-drag-resize
-spec_sha256: e1c151f4f9292aef67ea11069ad4ab2fc7dc3f4c7257d50953f500b5dd16cc67
+slice: 002d-gantt-event-tracks
+spec_sha256: 18af2304f78b3c68f3471d00c38b1cef835b0297b0761c3287206e2c29f7d26e
 ee_build: "20261106"
 implementer_sessions:
-  - d23d0704-f970-4e8b-a479-112999fef249
-verifier_session: 9967d882-d2f2-45e2-a914-41a0f29ff6ae
+  - 7828e95d-44aa-4e00-8340-263b19627a45
+verifier_session: b988837d-471c-45f9-9a3f-271bc63a1272
 overlap:
   ratio: 0.0016
   longest_run: 3
@@ -50,19 +50,82 @@ overlap:
     - file: addons/web_enterprise/static/tests/navbar.test.js
       line: 208
       reason: common test idiom
-audit_log_sha256: 9cf5aa6c39b754f5a2344b964a9471e099e05da9599355df16dc841923c08006
+audit_log_sha256: e537d0ba5c889f861e3917d01e15d7eebefa58e5f90c643daf05b598965450ff
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-13"
-  implemented: "2026-11-14"
-  verified: "2026-11-14"
+  spec_approved: "2026-11-16"
+  implemented: "2026-11-18"
+  verified: "2026-11-18"
 approvals:
-  - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the second (2026-11-12)"
-  - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-13)"
-  - "before verification, the analyst answered the implementer's spec questions in the package, which changed its hash, in a step the owner started (2026-11-14)"
-  - "owner: after verification round 1, had the package corrected, decided D7 on the rework item F1, had F1 and the polish item P3 fixed, accepted the one new overlap match and the two Arabic unit words that equal the original's (P7, P5), and left the polish items P1, P2 and P6 for a later batch (2026-11-14)"
-  - "owner: release approved at CP-release after verification round 2 passed with no rework item and no new overlap match since round 1, with its one new polish item, P8, left for the next slice, 002b3 (2026-11-14)"
+  - "owner: split the Gantt view into five parts at CP-scope (2026-11-11)"
+  - "owner: at the analyst's scope check, split the fourth part, the bridges, into two, of which this is the first: the four notes on the dependencies and the event tracks (2026-11-16)"
+  - "owner: spec approved at CP-spec with decisions D1-D4 (2026-11-16)"
+  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-17)"
+  - "owner: after verification round 1, which passed 56 of 58 scenarios, had the package corrected, had the rework items F1 and F2 and the polish items P1, P2 and P3 fixed, accepted the polish item P5 and the overlap matches of that round, with the new module's seven among them, and left the control bar's height with touch at desktop size, an item of the previous slice, for a later batch; the polish item P4 was a probe at fault, corrected in the package (2026-11-17)"
+  - "owner: decided D5 on a question that the analyst's corrections raised (2026-11-17)"
+  - "owner: verification round 2 passed with every scenario and no new difference, and found one new overlap match since round 1, a generic one-line test idiom in test_web_gantt; release approved at CP-release and that match accepted (2026-11-18)"
 earlier_slices:
+  - slice: 002b2-gantt-drag-resize
+    spec_sha256: e1c151f4f9292aef67ea11069ad4ab2fc7dc3f4c7257d50953f500b5dd16cc67
+    ee_build: "20261106"
+    implementer_sessions:
+      - d23d0704-f970-4e8b-a479-112999fef249
+    verifier_session: 9967d882-d2f2-45e2-a914-41a0f29ff6ae
+    overlap:
+      ratio: 0.0016
+      longest_run: 3
+      reviewed_matches:
+        - file: addons/web_enterprise/__manifest__.py
+          line: 35
+          reason: asset directive following the Community naming convention
+        - file: addons/web_enterprise/__manifest__.py
+          line: 56
+          reason: asset directive following the Community naming convention
+        - file: addons/web_enterprise/__manifest__.py
+          line: 57
+          reason: bundle interface the spec requires
+        - file: addons/web_enterprise/__manifest__.py
+          line: 60
+          reason: bundle interface the spec requires
+        - file: addons/web_enterprise/models/res_users.py
+          line: 9
+          reason: required interface
+        - file: addons/web_enterprise/models/res_users_settings.py
+          line: 10
+          reason: required interface
+        - file: addons/web_enterprise/static/src/navbar/navbar_patch.scss
+          line: 344
+          reason: generic declaration with a spec value
+        - file: addons/web_enterprise/static/src/theme/form.scss
+          line: 25
+          reason: Community selector name
+        - file: addons/web_enterprise/static/src/theme/overlays.scss
+          line: 85
+          reason: Community variable names set to a spec value
+        - file: addons/web_enterprise/static/src/theme/roles_dark.scss
+          line: 285
+          reason: Community theme variable set to a spec value
+        - file: addons/web_enterprise/static/src/theme/roles_light.scss
+          line: 460
+          reason: Community theme variable set to a spec value
+        - file: addons/web_enterprise/static/src/theme/search_panel.scss
+          line: 19
+          reason: Community selector name
+        - file: addons/web_enterprise/static/tests/navbar.test.js
+          line: 208
+          reason: common test idiom
+    audit_log_sha256: 9cf5aa6c39b754f5a2344b964a9471e099e05da9599355df16dc841923c08006
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-13"
+      implemented: "2026-11-14"
+      verified: "2026-11-14"
+    approvals:
+      - "owner: split the editing of the Gantt view into three parts at CP-scope, of which this is the second (2026-11-12)"
+      - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-13)"
+      - "before verification, the analyst answered the implementer's spec questions in the package, which changed its hash, in a step the owner started (2026-11-14)"
+      - "owner: after verification round 1, had the package corrected, decided D7 on the rework item F1, had F1 and the polish item P3 fixed, accepted the one new overlap match and the two Arabic unit words that equal the original's (P7, P5), and left the polish items P1, P2 and P6 for a later batch (2026-11-14)"
+      - "owner: release approved at CP-release after verification round 2 passed with no rework item and no new overlap match since round 1, with its one new polish item, P8, left for the next slice, 002b3 (2026-11-14)"
   - slice: 001e-shell-polish
     spec_sha256: 6bbaae972f655b2e6947a29b670d57cd1e7ed67afdc9f921a7f7324a6085456c
     ee_build: "20261106"

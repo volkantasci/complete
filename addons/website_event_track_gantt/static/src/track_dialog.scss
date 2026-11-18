@@ -1,0 +1,29 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The record dialog without its stage bar keeps the form's header strip, empty and 16 px tall
+// (8 px above and below, nothing inside), where the bar was: the sheet starts 16 px below the top
+// of the dialog body and the label of the title 8 px lower (R11, M51, M52). A header that holds
+// a button or a field another module adds keeps the Community's bar.
+.o_form_view.o_track_dialog {
+    .o_form_statusbar:not(:has(button, .o_field_widget)) {
+        box-sizing: border-box;
+        height: 16px;
+        min-height: 0;
+        padding: 8px 0;
+        // on the phone the title sits 16 px below the top of the body, the strip is 8 px (M62)
+        @media (max-width: 767.98px) {
+            height: 8px;
+            padding-top: 0;
+        }
+    }
+}
+
+// While the confirmation of Delete is open the buttons of the record dialog behind it are
+// disabled (the Community rule while a button of the form runs) and drawn at half the opacity,
+// their colours unchanged (R13, M39); they come back when the confirmation closes (M40). The
+// class is set on the dialog only while the confirmation is open: a button disabled while Save
+// runs keeps the Community's look.
+.o_track_confirming .modal-footer .btn:disabled {
+    opacity: 0.5;
+}

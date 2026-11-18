@@ -57,6 +57,11 @@ export class TimelineEdgeScroll {
         }
     }
 
+    /** Whether the held pointer lies in a scrolling zone now (the grid scrolls, or is at its end). */
+    get inZone() {
+        return this._velocity().some(Boolean);
+    }
+
     /** The gesture is over: no more scrolling. */
     stop() {
         if (this._frame !== null) {

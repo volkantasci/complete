@@ -1,6 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Component, proxy, t, useProps } from "@odoo/owl";
+import { browser } from "@web/core/browser/browser";
 import { _t } from "@web/core/l10n/translation";
 import { arrowConflict, arrowRoute, ARROW_COLOURS, dependencyPairs } from "./timeline_arrow_math";
 
@@ -9,6 +10,9 @@ let layerCount = 0;
 /** Alpha of a line at rest and when it is lit (R8, R9). */
 const ALPHA_REST = 0.5;
 const ALPHA_LIT = 1;
+
+/** A pill's outer box reaches this far outside its body, in pixels (002a M1). */
+const OUTER_INSET = 1;
 
 /**
  * The arrows between dependent pills (002c R4 to R10). `host` is the renderer: it owns the rows
@@ -249,9 +253,47 @@ export class TimelineArrows {
         return this._pointerType === "touch";
     }
 
+    /** Whether a mouse button is down: a finger put down beside it is no tap away (002d R4). */
+    get isMouseDown() {
+        return Boolean(this._mouseDown);
+    }
+
     /** Every pointer press and move over the page (capture): the kind of pointer that is in use. */
     pointerSeen(ev) {
         this._pointerType = ev.pointerType;
+        if (ev.pointerType === "touch") {
+            (this._touches ||= new Set()).add(ev.pointerId);
+        } else {
+            this._mouseDown = true;
+        }
+    }
+
+    /**
+     * A finger lifts, or the system takes it away (capture, every pointer end of the page). A
+     * finger taken away leaves no arrow lit, even when it only began a scroll (002d R4 point 2),
+     * unless another finger still holds a gesture. After a touch gesture was cancelled (a key, a
+     * second finger) the arrows lit at its start go as soon as one finger lifts (point 1, 3); after
+     * a mouse gesture a finger cancelled they go with the lift of that finger, the button held or not (point 3).
+     */
+    pointerEnded(ev) {
+        if (ev.pointerType !== "touch") {
+            this._mouseDown = false;
+            return;
+        }
+        this._touches?.delete(ev.pointerId);
+        const alone = !this._touches?.size;
+        if ((ev.type === "pointercancel" && (alone || !this.isHeld)) || this._unlitAtLift) {
+            this._unlight();
+        }
+    }
+
+    /** Nothing lit and nothing kept (the handles belong to the last tapped pill, 002d R3). */
+    _unlight() {
+        this._unlitAtLift = false;
+        this._kept = false;
+        this._holdOutside = false;
+        this.focus.arrowKey = null;
+        this.focus.pillKey = null;
     }
 
     /**
@@ -261,12 +303,18 @@ export class TimelineArrows {
     touchLit(key) {
         this._quietAt = null;
         this._kept = false;
+        this._unlitAtLift = false;
         this.focus.arrowKey = null;
         this.focus.pillKey = key;
     }
 
     /** The pointer leaves `key`; nothing changes when another pill was entered first. */
     unfocusPill(key) {
+        // a gesture that ended without a write keeps what was lit until the pointer moves: the
+        // browser's own leave of a pill that a lit arrow's band now covers does not count (R1)
+        if (this._kept) {
+            return;
+        }
         if (!this.isHeld && (key === undefined || this.focus.pillKey === key)) {
             this.focus.pillKey = null;
         }
@@ -281,9 +329,39 @@ export class TimelineArrows {
         if (this.isHeld || this.isQuiet || this.isTouch) {
             return;
         }
-        this.focus.arrowKey = key;
-        this.focus.pillKey = null;
-        this.host.state.hover = null;
+        // an arrow's band and button take no pointer over the box of either of its own pills: the
+        // pill wins, its arrows lit and, over its body, its handles shown (002d R1a, A12; the band
+        // begins at the source pill's outer box, 002c R9). Over another pill the band still wins
+        // (002c A75). The 1 px ring around the body lights the pill's arrows with no handles
+        // (002d R1a, M41 to M43).
+        const end = ev ? this.endPillAt(key, ev.clientX, ev.clientY) : null;
+        this.focus.arrowKey = end ? null : key;
+        this.focus.pillKey = end ? end.key : null;
+        this.host.state.hover = end?.body ? end.key : null;
+        this._bandPill = end ? { arrow: key, pill: end.key } : null;
+    }
+
+    /**
+     * The own pill of the arrow `key` (its source or its target) whose outer box (its body and one
+     * pixel around) holds the viewport point: `{key, body}` (`body`: the point is in the body, not
+     * only in the ring), or null.
+     */
+    endPillAt(key, x, y) {
+        const root = this.host.rendererRef();
+        const ends = key.split(">");
+        for (const pillEl of root?.querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]") ?? []) {
+            const pillKey = `${pillEl.closest(".o_tl_row[data-row-id]").dataset.rowId}|${pillEl.dataset.pillId}`;
+            if (!ends.includes(pillKey) || pillEl.classList.contains("o_tl_pill_moved")) {
+                continue;
+            }
+            const box = pillEl.getBoundingClientRect();
+            const inside = (inset) =>
+                x >= box.left - inset && x < box.right + inset && y >= box.top - inset && y < box.bottom + inset;
+            if (inside(OUTER_INSET)) {
+                return { key: pillKey, body: inside(0) };
+            }
+        }
+        return null;
     }
 
     /**
@@ -291,7 +369,22 @@ export class TimelineArrows {
      * events (the pill's mouse enter), as the pointer comes off the band.
      */
     unfocusArrow(key) {
-        if (this.isHeld || this.isQuiet || this.focus.arrowKey !== key) {
+        if (this.isHeld || this.isQuiet) {
+            return;
+        }
+        const band = this._bandPill;
+        if (band?.arrow === key) {
+            // the pill that won over the band is left with it; a pill entered next lights itself
+            this._bandPill = null;
+            if (this.focus.pillKey === band.pill) {
+                this.focus.pillKey = null;
+            }
+            if (this.host.state.hover === band.pill) {
+                this.host.state.hover = null;
+            }
+            return;
+        }
+        if (this.focus.arrowKey !== key) {
             return;
         }
         this.focus.arrowKey = null;
@@ -308,6 +401,26 @@ export class TimelineArrows {
         // pointer moves (R9, A69, A95)
         this._kept = this._cancelling;
         this._cancelling = false;
+        // 002d R1: a release over the row headers lights nothing; one over the page outside the
+        // view keeps the arrows lit until the pointer moves over the view
+        const released = this._releasedAt;
+        this._releasedAt = null;
+        this._holdOutside = false;
+        if (this._kept && released) {
+            const stack = document.elementsFromPoint(released.x, released.y);
+            if (stack.some((element) => element.closest?.(".o_tl_row_header"))) {
+                this._kept = false;
+            } else {
+                this._holdOutside = true;
+            }
+        }
+        // a gesture cancelled after the grid scrolled under it (edge scrolling): the highlight is
+        // worked out from what lies under the pointer once the grid is drawn again, not kept from
+        // the start (002c R9's "or the grid scrolls", 002d R1a)
+        const scrolled =
+            this._scrolled && this._cancelInZone && this._kept && !released && !this._unlitAtLift;
+        this._cancelInZone = false;
+        this._scrolled = false;
         if (!this._kept) {
             this.focus.arrowKey = null;
             this.focus.pillKey = null;
@@ -315,20 +428,82 @@ export class TimelineArrows {
         this._quietAt = this._pointer ? { ...this._pointer } : { x: NaN, y: NaN };
         if (this._kept) {
             this._recheck = true;
-            this._showHandlesUnderPointer();
+            // a mouse gesture a finger cancelled: the finger is no pointer of the handles
+            this._showHandlesUnderPointer({ mouse: this._mouseGesture });
+        }
+        this._mouseGesture = false;
+        if (scrolled) {
+            this._workOutAfterScroll();
         }
     }
 
     /**
-     * The gesture that ends next was cancelled (Escape, a lost pointer): see `reset`. Called by the
+     * After the cancelled gesture's pill went back to its place: the arrows and the handles follow
+     * what lies under the pointer now, unless the pointer already moved (002d R1a, A12).
+     */
+    _workOutAfterScroll() {
+        const frame = (callback) => browser.requestAnimationFrame(callback);
+        frame(() =>
+            frame(() => {
+                if (!this._quietAt || this.isHeld || !this._pointer) {
+                    return;
+                }
+                const key = this._pillKeyAtPoint(this._pointer.x, this._pointer.y);
+                this._kept = false;
+                this.focus.arrowKey = null;
+                this.focus.pillKey = key;
+                this.host.state.hover = key;
+            })
+        );
+    }
+
+    /** The grid scrolled under the held gesture (edge scrolling). */
+    gestureScrolled() {
+        this._scrolled = true;
+    }
+
+    /** A gesture begins: the grid has not scrolled under it yet. */
+    gestureStarted() {
+        this._scrolled = false;
+    }
+
+    /**
+     * The gesture that ends next was cancelled (a key, a second finger, the page hidden; with
+     * `lost`, the pointer taken away): see `reset`. Called by the
      * gesture right before it lets go.
      */
-    cancelGesture() {
-        this._cancelling = true;
+    cancelGesture({ lost = false, finger = false, touch = false, inZone = false } = {}) {
+        // the pointer rests in an edge scrolling zone: with a scroll during the gesture, the highlight
+        // is worked out again at the end (002d R1a)
+        this._cancelInZone = inZone;
+        // the system took the pointer away (002d R4 point 2): unlike Escape, nothing stays lit
+        this._cancelling = !lost;
+        // a touch gesture cancelled by a key or a second finger: the lit arrows stay only while a
+        // finger is down (they go when one lifts); a mouse gesture a finger cancelled: they go at
+        // that finger's lift, whether the mouse button is still held or not (002d R4 point 1, 3)
+        this._unlitAtLift = !lost && (touch || finger);
+        this._mouseGesture = !touch;
+    }
+
+    /**
+     * The gesture that ends next is released at the viewport point (x, y) where nothing is written
+     * (002d R1): it follows the rule of a cancelled gesture, see `reset`. Called by the gesture
+     * right before it lets go.
+     */
+    releaseWithoutWrite(x, y) {
+        // the end of a touch gesture lights nothing (002d R3, A14); the pill last tapped keeps
+        // its handles
+        const touch = this.isTouch;
+        this._cancelling = !touch;
+        this._releasedAt = touch ? null : { x, y };
     }
 
     /** The pill under the pointer shows its handles (none on an empty cell). */
-    _showHandlesUnderPointer() {
+    _showHandlesUnderPointer({ mouse = false } = {}) {
+        if (this.isTouch && !mouse) {
+            // with touch the handles stay with the pill last tapped (002d R3)
+            return;
+        }
         const at = this._pointer;
         this.host.state.hover = at ? this._pillKeyAtPoint(at.x, at.y) : null;
     }
@@ -337,6 +512,10 @@ export class TimelineArrows {
     pointerMoved(ev) {
         this._pointer = { x: ev.clientX, y: ev.clientY };
         this._pointerType = ev.pointerType;
+        if (this._kept && this._holdOutside && !this.host.rendererRef()?.contains(ev.target)) {
+            // 002d R1: moves outside the view do not work the highlight out again
+            return;
+        }
         if (ev.pointerType === "touch" && this.host.connect.isPressed && !this.host.connect.isActive) {
             // a finger on a handle crosses an arrow's band before the threshold: that arrow alone is
             // lit when the drawing starts, as for a mouse (R9, A91); no mouse event tells it
@@ -363,6 +542,7 @@ export class TimelineArrows {
                 }
             }
             this._kept = false;
+            this._holdOutside = false;
         }
     }
 
@@ -375,12 +555,21 @@ export class TimelineArrows {
     }
 
     _pillKeyAtPoint(x, y) {
-        for (const element of document.elementsFromPoint(x, y)) {
+        const stack = document.elementsFromPoint(x, y);
+        for (const element of stack) {
             if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {
                 return null;
             }
-            // a lit arrow's band hides the pill under it (R9)
+            // a lit arrow's band hides the pill under it (R9), except one of its own pills, which
+            // wins over the band (002d R1a): every arrow of the stack is looked at
             if (element.closest?.(".o_tl_arrow")) {
+                for (const other of stack) {
+                    const arrow = other.closest?.(".o_tl_arrow");
+                    const end = arrow ? this.endPillAt(arrow.dataset.arrow, x, y) : null;
+                    if (end?.body) {
+                        return end.key;
+                    }
+                }
                 return null;
             }
             const strip = element.closest?.(".o_tl_connect_strip, .o_tl_connect_handle");
@@ -456,7 +645,12 @@ export class TimelineArrowLayer extends Component {
         return `${this.arrows.uid}_${index}`;
     }
 
-    async onRemove(item) {
+    async onRemove(item, ev) {
+        if (this.arrows.endPillAt(item.key, ev.clientX, ev.clientY)?.body) {
+            // the button gives way to its own pill: the click goes on to the arrow's layer, which
+            // hands it to the pill (002d R1a, A12)
+            return;
+        }
         // awaited: a refusal is raised again here and reaches the Community error handler
         await this.arrows.remove(item);
     }

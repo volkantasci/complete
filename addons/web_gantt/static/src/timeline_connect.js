@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { proxy } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
-import { DRAG_THRESHOLD, HARMLESS_KEYS } from "./timeline_drag";
+import { DRAG_THRESHOLD, HARMLESS_KEYS, swallowFinger } from "./timeline_drag";
 import { MOVE_EDGE, TimelineEdgeScroll } from "./timeline_edge_scroll";
 
 /** Side of the press area of a drawing handle, in px (R11, M15, M17). */
@@ -34,7 +34,12 @@ const CENTRE = { start: { inward: 8, up: -8 }, stop: { inward: 6, up: 8 } };
  *   popover go) or over;
  * - `rest(x, y)`: the drawing ended with the pointer at the viewport point (the pill under it, if
  *   any, shows its handles again, as the pointer entered it);
- * - `cancelled()` (optional): a drawing that was on was cancelled (Escape, lost pointer), no `commit`;
+ * - `released(x, y)` (optional): a drawing was released over no other pill, so nothing is written
+ *   (002d R1);
+ * - `cancelled({lost, finger})` (optional): a drawing that was on was cancelled (a key, the system
+ *   taking the pointer away: `lost`, a second finger: `finger`, the page hidden), no `commit`;
+ * - `insideGrid(event)` (optional): whether the event's target lies in the view's grid (a second
+ *   finger elsewhere does not cancel, 002d R4);
  * - `commit({source, target})`: the release over another pill; `source` is `{rowId, pillId}`.
  *
  * `drawing` is what the template reads: the key of the source pill, the key of the other pill
@@ -115,6 +120,7 @@ export class TimelineConnectDrag {
         }
         this._press = {
             id: ev.pointerId,
+            type: ev.pointerType,
             x0: ev.clientX,
             y0: ev.clientY,
             x: ev.clientX,
@@ -130,19 +136,35 @@ export class TimelineConnectDrag {
         this._listen(doc, "pointermove", (event) => this._onMove(event));
         this._listen(doc, "pointerup", (event) => this._onUp(event));
         this._listen(doc, "pointercancel", (event) => this._onCancel(event));
-        // another finger on the screen: the gesture is no longer one pointer's
+        // a finger put down inside the grid ends a drawing, a mouse drawing too, as Escape does
+        // (002d R4 point 3, T4-1); one outside the grid does not. A lost window focus does not cancel (point 5).
         this._listen(
             doc,
             "pointerdown",
             (event) => {
-                if (event.pointerId !== this._press?.id) {
-                    this._cancel();
+                const press = this._press;
+                if (
+                    !press ||
+                    event.pointerId === press.id ||
+                    event.pointerType !== "touch" ||
+                    this.host.insideGrid?.(event) === false
+                ) {
+                    return;
+                }
+                // a mouse button still down: its release does nothing
+                const { id, type } = press;
+                // the finger that ends the drawing starts and lights nothing itself: its event
+                // goes no further (002d R4 point 3)
+                event.stopPropagation();
+                swallowFinger(doc, event.pointerId);
+                this._cancel({ finger: true });
+                if (type !== "touch") {
+                    this._swallowRelease(doc, id);
                 }
             },
             { capture: true }
         );
-        // no release will come when the window or the tab loses the focus
-        this._listen(doc.defaultView, "blur", () => this._cancel());
+        // the page hidden: no release will come
         this._listen(doc, "visibilitychange", () => {
             if (doc.visibilityState === "hidden") {
                 this._cancel();
@@ -155,6 +177,9 @@ export class TimelineConnectDrag {
     consumeClick() {
         const suppressed = this._suppressClick;
         this._suppressClick = false;
+        // read by the caller right after: the swallowed click was that of a cancelled gesture
+        this.cancelledClick = suppressed && this._cancelledRelease;
+        this._cancelledRelease = false;
         return suppressed;
     }
 
@@ -216,6 +241,11 @@ export class TimelineConnectDrag {
         browser.setTimeout(() => {
             this._suppressClick = false;
         }, 0);
+        // a press on a handle that ends without a drawing leaves an open popover open (002d R2)
+        if (dragging && !target) {
+            // a release where nothing is written: the arrows lit at the start stay lit (002d R1)
+            this.host.released?.(ev.clientX, ev.clientY);
+        }
         this._finish();
         if (dragging) {
             this.host.rest(ev.clientX, ev.clientY);
@@ -227,14 +257,20 @@ export class TimelineConnectDrag {
 
     _onCancel(ev) {
         if (this._own(ev)) {
-            this._cancel();
+            // the system took the pointer away: unlike Escape, no arrow stays lit (002d R4 point 2)
+            this._cancel({ lost: true });
         }
     }
 
-    /** The drawing ends without a write: Escape, a lost pointer, another finger. */
-    _cancel() {
+    /** The drawing ends without a write: a key, a lost pointer, another finger, a hidden page. */
+    _cancel({ lost = false, finger = false } = {}) {
         if (this.isActive) {
-            this.host.cancelled?.();
+            this.host.cancelled?.({
+                lost,
+                finger,
+                touch: this._press?.type === "touch",
+                inZone: this._edge.inZone,
+            });
         }
         this._finish();
     }
@@ -244,8 +280,36 @@ export class TimelineConnectDrag {
         if (this.isActive && !HARMLESS_KEYS.includes(ev.key)) {
             ev.preventDefault();
             ev.stopPropagation();
+            const { id } = this._press;
+            const doc = ev.target.ownerDocument || document;
             this._cancel();
+            this._swallowRelease(doc, id);
         }
+    }
+
+    /** The button is still down after a cancel: its release, and the click after it, do nothing. */
+    _swallowRelease(doc, id) {
+        const done = () => {
+            doc.removeEventListener("pointerup", onUp, true);
+            doc.removeEventListener("pointercancel", onCancel, true);
+        };
+        const onUp = (event) => {
+            if (event.pointerId === id) {
+                done();
+                this._suppressClick = true;
+                this._cancelledRelease = true;
+                browser.setTimeout(() => {
+                    this._suppressClick = false;
+                }, 0);
+            }
+        };
+        const onCancel = (event) => {
+            if (event.pointerId === id) {
+                done();
+            }
+        };
+        doc.addEventListener("pointerup", onUp, true);
+        doc.addEventListener("pointercancel", onCancel, true);
     }
 
     _update() {

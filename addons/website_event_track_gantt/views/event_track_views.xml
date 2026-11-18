@@ -1,0 +1,57 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <!-- Menu action: Gantt joins the view modes; the timeline opens on the whole
+         year and the tracks are grouped by location. -->
+    <record id="website_event_track.action_event_track" model="ir.actions.act_window">
+        <field name="view_mode">kanban,list,form,gantt,calendar,graph,activity</field>
+        <field name="context">{'default_scale': 'year', 'search_default_location': 1}</field>
+    </record>
+
+    <!-- Action opened from an event: same view modes, context untouched. -->
+    <record id="website_event_track.action_event_track_from_event" model="ir.actions.act_window">
+        <field name="view_mode">kanban,list,form,gantt,calendar,graph,activity</field>
+    </record>
+    <!-- The form of the record dialog: the Community track form without its stage
+         bar, its Wishlisted By and publish buttons (the dialog shows no chatter). -->
+    <record id="event_track_view_form_dialog" model="ir.ui.view">
+        <field name="name">event.track.form.gantt.dialog</field>
+        <field name="model">event.track</field>
+        <field name="inherit_id" ref="website_event_track.view_event_track_form"/>
+        <field name="mode">primary</field>
+        <field name="arch" type="xml">
+            <form position="attributes">
+                <attribute name="js_class">track_dialog_form</attribute>
+                <attribute name="class">o_track_dialog</attribute>
+            </form>
+            <field name="stage_id" position="replace"/>
+            <button name="%(website_event_track.website_visitor_action_from_track)d" position="replace"/>
+            <field name="is_published" position="replace"/>
+        </field>
+    </record>
+
+    <!-- The Gantt view of the tracks: rows by location, the colour of the agenda,
+         the range opened by the Tracks button of an event. -->
+    <record id="event_track_gantt_timeline" model="ir.ui.view">
+        <field name="name">event.track.gantt</field>
+        <field name="model">event.track</field>
+        <field name="arch" type="xml">
+            <gantt string="Tracks" date_start="date" date_stop="date_end" color="color"
+                   default_group_by="location_id" dynamic_range="1"
+                   form_view_id="%(event_track_view_form_dialog)d">
+                <field name="partner_name"/>
+                <popover>
+                    <templates>
+                        <t t-name="popover-header"><field name="name"/></t>
+                        <t t-name="popover-body">
+                            <div class="o_track_popover_lines">
+                                <div><strong class="o_track_popover_label">Start —</strong> <field name="date"/></div>
+                                <div t-if="record.partner_name.raw_value"><strong class="o_track_popover_label">Proposed By —</strong> <field name="partner_name"/></div>
+                            </div>
+                        </t>
+                    </templates>
+                </popover>
+            </gantt>
+        </field>
+    </record>
+</odoo>

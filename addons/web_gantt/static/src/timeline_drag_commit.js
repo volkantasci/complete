@@ -21,6 +21,60 @@ import { rowValueChain } from "./timeline_editing";
  */
 
 /**
+ * What a move or a copy of `record` to `target` changes: the sub-columns it moves by, the moved
+ * bounds and the row values of the target row; shared by the check of a release that changes
+ * nothing and by the commit.
+ */
+function moveSteps(host, record, target) {
+    const { data } = host;
+    const { placement } = data;
+    const n = target.n ?? target.part - record.span.from;
+    const bounds = movedBounds(
+        { start: record.start, stop: record.stop },
+        n,
+        dragStep(data, { dateOnly: hasDateOnlyBound(placement) }),
+        placement
+    );
+    const targetChain = rowValueChain(data.rows, target.rowId, host.props.model.fields);
+    return { n, bounds, targetChain };
+}
+
+/**
+ * 002d R1a: whether a release changes nothing and calls nothing. A **move** in its starting
+ * sub-column into a row whose values the record already holds, with a manual method or none
+ * (002b2 D3); with an automatic method a move still calls the rescheduling method with no value
+ * (002c R16 point 4), so it is not that case. A **resize** of n = 0 sub-columns, with any method
+ * (002c R16 point 4). A copy always creates its duplicate; a release over the drop zone
+ * unschedules.
+ */
+export function releaseChangesNothing(host, { mode, pill, rowId, target }) {
+    if (host._zoneHit || !target || mode === "copy" || mode === "panel") {
+        return false;
+    }
+    if (mode.startsWith("resize-")) {
+        return !host._resizeSteps(pill, mode.slice("resize-".length), target.part);
+    }
+    const { model, editor } = host.props;
+    if (editor.rescheduler.handles("move")) {
+        return false;
+    }
+    const record = pill.record;
+    const { n, bounds, targetChain } = moveSteps(host, record, target);
+    if (n) {
+        return false;
+    }
+    const values = moveWriteValues({
+        record,
+        bounds,
+        n,
+        targetChain,
+        fields: model.fields,
+        placement: host.data.placement,
+    });
+    return !Object.keys(values).length;
+}
+
+/**
  * The release (R4, R5, R7): a move writes the new dates and row values, a copy duplicates the
  * record with them; nothing happens without a target. The values come from the record read at
  * the press, not from what a reload brought since (R15). A refusal is the caller's: the
@@ -47,14 +101,7 @@ export function commitDrag(host, { mode, pill, rowId, target, line }) {
     const { placement } = data;
     const fields = model.fields;
     const record = pill.record;
-    const n = target.n ?? target.part - record.span.from;
-    const bounds = movedBounds(
-        { start: record.start, stop: record.stop },
-        n,
-        dragStep(data, { dateOnly: hasDateOnlyBound(placement) }),
-        placement
-    );
-    const targetChain = rowValueChain(data.rows, target.rowId, fields);
+    const { n, bounds, targetChain } = moveSteps(host, record, target);
     let change;
     if (mode === "copy") {
         change = {

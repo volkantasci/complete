@@ -244,12 +244,20 @@ test("a navigation step closes the popover", async () => {
     expect(POPOVER).toHaveCount(0);
 });
 
-test("M43: the desktop frame is transparent and 272 px wide", async () => {
+test("M43: the desktop frame is transparent and 272 px wide, 1 px inside the 274 px outer box", async () => {
     await mountTimeline(timelineArch());
     await openPopover(BUILD);
-    expect(".o_popover:has(.o_tl_popover)").toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
-    expect(queryRect(".o_popover:has(.o_tl_popover)").width).toBe(272);
-    expect(POPOVER).not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+    // the outer box draws the background and the 1 px border (002d M5)
+    const box = queryRect(".o_popover:has(.o_tl_popover)");
+    expect(".o_popover:has(.o_tl_popover)").not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+    expect(box.width).toBe(274);
+    // the frame inside it is the content (002a M43, 002d M45)
+    const frame = queryRect(POPOVER);
+    expect(POPOVER).toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
+    expect(frame.width).toBe(272);
+    expect(frame.height).toBe(box.height - 2);
+    expect(frame.left).toBe(box.left + 1);
+    expect(frame.top).toBe(box.top + 1);
 });
 
 test("002b S4: the lines of the popover body are 13 px, its header keeps the page size", async () => {
@@ -274,11 +282,14 @@ test("S7 phone: the popover is a sheet with the same content", async () => {
     expect(`${POPOVER} .o_popover_header`).toHaveText("Build");
     expect(`${POPOVER} .o_tl_popover_line`).toHaveCount(2);
     expect(`${POPOVER} .o_tl_popover_button`).toHaveText("Edit");
+    // the outer box of the sheet is 390 x 700 at the bottom of the 390 x 844 window (002d M12),
+    // the frame inside it 388 x 698 (M43)
     const rect = queryRect(".o_popover:has(.o_tl_popover)");
-    // the sheet is 388 x 698 at the bottom of the 390 x 844 window (M43)
-    expect(rect.width).toBe(388);
-    expect(rect.height).toBe(698);
-    expect(queryRect(POPOVER).height).toBeGreaterThan(rect.height - 4);
+    expect(rect.width).toBe(390);
+    expect(rect.height).toBe(700);
+    const frame = queryRect(POPOVER);
+    expect(frame.width).toBe(388);
+    expect(frame.height).toBe(698);
     expect(".o_popover:has(.o_tl_popover)").not.toHaveStyle({ backgroundColor: "rgba(0, 0, 0, 0)" });
     await click(`${POPOVER} .o_card_popover_close`);
     await animationFrame();

@@ -515,8 +515,10 @@ class TimelineProbes(TimelineProbeCase):
                 self.click_js(self.pill('Build'))
                 self.wait("!!document.querySelector('.o_popover .o_tl_popover')")
                 self.settle()
-                self.check('M43', "document.querySelector('.o_popover')", scheme, viewport,
-                           'popover frame')
+                # 002d Q4: the outer box is `.o_popover` (M5, M12), the frame inside it the
+                # content `.o_tl_popover` (M43, M45)
+                self.check('M43', "document.querySelector('.o_popover > .o_tl_popover')", scheme,
+                           viewport, 'popover frame')
 
     def _neutral_grey(self, scheme):
         """H5: every pill is the grey of M64 with black text; light: M1 light."""

@@ -1,28 +1,18 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The frame is the element of the popover service around the content (`.o_popover`): it is
-// transparent on a desktop screen, the content draws the background (M43).
-.o_popover:has(> .o_tl_popover) {
-    background: transparent;
-}
-
-// On a desktop screen the popover hangs two pixels lower than the arrow gap alone puts it (M15,
-// M28): the margin is part of the position the popover service computes.
-.o_popover:has(> .o_tl_popover:not(.o_tl_popover_sheet)) {
-    margin-top: $o-tl-popover-extra-gap;
-}
-
+// The outer box of the popover is the element of the popover service (`.o_popover`): it draws the
+// background, the 1 px border, the corners and the shadow (002d M5, M12: 274 px wide on a desktop
+// screen). The frame inside it is the content `.o_tl_popover` (002a M43, 002d M45: 272 px, 1 px
+// inside on each side); on a desktop screen it is transparent.
 .o_tl_popover {
     position: relative;
     display: flex;
     flex-direction: column;
-    // the frame adds a border of 1px on each side: 272px in all
-    width: 270px;
+    width: 272px;
     max-width: 95vw;
     max-height: 80vh;
     font-size: $font-size-base;
-    background: $popover-bg;
     border-radius: inherit;
 
     .o_card {
@@ -41,6 +31,12 @@
             // the body is `p-3` (an important utility)
             padding: $o-tl-popover-body-padding-y $o-tl-popover-body-padding-x !important;
         }
+    }
+
+    // on a desktop screen the body starts two pixels lower in the frame (M45), and the popover
+    // does not hang lower than the arrow gap puts it: the lines keep their places
+    &:not(.o_tl_popover_sheet) .o_card .o_popover_body {
+        padding-top: $o-tl-popover-body-padding-y + $o-tl-popover-extra-gap !important;
     }
 
     // the button of the footer sits one pixel nearer to the start edge than the `p-3` padding
@@ -72,15 +68,17 @@
 }
 
 // small screens: the same content as a sheet that reaches the bottom of the screen and leaves the
-// top of the view in sight (M43: 388 x 698 on a 390 x 844 screen); the frame takes the overlay
-// background
+// top of the view in sight (M12: the outer box is 390 x 700 at y 144 on a 390 x 844 screen, the
+// frame inside 388 x 698, M43); the frame draws the background too
 .o_popover:has(> .o_tl_popover_sheet) {
-    background: $popover-bg;
-    inset: auto 1px 0 !important;
+    inset: auto 0 0 !important;
+    // not dead: the sheet's computed top margin is the measured 144 px (M12, probe on the box)
+    margin-top: $o-tl-popover-sheet-top;
     width: auto;
     height: calc(100% - #{$o-tl-popover-sheet-top});
     max-width: none;
-    border-radius: 0;
+    // the top corners are rounded (002d M12)
+    border-radius: 8px 8px 0 0;
     transform: none !important;
 }
 
@@ -95,6 +93,7 @@
 }
 
 .o_tl_popover.o_tl_popover_sheet {
+    background: $popover-bg;
     width: 100%;
     height: 100%;
     max-width: none;

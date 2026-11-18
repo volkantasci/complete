@@ -195,10 +195,14 @@ test("A82: the popover is a sheet on the phone", async () => {
     await click(".o_tl_pill");
     await advanceTime(250);
     await animationFrame();
+    // 002d M12: the outer box is a 390 x 700 sheet at the bottom of the 390 x 844 screen; M43:
+    // the frame inside it is 388 x 698
     const rect = queryRect(".o_popover:has(.o_tl_popover)");
-    // M43: a 388 x 698 sheet at the bottom of the 390 x 844 screen
-    expect(rect.width).toBe(388);
-    expect(rect.height).toBe(698);
+    expect(rect.width).toBe(390);
+    expect(rect.height).toBe(700);
+    const frame = queryRect(".o_popover > .o_tl_popover");
+    expect(frame.width).toBe(388);
+    expect(frame.height).toBe(698);
 });
 
 test("A122: P9, 'Undefined Contact' is cut with an ellipsis on the phone (M74)", async () => {
