@@ -2700,15 +2700,22 @@ export class TimelineRenderer extends Component {
         if (covered && covered.every(Boolean)) {
             classes.push("o_tl_unavailable");
         } else if (covered) {
-            // hard edges: each part is either grey or transparent
-            const stops = covered.map((grey, part) => {
-                const colour = grey ? "var(--o-tl-unavailable-bg)" : "transparent";
-                return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
-            });
-            const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
-            style = `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
+            style = this.partialCellStyle(covered);
         }
         return { key: index, column: index, className: classes.join(" "), style };
+    }
+
+    /**
+     * The style of a cell whose parts are partly unavailable (`covered[part]` is true for a grey
+     * part): hard edges, each part either grey or transparent. A variant may draw it otherwise.
+     */
+    partialCellStyle(covered) {
+        const stops = covered.map((grey, part) => {
+            const colour = grey ? "var(--o-tl-unavailable-bg)" : "transparent";
+            return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
+        });
+        const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
+        return `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
     }
 
     _columnView(header) {
