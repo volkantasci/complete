@@ -754,6 +754,14 @@ export class TimelineModel extends Model {
             : deserializeDateTime(value);
     }
 
+    /**
+     * The sub-columns a record covers (R12), or null when it is outside the period. A variant of
+     * the view may change them; `record` holds its start and stop as `DateTime`s.
+     */
+    _spanOf(record) {
+        return pillSpan(record, this.placement, this.columns, this.parts);
+    }
+
     /** Records that can be drawn: both dates, stop not before start, inside the period. */
     _parseRecords(rawRecords) {
         const { startField, stopField } = this.config;
@@ -772,7 +780,7 @@ export class TimelineModel extends Model {
             };
             record[startField] = start;
             record[stopField] = stop;
-            const span = start && stop && pillSpan(record, this.placement, this.columns, this.parts);
+            const span = start && stop && this._spanOf(record);
             if (span) {
                 record.span = span;
                 records.push(record);
