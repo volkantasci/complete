@@ -618,6 +618,10 @@ export class TimelineArrowLayer extends Component {
     }
 
     async onRemove(item) {
+        if (this.arrows.host.consumeThroughPress()) {
+            // the press went to the resize handle beneath the button (002d R1a, A12)
+            return;
+        }
         // awaited: a refusal is raised again here and reaches the Community error handler
         await this.arrows.remove(item);
     }

@@ -80,6 +80,8 @@ const FOLDED_WIDTH = 36;
 /** The space between the side panel's box and the drop zone, above and below it (002b3 R22). */
 const DROP_ZONE_MARGIN = 16;
 /** Clicks on cells are ignored this long after a click on a cell (R7: a double click opens one dialog). */
+/** The first and last px of a pill's body that resize it (002b2 R8). */
+const RESIZE_ZONE = 8;
 export const CELL_CLICK_LOCK = 1000;
 /** ... and this long after the popover closes, unless a lock already runs (R7). */
 export const POPOVER_CLOSE_LOCK = 250;
@@ -1627,6 +1629,53 @@ export class TimelineRenderer extends Component {
     onPillPointerDown(ev, pill, row) {
         this._pillPointer.touchDown(ev, pill, row);
         this._pillPointer.press(ev, pill, row);
+    }
+
+    /**
+     * A press on an arrow (its band, or the remove button of a lit one) where a pill's resize
+     * handle lies beneath: the handle wins, the press starts the resize (002d R1a, A12: Build's left
+     * handle at (938, 260) lies under the remove button of "Design" to "Build"). Handles are drawn
+     * only while the pill is under the pointer, so the zone of the pill's first and last 8 px is
+     * used (002b2 R8). A press elsewhere on an arrow is the arrow's own.
+     */
+    pressThrough(ev) {
+        if (ev.button !== 0 || ev.pointerType === "touch" || this.data.isSample || this.isMultiSelect) {
+            return;
+        }
+        const root = this.rendererRef();
+        const element = document
+            .elementsFromPoint(ev.clientX, ev.clientY)
+            .find((el) => el.matches?.(".o_tl_pill[data-pill-id]") && root?.contains(el));
+        const rowEl = element?.closest(".o_tl_row[data-row-id]");
+        if (!element || !rowEl) {
+            return;
+        }
+        const rect = element.getBoundingClientRect();
+        if (ev.clientY < rect.top || ev.clientY >= rect.bottom) {
+            return;
+        }
+        const rtl = this._isRtl();
+        let edge = null;
+        if (ev.clientX >= rect.left && ev.clientX < rect.left + RESIZE_ZONE) {
+            edge = rtl ? "stop" : "start";
+        } else if (ev.clientX < rect.right && ev.clientX >= rect.right - RESIZE_ZONE) {
+            edge = rtl ? "start" : "stop";
+        }
+        const row = this.layout.rows.find((r) => r.kind === "pills" && r.row.id === rowEl.dataset.rowId);
+        const pill = row?.pills.find((p) => String(p.id) === element.dataset.pillId);
+        if (!edge || !pill || !this._pillState(pill).resizable[edge]) {
+            return;
+        }
+        ev.stopPropagation();
+        this._throughPress = true;
+        const clear = () => browser.setTimeout(() => (this._throughPress = false), 0);
+        ev.target.ownerDocument.addEventListener("pointerup", clear, { once: true, capture: true });
+        this._pillPointer.press(ev, pill, row, { element, handle: edge });
+    }
+
+    /** The click that ends a press taken through an arrow is no click on its remove button. */
+    consumeThroughPress() {
+        return Boolean(this._throughPress);
     }
 
     // ------------------------------------------------------------------------

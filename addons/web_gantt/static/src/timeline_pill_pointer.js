@@ -209,7 +209,7 @@ export class TimelinePillPointer {
     }
 
     /** The press on a pill (R2): a move may follow. `row` is the row descriptor of the pill. */
-    press(ev, pill, row) {
+    press(ev, pill, row, { element: through = null, handle: edge = null } = {}) {
         const host = this.host;
         if (ev.button !== 0 || host.data.isSample) {
             return;
@@ -220,7 +220,9 @@ export class TimelinePillPointer {
             return;
         }
         // the press may come from a strip beside the pill (R11): the pill's own body gives the box
-        const element = ev.currentTarget.matches(".o_tl_pill")
+        const element = through
+            ? through
+            : ev.currentTarget.matches(".o_tl_pill")
             ? ev.currentTarget
             : ev.currentTarget
                   .closest(".o_tl_pills")
@@ -241,7 +243,7 @@ export class TimelinePillPointer {
                 height: rect.height,
             },
         };
-        const handle = ev.target.closest?.(".o_tl_handle")?.dataset.edge || null;
+        const handle = edge || ev.target.closest?.(".o_tl_handle")?.dataset.edge || null;
         host._drag.press(ev, pill, { rowId: row.row.id, handle });
     }
 }

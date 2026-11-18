@@ -233,6 +233,36 @@ for (const withPopover of [true, false]) {
     });
 }
 
+test("A12: a press on a resize handle under a lit arrow's remove button starts the resize, and its click removes nothing", async () => {
+    freezeTime();
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await animationFrame();
+    // the button of "Design" to "Build" lies at Build's start, over its first 8 px
+    const ring = queryOne(
+        `.o_tl_arrow[data-arrow$="|${PILL_ID.Build}"] .o_tl_arrow_remove_ring`
+    );
+    const middle = centre(queryRect(ring));
+    const body = queryRect(pillEl("Build"));
+    // the button's centre lies on the outer box's edge: its half over the body is the handle
+    const spot = { x: body.left + 4, y: middle.y };
+    expect(Math.abs(spot.x - middle.x)).toBeLessThan(7);
+    const held = await drag(ring, { position: spot });
+    await moveHeld(held, spot.x + 6, spot.y);
+    await moveHeld(held, spot.x + 30, spot.y);
+    expect(root()).toHaveClass("o_tl_drag_resize");
+    await keyDown("Escape");
+    await keyUp("Escape");
+    await held.drop();
+    await settle();
+    expect(log).toEqual([]);
+    // pressed and released on the button without moving: still no removal
+    const again = await drag(ring, { position: spot });
+    await again.drop();
+    await settle();
+    expect(log).toEqual([]);
+});
+
 test("A13: a mouse press on the body keeps the popover up to 9 px, 10 px starts the move; a plain click opens it", async () => {
     freezeTime();
     await mountDependencies();

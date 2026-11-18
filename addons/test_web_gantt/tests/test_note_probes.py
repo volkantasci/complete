@@ -186,8 +186,8 @@ class TestNoteProbes(TimelineProbeCase):
     # -- M66, M67: a resize cancelled without a scroll (R1a, A12) -------------------------------
 
     def test_m66_m67_resize_cancelled_without_a_scroll(self):
-        """Build's popover open, its left resize handle pressed at (936, 270) (the package's
-        (938, 260) lies under the remove button of the lit arrow on Complete), moved 30 px right
+        """Build's popover open, its left resize handle pressed at (938, 260) (under the
+        remove button of the lit arrow, the handle wins), moved 30 px right
         (outside the edge zone: no scroll), Escape, the button released over Build: the line of
         "Design" to "Build" is still lit (M66), and after a 1 px move over Build (M67)."""
         probes = ['M66', 'M67']
@@ -201,20 +201,20 @@ class TestNoteProbes(TimelineProbeCase):
                 self.wait("!!document.querySelector('.o_tl_popover')")
                 self.settle()
                 for i in range(1, 4):
-                    self.mouse('mouseMoved', 1300 - 364 * i / 3, 260 + 10 * i / 3)
+                    self.mouse('mouseMoved', 1300 - 362 * i / 3, 260)
                     time.sleep(.03)
-                self.mouse('mousePressed', 936, 270, button='left', buttons=1, clickCount=1)
+                self.mouse('mousePressed', 938, 260, button='left', buttons=1, clickCount=1)
                 for i in range(1, 7):
-                    self.mouse('mouseMoved', 936 + 30 * i / 6, 270, button='left', buttons=1)
+                    self.mouse('mouseMoved', 938 + 30 * i / 6, 260, button='left', buttons=1)
                     time.sleep(.03)
                 self.browser._websocket_request('Input.dispatchKeyEvent', params={
                     'type': 'keyDown', 'key': 'Escape', 'code': 'Escape',
                     'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27})
-                self.mouse('mouseReleased', 966, 270, button='left', buttons=0, clickCount=1)
+                self.mouse('mouseReleased', 968, 260, button='left', buttons=0, clickCount=1)
                 self.settle(600)
                 self.check('M66', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
                            'Design to Build, still lit after Escape and the release')
-                self.pointer_at(967, 270)
+                self.pointer_at(969, 260)
                 self.settle(400)
                 self.check('M67', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
                            'Design to Build, lit after the next 1 px move over Build')

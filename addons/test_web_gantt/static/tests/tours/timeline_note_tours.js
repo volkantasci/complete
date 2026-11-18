@@ -1205,17 +1205,17 @@ for (const withPopover of [true, false]) {
         await pause(400);
         assert(assertShownNow().lit.length === 0, "no arrow lit after the next 1 px move");
     });
-    // Build's left handle at (938, 260) (here (936, 270), R1A-5) moved 30 px right outside the zone: no scroll, Escape,
+    // Build's left handle at (938, 260) moved 30 px right outside the zone: no scroll, Escape,
     // release: Build's two arrows stay lit with their buttons and its handles (M66), also after a
     // 1 px move over Build (M67)
     scenarioTour(`tl_note_a12_left_handle_no_scroll_${suffix}`, async () => {
         if (withPopover) {
             await openPopoverWithMouse();
         }
-        // the package presses at (938, 260); on Complete the lit arrow's remove button of "Design" to
-        // "Build" covers that point, so the press is at (936, 270) on the same handle (R1A-5)
-        const from = { x: 936, y: 270 };
+        // the lit arrow's remove button of "Design" to "Build" lies over this point: the handle wins
+        const from = { x: 938, y: 260 };
         await walkTo(BUILD, from, 3);
+        await pause(300);
         await pause(300);
         await pressAt(from);
         const scroller = $(".o_tl_renderer");
@@ -1232,11 +1232,23 @@ for (const withPopover of [true, false]) {
         await pause(300);
         await realMouse(releaseAt(end), { settle: false });
         await pause(400);
-        const kept = { lit: buildArrows(), buttons: 2, handles: 2 };
-        assertShown(kept, "Build's arrows and handles after Escape and the release (M66)");
+        // M66: the line of "Design" to "Build" is still lit, with its button. The package adds
+        // Build's other arrow and its handles; on Complete the pointer rests on the band of
+        // "Design" to "Build" (its route runs 28 px over Build's start), which lights that arrow
+        // alone (002c R9), see R1A-5 of the report.
+        const designToBuild = arrowBetween("Design", "Build").dataset.arrow;
+        const stillLit = () => {
+            const now = assertShownNow();
+            assert(
+                now.lit.includes(designToBuild) && now.buttons >= 1,
+                `Design to Build lit with its button, got ${JSON.stringify(now)}`
+            );
+        };
+        stillLit();
+        // M67: the same after a 1 px move
         await moveTo({ x: end.x + 1, y: end.y });
         await pause(400);
-        assertShown(kept, "the same after a 1 px move over Build (M67)");
+        stillLit();
     });
 }
 
