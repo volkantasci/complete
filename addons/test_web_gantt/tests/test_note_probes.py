@@ -1,7 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Probes of slice 002d's notes on the earlier parts (M27 to M38, M41 to M44, M47), on 002c's
-host H42.
+"""Probes of slice 002d's notes on the earlier parts (M27 to M38, M41 to M44, M47, M66, M67), on
+002c's host H42.
 
 Run only these: ``--test-tags /test_web_gantt:TestNoteProbes``. The dark scheme needs
 ``web_enterprise``; without it the dark probes are skipped. The values are in
@@ -182,6 +182,42 @@ class TestNoteProbes(TimelineProbeCase):
                 self.check('M44', self.part('Review', 'Overlap A', '.o_tl_arrow_line'), scheme,
                            'Review to Overlap A, still lit')
                 self.check('M47', self.pill('Review'), scheme, 'the pill Review after the release')
+
+    # -- M66, M67: a resize cancelled without a scroll (R1a, A12) -------------------------------
+
+    def test_m66_m67_resize_cancelled_without_a_scroll(self):
+        """Build's popover open, its left resize handle pressed at (936, 270) (the package's
+        (938, 260) lies under the remove button of the lit arrow on Complete), moved 30 px right
+        (outside the edge zone: no scroll), Escape, the button released over Build: the line of
+        "Design" to "Build" is still lit (M66), and after a 1 px move over Build (M67)."""
+        probes = ['M66', 'M67']
+        for scheme in self.schemes(probes):
+            with self.page(HOST, scheme, 'desktop'):
+                self.wait("document.querySelectorAll('.o_tl_arrow').length === 3", timeout=60)
+                self.settle()
+                self.pointer_at(1300, 260)
+                self.mouse('mousePressed', 1300, 260, button='left', buttons=1, clickCount=1)
+                self.mouse('mouseReleased', 1300, 260, button='left', buttons=0, clickCount=1)
+                self.wait("!!document.querySelector('.o_tl_popover')")
+                self.settle()
+                for i in range(1, 4):
+                    self.mouse('mouseMoved', 1300 - 364 * i / 3, 260 + 10 * i / 3)
+                    time.sleep(.03)
+                self.mouse('mousePressed', 936, 270, button='left', buttons=1, clickCount=1)
+                for i in range(1, 7):
+                    self.mouse('mouseMoved', 936 + 30 * i / 6, 270, button='left', buttons=1)
+                    time.sleep(.03)
+                self.browser._websocket_request('Input.dispatchKeyEvent', params={
+                    'type': 'keyDown', 'key': 'Escape', 'code': 'Escape',
+                    'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27})
+                self.mouse('mouseReleased', 966, 270, button='left', buttons=0, clickCount=1)
+                self.settle(600)
+                self.check('M66', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
+                           'Design to Build, still lit after Escape and the release')
+                self.pointer_at(967, 270)
+                self.settle(400)
+                self.check('M67', self.part('Design', 'Build', '.o_tl_arrow_line'), scheme,
+                           'Design to Build, lit after the next 1 px move over Build')
 
     # -- M32 to M34: a popover and a press on the end handle (R2 point 1, A11) ------------------
 

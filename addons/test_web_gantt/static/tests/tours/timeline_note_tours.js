@@ -444,8 +444,8 @@ scenarioTour("tl_note_a13_popover_and_body", async () => {
     // a press and a release without moving is a click: the popover opens
     await pause(600);
     await realMouse([...holdEvents(from, []), ...releaseAt(from)], { settle: false });
-    await pause(400);
-    assert(popoverOpen(), "the click opens the popover of Build again");
+    // no guard time: the popover is drawn 150 to 750 ms after the click, a check waits up to 1 s
+    await until(() => popoverOpen(), "the click opens the popover of Build again", 1000);
 });
 
 // A13, the second path: Build pressed at (1300, 260), moved 96 px to the left in 10 steps, Escape,
@@ -461,8 +461,8 @@ scenarioTour("tl_note_a13_click_after_a_cancelled_move", async () => {
     await realMouse(releaseAt({ x: BUILD.x - 96, y: BUILD.y }), { settle: false });
     await pause(100);
     await realMouse([...holdEvents(BUILD, []), ...releaseAt(BUILD)], { settle: false });
-    await pause(400);
-    assert(popoverOpen(), "the click opens the popover of Build at once");
+    // no guard time: a check waits up to 1 s (the popover is drawn 150 to 750 ms after the click)
+    await until(() => popoverOpen(), "the click opens the popover of Build at once", 1000);
 });
 
 /** The outer box of "Build" (its body and the 1 px around it) and its middle height. */
@@ -509,6 +509,15 @@ scenarioTour("tl_note_a14_touch_drawing_handle", async () => {
     await fingerTo(over.x, over.y);
     await fingerUp(over.x, over.y);
     await pause(400);
+    // P2: no arrow is lit after the lift and Build keeps its handles until the next tap
+    assertShown({ lit: [], buttons: 0, handles: 2 }, "after the lift over Build");
+    assert(handleOwners().every((owner) => owner === idOf("Build")), "the handles are Build's");
+    await pause(1500);
+    assertShown({ lit: [], buttons: 0, handles: 2 }, "1.5 s after the lift");
+    // a tap on the empty cell (1300, 239) hides them
+    await realMouse(fingerEvents({ x: 1300, y: 239 }, []), { touch: true, settle: false });
+    await pause(600);
+    assertShown({ lit: [], buttons: 0, handles: 0 }, "after the tap on the empty cell");
 }, { pointer: false });
 
 // A15: a finger on the body: popover up to 8 px, the move at 12 px, Escape before lifting
@@ -1010,6 +1019,14 @@ scenarioTour(
         await touchEndAll();
         await until(() => callsSince(mark, WRITES).length === 1, "the link is written");
         await gridSettled();
+        // P3: no arrow is lit and Build, the pill last tapped, keeps its handles until the next tap
+        await pause(1500);
+        assertShown({ lit: [], buttons: 0, handles: 2 }, "after the write");
+        assert(handleOwners().every((owner) => owner === idOf("Build")), "the handles are Build's");
+        // a tap on the empty cell (1300, 239) hides them
+        await realMouse(fingerEvents({ x: 1300, y: 239 }, []), { touch: true, settle: false });
+        await pause(600);
+        assertShown({ lit: [], buttons: 0, handles: 0 }, "after the tap on the empty cell");
     },
     { writes: 1, pointer: false }
 );
@@ -1127,3 +1144,141 @@ scenarioTour(
     },
     { pointer: false }
 );
+
+// --- R1 point 7, A7 (decision D5): back in the grid by two paths ------------------------------
+
+/** The pointer, no button, from `from` to `to` in `count` steps. */
+const walkTo = (from, to, count = 6) =>
+    realMouse(
+        stepsTo(from, to, count).map(({ x, y }) => mouse("mouseMoved", x, y, { button: "none", buttons: 0 })),
+        { settle: false }
+    );
+
+/** A7 (a) and (b): the release outside the view, 1 px there, then the path into the grid. */
+for (const [name, to] of [
+    ["tl_note_a7_straight_down_to_the_empty_cell", EMPTY],
+    ["tl_note_a7_slanting_to_the_empty_cell", { x: 700, y: 225 }],
+]) {
+    scenarioTour(name, async () => {
+        await moveTo12(OUTSIDE);
+        const lit = { lit: buildArrows(), buttons: 2, handles: 0 };
+        await releaseAndRead(OUTSIDE, lit, [{ to: right(OUTSIDE), expected: lit }]);
+        // from (1301, 60) in 6 steps; straight down ends at (1300, 225), right above Build
+        await walkTo(right(OUTSIDE), to, 6);
+        await pause(400);
+        assertShown(NOTHING, `both arrows rest at (${to.x}, ${to.y})`);
+    });
+}
+
+// --- P1 (R1a, A12, M66, M67): a resize cancelled after the grid scrolled, or not ---------------
+
+for (const withPopover of [true, false]) {
+    const suffix = withPopover ? "popover" : "no_popover";
+    // Build's right handle at (1505, 260) lies in the edge zone: held, the grid scrolls; at Escape
+    // the highlight is worked out from what lies under the pointer, Build has moved away: no arrow
+    scenarioTour(`tl_note_a12_right_handle_scrolls_${suffix}`, async () => {
+        if (withPopover) {
+            await openPopoverWithMouse();
+        }
+        const from = { x: 1505, y: 260 };
+        await moveTo(from);
+        await pressAt(from);
+        const end = { x: from.x - 30, y: from.y };
+        await realMouse(
+            stepsTo(from, end, 6).map(({ x, y }) => mouse("mouseMoved", x, y, { buttons: 1 })),
+            { settle: false }
+        );
+        await until(() => rootHas("o_tl_drag_resize"), "the resize starts");
+        // held in the zone the grid scrolls
+        const scroller = $(".o_tl_renderer");
+        const before = scroller.scrollLeft;
+        await pause(1000);
+        assert(scroller.scrollLeft > before, "the grid scrolled");
+        escape();
+        await pause(400);
+        assert(!rootHas("o_tl_dragging"), "Escape cancelled the resize");
+        assert(assertShownNow().lit.length === 0, "no arrow lit at Escape");
+        await realMouse(releaseAt(end), { settle: false });
+        await pause(400);
+        assert(assertShownNow().lit.length === 0, "no arrow lit at the release");
+        await moveTo({ x: end.x + 1, y: end.y });
+        await pause(400);
+        assert(assertShownNow().lit.length === 0, "no arrow lit after the next 1 px move");
+    });
+    // Build's left handle at (938, 260) (here (936, 270), R1A-5) moved 30 px right outside the zone: no scroll, Escape,
+    // release: Build's two arrows stay lit with their buttons and its handles (M66), also after a
+    // 1 px move over Build (M67)
+    scenarioTour(`tl_note_a12_left_handle_no_scroll_${suffix}`, async () => {
+        if (withPopover) {
+            await openPopoverWithMouse();
+        }
+        // the package presses at (938, 260); on Complete the lit arrow's remove button of "Design" to
+        // "Build" covers that point, so the press is at (936, 270) on the same handle (R1A-5)
+        const from = { x: 936, y: 270 };
+        await walkTo(BUILD, from, 3);
+        await pause(300);
+        await pressAt(from);
+        const scroller = $(".o_tl_renderer");
+        const before = scroller.scrollLeft;
+        const end = { x: from.x + 30, y: from.y };
+        await realMouse(
+            stepsTo(from, end, 6).map(({ x, y }) => mouse("mouseMoved", x, y, { buttons: 1 })),
+            { settle: false }
+        );
+        await until(() => rootHas("o_tl_drag_resize"), "the resize starts");
+        await pause(400);
+        assert(scroller.scrollLeft === before, "the grid does not scroll");
+        escape();
+        await pause(300);
+        await realMouse(releaseAt(end), { settle: false });
+        await pause(400);
+        const kept = { lit: buildArrows(), buttons: 2, handles: 2 };
+        assertShown(kept, "Build's arrows and handles after Escape and the release (M66)");
+        await moveTo({ x: end.x + 1, y: end.y });
+        await pause(400);
+        assertShown(kept, "the same after a 1 px move over Build (M67)");
+    });
+}
+
+// --- A13, R2 point 1: a click and a double click at the release spot of a cancelled move -------
+
+const clickEvents = (at, count) => [
+    mouse("mouseMoved", at.x, at.y, { button: "none", buttons: 0 }),
+    mouse("mousePressed", at.x, at.y, { buttons: 1, clickCount: count }),
+    mouse("mouseReleased", at.x, at.y, { buttons: 0, clickCount: count }),
+];
+
+/** Build pressed at (1300, 260), moved 96 px left in 10 steps, Escape, released: the spot. */
+async function cancelledMoveReleased() {
+    const spot = { x: BUILD.x - 96, y: BUILD.y };
+    await realMouse(holdEvents(BUILD, stepsTo(BUILD, spot, 10)), { settle: false });
+    await until(() => rootHas("o_tl_drag_move"), "the move starts");
+    escape();
+    await pause(200);
+    await realMouse(releaseAt(spot), { settle: false });
+    return spot;
+}
+
+// the click counts of a script (1) and of a browser, which counts the release's click first (2)
+for (const [label, count] of [["counted_from_one", 1], ["counted_by_the_browser", 2]]) {
+    scenarioTour(`tl_note_a13_click_at_the_release_spot_${label}`, async () => {
+        const spot = await cancelledMoveReleased();
+        await realMouse(clickEvents(spot, count), { settle: false });
+        // no guard time: a check waits up to 1 s (the popover is drawn 150 to 750 ms after the click)
+        await until(() => popoverOpen(), "the click at the release spot opens the popover", 1000);
+        assert(!$(".o_dialog"), "no dialog");
+    });
+}
+
+for (const [label, counts] of [["counted_from_one", [1, 2]], ["counted_by_the_browser", [2, 3]]]) {
+    scenarioTour(`tl_note_a13_double_click_at_the_release_spot_${label}`, async () => {
+        const spot = await cancelledMoveReleased();
+        for (const count of counts) {
+            await realMouse(clickEvents(spot, count), { settle: false });
+            await pause(60);
+        }
+        await until(() => $(".o_dialog"), "the double click at the release spot opens the record dialog", 1000);
+        await pause(800);
+        assert(!popoverOpen(), "no popover beside the dialog");
+    });
+}

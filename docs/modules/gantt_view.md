@@ -1060,8 +1060,9 @@ bands and the rescheduling also work on a phone (see [below](#dependencies-on-a-
   when the gesture started stay lit with their buttons and the pill under the
   pointer shows its handles again (none on an empty cell); at the pointer's next
   move the highlight follows the pointer again. When the grid scrolled during the
-  gesture (edge scrolling), the highlight is worked out from what lies under the
-  pointer at Escape instead. The same holds for every release
+  gesture (edge scrolling) and the pointer is still in the edge zone at Escape, the
+  highlight is worked out from what lies under the pointer at Escape instead; a
+  gesture whose pointer had left the zone keeps the state above. The same holds for every release
   that writes nothing, see [After a gesture that writes nothing](#after-a-gesture-that-writes-nothing).
 
 ![The arrows of the pill under the pointer, light](../assets/gantt_view/76-pill-hover.png)

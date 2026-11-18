@@ -188,6 +188,24 @@ class TestNoteTours(RealPointerMixin, HttpCase):
     def test_a13_popover_and_a_press_on_the_body(self):
         self._run('tl_note_a13_popover_and_body')
 
+    def test_a7_back_in_the_grid_by_two_paths(self):
+        self._run('tl_note_a7_straight_down_to_the_empty_cell')
+        self._run('tl_note_a7_slanting_to_the_empty_cell')
+
+    def test_a12_resize_cancelled_with_and_without_a_scroll(self):
+        for name in ('tl_note_a12_right_handle_scrolls_popover',
+                     'tl_note_a12_right_handle_scrolls_no_popover',
+                     'tl_note_a12_left_handle_no_scroll_popover',
+                     'tl_note_a12_left_handle_no_scroll_no_popover'):
+            with self.subTest(tour=name):
+                self._run(name)
+
+    def test_a13_click_and_double_click_at_the_release_spot(self):
+        for label in ('counted_from_one', 'counted_by_the_browser'):
+            with self.subTest(label=label):
+                self._run(f'tl_note_a13_click_at_the_release_spot_{label}')
+                self._run(f'tl_note_a13_double_click_at_the_release_spot_{label}')
+
     def test_a13_a_click_after_a_cancelled_move_opens_the_popover_at_once(self):
         self._run('tl_note_a13_click_after_a_cancelled_move')
 
