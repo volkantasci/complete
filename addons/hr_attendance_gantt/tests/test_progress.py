@@ -93,6 +93,38 @@ class TestProgress(HrRowsCase, TransactionCase):
         self.env.flush_all()
         self.assertEqual(self.expected('HRA Abigail', WEEK), 36)
 
+    def test_r16_contract_starting_the_day_after_the_period(self):
+        # no contract overlaps the days of the period: the current schedule counts, the
+        # contract of the next day does not turn the hours into 0
+        schedule = self.schedule
+        employee = self.env['hr.employee'].create({
+            'name': 'HRA Later', 'tz': 'Europe/Brussels', 'resource_calendar_id': schedule.id,
+            'contract_date_start': '2026-12-01'})
+        day = (utc('2026-11-29 23:00'), utc('2026-11-30 23:00'))  # Monday 30 November
+        month = (utc('2026-10-31 23:00'), utc('2026-11-30 23:00'))
+        model = self.Attendance.with_context(tz='Europe/Brussels')
+        found = model._gantt_progress_bar('employee_id', [employee.id], *day)
+        self.assertEqual(found[employee.id]['max_value'], 8)
+        found = model._gantt_progress_bar('employee_id', [employee.id], *month)
+        self.assertEqual(found[employee.id]['max_value'], 168)
+
+    def test_r16_schedule_of_the_overlapping_version_decides(self):
+        # the first contract (whole days) ended before the period; the contract of the
+        # period is fully flexible: the maximum is 0 and the flag is set
+        free = self.prepared['Gantt Free'].resource_calendar_id
+        employee = self.env['hr.employee'].create({
+            'name': 'HRA Changed', 'tz': 'Europe/Brussels',
+            'resource_calendar_id': self.schedule.id,
+            'contract_date_start': '2026-01-01', 'contract_date_end': '2026-10-31'})
+        employee.create_version({
+            'date_version': '2026-11-02', 'resource_calendar_id': free.id,
+            'contract_date_start': '2026-11-02', 'contract_date_end': False})
+        self.env.flush_all()
+        model = self.Attendance.with_context(tz='Europe/Brussels')
+        found = model._gantt_progress_bar('employee_id', [employee.id], *WEEK)
+        self.assertEqual(found[employee.id]['max_value'], 0)
+        self.assertTrue(found[employee.id]['hag_fully_flexible'])
+
     def test_a62_holiday_lowers_to_32(self):
         made = make_prepared(self.env, holiday=True, demo_schedule=self.schedule)
         self.assertIn('Gantt Holiday', made)

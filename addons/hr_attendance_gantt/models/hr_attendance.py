@@ -175,9 +175,7 @@ class HrAttendance(models.Model):
         """
         overlapping = employee._get_versions_with_contract_overlap_with_period(
             first_day, after_last_day - timedelta(days=1))
-        calendar = (
-            employee._get_version(first_day).resource_calendar_id if overlapping
-            else employee.resource_calendar_id)
+        calendar = overlapping[:1].resource_calendar_id or employee.resource_calendar_id
         if calendar._is_fully_flexible():
             return 0.0, True
         if calendar._is_flexible():
@@ -185,7 +183,19 @@ class HrAttendance(models.Model):
             weeks, rest = divmod(days, 7)
             per_week = calendar.hours_per_week
             return weeks * per_week + min(rest * calendar.hours_per_day, per_week), False
-        intervals = employee._get_expected_attendances(
-            datetime.combine(first_day, time.min, zone),
-            datetime.combine(after_last_day, time.min, zone))
+        date_from = datetime.combine(first_day, time.min, zone)
+        date_to = datetime.combine(after_last_day, time.min, zone)
+        if overlapping:
+            intervals = employee._get_expected_attendances(date_from, date_to)
+        else:
+            # No contract in the period's own days: the current schedule over the whole
+            # period. The Community's method looks at the day of ``date_to`` too, where a
+            # contract may start, so the fallback is worked out here, as the Community does.
+            intervals = employee.resource_calendar_id._work_intervals_batch(
+                date_from, date_to,
+                resources_per_tz=employee._get_resources_per_tz(date_from),
+                compute_leaves=True,
+                domain=[('company_id', 'in', [False, employee.company_id.id]),
+                        ('count_as', '=', 'absence')],
+            )[employee.resource_id.id]
         return sum_intervals(intervals), False
