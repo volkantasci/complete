@@ -218,6 +218,14 @@ class HrProbes(TimelineProbeCase):
                     ".find((b) => b.querySelector(\"i[data-icon='search']\")).click()")
             self.wait("!!document.querySelector('.o_searchview_input')")
 
+    def close_phone_search(self):
+        """The search bar of the phone is shut again once the search is made (the capture's state:
+        the control panel is back to its own height)."""
+        self.js("document.querySelector(\".o_control_panel_navigation button.active "
+                "i[data-icon='search']\").closest('button').click()")
+        self.wait("!document.querySelector('.o_cp_searchview')")
+        self.settle(900)
+
     def search(self, text, field='Employee', phone=False):
         if phone:
             self.open_phone_search()
@@ -305,6 +313,10 @@ class HrProbes(TimelineProbeCase):
         pill slot): the pill's box and the 1 px gap around it that 002a leaves in its cell, so the
         pill grown by 1 px on each side (ruling T11-4)."""
         box = self.geometry(element_js)
+        # the 1 px gap: the pill starts 1 px under the top of its one-line row
+        row = self.geometry(f"({element_js}).closest('.o_tl_row')")
+        with self.subTest(probe=probe, scheme=scheme, prop='gap'):
+            self.assertAlmostEqual(box['geometry.y'] - row['geometry.y'], 1, delta=0.1)
         grown = {
             'geometry.x': box['geometry.x'] - 1, 'geometry.y': box['geometry.y'] - 1,
             'geometry.width': box['geometry.width'] + 2,
@@ -352,18 +364,6 @@ class HrProbes(TimelineProbeCase):
             self.assertEqual(
                 [c == grey for c in got_quarters], [c == grey for c in expected_quarters],
                 f'{probe} {scheme}: {got} instead of {want}')
-
-    def check_bottom(self, element_js, bottom, probe):
-        box = self.geometry(element_js)
-        with self.subTest(probe=probe, prop='bottom edge'):
-            self.assertAlmostEqual(box['geometry.y'] + box['geometry.height'], bottom, delta=1)
-
-    def dump(self, label, *selectors):
-        """A diagnostic line: the boxes of some containers (a probe that fails reads them)."""
-        boxes = {sel: self.js(f"(() => {{ const e = document.querySelector({json.dumps(sel)}); "
-                              "if (!e) { return null; } const r = e.getBoundingClientRect(); "
-                              "return [r.x, r.y, r.width, r.height]; })()") for sel in selectors}
-        _logger.warning('BOXES|%s|%s', label, json.dumps(boxes))
 
     def check_count(self, probe, count_js, scheme, viewport, label):
         """A ``count`` probe: how many elements the place describes."""
@@ -473,13 +473,6 @@ class TestHrRowsProbes(HrProbes):
     def day_probes(self, scheme, viewport):
         """M1 to M9 of the Day range of 11 November, light or dark, desktop or phone."""
         anita, audrey = 'HRA Anita', 'HRA Audrey'
-        if True:
-            for selector in ('.o_tl_row_header', '.o_tl_row_body', '.o_tl_row_line',
-                             '.o_tl_row_name', '.o_tl_row_label', '.o_tl_progress_label',
-                             '.o_tl_progress', '.o_hrg_avatar'):
-                _logger.warning('ROWBOX|%s|%s', selector, self.js(
-                    f"JSON.stringify((() => {{ const r = {in_row(anita, selector)}"
-                    ".getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })())"))
         self.check('M1', in_row(anita, '.o_hrg_avatar'), scheme, viewport, 'the avatar')
         self.check('M2', in_row(anita, '.o_tl_row_label'), scheme, viewport, 'the name box')
         self.check('M3', in_row(audrey, '.o_tl_row_label'), scheme, viewport,
@@ -531,9 +524,10 @@ class TestHrRowsProbes(HrProbes):
                 avatar = in_row('HRA Anita', '.o_hrg_avatar')
                 self.real_click(avatar, settle=1.5)
                 self.wait("!!document.querySelector('.o_popover')")
-                # the card's width is that of its content: 382 px with the skills section of the
-                # Community's skills application, which Complete's database does not have
-                # (ruling T11-5); its place and look are compared
+                # the card's width is that of the Community's card for its content (263.8 px for
+                # a card with a title, mail, phone and skills as here), not the 382 px of the
+                # original's demo card, which the content of the demo record sets (ruling T11-5):
+                # its place and look are compared
                 self.check('M10', "document.querySelector('.o_popover')", scheme, 'desktop',
                            'the employee card', skip=('geometry.width',))
                 self.press_escape()
@@ -587,12 +581,8 @@ class TestHrRowsProbes(HrProbes):
                 self.wait("!!document.querySelector('.o-tooltip')", timeout=10)
                 self.check_text("document.querySelector('.o-tooltip')", '29h/40h (72%)',
                                 'the tooltip text')
-                # the corners are those of the theme's tooltip role (a pill, 800 px), not the 11 px
-                # of the original's tooltip (ruling T11-6, a concern in the report)
                 self.check('M23', "document.querySelector('.o-tooltip')", scheme, 'desktop',
-                           'the tooltip of the bar',
-                           skip=('border-top-left-radius', 'border-top-right-radius',
-                                 'border-bottom-left-radius', 'border-bottom-right-radius'))
+                           'the tooltip of the bar')
                 self.mouse('mouseMoved', 1000, 123, buttons=0)
                 self.settle(500)
                 # M21, M22: a click on the folded header of Sunday 8
@@ -633,15 +623,8 @@ class TestHrRowsProbes(HrProbes):
                 self.search('HRA Beth')
                 self.wait("!!document.querySelector('.o_hag_helper')")
                 self.settle(1500)
-                self.dump('M54', '.o_hag_helper', '.o_tl_box', '.o_tl_renderer', '.o_tl_grid',
-                          '.o_content', '.o_tl_controls', '.o_control_panel', '.o_tl_title_cell',
-                          '.o_tl_row')
-                # the helper starts under the one row and runs to the window's bottom; the table's
-                # box starts 15 px (phone: 49 px) above the end of the column headers (ruling
-                # T11-7): its place and width are compared, with the bottom edge
                 self.check('M54', "document.querySelector('.o_hag_helper')", scheme, 'desktop',
-                           'the helper', skip=('geometry.y', 'geometry.height'))
-                self.check_bottom('document.querySelector(\'.o_hag_helper\')', 900, 'M54')
+                           'the helper')
                 headers = f"{ROW_EL}.filter((r) => r.querySelector('.o_tl_row_header')).length"
                 self.check_count('M56', headers, scheme, 'desktop', 'row headers')
 
@@ -651,15 +634,13 @@ class TestHrRowsProbes(HrProbes):
             with self.open(scheme, 'phone'):
                 self.loaded('phone')
                 self.search('HRA Beth', phone=True)
+                self.close_phone_search()
                 self.wait("!!document.querySelector('.o_hag_helper')")
                 self.settle(1500)
-                self.dump('M55', '.o_hag_helper', '.o_tl_box', '.o_tl_renderer', '.o_content',
-                          '.o_tl_controls', '.o_control_panel', '.o_tl_title_cell', '.o_tl_row')
                 self.check('M55', "document.querySelector('.o_hag_helper')", scheme, 'phone',
-                           'the helper on the phone', skip=('geometry.y', 'geometry.height'))
-                # the table's helper ends at the window's bottom (844); Complete's phone page is
-                # taller than the window once the search bar is open and the helper follows the
-                # page's end (ruling T11-7)
+                           'the helper on the phone')
+                # the page is no taller than the window
+                self.assertLessEqual(self.js("document.documentElement.scrollHeight"), 844)
 
     def test_m68_m60_m61_ranges_and_helper(self):
         """M59 to M61, M67, M68: the range chosen around today (R6), and no helper on a far week
