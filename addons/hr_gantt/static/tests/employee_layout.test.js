@@ -50,7 +50,7 @@ test("R7: the diagonal is a hard-edged gradient at 325 degrees", () => {
     expect(diagonalBackground(false, false)).toBe(null);
 });
 
-test("R7, R8: half-day precision means day columns with two parts", () => {
+test("R8: half-day precision means day columns with two parts", () => {
     expect(isHalfDayPrecision("day", 2)).toBe(true);
     expect(isHalfDayPrecision("hour", 2)).toBe(false);
     expect(isHalfDayPrecision("day", 4)).toBe(false);
@@ -65,6 +65,7 @@ test("A21: the comparison with noon is made in whole minutes", () => {
     expect(rounded(hm(11, 1), hm(13))).toBe("second");
     // 10:59 to 13:00: 61 against 60: the stop is closer, the morning
     expect(rounded(hm(10, 59), hm(13))).toBe("first");
-    // a stop at the midnight that ends the day is 24:00
-    expect(rounded(hm(11, 30), hm(24))).toBe("second");
+    // the same times on another day (a stop at midnight is on the next day: the model passes
+    // sameDay false, so R8 rule 1 leaves such a pill alone)
+    expect(rounded(hm(11, 30), hm(24), { sameDay: false })).toBe("both");
 });

@@ -3,9 +3,8 @@
 import { AvatarCard } from "@mail/core/web/avatar_card/avatar_card";
 import { usePopover } from "@web/core/popover/popover_hook";
 import { imageUrl } from "@web/core/utils/urls";
-import { TIMELINE_SCALES } from "@web_gantt/timeline_dates";
 import { TimelineRenderer } from "@web_gantt/timeline_renderer";
-import { diagonalBackground, isHalfDayPrecision } from "./employee_layout";
+import { diagonalBackground } from "./employee_layout";
 
 /** The models an employee field points to; the card and the image use the public record (R5). */
 const EMPLOYEE_MODELS = ["hr.employee", "hr.employee.public"];
@@ -56,10 +55,12 @@ export class EmployeeTimelineRenderer extends TimelineRenderer {
         this.avatarCard.open(ev.currentTarget, { id: employee.id, model: PUBLIC_MODEL });
     }
 
-    /** R7: two halves in different states are shaded along a diagonal. */
+    /**
+     * R7: two halves in different states are shaded along a diagonal, in any column with exactly
+     * two parts (half days of a day column, half hours of an hour column).
+     */
     partialCellStyle(covered) {
-        const columnUnit = TIMELINE_SCALES[this.data.scaleId]?.column;
-        if (isHalfDayPrecision(columnUnit, covered.length)) {
+        if (covered.length === 2) {
             const background = diagonalBackground(covered[0], covered[1]);
             if (background) {
                 return `background-image: ${background}`;

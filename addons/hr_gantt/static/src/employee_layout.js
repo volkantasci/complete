@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * R7 and R8 apply only at half-day precision: the scale's columns are days and each column has
- * two parts. A day scale with half-hour parts is not one (the rule is decided by precision).
+ * R8 applies only at half-day precision: the scale's columns are days and each column has two
+ * parts. A day scale with half-hour parts is not one (the rule is decided by precision). R7's
+ * diagonal is wider: it applies to any column with exactly two parts.
  * @param {string} columnUnit the unit of the scale's columns ("hour", "day" or "month")
  * @param {number} parts
  */

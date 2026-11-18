@@ -189,8 +189,8 @@ test("A21: start and stop are clipped to the displayed period before the rule ap
             stop: toServer(first.plus({ hours: 13 })),
         },
         {
-            // 11:30 to the midnight that ends the day: the stop belongs to its own day, the
-            // start is the closer to noon and not before 11:00: the afternoon only
+            // 11:30 to midnight: a stop at midnight falls on the next day (R8 rule 1), so
+            // the pill is not rounded and keeps both halves
             name: "Midnight",
             employee_id: employee,
             start: toServer(first.plus({ days: 3, hours: 11, minutes: 30 })),
@@ -201,5 +201,5 @@ test("A21: start and stop are clipped to the displayed period before the rule ap
     await model.setKind("month", model.data.range.focus);
     const spanOf = (name) => model.data.records.find((item) => item.displayName === name).span;
     expect([spanOf("Clipped").from, spanOf("Clipped").to]).toEqual([0, 1]);
-    expect([spanOf("Midnight").from, spanOf("Midnight").to]).toEqual([7, 8]);
+    expect([spanOf("Midnight").from, spanOf("Midnight").to]).toEqual([6, 8]);
 });

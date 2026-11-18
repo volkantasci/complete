@@ -74,13 +74,12 @@ export class EmployeeTimelineModel extends TimelineModel {
         const from = start < periodStart ? periodStart : start;
         const to = stop > periodStop ? periodStop : stop;
         const day = from.startOf("day");
-        // a stop at midnight still belongs to the day that ends there
-        const lastMoment = to > from ? to.minus({ milliseconds: 1 }) : to;
-        const sameDay = lastMoment.startOf("day").equals(day);
+        // a stop at midnight falls on the next day (R8 rule 1): such a pill is not rounded
+        const sameDay = to.hasSame(day, "day");
         // wall-clock minutes, so that a day with a clock change reads right
         const kept = lunchRoundedParts({
             startMinutes: from.hour * 60 + from.minute,
-            stopMinutes: to.hasSame(day, "day") ? to.hour * 60 + to.minute : 24 * 60,
+            stopMinutes: to.hour * 60 + to.minute,
             sameDay,
             parts: this.parts,
             columnUnit,
