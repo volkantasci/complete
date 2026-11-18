@@ -69,6 +69,8 @@
     &.o_hag_helper_phone {
         pointer-events: auto;
         background-color: $o-view-background-color;
+        // over the sticky headers of the grid: it covers the column headers and the row
+        z-index: 100;
 
         > .o_view_nocontent {
             pointer-events: auto;
