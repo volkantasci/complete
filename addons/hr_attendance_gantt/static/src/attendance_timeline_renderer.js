@@ -21,11 +21,12 @@ export const RESIZE_DELAY = 250;
  * Nothing here changes them.
  */
 /**
- * The helper's top under the box that holds the grid (M54, M55): the header rows (51 px) and 15 px
- * on the desktop (y 222 under a box at 156), 19.65 px on the phone (y 274.625 under a box at 204).
+ * R20 (M54, M55): the helper's box is the free space under the grid (the window's bottom less the
+ * grid's bottom, which is the bottom of its one row) grown upward by this share of that space.
+ * The measured boxes give 26 px of 652 px on the desktop (y 222) and 21.4 px of 548 px on the
+ * phone (y 274.625): 4 % of the free space in both, within 0.3 px, so no second value is needed.
  */
-const HELPER_TOP = 66;
-const HELPER_TOP_PHONE = 70.65;
+const HELPER_OVERLAP = 0.0395;
 
 export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     static template = "hr_attendance_gantt.AttendanceTimelineRenderer";
@@ -108,21 +109,27 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     }
 
     /**
-     * R20 (M54, M55): the helper is a layer over the view's content, from 66 px under the top of
-     * the grid (its two header rows and 15 px) to the bottom of the window; the page is never
-     * taller than the window because of it.
+     * R20 (M54, M55): the helper is a layer over the view's content: its box runs from a little
+     * above the end of the grid (HELPER_OVERLAP of the free space) to the bottom of the window, so
+     * the page is never taller than the window because of it, and its content is centred in the
+     * free space under the row (the box's padding is the part above the grid's end).
      */
     placeHelper() {
         const helper = this.helperRef();
+        const grid = this.rendererRef();
         const box = helper?.offsetParent;
-        if (!box) {
+        if (!box || !grid) {
             return;
         }
-        const offset = this.ui.isSmall ? HELPER_TOP_PHONE : HELPER_TOP;
-        const top = box.getBoundingClientRect().top + offset;
-        helper.style.top = `${offset}px`;
+        const gridBottom = grid.getBoundingClientRect().bottom;
+        const overlap = Math.max(0, browser.innerHeight - gridBottom) * HELPER_OVERLAP;
+        const top = gridBottom - overlap;
+        // `top` is read from the padding box: a border of the box (a panel frame) is not in it
+        const frame = parseFloat(getComputedStyle(box).borderTopWidth) || 0;
+        helper.style.top = `${top - box.getBoundingClientRect().top - frame}px`;
         helper.style.bottom = "auto";
         helper.style.height = `${Math.max(0, browser.innerHeight - top)}px`;
+        helper.style.paddingTop = `${overlap}px`;
     }
 
     /** R20: at most one row, and that row has no attendance. */

@@ -1262,6 +1262,18 @@ scenario("hag_a53_helper", async () => {
         "the row stays above the helper's content"
     );
     assert(rectOf(rowEl("HRA Beth")).height > 0, "the row is visible");
+    // the layer lets real clicks through to the row: the name reaches the row header, the avatar
+    // opens the card
+    const header = $(".o_tl_row_header", rowEl("HRA Beth"));
+    let reached = 0;
+    header.addEventListener("click", () => reached++);
+    await realClick($(".o_tl_row_label", header));
+    assertEqual(reached, 1, "a click on the name reaches the row header");
+    await realClick($(".o_hrg_avatar", header));
+    await until(
+        () => texts(".o_popover").join(" ").includes("HRA Beth"),
+        "the card of the avatar under the helper"
+    );
 });
 
 // A55: a team officer's rows
