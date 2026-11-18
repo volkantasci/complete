@@ -42,7 +42,11 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
             browser.clearTimeout(timer);
             timer = browser.setTimeout(settle, RESIZE_DELAY);
         };
-        onMounted(() => browser.addEventListener("resize", onResize));
+        onMounted(() => {
+            browser.addEventListener("resize", onResize);
+            // a resize between setup and mount is not lost
+            settle();
+        });
         onWillUnmount(() => {
             browser.removeEventListener("resize", onResize);
             browser.clearTimeout(timer);

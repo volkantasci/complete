@@ -302,3 +302,31 @@ test("A58: no multi-selection, no side panel, no dependencies; the search menu o
         "Favorites",
     ]);
 });
+
+test("RL15: the tooltip percentage is cut, not rounded (A40, A63)", async () => {
+    await mountLabels({ "Long Worker": entry(29, 40), "Plus Worker": entry(8.997, 8) });
+    expect(labelOf("Long Worker")).toHaveAttribute("data-tooltip", "29h/40h (72%)");
+    expect(labelOf("Plus Worker")).toHaveAttribute("data-tooltip", "9h/8h (112%)");
+    expect(barOf("Plus Worker")).toHaveAttribute("data-tooltip", "9h/8h (112%)");
+});
+
+test("label of 8.997 h and 3.6667 h", async () => {
+    await mountLabels({ "Plus Worker": entry(8.997, 8), "Minutes Worker": entry(3.6667, 8) });
+    expect(labelOf("Plus Worker")).toHaveText("9h / 8h (+1h)");
+    expect(labelOf("Minutes Worker")).toHaveText("3h 40m / 8h (4h 20m left)");
+    await resize({ width: 1399 });
+    await advanceTime(1000);
+    await animationFrame();
+    expect(labelOf("Plus Worker")).toHaveText("+1h");
+});
+
+test("a difference of no minute is no difference", async () => {
+    await mountLabels({ "Near Worker": entry(7.999, 8), "Above Worker": entry(8.001, 8) });
+    expect(labelOf("Near Worker")).toHaveText("8h / 8h");
+    expect(labelOf("Above Worker")).toHaveText("8h / 8h");
+    await resize({ width: 1399 });
+    await advanceTime(1000);
+    await animationFrame();
+    expect(labelOf("Near Worker")).toHaveText("8h");
+    expect(labelOf("Above Worker")).toHaveText("8h");
+});

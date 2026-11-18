@@ -66,6 +66,14 @@ export function hoursText(hours) {
     return hours < 0 ? `-${text}` : text;
 }
 
+/**
+ * The percentage of the tooltip: cut, not rounded (RL15: 72.5 is "72", 112.46 is "112"); a small
+ * epsilon keeps an exact whole number (a float a hair below it) as it is.
+ */
+export function percentText(ratio) {
+    return String(Math.floor(ratio + 1e-9));
+}
+
 /** R17 point 2: "danger", "warning" or "success" from the ratio (in percent) and the tracking. */
 export function progressStatus(ratio, tracked) {
     if (ratio >= 200) {
@@ -97,9 +105,11 @@ export function progressView(entry, { wide }) {
     const status = progressStatus(ratio, Boolean(entry.hag_tracked));
     const hasBar = maximum > 0 && !flexible;
     let extra = "";
-    if (ratio > 100) {
+    // a difference that rounds to no minute is no difference (no "+0h", no "0h left")
+    const minutesApart = Math.round(Math.abs(value - maximum) * 60);
+    if (minutesApart > 0 && ratio > 100) {
         extra = `+${hoursText(value - maximum)}`;
-    } else if (ratio > 0 && ratio < 100) {
+    } else if (minutesApart > 0 && ratio > 0 && ratio < 100) {
         extra = _t("%(hours)s left", { hours: hoursText(maximum - value) }).toString();
     }
     let label;
@@ -123,7 +133,7 @@ export function progressView(entry, { wide }) {
         hasBar,
         fill: hasBar ? Math.min(ratio, 100) : 0,
         tooltip: hasBar
-            ? `${hoursText(value)}/${hoursText(maximum)} (${Math.round(ratio)}%)`
+            ? `${hoursText(value)}/${hoursText(maximum)} (${percentText(ratio)}%)`
             : null,
         // R17 point 6: the attendance hook gives no warning text
         warning: null,
