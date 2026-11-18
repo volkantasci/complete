@@ -332,8 +332,10 @@ such as the employee, attendance, event track and time off applications of later
   header shows two arrows pointing at each other. Click the folded header or a
   folded cell to open the run, and click the header of an open one to fold it
   again. While you point at the header of an open column of such a run, the
-  headers of the run show outward arrows and the others dim. Folding is reset
-  when the range or scale changes.
+  headers of the run show outward arrows and the others dim. The folding is
+  worked out again at every load of the view's data (a change of range, scale
+  or period, a search, a filter, a grouping, the pager, the reload after a
+  write); a run you opened stays open until the next load.
 
 ![Capacity bars and unavailable periods, light](../assets/gantt_view/18-progress-unavailability.png)
 
