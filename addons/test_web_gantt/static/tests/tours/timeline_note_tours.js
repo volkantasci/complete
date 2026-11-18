@@ -1232,23 +1232,13 @@ for (const withPopover of [true, false]) {
         await pause(300);
         await realMouse(releaseAt(end), { settle: false });
         await pause(400);
-        // M66: the line of "Design" to "Build" is still lit, with its button. The package adds
-        // Build's other arrow and its handles; on Complete the pointer rests on the band of
-        // "Design" to "Build" (its route runs 28 px over Build's start), which lights that arrow
-        // alone (002c R9), see R1A-5 of the report.
-        const designToBuild = arrowBetween("Design", "Build").dataset.arrow;
-        const stillLit = () => {
-            const now = assertShownNow();
-            assert(
-                now.lit.includes(designToBuild) && now.buttons >= 1,
-                `Design to Build lit with its button, got ${JSON.stringify(now)}`
-            );
-        };
-        stillLit();
-        // M67: the same after a 1 px move
+        // M66: Build's two arrows stay lit with their buttons, and Build's handles show
+        const kept = { lit: buildArrows(), buttons: 2, handles: 2 };
+        assertShown(kept, "Build's arrows and handles after Escape and the release (M66)");
+        // M67: the same after a 1 px move, still over Build
         await moveTo({ x: end.x + 1, y: end.y });
         await pause(400);
-        stillLit();
+        assertShown(kept, "the same after a 1 px move over Build (M67)");
     });
 }
 

@@ -1632,39 +1632,39 @@ export class TimelineRenderer extends Component {
     }
 
     /**
-     * A press on an arrow (its band, or the remove button of a lit one) where a pill's resize
-     * handle lies beneath: the handle wins, the press starts the resize (002d R1a, A12: Build's left
-     * handle at (938, 260) lies under the remove button of "Design" to "Build"). Handles are drawn
-     * only while the pill is under the pointer, so the zone of the pill's first and last 8 px is
-     * used (002b2 R8). A press elsewhere on an arrow is the arrow's own.
+     * A press on an arrow (its band, or the remove button of a lit one) inside the box of one of the
+     * arrow's own pills: the pill wins, as for the highlight (`focusArrow`); the press is the
+     * pill's, a resize on the first or last 8 px of its body, a move elsewhere on it (002d R1a,
+     * A12: Build's left handle at (938, 260) lies under the remove button of "Design" to
+     * "Build"). A press on an arrow over another pill, or away from pills, is the arrow's own.
      */
     pressThrough(ev) {
         if (ev.button !== 0 || ev.pointerType === "touch" || this.data.isSample || this.isMultiSelect) {
             return;
         }
-        const root = this.rendererRef();
-        const element = document
-            .elementsFromPoint(ev.clientX, ev.clientY)
-            .find((el) => el.matches?.(".o_tl_pill[data-pill-id]") && root?.contains(el));
-        const rowEl = element?.closest(".o_tl_row[data-row-id]");
-        if (!element || !rowEl) {
+        const end = this.arrows.endPillAt(ev.currentTarget.dataset.arrow, ev.clientX, ev.clientY);
+        if (!end?.body) {
+            return;
+        }
+        const [rowId, pillId] = [end.key.slice(0, end.key.lastIndexOf("|")), end.key.slice(end.key.lastIndexOf("|") + 1)];
+        const row = this.layout.rows.find((r) => r.kind === "pills" && r.row.id === rowId);
+        const pill = row?.pills.find((p) => String(p.id) === pillId);
+        const element = [...this.rendererRef().querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]")].find(
+            (el) => el.dataset.pillId === pillId && el.closest(".o_tl_row").dataset.rowId === rowId
+        );
+        if (!pill || !element) {
             return;
         }
         const rect = element.getBoundingClientRect();
-        if (ev.clientY < rect.top || ev.clientY >= rect.bottom) {
-            return;
-        }
         const rtl = this._isRtl();
         let edge = null;
-        if (ev.clientX >= rect.left && ev.clientX < rect.left + RESIZE_ZONE) {
+        if (ev.clientX < rect.left + RESIZE_ZONE) {
             edge = rtl ? "stop" : "start";
-        } else if (ev.clientX < rect.right && ev.clientX >= rect.right - RESIZE_ZONE) {
+        } else if (ev.clientX >= rect.right - RESIZE_ZONE) {
             edge = rtl ? "start" : "stop";
         }
-        const row = this.layout.rows.find((r) => r.kind === "pills" && r.row.id === rowEl.dataset.rowId);
-        const pill = row?.pills.find((p) => String(p.id) === element.dataset.pillId);
-        if (!edge || !pill || !this._pillState(pill).resizable[edge]) {
-            return;
+        if (edge && !this._pillState(pill).resizable[edge]) {
+            edge = null;
         }
         ev.stopPropagation();
         this._throughPress = true;

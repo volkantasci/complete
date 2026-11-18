@@ -329,32 +329,36 @@ export class TimelineArrows {
         if (this.isHeld || this.isQuiet || this.isTouch) {
             return;
         }
-        // a pill's outer box is one pixel wider than its body, over the arrows' bands: the pointer
-        // on that ring lights the pill's arrows, with no handles; the band begins outside the box
-        // (002d R1a, M41 to M43)
-        const ring = ev ? this._ringPillKey(key, ev.clientX, ev.clientY) : null;
-        this.focus.arrowKey = ring ? null : key;
-        this.focus.pillKey = ring;
-        this.host.state.hover = null;
+        // an arrow's band and button take no pointer over the box of either of its own pills: the
+        // pill wins, its arrows lit and, over its body, its handles shown (002d R1a, A12; the band
+        // begins at the source pill's outer box, 002c R9). Over another pill the band still wins
+        // (002c A75). The 1 px ring around the body lights the pill's arrows with no handles
+        // (002d R1a, M41 to M43).
+        const end = ev ? this.endPillAt(key, ev.clientX, ev.clientY) : null;
+        this.focus.arrowKey = end ? null : key;
+        this.focus.pillKey = end ? end.key : null;
+        this.host.state.hover = end?.body ? end.key : null;
+        this._bandPill = end ? { arrow: key, pill: end.key } : null;
     }
 
     /**
-     * The key of the end pill of the arrow `key` whose outer box (its body and one pixel around)
-     * holds the point but whose body does not, or null.
+     * The own pill of the arrow `key` (its source or its target) whose outer box (its body and one
+     * pixel around) holds the viewport point: `{key, body}` (`body`: the point is in the body, not
+     * only in the ring), or null.
      */
-    _ringPillKey(key, x, y) {
+    endPillAt(key, x, y) {
         const root = this.host.rendererRef();
         const ends = key.split(">");
         for (const pillEl of root?.querySelectorAll(".o_tl_row[data-row-id] .o_tl_pill[data-pill-id]") ?? []) {
             const pillKey = `${pillEl.closest(".o_tl_row[data-row-id]").dataset.rowId}|${pillEl.dataset.pillId}`;
-            if (!ends.includes(pillKey)) {
+            if (!ends.includes(pillKey) || pillEl.classList.contains("o_tl_pill_moved")) {
                 continue;
             }
             const box = pillEl.getBoundingClientRect();
             const inside = (inset) =>
                 x >= box.left - inset && x < box.right + inset && y >= box.top - inset && y < box.bottom + inset;
-            if (inside(OUTER_INSET) && !inside(0)) {
-                return pillKey;
+            if (inside(OUTER_INSET)) {
+                return { key: pillKey, body: inside(0) };
             }
         }
         return null;
@@ -365,7 +369,22 @@ export class TimelineArrows {
      * events (the pill's mouse enter), as the pointer comes off the band.
      */
     unfocusArrow(key) {
-        if (this.isHeld || this.isQuiet || this.focus.arrowKey !== key) {
+        if (this.isHeld || this.isQuiet) {
+            return;
+        }
+        const band = this._bandPill;
+        if (band?.arrow === key) {
+            // the pill that won over the band is left with it; a pill entered next lights itself
+            this._bandPill = null;
+            if (this.focus.pillKey === band.pill) {
+                this.focus.pillKey = null;
+            }
+            if (this.host.state.hover === band.pill) {
+                this.host.state.hover = null;
+            }
+            return;
+        }
+        if (this.focus.arrowKey !== key) {
             return;
         }
         this.focus.arrowKey = null;
@@ -540,9 +559,12 @@ export class TimelineArrows {
             if (element.closest?.(".o_tl_col, .o_tl_col_group, .o_tl_row_header, .o_tl_title_cell")) {
                 return null;
             }
-            // a lit arrow's band hides the pill under it (R9)
-            if (element.closest?.(".o_tl_arrow")) {
-                return null;
+            // a lit arrow's band hides the pill under it (R9), except one of its own pills, which
+            // wins over the band (002d R1a)
+            const arrow = element.closest?.(".o_tl_arrow");
+            if (arrow) {
+                const end = this.endPillAt(arrow.dataset.arrow, x, y);
+                return end?.body ? end.key : null;
             }
             const strip = element.closest?.(".o_tl_connect_strip, .o_tl_connect_handle");
             if (strip && this.host.rendererRef()?.contains(strip)) {

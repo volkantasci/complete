@@ -79,6 +79,7 @@ export class TimelinePillPointer {
             this.enter(pill, row, { lit: false, tapped: true });
             this.host.arrows.unfocusPill(this.keyOf(pill, row));
             this._tapPlace = this._placeOf(ev);
+            this._tapKey = this.keyOf(pill, row);
         }
     }
 
@@ -131,8 +132,9 @@ export class TimelinePillPointer {
             found.find((entry) => entry.key === current && entry.strip && !entry.dx)?.key ??
             found.find((entry) => entry.body && !entry.dx)?.key ??
             found.find((entry) => entry.strip && !entry.dx)?.key ??
-            // the tapped pill itself, moved away, shows none (R3)
-            nearest(found.filter((entry) => entry.body && entry.key !== current)) ??
+            // the tapped pill itself, moved away, shows none (R3); excluded by its own key, not by
+            // the pill shown now, or two pills would pass the handles to each other at every render
+            nearest(found.filter((entry) => entry.body && entry.key !== this._tapKey)) ??
             null;
         if (key !== current) {
             this.host.state.hover = key;
@@ -161,6 +163,7 @@ export class TimelinePillPointer {
             return;
         }
         this._tapPlace = null;
+        this._tapKey = null;
         if (!this.host.state.hover) {
             return;
         }

@@ -250,6 +250,29 @@ test("A17: after a write moves the tapped pill away, the pill now at the place o
     expect(handlesOf("Review")).toBe(0);
 });
 
+test("A17: the handles of a tapped pill that moved away stay on one pill through every later render", async () => {
+    await mountDependencies();
+    freezeTime();
+    mockTouch(true);
+    const build = queryRect(pillEl("Build"));
+    // a tap at the right end of Build: after the write the lane holds several pills at some distance
+    const at = { x: build.right - 10, y: (build.top + build.bottom) / 2 };
+    await click(pillEl("Build"), { position: at });
+    await advanceTime(600);
+    await animationFrame();
+    MockServer.current.env.pill.find((record) => record.name === "Build").parent_id = 2;
+    const owners = [];
+    for (let round = 0; round < 6; round++) {
+        await controller.model.reload();
+        await advanceTime(100);
+        await animationFrame();
+        owners.push(queryAll(".o_tl_connect").map((element) => element.dataset.pillId).join());
+    }
+    // the pill showing its handles does not change from one render to the next
+    expect(new Set(owners).size).toBe(1);
+    expect(connectHandles("Build")).toHaveLength(0);
+});
+
 /** A tap on Build at its own x (a point no other pill's box holds), then a write changes Build. */
 async function tapBuildThenWrite(values) {
     freezeTime();

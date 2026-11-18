@@ -263,6 +263,31 @@ test("A12: a press on a resize handle under a lit arrow's remove button starts t
     expect(log).toEqual([]);
 });
 
+test("A12: the pointer on a lit arrow's remove button over its own pill lights the pill's arrows and shows its handles", async () => {
+    freezeTime();
+    await mountDependencies();
+    await hover(pillEl("Build"));
+    await animationFrame();
+    const ring = queryOne(`.o_tl_arrow[data-arrow$="|${PILL_ID.Build}"] .o_tl_arrow_remove_ring`);
+    const middle = centre(queryRect(ring));
+    const body = queryRect(pillEl("Build"));
+    const spot = { x: body.left + 4, y: middle.y };
+    expect(document.elementFromPoint(spot.x, spot.y).closest(".o_tl_arrow_remove")).not.toBe(null);
+    await hover(ring, { position: spot });
+    await advanceTime(100);
+    await animationFrame();
+    // Build's two arrows with their buttons and its handles, not the arrow of the button alone
+    expect(lit()).toHaveLength(2);
+    expect(".o_tl_arrow_remove").toHaveCount(2);
+    expect(".o_tl_connect_handle").toHaveCount(2);
+    // away from the pill the arrows rest again
+    const empty = document.elementsFromPoint(body.left - 80, body.top - 40);
+    await hover(empty[0], { position: { x: body.left - 80, y: body.top - 40 } });
+    await advanceTime(100);
+    await animationFrame();
+    expect(lit()).toHaveLength(0);
+});
+
 test("A13: a mouse press on the body keeps the popover up to 9 px, 10 px starts the move; a plain click opens it", async () => {
     freezeTime();
     await mountDependencies();
