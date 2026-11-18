@@ -27,6 +27,11 @@ beforeEach(() => {
     patchWithCleanup(localization, { weekStart: 7 });
 });
 
+/** How many avatar cards are open. */
+function openCardCount() {
+    return document.querySelectorAll(".o_avatar_card").length;
+}
+
 const SHIFTS = [
     ["Day shift", "Anita Oliver", [11, "9:00"], [11, "12:00"]],
     ["Other shift", "Jennie Fletcher", [11, "9:00"], [11, "12:00"]],
@@ -129,12 +134,12 @@ test("A10: the card opens under the avatar, a second click keeps it, Escape and 
     expect(".o_avatar_card").toHaveCount(1);
     await contains(document.body).press("Escape");
     await animationFrame();
-    expect(".o_avatar_card").toHaveCount(0);
+    expect(openCardCount()).toBe(0);
     await contains(avatar).click();
     await waitFor(".o_avatar_card");
     await contains(".o_tl_title_cell").click();
     await animationFrame();
-    expect(".o_avatar_card").toHaveCount(0);
+    expect(openCardCount()).toBe(0);
 });
 
 test("A11: a click on the avatar does not reach the row header, a click on the name does", async () => {
@@ -162,12 +167,12 @@ test("A12: the card opens at 768 px, nothing opens at 767 px", async () => {
     await waitFor(".o_avatar_card");
     await contains(".o_avatar_card").press("Escape");
     await animationFrame();
-    expect(".o_avatar_card").toHaveCount(0);
+    expect(openCardCount()).toBe(0);
     await resize({ width: 767 });
     await animationFrame();
     await contains(avatarOf("Anita Oliver")).click();
     await animationFrame();
-    expect(".o_avatar_card").toHaveCount(0);
+    expect(openCardCount()).toBe(0);
 });
 
 test("A14: the pointer on the avatar shows the employee's name as a tooltip", async () => {

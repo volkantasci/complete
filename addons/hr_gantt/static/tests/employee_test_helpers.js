@@ -36,8 +36,12 @@ export class Shift extends models.Model {
             <field name="name"/>
             <filter name="with_a" string="Name has an a" domain="[('name', 'ilike', 'a')]"/>
         </search>`,
-        "list,false": `<list><field name="name"/></list>`,
-        "form,false": `<form><field name="name"/></form>`,
+        "list,false": `<list>
+            <field name="name"/>
+        </list>`,
+        "form,false": `<form>
+            <field name="name"/>
+        </form>`,
     };
 }
 

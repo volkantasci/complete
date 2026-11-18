@@ -153,11 +153,9 @@ class TestWithEmpty(TransactionCase):
         self.assertEqual(result['length'], 1)
 
     def _officer(self, login):
-        return self.env['res.users'].create({
-            'name': f'HRG {login}', 'login': login,
-            'group_ids': [(6, 0, [
-                self.env.ref('base.group_user').id, self.env.ref('hr.group_hr_user').id])],
-        })
+        officer_groups = self.env.ref('base.group_user') | self.env.ref('hr.group_hr_user')
+        values = {'name': f'HRG {login}', 'login': login, 'group_ids': [(6, 0, officer_groups.ids)]}
+        return self.env['res.users'].create(values)
 
     def test_r22_read_rule_leaf_outside_the_relation_cannot_widen_rows(self):
         user = self._officer('hrg_rule_or')
