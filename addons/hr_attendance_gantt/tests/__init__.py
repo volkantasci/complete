@@ -5,6 +5,7 @@ from . import (
     test_access,
     test_action,
     test_hoot,
+    test_hr_rows_tours,
     test_install,
     test_progress,
     test_records,

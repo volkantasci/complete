@@ -17,6 +17,7 @@
         'web.assets_backend': [
             'hr_attendance_gantt/static/src/**/*',
         ],
+        'web.assets_tests': ['hr_attendance_gantt/static/tests/tours/**/*'],
         'web.assets_unit_tests': [
             'hr_attendance_gantt/static/tests/**/*.test.js',
             'hr_attendance_gantt/static/tests/attendance_test_helpers.js',
