@@ -716,6 +716,9 @@ export class TimelineModel extends Model {
         this.parts = partsFor(scaleId, this.config.precision);
         this.isSample = !this._hasLoaded && this.config.sample && !result.records.length;
         this._hasLoaded = true;
+        // every load of the data counts: the renderer works the folding out again after it (the
+        // note on 002a R29, decision D4 of 002d2)
+        this._loadSerial = (this._loadSerial || 0) + 1;
         this._response = result;
         this._unavailability = this.isSample ? {} : this._parseUnavailability(result);
         this._progress = this.isSample ? {} : result.progress_bars || {};
@@ -1059,6 +1062,7 @@ export class TimelineModel extends Model {
         this._data = {
             range: this.range,
             focusVersion: this._focusVersion,
+            loadSerial: this._loadSerial || 0,
             pendingRange: this._targetRange,
             scaleId: this.scaleId,
             period: this.period,
