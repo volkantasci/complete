@@ -1262,6 +1262,18 @@ scenario("hag_a53_helper", async () => {
         "the row stays above the helper's content"
     );
     assert(rectOf(rowEl("HRA Beth")).height > 0, "the row is visible");
+    // R20: the layer's top lies 115 px below the top of the view's content area, from there to
+    // the bottom of the window, its content centred in it (not under the row)
+    const layer = rectOf(helper);
+    assertNear(layer.top, rectOf($(".o_content")).top + 115, "the layer starts 115 px below the content area", 1);
+    assertNear(layer.bottom, window.innerHeight, "the layer ends at the window's bottom", 1);
+    const helpBox = rectOf($(".o_nocontent_help", helper));
+    assertNear(
+        helpBox.top + helpBox.height / 2,
+        layer.top + layer.height / 2,
+        "the content is centred in the layer",
+        layer.height * 0.15
+    );
     // the layer lets real clicks through to the row: the name reaches the row header, the avatar
     // opens the card
     const header = $(".o_tl_row_header", rowEl("HRA Beth"));
@@ -1424,7 +1436,8 @@ scenario("hag_a59_framework_inputs", async () => {
     });
     const resting = look();
     await realHover(empty);
-    await settle(800);
+    // the pointer rests on the empty cell for 1 s (A59): nothing appears
+    await settle(1000);
     assertEqual(look(), resting, "the pointer over an empty cell adds no button and no fill");
     // dragging a pill moves it
     const drag = pillsOf("HRA Abigail")[0];

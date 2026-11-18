@@ -49,10 +49,18 @@ EMPLOYEES = {
     ),
 }
 NIGHT = (NIGHT_NAME, "demo", False, [("2026-11-30 19:00", "2026-12-01 03:00")])
+# A68, M85 to M87: 8:00:00 to 16:00:10 and 8:00:00 to 15:59:50 local on Monday 9 November
+DIFFERENCES = {
+    "Gantt Above": ("demo", False, [("2026-11-09 07:00:00", "2026-11-09 15:00:10")]),
+    "Gantt Under": ("demo", False, [("2026-11-09 07:00:00", "2026-11-09 14:59:50")]),
+}
 
 
 def _dt(text):
-    return datetime.strptime(text, "%Y-%m-%d %H:%M") if text else False
+    if not text:
+        return False
+    pattern = "%Y-%m-%d %H:%M:%S" if text.count(":") == 2 else "%Y-%m-%d %H:%M"
+    return datetime.strptime(text, pattern)
 
 
 def make_whole_day_schedule(env, name=DEMO_SCHEDULE):
@@ -127,7 +135,7 @@ def _employee(env, name, schedule, tracked, attendances):
     return employee
 
 
-def make_prepared(env, night=False, holiday=False, demo_schedule=None):
+def make_prepared(env, night=False, holiday=False, demo_schedule=None, differences=False):
     """Create the prepared records (after removing any left by an earlier run).
 
     ``demo_schedule`` is the "40 hours/week" schedule to use; by default the demo's,
@@ -142,6 +150,9 @@ def make_prepared(env, night=False, holiday=False, demo_schedule=None):
     if night:
         name, key, tracked, attendances = NIGHT
         made[name] = _employee(env, name, calendars[key], tracked, attendances)
+    if differences:
+        for name, (key, tracked, attendances) in DIFFERENCES.items():
+            made[name] = _employee(env, name, calendars[key], tracked, attendances)
     if holiday:
         made[HOLIDAY_NAME] = env["resource.calendar.leaves"].create(
             {

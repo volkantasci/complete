@@ -400,6 +400,46 @@ class HrProbes(TimelineProbeCase):
         with self.subTest(probe='M4', scheme=scheme, prop='right edge'):
             self.assertAlmostEqual(box['geometry.x'] + box['geometry.width'], 258, delta=0.5)
 
+    def check_title_boxes(self, name, scheme, viewport, label_js=None):
+        """M77 and M78 (IQ6): the title box and the avatar-and-name box of an employee row. The
+        view has no element of its own for either: the avatar-and-name box is the box the avatar
+        and the name's box (M2) make together, the title box the same grown by the 1 px between
+        the two boxes of the original (title box: 1 px of padding around it). Only their geometry
+        is compared; the zero margins, paddings and borders of M78 hold of both elements."""
+        avatar = self.geometry(in_row(name, '.o_hrg_avatar'))
+        label = self.geometry(label_js or in_row(name, '.o_tl_row_label'))
+        left = min(avatar['geometry.x'], label['geometry.x'])
+        top = min(avatar['geometry.y'], label['geometry.y'])
+        right = max(avatar['geometry.x'] + avatar['geometry.width'],
+                    label['geometry.x'] + label['geometry.width'])
+        bottom = max(avatar['geometry.y'] + avatar['geometry.height'],
+                     label['geometry.y'] + label['geometry.height'])
+        boxes = {
+            'M78': {'geometry.x': left, 'geometry.y': top, 'geometry.width': right - left,
+                    'geometry.height': bottom - top},
+            'M77': {'geometry.x': left - 1, 'geometry.y': top - 1,
+                    'geometry.width': right - left + 2, 'geometry.height': bottom - top + 2},
+        }
+        # the boxes end where the hours label starts (M77 at its left edge, M78 one pixel before);
+        # their width depends on the label's text, which differs from the original's by decision
+        # D2 ("9h / 8h (+1h)" for "5h / 8h (3h left)"): the width is compared as that relation
+        label_left = self.geometry(in_row(name, LABEL))['geometry.x']
+        for probe, drop in (('M77', 0), ('M78', 1)):
+            with self.subTest(probe=probe, scheme=scheme, viewport=viewport, prop='right edge'):
+                self.assertAlmostEqual(
+                    boxes[probe]['geometry.x'] + boxes[probe]['geometry.width'],
+                    label_left - drop, delta=0.6)
+        for probe, got in boxes.items():
+            for prop, want in measured(probe, viewport).get(scheme, {}).items():
+                if not prop.startswith('geometry.') or prop == 'geometry.width':
+                    continue
+                with self.subTest(probe=probe, scheme=scheme, viewport=viewport, prop=prop):
+                    why = compare_value(prop, want, got[prop])
+                    if why:
+                        _logger.warning('PROBE-MISMATCH|%s|%s|%s|%s|%s|%s|%s', probe, scheme,
+                                        viewport, prop, want, got[prop], 'title boxes')
+                    self.assertIsNone(why, f'{probe} {scheme}/{viewport} {prop}: {why}')
+
     def check_worked(self, key, name, scheme):
         """A worked value of R16 (Complete's column): the label's text, the colour of its state
         and the width of the fill."""
@@ -475,6 +515,7 @@ class TestHrRowsProbes(HrProbes):
         anita, audrey = 'HRA Anita', 'HRA Audrey'
         self.check('M1', in_row(anita, '.o_hrg_avatar'), scheme, viewport, 'the avatar')
         self.check('M2', in_row(anita, '.o_tl_row_label'), scheme, viewport, 'the name box')
+        self.check_title_boxes(anita, scheme, viewport)
         self.check('M3', in_row(audrey, '.o_tl_row_label'), scheme, viewport,
                    'the name without a contract')
         self.check('M8', f"{cells_of(audrey)}[0]", scheme, viewport,
@@ -489,6 +530,12 @@ class TestHrRowsProbes(HrProbes):
             self.check('M6', in_row(anita, '.o_tl_progress_fill'), scheme, viewport,
                        'the fill of Anita (full, warning)')
             self.check('M7', in_row(anita, '.o_tl_row_header'), scheme, viewport, 'the row header')
+            # M80: Abigail's 3 h 30 m of 8 h is 43.75 %, the tooltip rounds it to 44
+            self.check_count(
+                'M80', f"[...document.querySelectorAll({json.dumps(LABEL)})].filter((e) => "
+                "(JSON.parse(e.getAttribute('data-tooltip-info') || '{}').text || '') === "
+                "'3h 30m/8h (44%)').length", scheme, viewport,
+                'labels with the tooltip "3h 30m/8h (44%)"')
         else:
             self.check('M62', in_row(anita, LABEL), scheme, viewport, 'the short label of Anita')
             self.check_text(in_row(anita, LABEL), '+1h', 'the short label text')
@@ -524,12 +571,10 @@ class TestHrRowsProbes(HrProbes):
                 avatar = in_row('HRA Anita', '.o_hrg_avatar')
                 self.real_click(avatar, settle=1.5)
                 self.wait("!!document.querySelector('.o_popover')")
-                # the card's width is that of the Community's card for its content (263.8 px for
-                # a card with a title, mail, phone and skills as here), not the 382 px of the
-                # original's demo card, which the content of the demo record sets (ruling T11-5):
-                # its place and look are compared
+                # the card's width follows its content up to the Community card's maximum (IQ2,
+                # M76: 382 px with the demo data's six skills, not compared); M10 has no width
                 self.check('M10', "document.querySelector('.o_popover')", scheme, 'desktop',
-                           'the employee card', skip=('geometry.width',))
+                           'the employee card')
                 self.press_escape()
                 self.wait("!document.querySelector('.o_popover')")
                 self.mouse('mouseMoved', 2, 2, buttons=0)
@@ -539,6 +584,19 @@ class TestHrRowsProbes(HrProbes):
                 self.check_count('M12', "document.querySelectorAll('.o-tooltip').length", scheme,
                                  'desktop', 'tooltips on the avatar')
                 self.check_text("document.querySelector('.o-tooltip')", 'HRA Anita', 'the name')
+                # M79: the avatar's tooltip. The package calls the 11 px corners the theme's shape
+                # of every tooltip (RL22); Complete's theme gives a plain tooltip pill corners
+                # (800 px, measured here), which this slice does not change (web_enterprise is
+                # another slice's): the corners are left out and logged as a note for a later slice
+                corners = tuple(f'border-{side}-radius' for side in (
+                    'top-left', 'top-right', 'bottom-right', 'bottom-left'))
+                self.check('M79', "document.querySelector('.o-tooltip')", scheme, 'desktop',
+                           'the tooltip of the avatar', skip=corners)
+                _logger.warning(
+                    'TOOLTIP-CORNERS|%s|the avatar tooltip of the theme: %s (the progress tooltip '
+                    'of this view: 11px)', scheme,
+                    self.js("getComputedStyle(document.querySelector('.o-tooltip'))"
+                            ".borderTopLeftRadius"))
 
     def test_m11_tap_on_the_phone(self):
         self.demo_world()
@@ -603,6 +661,34 @@ class TestHrRowsProbes(HrProbes):
                 self.check_count('M69', f"{folded}.length", scheme, 'desktop',
                                  'folded headers after Shift')
 
+    # -- M82 to M84, A69, A71: the folding after a search (R21, decision D4) ---------------------
+
+    def folded_headers(self):
+        return "document.querySelectorAll('.o_tl_col.o_tl_folded')"
+
+    def test_m82_m84_folded_search_page(self):
+        """A69, A71 and M82 to M84: after the search on one employee without a contract (one row,
+        unavailable all day) the Day range is one folded column as wide as all the cells, right
+        after the search and after building the period again (Next, Previous)."""
+        self.demo_world()
+        for scheme in self.schemes(['M82', 'M83', 'M84']):
+            with self.open(scheme):
+                self.loaded()
+                self.assertEqual(self.js(f"{self.folded_headers()}.length"), 0)
+                self.search('HRA Beth')
+                # D4: folded right after the search (the original shows 24 open columns)
+                self.assertEqual(self.js(f"{self.folded_headers()}.length"), 1)
+                self.step(1)
+                self.step(-1)
+                self.mouse('mouseMoved', 1000, 123, buttons=0)
+                self.settle(1000)
+                self.check_count('M82', f"{self.folded_headers()}.length", scheme, 'desktop',
+                                 'folded headers after the period is built again')
+                self.check('M83', f"{self.folded_headers()}[0]", scheme, 'desktop',
+                           'the folded header')
+                self.check('M84', in_row('HRA Beth', '.o_tl_folded_cell'), scheme, 'desktop',
+                           'the folded cell of the row')
+
     # -- M54 to M58, M70, M71: rows, paging and the helper --------------------------------------
 
     def test_m57_m58_paging(self):
@@ -628,13 +714,36 @@ class TestHrRowsProbes(HrProbes):
                 headers = f"{ROW_EL}.filter((r) => r.querySelector('.o_tl_row_header')).length"
                 self.check_count('M56', headers, scheme, 'desktop', 'row headers')
 
+    def test_a70_helper_place_by_height(self):
+        """A70 (R20): the layer starts 115 px below the top of the view's content area, which
+        is y 222 here, at the window heights 700, 900 and 1200 px; its height is the rest."""
+        self.demo_world()
+        for scheme in self.schemes(['M54']):
+            with self.open(scheme):
+                self.loaded()
+                self.search('HRA Beth')
+                self.wait("!!document.querySelector('.o_hag_helper')")
+                for height in (700, 900, 1200):
+                    self.browser._websocket_request('Emulation.setDeviceMetricsOverride', params={
+                        'width': 1600, 'height': height, 'deviceScaleFactor': 1, 'mobile': False})
+                    self.settle(1500)
+                    box = self.geometry("document.querySelector('.o_hag_helper')")
+                    content = self.geometry("document.querySelector('.o_content')")
+                    with self.subTest(scheme=scheme, height=height):
+                        self.assertAlmostEqual(box['geometry.y'], content['geometry.y'] + 115,
+                                               delta=0.6, msg='115 px below the content area')
+                        self.assertAlmostEqual(box['geometry.y'], 222, delta=0.6)
+                        self.assertAlmostEqual(box['geometry.height'], height - 222, delta=0.6)
+                        self.assertAlmostEqual(box['geometry.width'], 1600, delta=0.6)
+
     def test_m55_helper_phone(self):
         self.demo_world()
         for scheme in self.schemes(['M55'], 'phone'):
             with self.open(scheme, 'phone'):
                 self.loaded('phone')
+                # M55 and the phone image are taken with the search bar open, as the search
+                # leaves it (IQ5, R20)
                 self.search('HRA Beth', phone=True)
-                self.close_phone_search()
                 self.wait("!!document.querySelector('.o_hag_helper')")
                 self.settle(1500)
                 self.check('M55', "document.querySelector('.o_hag_helper')", scheme, 'phone',
@@ -821,6 +930,34 @@ class TestHrRowsPreparedProbes(HrProbes):
                 self.search_gantt(phone=True)
                 self.step(-1, 2)
                 self.label_probes(scheme, 'phone')
+
+    def test_m87_differences_below_a_minute(self):
+        """A68, M87 (decision D6): "Gantt Above" 10 seconds over 8 h, "Gantt Under" 10 seconds
+        under, Day range of Monday 9 November: no bracket, the status still follows the ratio."""
+        make_prepared(self.env, demo_schedule=self.schedule, differences=True)
+        self.env.flush_all()
+        for scheme in self.schemes(['M87']):
+            with self.open(scheme):
+                self.search_gantt()
+                self.step(-1, 2)
+                self.mouse('mouseMoved', 1000, 123, buttons=0)
+                self.settle(1000)
+                above, under = 'Gantt Above', 'Gantt Under'
+                self.check('M87', in_row(above, LABEL), scheme, 'desktop', 'Above, label')
+                self.check_text(in_row(above, LABEL), '8h / 8h', 'Above, text')
+                self.check_text(in_row(under, LABEL), '8h / 8h', 'Under, text')
+                muted = measured('M28')[scheme]['color']
+                got = self.js(f"getComputedStyle({in_row(under, LABEL)}).color")
+                self.assertIsNone(compare_value('color', muted, got), 'Under: muted label')
+                self.assertAlmostEqual(
+                    self.geometry(in_row(above, '.o_tl_progress_fill'))['geometry.width'], 250,
+                    delta=0.6)
+                self.assertAlmostEqual(
+                    self.geometry(in_row(under, '.o_tl_progress_fill'))['geometry.width'],
+                    250 * (8 - 10 / 3600) / 8, delta=0.6)
+                tip = "JSON.parse({}.getAttribute('data-tooltip-info')).text"
+                self.assertEqual(self.js(tip.format(in_row(above, LABEL))), '8h/8h (100%)')
+                self.assertEqual(self.js(tip.format(in_row(under, LABEL))), '8h/8h (100%)')
 
     def test_m37_m43_month(self):
         probes = ['M37', 'M38', 'M39', 'M40', 'M41', 'M42', 'M43']

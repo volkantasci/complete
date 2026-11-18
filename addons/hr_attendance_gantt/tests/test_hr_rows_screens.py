@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Screenshots of slice 002d2, taken on demand (not part of the normal run).
 
-One capture per screen S1 to S12 of the spec's ``screens/index.md`` (light: no suffix, dark:
+One capture per screen S1 to S13 of the spec's ``screens/index.md`` (light: no suffix, dark:
 ``-dark``, phone: ``.mobile``; the phone only where the index lists it). The test is skipped unless
 the environment variable ``HR_ROWS_SCREENS`` is set, and carries the tag
 ``hr_attendance_gantt_screens`` (``-standard``: no other run picks it up). Run it on a database that
@@ -227,6 +227,22 @@ class TestHrRowsScreens(probes.HrProbes):
             self.settle(1200)
             shot('10-helper')
         self.each(prepare)
+
+    def test_s13_helper_folded(self):
+        """S13 (A69, A71, decision D4): the search on one employee without a contract, then Next
+        and Previous; the folded page and the helper. Complete shows the same right after the
+        search."""
+        self.demo_screens()
+
+        def prepare(viewport, shot):
+            self.search('Beth Evans')
+            self.wait("!!document.querySelector('.o_hag_helper')")
+            self.step(1)
+            self.step(-1)
+            self.wait("!!document.querySelector('.o_hag_helper')")
+            self.away()
+            shot('13-helper-folded')
+        self.each(prepare, viewports=DESKTOP)
 
     def test_s11_page2(self):
         self.demo_screens()
