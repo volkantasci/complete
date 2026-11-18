@@ -31,7 +31,7 @@
             <div t-if="row.progress and !row.progress.hasBar" class="o_tl_progress o_hag_bar_space"/>
         </xpath>
         <xpath expr="//div[hasclass('o_tl_renderer')]" position="after">
-            <div t-if="this.showsHelper" class="o_hag_helper" t-ref="this.helperRef">
+            <div t-if="this.showsHelper" class="o_hag_helper" t-att-class="{ o_hag_helper_phone: this.ui.isSmall }" t-ref="this.helperRef">
                 <AttendanceActionHelper t-if="this.props.noContentHelp" noContentHelp="this.props.noContentHelp"/>
                 <ActionHelper t-else=""/>
             </div>

@@ -11,6 +11,21 @@ import { namedRange, stepRange } from "@web_gantt/timeline_dates";
 /** R17 point 1: the window width from which the label shows its long form. */
 export const WIDE_LABEL_WIDTH = 1400;
 
+/** R20, desktop: the inner heights of the two column header lines and of a drawn row (a 41 px row). */
+export const HEADER_LINES_HEIGHT = 25 + 50;
+export const ROW_INNER_HEIGHT = 40;
+
+/**
+ * R20 ("Where it is placed", desktop): the offset of the helper's layer from the top of the view's
+ * content area, which begins with the control bar and whose height is not part of the offset: the
+ * header lines plus the inner heights of the rows drawn (115 px with one row). It does not depend
+ * on the window's height.
+ * @param {number} rowCount the rows drawn (the placeholder row of a view without groups counts)
+ */
+export function helperOffset(rowCount) {
+    return HEADER_LINES_HEIGHT + Math.max(1, rowCount) * ROW_INNER_HEIGHT;
+}
+
 /**
  * R12: the one period of a named range that contains `focus`: Day one day, Week one week,
  * Month one calendar month, Quarter one calendar quarter, Year one calendar year.
@@ -58,20 +73,31 @@ export function periodDomain(startField, stopField, startText, stopText, nowText
     return ["|", ...closed, ...opened];
 }
 
+/**
+ * Hours as whole minutes, rounded to the nearest, half a minute up (R17 point 1, decision D6: 30
+ * seconds read as one minute). Hours are floats, so exactly half a minute can come out a hair
+ * below it (8 h 0 m 30 s minus 8 h is 0.49999999999997 minutes): a tolerance of a millionth of a
+ * minute settles it.
+ */
+export function wholeMinutes(hours) {
+    return Math.floor(Math.abs(hours) * 60 + 0.5 + 1e-6);
+}
+
 /** The hours and minutes format of the Community: "29h", "3h 30m", "0h" (minutes only when not zero). */
 export function hoursText(hours) {
-    const total = Math.round(Math.abs(hours) * 60);
+    const total = wholeMinutes(hours);
     const minutes = total % 60;
     const text = minutes ? `${Math.floor(total / 60)}h ${minutes}m` : `${Math.floor(total / 60)}h`;
     return hours < 0 ? `-${text}` : text;
 }
 
 /**
- * The percentage of the tooltip: cut, not rounded (RL15: 72.5 is "72", 112.46 is "112"); a small
- * epsilon keeps an exact whole number (a float a hair below it) as it is.
+ * The percentage of the tooltip: rounded to the nearest whole number, half up, not cut (R17 point
+ * 5: 43.75 is "44", 72.49 is "72", 112.46 is "112"); a small epsilon keeps a half that a float
+ * left a hair below it on the upper side.
  */
 export function percentText(ratio) {
-    return String(Math.floor(ratio + 1e-9));
+    return String(Math.round(ratio + 1e-9));
 }
 
 /** R17 point 2: "danger", "warning" or "success" from the ratio (in percent) and the tracking. */
@@ -106,7 +132,7 @@ export function progressView(entry, { wide }) {
     const hasBar = maximum > 0 && !flexible;
     let extra = "";
     // a difference that rounds to no minute is no difference (no "+0h", no "0h left")
-    const minutesApart = Math.round(Math.abs(value - maximum) * 60);
+    const minutesApart = wholeMinutes(value - maximum);
     if (minutesApart > 0 && ratio > 100) {
         extra = `+${hoursText(value - maximum)}`;
     } else if (minutesApart > 0 && ratio > 0 && ratio < 100) {

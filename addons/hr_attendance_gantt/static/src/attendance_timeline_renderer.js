@@ -4,7 +4,7 @@ import { onMounted, onPatched, onWillUnmount, signal } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { AttendanceActionHelper } from "@hr_attendance/views/attendance_helper_view";
 import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
-import { progressView, WIDE_LABEL_WIDTH } from "./attendance_layout";
+import { helperOffset, progressView, WIDE_LABEL_WIDTH } from "./attendance_layout";
 
 /** Longest wait between the end of a window resize and the redraw of the labels (R17, D3). */
 export const RESIZE_DELAY = 250;
@@ -20,14 +20,6 @@ export const RESIZE_DELAY = 250;
  * the create path, with the form of the dialog read from the view's arch by the controller.
  * Nothing here changes them.
  */
-/**
- * R20 (M54, M55): the helper's box is the free space under the grid (the window's bottom less the
- * grid's bottom, which is the bottom of its one row) grown upward by this share of that space.
- * The measured boxes give 26 px of 652 px on the desktop (y 222) and 21.4 px of 548 px on the
- * phone (y 274.625): 4 % of the free space in both, within 0.3 px, so no second value is needed.
- */
-const HELPER_OVERLAP = 0.0395;
-
 export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     static template = "hr_attendance_gantt.AttendanceTimelineRenderer";
     static components = { ...EmployeeTimelineRenderer.components, AttendanceActionHelper };
@@ -109,10 +101,11 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     }
 
     /**
-     * R20 (M54, M55): the helper is a layer over the view's content: its box runs from a little
-     * above the end of the grid (HELPER_OVERLAP of the free space) to the bottom of the window, so
-     * the page is never taller than the window because of it, and its content is centred in the
-     * free space under the row (the box's padding is the part above the grid's end).
+     * R20 ("Where it is placed"). Desktop: the helper is a layer whose top is set, each time it
+     * appears, `helperOffset` (115 px with one row) below the top of the view's content area, the
+     * control bar not counted; it runs to the bottom of the window whatever the window's height,
+     * its content centred in it. Phone: not a layer; the helper takes the grid's place, from the
+     * grid's top to the bottom of the window.
      */
     placeHelper() {
         const helper = this.helperRef();
@@ -121,15 +114,18 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
         if (!box || !grid) {
             return;
         }
-        const gridBottom = grid.getBoundingClientRect().bottom;
-        const overlap = Math.max(0, browser.innerHeight - gridBottom) * HELPER_OVERLAP;
-        const top = gridBottom - overlap;
+        let top;
+        if (this.ui.isSmall) {
+            top = grid.getBoundingClientRect().top;
+        } else {
+            const content = grid.closest(".o_content") || grid.closest(".o_timeline_view");
+            top = content.getBoundingClientRect().top + helperOffset(this.layout.rows.length);
+        }
         // `top` is read from the padding box: a border of the box (a panel frame) is not in it
         const frame = parseFloat(getComputedStyle(box).borderTopWidth) || 0;
         helper.style.top = `${top - box.getBoundingClientRect().top - frame}px`;
         helper.style.bottom = "auto";
         helper.style.height = `${Math.max(0, browser.innerHeight - top)}px`;
-        helper.style.paddingTop = `${overlap}px`;
     }
 
     /** R20: at most one row, and that row has no attendance. */

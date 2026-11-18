@@ -274,6 +274,26 @@ test("A53: an employee with an attendance shows no helper", async () => {
     expect(".o_hag_helper").toHaveCount(0);
 });
 
+test("A70: the helper's layer starts 115 px below the content area's top at any window height", async () => {
+    await resize({ width: 1600, height: 900 });
+    await mountAttendances({ employees: ["Beth Evans"], expand: true, noContentHelp: HELP });
+    const contentTop = () => queryRect(".o_content").top;
+    for (const height of [700, 900, 1200]) {
+        await resize({ width: 1600, height });
+        await advanceTime(RESIZE_DELAY + 50);
+        await animationFrame();
+        const layer = queryRect(".o_hag_helper");
+        // 25 + 50 px of header lines and the 40 px inner height of the one row
+        expect(Math.abs(layer.top - (contentTop() + 115)) < 0.6).toBe(true);
+        // down to the window's bottom, whatever its height
+        expect(Math.abs(layer.bottom - height) < 0.6).toBe(true);
+    }
+    // the content is centred in the layer, not under the row
+    const layer = queryRect(".o_hag_helper");
+    const help = queryRect(".o_hag_helper .o_nocontent_help");
+    expect(Math.abs(help.top + help.height / 2 - (layer.top + layer.height / 2)) < 2).toBe(true);
+});
+
 test("A54: no helper with twenty empty rows", async () => {
     const employees = Array.from({ length: 20 }, (_unused, index) => `Employee ${index + 10}`);
     await mountAttendances({ employees, expand: true, noContentHelp: HELP });
@@ -304,9 +324,17 @@ test("A58: no multi-selection, no side panel, no dependencies; the search menu o
     ]);
 });
 
-test("RL15: the tooltip percentage is cut, not rounded (A40, A63)", async () => {
-    await mountLabels({ "Long Worker": entry(29, 40), "Plus Worker": entry(8.997, 8) });
+test("R17 point 5: the tooltip percentage is rounded, not cut (A40, A63, M80)", async () => {
+    await mountLabels({
+        "Long Worker": entry(28.997, 40),
+        "Plus Worker": entry(8.997, 8),
+        "Round Worker": entry(3.5, 8),
+        "Half Worker": entry(29, 40),
+    });
     expect(labelOf("Long Worker")).toHaveAttribute("data-tooltip", "29h/40h (72%)");
+    // 43.75 % gives 44, a half rounds up
+    expect(labelOf("Round Worker")).toHaveAttribute("data-tooltip", "3h 30m/8h (44%)");
+    expect(labelOf("Half Worker")).toHaveAttribute("data-tooltip", "29h/40h (73%)");
     expect(labelOf("Plus Worker")).toHaveAttribute("data-tooltip", "9h/8h (112%)");
     expect(barOf("Plus Worker")).toHaveAttribute("data-tooltip", "9h/8h (112%)");
 });
@@ -330,4 +358,21 @@ test("a difference of no minute is no difference", async () => {
     await animationFrame();
     expect(labelOf("Near Worker")).toHaveText("8h");
     expect(labelOf("Above Worker")).toHaveText("8h");
+});
+
+test("A68: the smallest difference with a bracket is 30 seconds, on both sides (R17, D6)", async () => {
+    await mountLabels({
+        "Over Half": entry(8 + 30 / 3600, 8),
+        "Under Half": entry(8 - 30 / 3600, 8),
+        "Over Ten": entry(8 + 10 / 3600, 8),
+        "Under Ten": entry(8 - 10 / 3600, 8),
+    });
+    expect(labelOf("Over Half")).toHaveText("8h 1m / 8h (+0h 1m)");
+    expect(labelOf("Under Half")).toHaveText("8h / 8h (0h 1m left)");
+    expect(labelOf("Over Ten")).toHaveText("8h / 8h");
+    expect(labelOf("Under Ten")).toHaveText("8h / 8h");
+    // the status still follows the ratio (M87): warning above 100, success below
+    expect(labelOf("Over Ten")).toHaveClass("text-warning");
+    expect(labelOf("Under Ten")).not.toHaveClass("text-warning");
+    expect(labelOf("Over Ten")).toHaveAttribute("data-tooltip", "8h/8h (100%)");
 });

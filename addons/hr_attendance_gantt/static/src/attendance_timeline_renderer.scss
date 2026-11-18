@@ -33,9 +33,10 @@
     }
 }
 
-// R20 (M54, M55): the helper is a layer over the content under the column headers, down to the
-// window's bottom (its height is set by the renderer); the box lets the pointer through to the
-// row, the content takes it back, and is centred in the space under the one row
+// R20 (M54, M55): on desktop the helper is a layer over the content under the control bar, down to
+// the window's bottom, its content centred in it (the renderer sets its top and height, see
+// `placeHelper`); the box lets the pointer through to the row, the content takes it back. On the
+// phone it is no layer: it takes the grid's place from the grid's top and takes the pointer.
 .o_tl_box.o_hag_with_helper {
     position: relative;
 
@@ -45,8 +46,8 @@
 }
 
 .o_hag_helper {
-    // the renderer sets the top, the height and the padding of the box from the layout (placeHelper);
-    // before it does, the box hangs from the bottom of the view, so the frame before mount is close
+    // before the renderer sets the box, it hangs from the bottom of the view, so the frame
+    // before mount is close
     position: absolute;
     inset: auto 0 0;
     display: flex;
@@ -61,6 +62,15 @@
         pointer-events: none;
 
         .o_nocontent_help {
+            pointer-events: auto;
+        }
+    }
+
+    &.o_hag_helper_phone {
+        pointer-events: auto;
+        background-color: $o-view-background-color;
+
+        > .o_view_nocontent {
             pointer-events: auto;
         }
     }
