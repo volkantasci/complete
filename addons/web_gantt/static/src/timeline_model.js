@@ -284,9 +284,17 @@ export class TimelineModel extends Model {
     /** Choose a named range around `focus` (default: the current focus). */
     async setKind(kind, focus) {
         this._dropPendingStep();
-        const range = namedRange(kind, (focus || this.visibleMiddleDate()).startOf("day"));
+        const range = namedRange(kind, (focus || this._focusForKind(kind)).startOf("day"));
         await this._reload({ range });
         this.notify();
+    }
+
+    /**
+     * The date a named range chosen from the menu is built around when the caller gives none
+     * (002a R10 point 3: the middle of the visible part). A variant of the view may choose another.
+     */
+    _focusForKind(_kind) {
+        return this.visibleMiddleDate();
     }
 
     /** Apply custom dates; `edited` tells which date the user changed last. */
