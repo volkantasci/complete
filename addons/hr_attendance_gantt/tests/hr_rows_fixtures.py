@@ -213,7 +213,8 @@ def make_demo_like(env, schedule=None):
             values["contract_date_start"], values["contract_date_end"] = contract
         employee = env["hr.employee"].create(values)
         for check_in, check_out in attendances:
-            # skip_time_rules: the Community's time rules would add overtime attendances
+            # skip_time_rules keeps the Community's time rules from adding overtime attendances;
+            # it also skips the overlap constraint, and create() still runs its tolerance step
             env["hr.attendance"].with_context(skip_time_rules=True).create(
                 {
                     "employee_id": employee.id,

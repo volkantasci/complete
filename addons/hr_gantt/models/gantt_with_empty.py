@@ -36,22 +36,26 @@ class Base(models.AbstractModel):
         return None
 
     @api.model
-    def _hrg_convert(self, node, field_name):
-        """``(domain on the related model, whether a leaf was dropped)`` for ``node``."""
+    def _hrg_convert(self, node, field_name, fill=Domain.TRUE):
+        """``(domain on the related model, whether a leaf was dropped)`` for ``node``.
+
+        A dropped leaf is replaced by ``fill``: TRUE for a search condition (it only
+        narrows), FALSE for a read rule (it must never widen what a user may see).
+        """
         if isinstance(node, DomainBool):
             return node, False
         if isinstance(node, DomainCondition):
             leaf = self._hrg_relation_leaf(node, field_name)
-            return (Domain.TRUE, True) if leaf is None else (leaf, False)
+            return (fill, True) if leaf is None else (leaf, False)
         if isinstance(node, DomainNot):
-            child, dropped = self._hrg_convert(node.child, field_name)
-            # a dropped leaf under a negation cannot be replaced by TRUE inside it
-            return (Domain.TRUE, True) if dropped else (~child, False)
+            child, dropped = self._hrg_convert(node.child, field_name, fill)
+            # a dropped leaf under a negation cannot be replaced inside it
+            return (fill, True) if dropped else (~child, False)
         if isinstance(node, (DomainAnd, DomainOr)):
-            parts = [self._hrg_convert(child, field_name) for child in node.children]
+            parts = [self._hrg_convert(child, field_name, fill) for child in node.children]
             combine = Domain.AND if isinstance(node, DomainAnd) else Domain.OR
             return combine([part for part, _dropped in parts]), any(d for _part, d in parts)
-        return Domain.TRUE, True
+        return fill, True
 
     @api.model
     def _hrg_related_domain(self, domain, field_name):
@@ -80,8 +84,11 @@ class Base(models.AbstractModel):
             raise UserError(_("The grouping field must be a relation to another model."))
         self.check_access('read')
 
-        wanted = Domain(domain or []) & self._access_domain('read')
-        converted, _dropped = self._hrg_convert(wanted, field_name)
+        # the user's search only narrows (a dropped leaf is TRUE); the read rule fails closed
+        # (a dropped leaf is FALSE: it cannot let a row through)
+        searched, _dropped = self._hrg_convert(Domain(domain or []), field_name)
+        allowed, _dropped = self._hrg_convert(self._access_domain('read'), field_name, Domain.FALSE)
+        converted = searched & allowed
         # the rows are the related records whose records the user may read (the converted read
         # rule), which the user may not be able to read themselves: search with sudo, in the
         # companies the user works in

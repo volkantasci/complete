@@ -152,6 +152,39 @@ class TestWithEmpty(TransactionCase):
         self.assertEqual([name for name, _ids in self._rows(result)], ['HRG A'])
         self.assertEqual(result['length'], 1)
 
+    def _officer(self, login):
+        return self.env['res.users'].create({
+            'name': f'HRG {login}', 'login': login,
+            'group_ids': [(6, 0, [
+                self.env.ref('base.group_user').id, self.env.ref('hr.group_hr_user').id])],
+        })
+
+    def test_r22_read_rule_leaf_outside_the_relation_cannot_widen_rows(self):
+        user = self._officer('hrg_rule_or')
+        self.env['ir.access'].create({
+            'name': 'HRG: employee A or a day',
+            'model_id': self.env['ir.model']._get_id('hr.employee.location'),
+            'operation': 'r',
+            'domain': f"['|', ('employee_id', '=', {self.emp_a.id}), ('date', '=', '2026-11-03')]",
+        })
+        result = self.Location.with_user(user)._get_gantt_data_with_empty(
+            NAME_FILTER, ['employee_id'], SPEC)
+        # the leaf on the day is not about employees: it opens no row
+        self.assertEqual([name for name, _ids in self._rows(result)], ['HRG A'])
+        self.assertEqual(result['length'], 1)
+
+    def test_r22_employee_of_another_company_gets_no_row(self):
+        user = self._officer('hrg_company')
+        other = self.env['res.company'].create({'name': 'HRG Other Company'})
+        outsider = self.env['hr.employee'].create({'name': 'HRG D', 'company_id': other.id})
+        self.assertNotIn(other, user.company_ids)
+        result = self.Location.with_user(user)._get_gantt_data_with_empty(
+            NAME_FILTER, ['employee_id'], SPEC)
+        names = [name for name, _ids in self._rows(result)]
+        self.assertEqual(names, ['HRG A', 'HRG B', 'HRG C'])
+        self.assertNotIn(outsider.id, [g['employee_id'][0] for g in result['groups']])
+        self.assertEqual(result['length'], 3)
+
     def test_r14_concerns_only_classification(self):
         concerns = self.Location._hrg_concerns_only
         self.assertTrue(concerns([], 'employee_id'))

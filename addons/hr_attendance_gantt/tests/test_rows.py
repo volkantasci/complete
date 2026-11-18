@@ -31,9 +31,9 @@ class TestRows(HrRowsCase, TransactionCase):
         self.assertEqual(result['length'], self.Employee.search_count([]))
         self.assertIn('employee_id', result['unavailabilities'])
         self.assertIn('employee_id', result['progress_bars'])
-        # a row without attendance in the period is a group with no record
-        by_name = {g['employee_id'][1]: g['__record_ids'] for g in result['groups']}
-        self.assertTrue(all(isinstance(v, list) for v in by_name.values()))
+        # the records listed in the groups are exactly the records returned
+        listed = {rid for g in result['groups'] for rid in g['__record_ids']}
+        self.assertEqual(listed, {r['id'] for r in result['records']})
         rest = self.get_data(*DAY, user_domain=[], offset=20)
         self.assertEqual(self.ids(rest), self.Employee.search([], order='name, id', offset=20).ids)
         self.assertEqual(rest['length'], result['length'])
@@ -54,6 +54,8 @@ class TestRows(HrRowsCase, TransactionCase):
             '|', ('employee_id.name', '=like', 'HRA %'), ('employee_id.name', '=like', 'Gantt %')])
         self.assertEqual(self.row_names(result), ['Gantt Open'])
         self.assertTrue(all(g['__record_ids'] for g in result['groups']))
+        # the list of R19 is given on this path too (Gantt Open has a contract)
+        self.assertEqual(result['hag_without_contract'], [])
 
     def test_r14_department_and_my_team_concern_employee(self):
         department = self.env['hr.department'].create({'name': 'HRA Department'})
