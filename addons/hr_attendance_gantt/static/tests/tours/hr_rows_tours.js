@@ -220,7 +220,7 @@ const periodSignature = () =>
 /** Previous or Next, and the wait for the period to be drawn. */
 async function step(direction, times = 1) {
     const count = Math.max(Math.abs(direction), times);
-    for (let index = 0; index < count; index++) {
+    for (let done = 0; done < count; done++) {
         const before = periodSignature();
         $(direction > 0 ? ".o_tl_next" : ".o_tl_previous").click();
         await until(() => periodSignature() !== before, "the following period", 8000);

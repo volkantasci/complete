@@ -125,8 +125,8 @@ class HrProbes(TimelineProbeCase):
         HttpCase.setUpClass.__func__(cls)
         cls.has_theme = bool(cls.env['ir.module.module'].search_count(
             [('name', '=', 'web_enterprise'), ('state', '=', 'installed')]))
-        admin = cls.env.ref('base.user_admin')
-        admin.write({
+        administrator = cls.env.ref('base.user_admin')
+        administrator.write({
             'lang': 'en_US', 'tz': TZ,
             'group_ids': [(4, cls.env.ref('hr_attendance.group_hr_attendance_manager').id)],
         })

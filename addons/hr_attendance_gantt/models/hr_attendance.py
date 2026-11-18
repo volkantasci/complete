@@ -40,14 +40,14 @@ class HrAttendance(models.Model):
         return result
 
     @api.model
-    def _hag_without_contract(self, employee_ids, start, stop):
-        """The employees among ``employee_ids`` with no contract version in the period (R19).
+    def _hag_without_contract(self, staff_ids, start, stop):
+        """The employees among ``staff_ids`` with no contract version in the period (R19).
 
         The period is ``start`` (included) to ``stop`` (excluded), both naive UTC; its days
         are read in the user's time zone. Versions are read with the rights of the system
         (R22).
         """
-        if not employee_ids or not start or not stop:
+        if not staff_ids or not start or not stop:
             return []
         zone = ZoneInfo(self.env.context.get('tz') or self.env.user.tz or 'UTC')
 
@@ -57,13 +57,13 @@ class HrAttendance(models.Model):
         first_day = local(start).date()
         after_last_day = (local(stop) - timedelta(microseconds=1)).date() + timedelta(days=1)
         versions = self.env['hr.version'].sudo().search([
-            ('employee_id', 'in', employee_ids),
+            ('employee_id', 'in', staff_ids),
             ('contract_date_start', '!=', False),
             ('contract_date_start', '<', after_last_day),
             '|', ('contract_date_end', '=', False), ('contract_date_end', '>=', first_day),
         ])
         covered = set(versions.employee_id.ids)
-        return [employee for employee in employee_ids if employee not in covered]
+        return [employee for employee in staff_ids if employee not in covered]
 
     @api.model
     def _gantt_unavailability(self, group_field, record_ids, period_start, period_stop, scale_name):
@@ -139,7 +139,7 @@ class HrAttendance(models.Model):
         return result
 
     @api.model
-    def _hag_hours_worked(self, employee_ids, start, stop):
+    def _hag_hours_worked(self, staff_ids, start, stop):
         """D2: hours of each employee's closed attendances inside ``[start, stop]`` (naive UTC).
 
         An attendance inside counts with its stored worked hours; one that crosses a bound
@@ -147,7 +147,7 @@ class HrAttendance(models.Model):
         the user may read are seen.
         """
         attendances = self.search([
-            ('employee_id', 'in', employee_ids),
+            ('employee_id', 'in', staff_ids),
             ('check_out', '!=', False),
             ('check_in', '<', stop),
             ('check_out', '>', start),

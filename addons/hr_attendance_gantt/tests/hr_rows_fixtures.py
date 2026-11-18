@@ -106,12 +106,12 @@ def _schedules(env, demo):
     return {"split": split, "flex": flex, "free": free, "demo": demo}
 
 
-def _employee(env, name, calendar, tracked, attendances):
+def _employee(env, name, schedule, tracked, attendances):
     employee = env["hr.employee"].create(
         {
             "name": name,
             "tz": TZ,
-            "resource_calendar_id": calendar.id,
+            "resource_calendar_id": schedule.id,
             "contract_date_start": CONTRACT_START,
             "attendance_based": tracked,
         }

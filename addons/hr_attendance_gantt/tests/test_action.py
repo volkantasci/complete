@@ -79,9 +79,9 @@ class TestAction(TransactionCase):
             {'search_default_groupby_month': 1, 'search_default_employee': 2})
 
     def test_a3_dependency_chain(self):
-        modules = self.env['ir.module.module']
-        bridge = modules.search([('name', '=', 'hr_attendance_gantt')])
-        employees = modules.search([('name', '=', 'hr_gantt')])
+        module_model = self.env['ir.module.module']
+        bridge = module_model.search([('name', '=', 'hr_attendance_gantt')])
+        employees = module_model.search([('name', '=', 'hr_gantt')])
         self.assertIn('hr_gantt', bridge.dependencies_id.mapped('name'))
         self.assertIn(bridge, employees.downstream_dependencies())
         self.assertNotIn(employees, bridge.downstream_dependencies())

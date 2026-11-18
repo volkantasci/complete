@@ -18,7 +18,7 @@ class TestRows(HrRowsCase, TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.make_world()
-        cls.Employee = cls.env['hr.employee']
+        cls.Staff = cls.env['hr.employee']
 
     def ids(self, result):
         return [group['employee_id'][0] for group in result['groups']]
@@ -26,16 +26,16 @@ class TestRows(HrRowsCase, TransactionCase):
     def test_a24_rows_for_every_employee(self):
         result = self.get_data(*DAY, user_domain=[], unavailability_fields=['employee_id'],
                                progress_bar_fields=['employee_id'])
-        first_page = self.Employee.search([], order='name, id', limit=20)
+        first_page = self.Staff.search([], order='name, id', limit=20)
         self.assertEqual(self.ids(result), first_page.ids)
-        self.assertEqual(result['length'], self.Employee.search_count([]))
+        self.assertEqual(result['length'], self.Staff.search_count([]))
         self.assertIn('employee_id', result['unavailabilities'])
         self.assertIn('employee_id', result['progress_bars'])
         # the records listed in the groups are exactly the records returned
         listed = {rid for g in result['groups'] for rid in g['__record_ids']}
         self.assertEqual(listed, {r['id'] for r in result['records']})
         rest = self.get_data(*DAY, user_domain=[], offset=20)
-        self.assertEqual(self.ids(rest), self.Employee.search([], order='name, id', offset=20).ids)
+        self.assertEqual(self.ids(rest), self.Staff.search([], order='name, id', offset=20).ids)
         self.assertEqual(rest['length'], result['length'])
 
     def test_a24_every_matching_employee_has_a_row_without_attendance(self):
@@ -102,7 +102,7 @@ class TestRows(HrRowsCase, TransactionCase):
         self.assertEqual(narrow['hag_without_contract'], [self.like['HRA Audrey'].id])
 
     def test_a52_days_are_read_in_the_user_time_zone(self):
-        edge = self.Employee.create({
+        edge = self.Staff.create({
             'name': 'HRA Edge', 'tz': 'Europe/Brussels', 'resource_calendar_id': self.schedule.id,
             'contract_date_start': '2026-01-01', 'contract_date_end': '2026-11-10',
         })
@@ -141,8 +141,8 @@ class TestRows(HrRowsCase, TransactionCase):
                 self.env.ref('base.group_user').id,
                 self.env.ref('hr_attendance.group_hr_attendance_officer').id])],
         })
-        own = self.Employee.create({'name': 'HRA Officer Self', 'user_id': officer.id})
-        managed = self.Employee.create([
+        own = self.Staff.create({'name': 'HRA Officer Self', 'user_id': officer.id})
+        managed = self.Staff.create([
             {'name': f'HRA Managed {n}', 'attendance_manager_id': officer.id} for n in '1234'])
         result = self.get_data(*DAY, user_domain=[], model=self.Attendance.with_user(officer))
         self.assertEqual(

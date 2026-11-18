@@ -6,7 +6,7 @@
          option by inheriting this view. The two-week precision entry names a scale the
          view does not know and is ignored. -->
     <record id="hr_attendance_view_gantt" model="ir.ui.view">
-        <field name="name">hr.attendance.gantt</field>
+        <field name="name">attendance timeline by employee</field>
         <field name="model">hr.attendance</field>
         <field name="arch" type="xml">
             <gantt js_class="attendance_gantt" string="Days"

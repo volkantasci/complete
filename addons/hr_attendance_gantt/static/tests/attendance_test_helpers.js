@@ -44,8 +44,12 @@ export class Attendance extends models.Model {
                 <filter name="by_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
             </group>
         </search>`,
-        "list,false": `<list><field name="name"/></list>`,
-        "form,false": `<form><field name="name"/></form>`,
+        "list,false": `<list>
+            <field name="name"/>
+        </list>`,
+        "form,false": `<form>
+            <field name="name"/>
+        </form>`,
     };
 }
 
