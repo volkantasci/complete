@@ -166,8 +166,13 @@ class TestRows(HrRowsCase, TransactionCase):
         rows = self.get_data(*DAY, extra=[('employee_id.department_id.name', 'ilike', 'Research')])
         self.assertEqual(self.row_names(rows), ['HRA Beth', 'HRA Jennie'])
 
+    def test_a52_a_direct_call_without_dates_fails_with_a_user_error(self):
+        with self.assertRaises(UserError):
+            self.Attendance._hag_without_contract([self.like['HRA Anita'].id], None, None)
+
     def test_a66_the_period_of_the_future_keeps_every_row(self):
         # nothing of R13's period condition is about the employee: it must not empty the rows
+        # (A54, M68: the future week of 13 to 19 December shows twenty rows)
         future = self.get_data('2026-11-11 23:00', '2026-11-12 23:00', DAY[2])
         self.assertEqual(self.row_names(future), self.row_names(self.get_data(*DAY)))
 

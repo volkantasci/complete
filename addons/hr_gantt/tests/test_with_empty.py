@@ -170,7 +170,10 @@ class TestWithEmpty(TransactionCase):
         self.assertEqual([n for n, _ids in self._rows(result)], ['HRG A', 'HRG C'])
 
     def test_a66_an_operator_with_nothing_to_convert_says_nothing(self):
-        # the period of the browser is such an operator: it must not empty the rows
+        """The period of the browser is such an operator: it must not empty the rows.
+
+        A54 and M68 need it: the future week of 13 to 19 December shows twenty rows.
+        """
         only_attendance = ['|', ('date', '<', '2026-01-01'), ('date', '>', '2026-12-31')]
         result = self._call(NAME_FILTER + only_attendance)
         self.assertEqual(len(result['groups']), 3)

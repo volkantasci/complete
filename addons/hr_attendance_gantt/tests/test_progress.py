@@ -146,7 +146,8 @@ class TestProgress(HrRowsCase, TransactionCase):
         employee = self.env['hr.employee'].create({
             'name': 'HRA Two Contracts', 'tz': 'Asia/Tokyo',
             'resource_calendar_id': self.schedule.id,
-            'contract_date_start': '2026-01-01', 'contract_date_end': '2026-11-11'})
+            'contract_date_start': '2026-01-01', 'contract_date_end': '2026-11-11',
+            'date_version': '2026-01-01'})
         self.env.flush_all()
         before = self.expected('HRA Two Contracts')
         employee.create_version({
@@ -163,7 +164,8 @@ class TestProgress(HrRowsCase, TransactionCase):
         # at the start is the whole-day one (8 h).
         flex = self.prepared['Gantt Flexible'].resource_calendar_id
         employee = self.env['hr.employee'].create({
-            'name': 'HRA Changed', 'tz': 'Europe/Brussels', 'resource_calendar_id': flex.id})
+            'name': 'HRA Changed', 'tz': 'Europe/Brussels', 'resource_calendar_id': flex.id,
+            'date_version': '2026-01-01'})
         employee.create_version({
             'date_version': '2026-11-10', 'resource_calendar_id': self.schedule.id,
             'contract_date_start': '2026-11-10'})
@@ -171,11 +173,31 @@ class TestProgress(HrRowsCase, TransactionCase):
         self.assertEqual(self.expected('HRA Changed', WEEK), 40)
         self.assertEqual(self.expected('HRA Changed'), 8)
 
+    def test_r16_bounds_of_another_zone_than_the_users(self):
+        # bounds at Brussels midnights, the user in New York: the day count comes from the
+        # two instants, and the expected hours are those of the browser's day
+        flex = self.prepared['Gantt Flexible'].resource_calendar_id
+        flexible = self.env['hr.employee'].create({
+            'name': 'HRA Zone Flex', 'tz': 'Europe/Brussels', 'resource_calendar_id': flex.id,
+            'contract_date_start': '2026-01-01', 'date_version': '2026-01-01'})
+        whole = self.env['hr.employee'].create({
+            'name': 'HRA Zone Whole', 'tz': 'Europe/Brussels',
+            'resource_calendar_id': self.schedule.id, 'contract_date_start': '2026-01-01',
+            'date_version': '2026-01-01'})
+        self.env.flush_all()
+        model = self.Attendance.with_context(tz='America/New_York')
+        found = model._gantt_progress_bar('employee_id', [flexible.id, whole.id], *DAY_11)
+        self.assertEqual(found[flexible.id]['max_value'], 8)
+        self.assertEqual(found[whole.id]['max_value'], 8)  # Wednesday 11 November
+        found = model._gantt_progress_bar('employee_id', [whole.id], *DAY_10)
+        self.assertEqual(found[whole.id]['max_value'], 8)  # Tuesday 10 November
+
     def test_r16_the_flag_reads_the_current_schedule(self):
         free = self.prepared['Gantt Free'].resource_calendar_id
         employee = self.env['hr.employee'].create({
             'name': 'HRA Became Free', 'tz': 'Europe/Brussels',
-            'resource_calendar_id': self.schedule.id, 'contract_date_start': '2026-01-01'})
+            'resource_calendar_id': self.schedule.id, 'contract_date_start': '2026-01-01',
+            'date_version': '2026-01-01'})
         employee.create_version({'date_version': '2026-11-11', 'resource_calendar_id': free.id})
         self.env.flush_all()
         # 9 November: the schedule at the start has whole days (8 h); the current one is free

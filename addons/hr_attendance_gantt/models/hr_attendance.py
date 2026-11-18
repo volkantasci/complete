@@ -51,6 +51,8 @@ class HrAttendance(models.Model):
         on or after the calendar date of ``start``, both dates read in the user's time zone.
         Versions are read with the rights of the system (R22).
         """
+        if not start or not stop:
+            raise UserError(self.env._("The data call needs the period it is made for."))
         if not staff_ids:
             return []
         zone = ZoneInfo(self.env.context.get('tz') or self.env.user.tz or 'UTC')
@@ -176,7 +178,7 @@ class HrAttendance(models.Model):
         last_day = (date_to - timedelta(microseconds=1)).date()
         calendar = employee._get_version(first_day).resource_calendar_id
         if calendar._is_flexible():
-            days = (last_day - first_day).days + 1
+            days = round((stop - start).total_seconds() / 86400)
             weeks, rest = divmod(days, 7)
             per_week = calendar.hours_per_week
             return weeks * per_week + min(rest * calendar.hours_per_day, per_week)

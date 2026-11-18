@@ -44,7 +44,10 @@ class Base(models.AbstractModel):
         dropped: that leaves its enclosing operator unchanged (true inside an "and",
         false inside an "or"), so a dropped part is simply left out of its operator. An
         operator none of whose conditions can be converted says nothing about the
-        related record and is dropped as a whole (``None``), for its own parent.
+        related record and is dropped as a whole (``None``), for its own parent. This is
+        needed by the browser's own period condition (A54, M68): an "or" of two attendance
+        conditions would otherwise be false inside an "and" and empty every row of a period
+        with no open-attendance branch, such as the future week of 13 to 19 December.
         """
         if isinstance(node, DomainBool):
             return (~node if negate else node), False
