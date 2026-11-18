@@ -64,8 +64,10 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - A unit test of a delay or a deadline freezes the test clock and advances it itself. A check that relies on real time, such as 99 ms of a 100 ms delay, fails on a loaded CI runner.
    - A unit test finds every element in the page, including those a stylesheet hides. Assert what a user sees, such as a dialog's visible buttons, in a tour.
    - Tests create the records they need, so that they pass with and without demo data. CI installs every module without it.
+   - When your module depends on a Community application that no module under `addons/` needed before, run CI's configuration once as soon as the module's manifest exists. A new application can change pages and test bundles that earlier tests rely on. Correct an earlier test in a commit of its own, and report the cause.
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
    - A tour of a gesture plays the scenario's own path, with real pointer events at the package's points. A tour that reaches the same state by another path can pass while the scenario's path fails.
+   - Where the package says an input cancels a gesture, test what that input's own press and release do, at each place the package names. A tour of such a case fails when anything opens, and a control without the gesture shows that the same place does open it.
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
 5. **Overlap report.** When every task is implemented and reviewed, and before the final review, stop.
    - Report with Status `OVERLAP_CHECK`, the module paths, and every spec question and ruling so far, in full and in spec language. Write the status line exactly as `**Status:** OVERLAP_CHECK`.
