@@ -167,10 +167,10 @@ class TimelineProbeCase(HttpCase):
 
     @contextlib.contextmanager
     def page(self, action, scheme='light', viewport='desktop', query='', login='admin',
-             touch=None, mobile=None, clock=CLOCK_SCRIPT, ready=None):
+             touch=None, mobile=None, clock=CLOCK_SCRIPT, ready=None, timezone='Etc/GMT-3'):
         """Open ``/odoo/action-<xmlid>`` and wait for the timeline grid (or the list); ``clock``
         is the script moving the browser clock, ``ready`` the selector that shows the page is
-        drawn."""
+        drawn, ``timezone`` the browser's time zone (an IANA id)."""
         if scheme == 'dark':
             user = self.env['res.users'].search([('login', '=', login)], limit=1)
             self.env['res.users.settings']._find_or_create_for_user(user).color_scheme = 'dark'
@@ -193,7 +193,7 @@ class TimelineProbeCase(HttpCase):
                 'mobile': touch if mobile is None else mobile,
             })
             request('Emulation.setTouchEmulationEnabled', params={'enabled': touch})
-            request('Emulation.setTimezoneOverride', params={'timezoneId': 'Etc/GMT-3'})
+            request('Emulation.setTimezoneOverride', params={'timezoneId': timezone})
             request('Emulation.setEmulatedMedia', params={'features': [
                 {'name': 'prefers-reduced-motion', 'value': 'reduce'},
             ]})
