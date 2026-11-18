@@ -166,3 +166,142 @@ def remove_prepared(env):
         [("name", "=like", like)]
     ).unlink()
     env.flush_all()
+
+
+# What the demo database holds (acceptance.md, "Setup"), in shape, under names that cannot
+# clash with the demo employees: name -> (attendances (UTC), contract (start, end) or None).
+DEMO_LIKE_PREFIX = "HRA "
+DEMO_LIKE = {
+    # 11 Nov 06:00 to 09:30; a contract that goes on past the day
+    "HRA Abigail": ([("2026-11-11 06:00:00", "2026-11-11 09:30:00")], ("2026-10-01", "2027-01-11")),
+    # a 24-hour attendance that crosses the day, then one just after it
+    "HRA Anita": (
+        [
+            ("2026-11-10 03:00:00", "2026-11-11 03:00:00"),
+            ("2026-11-11 03:00:10", "2026-11-11 08:00:00"),
+        ],
+        ("2026-01-01", None),
+    ),
+    # a night shift
+    "HRA Jennie": ([("2026-11-10 19:00:00", "2026-11-11 07:00:00")], ("2024-11-01", "2026-12-01")),
+    # a contract that ends on 11 Nov 2026
+    "HRA Keith": ([], ("2015-01-01", "2026-11-11")),
+    # a contract that ended before 2026
+    "HRA Audrey": ([], ("2020-01-01", "2025-12-31")),
+    # no contract at all
+    "HRA Beth": ([], None),
+}
+
+
+def _datetime(text):
+    return datetime.strptime(text, "%Y-%m-%d %H:%M:%S") if text else False
+
+
+def make_demo_like(env, schedule=None):
+    """Employees, contracts and attendances shaped like the demo table of acceptance.md.
+
+    Every name begins with "HRA ", so the records never clash with demo employees, and
+    nothing here relies on demo data. ``schedule`` is the working schedule of every
+    employee (a schedule of ``make_whole_day_schedule`` by default). Returns the
+    employees by name.
+    """
+    schedule = schedule or make_whole_day_schedule(env, DEMO_LIKE_PREFIX + "Std")
+    made = {}
+    for name, (attendances, contract) in DEMO_LIKE.items():
+        values = {"name": name, "tz": TZ, "resource_calendar_id": schedule.id}
+        if contract:
+            values["contract_date_start"], values["contract_date_end"] = contract
+        employee = env["hr.employee"].create(values)
+        for check_in, check_out in attendances:
+            # skip_time_rules: the Community's time rules would add overtime attendances
+            env["hr.attendance"].with_context(skip_time_rules=True).create(
+                {
+                    "employee_id": employee.id,
+                    "check_in": _datetime(check_in),
+                    "check_out": _datetime(check_out),
+                }
+            )
+        made[name] = employee
+    env.flush_all()
+    return made
+
+
+def _text(moment):
+    return moment.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def R13_domain(start_utc, stop_utc, now_utc):  # noqa: N802 (named after the rule)
+    """The domain of R13 for a period (naive UTC datetimes), as the browser builds it.
+
+    Shape shared with the attendance view's JavaScript (its test checks the same list):
+    point 1, closed attendances overlapping the period or lying at its start; point 2,
+    open attendances that began before the period's end and before now, only when now is
+    at or after the period's start.
+    """
+    start, stop, now = _text(start_utc), _text(stop_utc), _text(now_utc)
+    closed = [
+        "&", "&", ("check_out", "!=", False), ("check_in", "<", stop),
+        "|", ("check_out", ">", start), ("check_in", ">=", start),
+    ]
+    if now_utc < start_utc:
+        return closed
+    opened = ["&", "&", ("check_out", "=", False), ("check_in", "<", stop), ("check_in", "<", now)]
+    return ["|", *closed, *opened]
+
+
+SPEC = {
+    "employee_id": {"fields": {"display_name": {}}},
+    "check_in": {},
+    "check_out": {},
+}
+NAMES = [
+    "|",
+    ("employee_id.name", "=like", DEMO_LIKE_PREFIX + "%"),
+    ("employee_id.name", "=like", PREFIX + "%"),
+]
+
+
+def utc(text):
+    """A naive UTC datetime from ``YYYY-MM-DD HH:MM``."""
+    return datetime.strptime(text, "%Y-%m-%d %H:%M")
+
+
+class HrRowsCase:
+    """Mixin for test cases: the demo-like and prepared records, and a way to call the view."""
+
+    @classmethod
+    def make_world(cls):
+        cls.schedule = make_whole_day_schedule(cls.env, DEMO_LIKE_PREFIX + "40 hours/week")
+        cls.like = make_demo_like(cls.env, cls.schedule)
+        cls.prepared = make_prepared(cls.env, night=True, demo_schedule=cls.schedule)
+        cls.Attendance = cls.env["hr.attendance"]
+
+    def get_data(self, start, stop, now, extra=None, user_domain=None, groupby=("employee_id",),
+                 model=None, **kwargs):
+        """Call the view's data as the browser does: R13 period, the user's search in the context.
+
+        ``extra`` is added to the domain (the user's search is added by itself).
+        """
+        user_domain = NAMES if user_domain is None else user_domain
+        model = (self.Attendance if model is None else model).with_context(user_domain=user_domain)
+        if not model.env.context.get("tz"):
+            model = model.with_context(tz=TZ)
+        domain = R13_domain(utc(start), utc(stop), utc(now)) + list(user_domain) + list(extra or [])
+        kwargs.setdefault("limit", 20)
+        kwargs.setdefault("start_date", start + ":00")
+        kwargs.setdefault("stop_date", stop + ":00")
+        kwargs.setdefault("scale", "day")
+        return model.get_gantt_data(domain, list(groupby), SPEC, **kwargs)
+
+    @staticmethod
+    def row_names(result):
+        return [group["employee_id"][1] for group in result["groups"]]
+
+    def shown(self, result):
+        """Employee name -> set of check-in texts, of the records returned."""
+        found = {}
+        for record in result["records"]:
+            attendance = self.env["hr.attendance"].browse(record["id"])
+            found.setdefault(attendance.employee_id.name, set()).add(
+                _text(attendance.check_in)[:16])
+        return found
