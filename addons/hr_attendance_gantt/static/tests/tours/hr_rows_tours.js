@@ -276,12 +276,15 @@ async function searchFor(text, field = "Employee") {
             ),
         `the entry "${wanted}"`
     );
+    const requested = gantt.requests;
     item.click();
     await until(
         () => facets().some((facet) => facet.includes(text)),
         `the facet of "${text}"`
     );
-    await settle();
+    // the view has read its data for the search and drawn it
+    await until(() => gantt.requests > requested, `the data of the search "${text}"`);
+    await dataSettled();
 }
 
 async function removeFacet(text) {
@@ -348,8 +351,10 @@ async function menuItem(section, text) {
         () => $$(`${section} .o_menu_item`).find((el) => clean(el.textContent) === text),
         `${text} in ${section}`
     );
+    const requested = gantt.requests;
     item.click();
-    await settle(800);
+    await until(() => gantt.requests > requested, `the data after "${text}"`);
+    await dataSettled();
 }
 
 // requests ---------------------------------------------------------------------------------------
@@ -570,7 +575,17 @@ scenario("hag_a11_scroll", async () => {
     // her name scrolls to her first pill
     await realClick($(".o_tl_row_label", rowEl("HRA Anita")));
     await until(() => renderer().scrollLeft !== before, "the grid scrolls to her first pill", 4000);
-    await settle(1000);
+    // the scroll has come to rest (the same position over two polls) with her pill in view
+    let last = null;
+    const inView = () => {
+        const position = renderer().scrollLeft;
+        const rest = position === last;
+        last = position;
+        const pill = rectOf(pillsOf("HRA Anita")[0]);
+        const view = rectOf(renderer());
+        return rest && pill.left >= view.left && pill.right <= view.right + 1;
+    };
+    await until(inView, "her first pill in view once the scroll rests", 6000);
     const pill = rectOf(pillsOf("HRA Anita")[0]);
     const view = rectOf(renderer());
     assert(
@@ -869,12 +884,14 @@ scenario("hag_a26_pager", async () => {
     assertEqual(rowNames().length, 20, "twenty rows");
     $(".o_pager_next").click();
     await until(() => pager() === "21-22 / 22", "the second page");
-    await settle();
-    assertEqual(rowNames(), ["HRA Keith", "HRA Marc"], "the last two rows");
-    for (const name of rowNames()) {
-        assert(labelOf(name), `${name} has a label`);
-        assert(barOf(name), `${name} has a bar`);
-    }
+    await until(
+        () => JSON.stringify(rowNames()) === JSON.stringify(["HRA Keith", "HRA Marc"]),
+        `the last two rows (now ${JSON.stringify(rowNames())})`
+    );
+    await until(
+        () => rowNames().every((name) => labelOf(name) && barOf(name)),
+        "their labels and bars"
+    );
 });
 
 // A27: searches that keep the empty rows
@@ -911,8 +928,10 @@ scenario("hag_a28_drop_rows", async () => {
         () => $$(".o_filter_menu .o_item_option").find((el) => clean(el.textContent) === "November"),
         "the option November"
     );
+    const requested = gantt.requests;
     option.click();
-    await settle(1000);
+    await until(() => gantt.requests > requested, "the data of the Date filter");
+    await dataSettled();
     await closeSearchMenu();
     await until(() => facets().some((facet) => facet.includes("Date")), "the Date facet");
     await until(() => rowNames().length === 1, "one row with the Date filter");
@@ -924,7 +943,10 @@ scenario("hag_a29_archived", async () => {
     await menuItem(".o_filter_menu", "Archived Employees");
     await closeSearchMenu();
     await until(() => $(".o_hag_helper"), "the helper");
-    await settle();
+    await until(
+        () => rowEls().length > 0 && rowNames().every((name) => name === ""),
+        `the unnamed placeholder row (now ${JSON.stringify(rowNames())})`
+    );
     const names = rowNames();
     assert(names.every((name) => name === ""), `no employee row: ${names}`);
     assert($$(".o_hrg_avatar").length === 0, "no avatar");
@@ -1047,9 +1069,11 @@ scenario("hag_a39_unfold", async () => {
     assertNear(rectOf(colByDate("2026-11-09") || sunday).left, 303, "Monday 9 at x 303", 2);
     const check = async (what) => {
         await until(() => foldedHeaders().length === 1, `${what}: one folded header`);
-        await settle();
+        await until(() => {
+            const shown = colByDate("2026-11-08");
+            return shown && Math.abs(rectOf(shown).width - 216.2) <= 1.5;
+        }, `${what}: Sunday 8 is 216.2 px wide`);
         const column = colByDate("2026-11-08");
-        assert(column, `${what}: Sunday 8 shows`);
         assertNear(rectOf(column).width, 216.2, `${what}: Sunday 8's width`, 1.5);
         assertNear(rectOf(column).left, 267, `${what}: Sunday 8's x`, 2);
         for (const name of rowNames()) {
