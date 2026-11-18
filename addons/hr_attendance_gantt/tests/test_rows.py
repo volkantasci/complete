@@ -1,5 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
+from unittest.mock import patch
+
+from odoo.exceptions import UserError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
 
@@ -124,6 +127,7 @@ class TestRows(HrRowsCase, TransactionCase):
                 self.env.ref('hr_attendance.group_hr_attendance_own').id])],
         })
         self.prepared['Gantt Exact'].user_id = officer
+        self.env.flush_all()
         result = self.get_data(*DAY, user_domain=[], model=self.Attendance.with_user(officer))
         self.assertEqual(self.row_names(result), ['Gantt Exact'])
         self.assertEqual(result['hag_without_contract'], [])
@@ -133,6 +137,55 @@ class TestRows(HrRowsCase, TransactionCase):
         self.assertNotIn('hag_without_contract', result)
         result = self.get_data(*DAY, groupby=('department_id',))
         self.assertNotIn('hag_without_contract', result)
+
+    def test_a25_a_call_without_a_period_fails(self):
+        for dates in ({'start_date': None}, {'stop_date': None}):
+            for groupby in (('employee_id',), ('department_id',)):
+                with self.subTest(dates=dates, groupby=groupby), self.assertRaises(UserError):
+                    self.get_data(*DAY, groupby=groupby, **dates)
+
+    def test_a66_conversion_of_the_search_to_employees(self):
+        found = self.like['HRA Anita'].name
+        wanted = ('employee_id.name', 'ilike', 'Anita')
+        no_check_out = ('check_out', '=', False)
+        # "name contains Anita or no check-out": the dropped part is false
+        rows = self.get_data(*DAY, extra=['|', wanted, no_check_out])
+        self.assertEqual(self.row_names(rows), [found])
+        # "not (name contains Anita and no check-out)": not Anita (the dropped part is false)
+        everyone = self.get_data(*DAY)
+        others = [name for name in self.row_names(everyone) if name != found]
+        rows = self.get_data(*DAY, extra=['!', '&', wanted, no_check_out])
+        self.assertEqual(self.row_names(rows), others)
+        # "not (name contains Anita or no check-out)": not Anita (the dropped part is true)
+        rows = self.get_data(*DAY, extra=['!', '|', wanted, no_check_out])
+        self.assertEqual(self.row_names(rows), others)
+        self.assertEqual(len(others), len(self.row_names(everyone)) - 1)
+        # a field reached through the relation
+        department = self.env['hr.department'].create({'name': 'HRA Research'})
+        (self.like['HRA Beth'] | self.like['HRA Jennie']).department_id = department
+        rows = self.get_data(*DAY, extra=[('employee_id.department_id.name', 'ilike', 'Research')])
+        self.assertEqual(self.row_names(rows), ['HRA Beth', 'HRA Jennie'])
+
+    def test_a66_the_period_of_the_future_keeps_every_row(self):
+        # nothing of R13's period condition is about the employee: it must not empty the rows
+        future = self.get_data('2026-11-11 23:00', '2026-11-12 23:00', DAY[2])
+        self.assertEqual(self.row_names(future), self.row_names(self.get_data(*DAY)))
+
+    def test_a52_the_contract_overlap_is_read_on_two_dates(self):
+        # Wednesday 11 November in Brussels: a contract starting before 12 November and
+        # ending on or after 11 November overlaps; the day after and the day before do not
+        cases = (
+            ('2026-11-11', None, True), ('2026-11-12', None, False),
+            ('2026-01-01', '2026-11-11', True), ('2026-01-01', '2026-11-10', False),
+        )
+        for index, (start, end, covered) in enumerate(cases):
+            employee = self.Staff.create({
+                'name': f'HRA Edge {index}', 'tz': 'Europe/Brussels',
+                'resource_calendar_id': self.schedule.id,
+                'contract_date_start': start, 'contract_date_end': end})
+            result = self.get_data(*DAY, user_domain=[('employee_id', '=', employee.id)])
+            self.assertEqual(
+                result['hag_without_contract'], [] if covered else [employee.id], (start, end))
 
     def test_r22_team_officer_rows(self):
         officer = self.env['res.users'].create({
@@ -156,6 +209,18 @@ class TestRows(HrRowsCase, TransactionCase):
             'group_ids': [(6, 0, [self.env.ref('hr_attendance.group_hr_attendance_own').id])],
         })
         self.prepared['Gantt Exact'].user_id = user
-        result = self.get_data(*DAY, user_domain=[], model=self.Attendance.with_user(user))
+        self.env.flush_all()  # the public employee is a view: it reads the table
+        searched = []
+        original = type(self.Staff)._search
+
+        def spy(model, *args, **kwargs):
+            searched.append((model.env.uid, model.env.su))
+            return original(model, *args, **kwargs)
+
+        with patch.object(type(self.Staff), '_search', spy):
+            result = self.get_data(*DAY, user_domain=[], model=self.Attendance.with_user(user))
         self.assertEqual(self.row_names(result), ['Gantt Exact'])
         self.assertEqual(result['length'], 1)
+        # the rows are searched with the user's own rights (R9 point 2), not the system's
+        self.assertIn((user.id, False), searched)
+        self.assertFalse([found for found in searched if found[1]])

@@ -1,11 +1,12 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools.date_utils import sum_intervals
+from odoo.tools.intervals import Intervals
 
 
 class HrAttendance(models.Model):
@@ -23,6 +24,8 @@ class HrAttendance(models.Model):
         The records shown (R13) are the ones ``domain`` selects: the browser builds the
         period condition, because only it knows "now".
         """
+        if not start_date or not stop_date:
+            raise UserError(self.env._("The data call needs the period it is made for."))
         groupby = list(groupby or [])
         arguments = (
             domain, groupby, read_specification, limit, offset,
@@ -43,23 +46,20 @@ class HrAttendance(models.Model):
     def _hag_without_contract(self, staff_ids, start, stop):
         """The employees among ``staff_ids`` with no contract version in the period (R19).
 
-        The period is ``start`` (included) to ``stop`` (excluded), both naive UTC; its days
-        are read in the user's time zone. Versions are read with the rights of the system
-        (R22).
+        The period is ``start`` (included) to ``stop`` (excluded), both naive UTC. A version
+        overlaps it when its contract starts before the calendar date of ``stop`` and ends
+        on or after the calendar date of ``start``, both dates read in the user's time zone.
+        Versions are read with the rights of the system (R22).
         """
-        if not staff_ids or not start or not stop:
+        if not staff_ids:
             return []
         zone = ZoneInfo(self.env.context.get('tz') or self.env.user.tz or 'UTC')
-
-        def local(moment):
-            return moment.replace(tzinfo=UTC).astimezone(zone)
-
-        first_day = local(start).date()
-        after_last_day = (local(stop) - timedelta(microseconds=1)).date() + timedelta(days=1)
+        first_day = start.replace(tzinfo=UTC).astimezone(zone).date()
+        end_day = stop.replace(tzinfo=UTC).astimezone(zone).date()
         versions = self.env['hr.version'].sudo().search([
             ('employee_id', 'in', staff_ids),
             ('contract_date_start', '!=', False),
-            ('contract_date_start', '<', after_last_day),
+            ('contract_date_start', '<', end_day),
             '|', ('contract_date_end', '=', False), ('contract_date_end', '>=', first_day),
         ])
         covered = set(versions.employee_id.ids)
@@ -121,19 +121,13 @@ class HrAttendance(models.Model):
         stop = fields.Datetime.to_datetime(period_stop)
         worked = self._hag_hours_worked(record_ids, start, stop)
         zone = ZoneInfo(self.env.context.get('tz') or self.env.user.tz or 'UTC')
-        first_day = start.replace(tzinfo=UTC).astimezone(zone).date()
-        after_last_day = (
-            (stop - timedelta(microseconds=1)).replace(tzinfo=UTC).astimezone(zone).date()
-            + timedelta(days=1))
         employees = self.env['hr.employee'].sudo().with_context(active_test=False)
         result = {}
         for employee in employees.browse(record_ids):
-            maximum, fully_flexible = self._hag_hours_expected(
-                employee, first_day, after_last_day, zone)
             result[employee.id] = {
                 'value': worked.get(employee.id, 0.0),
-                'max_value': maximum,
-                'hag_fully_flexible': fully_flexible,
+                'max_value': self._hag_hours_expected(employee, start, stop, zone),
+                'hag_fully_flexible': employee.resource_calendar_id._is_fully_flexible(),
                 'hag_tracked': bool(employee.attendance_based),
             }
         return result
@@ -166,31 +160,29 @@ class HrAttendance(models.Model):
         return worked
 
     @api.model
-    def _hag_hours_expected(self, employee, first_day, after_last_day, zone):
-        """The hours expected of a (sudo) employee over whole days of the user's zone (R16 point 2).
+    def _hag_hours_expected(self, employee, start, stop, zone):
+        """The hours expected of a (sudo) employee between two instants (R16 point 2, D5).
 
-        Returns ``(hours, fully flexible)``. The schedule at the period's start decides the
-        kind: fully flexible gives 0, flexible the weekly formula, any other the Community's
-        expected attendances of each contract period (company-wide leaves taken off).
+        ``start`` and ``stop`` are the bounds the browser sent (naive UTC): the midnights
+        that bound the period's own days, which are read in ``zone`` (the user's). The
+        schedule at the period's start is the one of the version in effect on the first
+        day: flexible gives the weekly formula (0 for a fully flexible one), any other the
+        Community's expected attendances, with only the contract periods that overlap
+        those days and the company-wide leaves taken off.
         """
-        overlapping = employee._get_versions_with_contract_overlap_with_period(
-            first_day, after_last_day - timedelta(days=1))
-        calendar = overlapping[:1].resource_calendar_id or employee.resource_calendar_id
-        if calendar._is_fully_flexible():
-            return 0.0, True
+        date_from = start.replace(tzinfo=UTC).astimezone(zone)
+        date_to = stop.replace(tzinfo=UTC).astimezone(zone)
+        first_day = date_from.date()
+        last_day = (date_to - timedelta(microseconds=1)).date()
+        calendar = employee._get_version(first_day).resource_calendar_id
         if calendar._is_flexible():
-            days = (after_last_day - first_day).days
+            days = (last_day - first_day).days + 1
             weeks, rest = divmod(days, 7)
             per_week = calendar.hours_per_week
-            return weeks * per_week + min(rest * calendar.hours_per_day, per_week), False
-        date_from = datetime.combine(first_day, time.min, zone)
-        date_to = datetime.combine(after_last_day, time.min, zone)
-        if overlapping:
-            intervals = employee._get_expected_attendances(date_from, date_to)
-        else:
-            # No contract in the period's own days: the current schedule over the whole
-            # period. The Community's method looks at the day of ``date_to`` too, where a
-            # contract may start, so the fallback is worked out here, as the Community does.
+            return weeks * per_week + min(rest * calendar.hours_per_day, per_week)
+        versions = employee._get_versions_with_contract_overlap_with_period(first_day, last_day)
+        if not versions:
+            # No contract on the period's days: the current schedule over the whole period.
             intervals = employee.resource_calendar_id._work_intervals_batch(
                 date_from, date_to,
                 resources_per_tz=employee._get_resources_per_tz(date_from),
@@ -198,4 +190,23 @@ class HrAttendance(models.Model):
                 domain=[('company_id', 'in', [False, employee.company_id.id]),
                         ('count_as', '=', 'absence')],
             )[employee.resource_id.id]
-        return sum_intervals(intervals), False
+            return sum_intervals(intervals)
+        # The Community's own method also takes a contract that starts on the day after the
+        # period, whose hours would lean into it when the zones differ: the versions that
+        # overlap the days are the only ones counted, each with its schedule and leaves.
+        employee_tz = ZoneInfo(employee.tz) if employee.tz else None
+        intervals = Intervals()
+        previous = datetime.combine(versions[0].date_start, time.min, employee_tz)
+        for version in versions:
+            version_start = datetime.combine(version.date_start, time.min, employee_tz)
+            contract_start = datetime.combine(version.contract_date_start, time.min, employee_tz)
+            version_end = datetime.combine(version.date_end or date.max, time.max, employee_tz)
+            begin = version_start if previous < version_start else contract_start
+            intervals |= version.resource_calendar_id._work_intervals_batch(
+                max(date_from, begin), min(date_to, version_end),
+                resources_per_tz=version._get_resources_per_tz(),
+                compute_leaves=True,
+                domain=[('company_id', 'in', [False, employee.company_id.id]),
+                        ('count_as', '=', 'absence')],
+            )[employee.resource_id.id]
+        return sum_intervals(intervals)

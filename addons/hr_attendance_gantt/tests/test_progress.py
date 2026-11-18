@@ -22,7 +22,9 @@ class TestProgress(HrRowsCase, TransactionCase):
         cls.make_world()
 
     def entry(self, name, period=DAY_11, tz='Europe/Brussels'):
-        employee = self.prepared.get(name) or self.like[name]
+        employee = (
+            self.prepared.get(name) or self.like.get(name)
+            or self.env['hr.employee'].search([('name', '=', name)], limit=1))
         model = self.Attendance.with_context(tz=tz)
         found = model._gantt_progress_bar('employee_id', [employee.id], *period)
         return found[employee.id]
@@ -108,22 +110,80 @@ class TestProgress(HrRowsCase, TransactionCase):
         found = model._gantt_progress_bar('employee_id', [employee.id], *month)
         self.assertEqual(found[employee.id]['max_value'], 168)
 
-    def test_r16_schedule_of_the_overlapping_version_decides(self):
-        # the first contract (whole days) ended before the period; the contract of the
-        # period is fully flexible: the maximum is 0 and the flag is set
+    def test_a67_contract_starting_the_day_after_the_period(self):
+        beth = self.like['HRA Beth']
+        beth.contract_date_start = '2026-11-12'
+        self.env.flush_all()
+        entry = self.entry('HRA Beth')
+        self.assertEqual((entry['value'], entry['max_value']), (0, 8))
+        # her name stays red (R19)
+        result = self.get_data(
+            '2026-11-10 23:00', '2026-11-11 23:00', '2026-11-11 10:00',
+            user_domain=[('employee_id', '=', beth.id)])
+        self.assertEqual(result['hag_without_contract'], [beth.id])
+        # the contract is counted from its own first day
+        day_12 = (utc('2026-11-11 23:00'), utc('2026-11-12 23:00'))
+        self.assertEqual(self.expected('HRA Beth', day_12), 8)
+
+    def test_a72_expected_hours_in_the_users_time_zone(self):
+        split = self.prepared['Gantt Hourly'].resource_calendar_id
+        tokyo = self.env['hr.employee'].create({
+            'name': 'HRA Tokyo', 'tz': 'Asia/Tokyo', 'resource_calendar_id': split.id,
+            'contract_date_start': '2026-01-01'})
+        model = self.Attendance.with_context(tz='Asia/Tokyo')
+
+        def maximum(start, stop):
+            return model._gantt_progress_bar(
+                'employee_id', [tokyo.id], utc(start), utc(stop))[tokyo.id]['max_value']
+
+        self.assertEqual(maximum('2026-11-08 15:00', '2026-11-09 15:00'), 8)  # Monday 9
+        self.assertEqual(maximum('2026-11-12 15:00', '2026-11-13 15:00'), 4)  # Friday 13
+        self.assertEqual(maximum('2026-11-07 15:00', '2026-11-14 15:00'), 36)  # 8 to 14
+
+    def test_r16_a_contract_of_the_next_day_adds_no_hours_across_zones(self):
+        # an employee of Tokyo, a user and a period of Brussels: the next contract's first
+        # hours lie inside the Brussels day on the clock, but the day after the period
+        employee = self.env['hr.employee'].create({
+            'name': 'HRA Two Contracts', 'tz': 'Asia/Tokyo',
+            'resource_calendar_id': self.schedule.id,
+            'contract_date_start': '2026-01-01', 'contract_date_end': '2026-11-11'})
+        self.env.flush_all()
+        before = self.expected('HRA Two Contracts')
+        employee.create_version({
+            'date_version': '2026-11-12', 'contract_date_start': '2026-11-12',
+            'contract_date_end': False})
+        self.env.flush_all()
+        self.assertEqual(self.expected('HRA Two Contracts'), before)
+
+    def test_r16_schedule_in_effect_on_the_first_day_decides(self):
+        # a flexible schedule up to 9 November, no contract; from 10 November a contract on
+        # whole days. On the week of 8 to 14 November the schedule at the period's start is
+        # the flexible one (40 h by the weekly formula); the first version in contract
+        # (whole days, Tuesday to Friday: 32 h) does not decide. On 11 November the schedule
+        # at the start is the whole-day one (8 h).
+        flex = self.prepared['Gantt Flexible'].resource_calendar_id
+        employee = self.env['hr.employee'].create({
+            'name': 'HRA Changed', 'tz': 'Europe/Brussels', 'resource_calendar_id': flex.id})
+        employee.create_version({
+            'date_version': '2026-11-10', 'resource_calendar_id': self.schedule.id,
+            'contract_date_start': '2026-11-10'})
+        self.env.flush_all()
+        self.assertEqual(self.expected('HRA Changed', WEEK), 40)
+        self.assertEqual(self.expected('HRA Changed'), 8)
+
+    def test_r16_the_flag_reads_the_current_schedule(self):
         free = self.prepared['Gantt Free'].resource_calendar_id
         employee = self.env['hr.employee'].create({
-            'name': 'HRA Changed', 'tz': 'Europe/Brussels',
-            'resource_calendar_id': self.schedule.id,
-            'contract_date_start': '2026-01-01', 'contract_date_end': '2026-10-31'})
-        employee.create_version({
-            'date_version': '2026-11-02', 'resource_calendar_id': free.id,
-            'contract_date_start': '2026-11-02', 'contract_date_end': False})
+            'name': 'HRA Became Free', 'tz': 'Europe/Brussels',
+            'resource_calendar_id': self.schedule.id, 'contract_date_start': '2026-01-01'})
+        employee.create_version({'date_version': '2026-11-11', 'resource_calendar_id': free.id})
         self.env.flush_all()
-        model = self.Attendance.with_context(tz='Europe/Brussels')
-        found = model._gantt_progress_bar('employee_id', [employee.id], *WEEK)
-        self.assertEqual(found[employee.id]['max_value'], 0)
-        self.assertTrue(found[employee.id]['hag_fully_flexible'])
+        # 9 November: the schedule at the start has whole days (8 h); the current one is free
+        found = self.entry('HRA Became Free', (utc('2026-11-08 23:00'), utc('2026-11-09 23:00')))
+        self.assertEqual((found['max_value'], found['hag_fully_flexible']), (8, True))
+        # 12 November: the schedule at the start is the free one (0 h), as the current one
+        found = self.entry('HRA Became Free', (utc('2026-11-11 23:00'), utc('2026-11-12 23:00')))
+        self.assertEqual((found['max_value'], found['hag_fully_flexible']), (0, True))
 
     def test_a62_holiday_lowers_to_32(self):
         made = make_prepared(self.env, holiday=True, demo_schedule=self.schedule)
