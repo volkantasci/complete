@@ -54,6 +54,17 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
         });
     }
 
+    /**
+     * R21: this view has no multi-selection, so a click on a folded header unfolds its run, with
+     * Ctrl as without; with Shift it does nothing (002b3: Shift never folds or unfolds).
+     */
+    onColumnClick(column, ev) {
+        if (column.folded && ev?.shiftKey) {
+            return;
+        }
+        return super.onColumnClick(column, ev);
+    }
+
     /** R17, R18: the label, the bar and the tooltip of an employee row. */
     _progressOf(row, data) {
         const entry =
