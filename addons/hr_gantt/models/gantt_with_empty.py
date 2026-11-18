@@ -36,37 +36,45 @@ class Base(models.AbstractModel):
         return None
 
     @api.model
-    def _hrg_convert(self, node, field_name, fill=Domain.TRUE):
-        """``(domain on the related model, whether a leaf was dropped)`` for ``node``.
+    def _hrg_walk(self, node, field_name, negate=False):
+        """``(domain on the related model or None, whether a condition was dropped)``.
 
-        A dropped leaf is replaced by ``fill``: TRUE for a search condition (it only
-        narrows), FALSE for a read rule (it must never widen what a user may see).
+        Negations are moved down to the single conditions (a negated "and" is an "or" of
+        negated parts and the other way round). A condition that cannot be converted is
+        dropped: that leaves its enclosing operator unchanged (true inside an "and",
+        false inside an "or"), so a dropped part is simply left out of its operator. An
+        operator none of whose conditions can be converted says nothing about the
+        related record and is dropped as a whole (``None``), for its own parent.
         """
         if isinstance(node, DomainBool):
-            return node, False
+            return (~node if negate else node), False
         if isinstance(node, DomainCondition):
             leaf = self._hrg_relation_leaf(node, field_name)
-            return (fill, True) if leaf is None else (leaf, False)
+            if leaf is None:
+                return None, True
+            return (~leaf if negate else leaf), False
         if isinstance(node, DomainNot):
-            child, dropped = self._hrg_convert(node.child, field_name, fill)
-            # a dropped leaf under a negation cannot be replaced inside it
-            return (fill, True) if dropped else (~child, False)
+            return self._hrg_walk(node.child, field_name, not negate)
         if isinstance(node, (DomainAnd, DomainOr)):
-            parts = [self._hrg_convert(child, field_name, fill) for child in node.children]
-            combine = Domain.AND if isinstance(node, DomainAnd) else Domain.OR
-            return combine([part for part, _dropped in parts]), any(d for _part, d in parts)
-        return fill, True
+            parts = [self._hrg_walk(child, field_name, negate) for child in node.children]
+            kept = [part for part, _dropped in parts if part is not None]
+            dropped = any(dropped for _part, dropped in parts)
+            if not kept:
+                return None, True
+            as_and = isinstance(node, DomainAnd) != negate
+            return (Domain.AND(kept) if as_and else Domain.OR(kept)), dropped
+        return None, True
 
     @api.model
     def _hrg_related_domain(self, domain, field_name):
         """``domain`` turned into a domain of the model that ``field_name`` points to."""
-        converted, _dropped = self._hrg_convert(Domain(domain or []), field_name)
-        return list(converted)
+        converted, _dropped = self._hrg_walk(Domain(domain or []), field_name)
+        return list(Domain.TRUE if converted is None else converted)
 
     @api.model
     def _hrg_concerns_only(self, domain, field_name):
         """Whether every leaf of ``domain`` is about the related record of ``field_name``."""
-        return not self._hrg_convert(Domain(domain or []), field_name)[1]
+        return not self._hrg_walk(Domain(domain or []), field_name)[1]
 
     @api.model
     def _get_gantt_data_with_empty(
@@ -80,32 +88,31 @@ class Base(models.AbstractModel):
             raise UserError(_("The helper needs exactly one grouping field."))
         field_name = groupby[0]
         field = self._fields.get(field_name)
-        if field is None or field.type != 'many2one':
+        if field is None or field.type not in ('many2one', 'one2many', 'many2many'):
             raise UserError(_("The grouping field must be a relation to another model."))
+        if not start_date or not stop_date:
+            raise UserError(_("The data call needs the period it is made for."))
         self.check_access('read')
 
-        # the user's search only narrows (a dropped leaf is TRUE); the read rule fails closed
-        # (a dropped leaf is FALSE: it cannot let a row through)
-        searched, _dropped = self._hrg_convert(Domain(domain or []), field_name)
-        allowed, _dropped = self._hrg_convert(self._access_domain('read'), field_name, Domain.FALSE)
-        converted = searched & allowed
-        # the rows are the related records whose records the user may read (the converted read
-        # rule), which the user may not be able to read themselves: search with sudo, in the
-        # companies the user works in
-        related = self.env[field.comodel_name].sudo()
-        if 'company_id' in related._fields:
-            converted = converted & Domain('company_id', 'in', [*self.env.companies.ids, False])
-        if not any(c.field_expr.split('.')[0] == 'active' for c in converted.iter_conditions()):
-            related = related.with_context(active_test=True)
-        else:
+        # the user's search, the period and the read rule are joined first, then turned into
+        # conditions on the related records (R9 point 1); the related records are searched
+        # with the user's own rights: their rules (multi-company among them) apply
+        wanted = Domain(domain or []) & self._access_domain('read')
+        converted, _dropped = self._hrg_walk(wanted, field_name)
+        converted = Domain.TRUE if converted is None else converted
+        related = self.env[field.comodel_name]
+        if any(c.field_expr.split('.')[0] == 'active' for c in converted.iter_conditions()):
             related = related.with_context(active_test=False)
+        else:
+            related = related.with_context(active_test=True)
         page = related.search(converted, offset=offset or 0, limit=limit)
         length = related.search_count(converted)
 
         records = self.search(Domain(domain or []) & Domain(field_name, 'in', page.ids))
         by_related = {}
         for record in records:
-            by_related.setdefault(record[field_name].id, []).append(record.id)
+            for related_id in record[field_name].ids:
+                by_related.setdefault(related_id, []).append(record.id)
         groups = [
             {field_name: (item.id, item.display_name), '__record_ids': by_related.get(item.id, [])}
             for item in page
