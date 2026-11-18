@@ -1,7 +1,21 @@
 <section class="oe_container">
   <h2 class="oe_slogan">Employees Timeline</h2>
   <p>The bridge between the Employees application and the Gantt view. It
-  installs by itself when both are present and adds no menu, action, view,
+  installs by itself when both are present, and adds no menu, action, view,
   group or setting.</p>
-  <p>See the module <code>README.rst</code>.</p>
+  <ul>
+    <li>A variant of the Gantt view for rows that stand for employees: the
+    avatar and the name in each row header, and the employee card on a click
+    on the avatar.</li>
+    <li>A range chosen from the menu is built around today when today is on
+    screen. Cells with two different halves are shaded along a diagonal, and a
+    pill over both halves of a day is drawn on one half at lunch, on the
+    half-day scale.</li>
+    <li>A server helper that answers the Gantt data call with every matching
+    employee, those without records included, for the views that need it.</li>
+    <li>Other modules choose the variant in their view; it has nothing to open on
+    its own.</li>
+  </ul>
+  <p>See the module <code>README.rst</code> and
+  <code>docs/modules/employee_gantt.md</code>.</p>
 </section>

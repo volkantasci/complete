@@ -1,7 +1,23 @@
 <section class="oe_container">
   <h2 class="oe_slogan">Attendances Timeline</h2>
-  <p>The attendances of the employees on a timeline. The module installs by
-  itself when the Attendances application and the Employees timeline module
-  are both present, and adds no menu, group or setting.</p>
-  <p>See the module <code>README.rst</code>.</p>
+  <p>The attendances of the employees on a timeline, one row per employee. The
+  module installs by itself when the Attendances application and the Employees
+  timeline module are both present, and adds no menu, group or setting.</p>
+  <ul>
+    <li>Attendances &gt; Management &gt; Dashboard opens the Gantt view first,
+    on the Day range of today, grouped by employee. One period is shown for each
+    range.</li>
+    <li>Every employee has a row, also without attendances, with the avatar and
+    the employee card, and a label and bar of the hours worked against the hours
+    expected. The long form of the label shows from a window width of 1400 px
+    and follows the window as it is resized.</li>
+    <li>Open attendances run up to now. Cells outside contracts and working
+    hours are grey, columns nobody works fold, and a name is red when the
+    employee has no contract in the period.</li>
+    <li>With one empty row, the Attendances application's own helper shows over
+    the grid.</li>
+    <li>Uninstalling the module gives the action back its list and form views.</li>
+  </ul>
+  <p>See the module <code>README.rst</code> and
+  <code>docs/modules/attendance_gantt.md</code>.</p>
 </section>
