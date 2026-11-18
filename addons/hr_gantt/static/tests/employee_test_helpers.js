@@ -17,6 +17,11 @@ import { EmployeeTimelineModel } from "../src/employee_timeline_model";
 
 const { DateTime } = luxon;
 
+/** An arch of the given root tag that just lists `columns` as fields (one per entry). */
+function plainArch(root, columns) {
+    return `<${root}>${columns.map((column) => `<field name="${column}"/>`).join("")}</${root}>`;
+}
+
 /**
  * Fixtures of the employee variant tests. They need Employees and the Gantt view only (no
  * attendance module): a scratch model with an employee field, a department and two dates.
@@ -36,12 +41,8 @@ export class Shift extends models.Model {
             <field name="name"/>
             <filter name="with_a" string="Name has an a" domain="[('name', 'ilike', 'a')]"/>
         </search>`,
-        "list,false": `<list>
-            <field name="name"/>
-        </list>`,
-        "form,false": `<form>
-            <field name="name"/>
-        </form>`,
+        "list,false": plainArch("list", ["name", "start"]),
+        "form,false": plainArch("form", ["name", "employee_id"]),
     };
 }
 

@@ -21,6 +21,11 @@ import { AttendanceTimelineModel } from "../src/attendance_timeline_model";
 
 const { DateTime } = luxon;
 
+/** An arch of the given root tag that just lists `columns` as fields (one per entry). */
+function plainArch(root, columns) {
+    return `<${root}>${columns.map((column) => `<field name="${column}"/>`).join("")}</${root}>`;
+}
+
 /**
  * Fixtures of the attendance variant tests: a scratch model with the fields of the attendance
  * view (an employee, a check-in and a check-out), a Gantt arch like the module's and the helpers
@@ -44,12 +49,8 @@ export class Attendance extends models.Model {
                 <filter name="by_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
             </group>
         </search>`,
-        "list,false": `<list>
-            <field name="name"/>
-        </list>`,
-        "form,false": `<form>
-            <field name="name"/>
-        </form>`,
+        "list,false": plainArch("list", ["name", "check_in"]),
+        "form,false": plainArch("form", ["name", "employee_id"]),
     };
 }
 
