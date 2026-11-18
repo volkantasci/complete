@@ -173,6 +173,11 @@ export class TimelineRenderer extends Component {
 
     rendererRef = signal.ref();
 
+    /** The template of what a row header shows before the name; a variant names its own. */
+    get rowLeadTemplate() {
+        return "web_gantt.TimelineRowLead";
+    }
+
     setup() {
         this.ui = useService("ui");
         this._cache = { data: null, small: null, version: null, layout: null };

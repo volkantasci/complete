@@ -9,6 +9,11 @@
             <i t-if="ghost.locked" class="oi o_tl_pill_lock" data-icon="lock"/>
         </div>
     </t>
+    <!-- What a row header shows before the name (the thumbnail of the row's value). A variant of the
+         view names another template in `rowLeadTemplate`; it is called with `row` in scope. -->
+    <t t-name="web_gantt.TimelineRowLead">
+        <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
+    </t>
     <t t-name="web_gantt.TimelineRenderer">
         <t t-set="layout" t-value="this.layout"/>
         <t t-set="picked" t-value="this.pickedByRow"/>
@@ -30,7 +35,7 @@
                         <div class="o_tl_row" t-att-class="{ o_tl_group_row: row.kind === 'group', o_tl_collapsed: row.row.collapsed }" t-att-data-row-id="row.row.id" t-attf-style="height: {{row.height}}px" t-on-pointerdown="(ev) => this.onRowPointerDown(ev, row)" t-on-pointerup="(ev) => this.onRowPointerUp(ev, row)" t-on-click="() => this.onRowClick(row)" t-on-mouseenter="this.onPointerEnter" t-on-mouseleave="this.onPointerLeave">
                             <div t-if="layout.hasRowHeaders" class="o_tl_row_header" t-att-class="{ o_tl_sample: layout.isSample }" t-att-title="row.row.name" t-on-click="(ev) => this.onRowHeaderClick(row, ev)">
                                 <i t-if="row.kind === 'group'" class="oi o_tl_caret" t-att-data-icon="row.row.collapsed ? 'arrow_right' : 'arrow_drop_down'"/>
-                                <img t-if="row.row.thumbnailUrl" class="o_tl_thumbnail" t-att-src="row.row.thumbnailUrl" alt=""/>
+                                <t t-call="{{ this.rowLeadTemplate }}"/>
                                 <div class="o_tl_row_body">
                                     <div class="o_tl_row_line">
                                         <span class="o_tl_row_name"><span class="o_tl_row_label" t-out="row.row.name"/></span>
