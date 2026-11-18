@@ -217,7 +217,7 @@ test("A19: exactly the four split Fridays are shaded diagonally on the month sca
     );
     expect(diagonal).toHaveCount(4);
     expect(diagonal[0].getAttribute("style")).toInclude(
-        "linear-gradient(325deg, transparent 49%, var(--o-tl-unavailable-bg) 50%)"
+        "linear-gradient(325deg, var(--o-hrg-available-bg, transparent) 49%, var(--o-tl-unavailable-bg) 50%)"
     );
 });
 

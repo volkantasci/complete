@@ -41,10 +41,10 @@ test("A22: no rounding at any other precision, over other sub-column counts or a
 
 test("R7: the diagonal is a hard-edged gradient at 325 degrees", () => {
     expect(diagonalBackground(false, true)).toBe(
-        "linear-gradient(325deg, transparent 49%, var(--o-tl-unavailable-bg) 50%)"
+        "linear-gradient(325deg, var(--o-hrg-available-bg, transparent) 49%, var(--o-tl-unavailable-bg) 50%)"
     );
     expect(diagonalBackground(true, false)).toBe(
-        "linear-gradient(325deg, var(--o-tl-unavailable-bg) 49%, transparent 50%)"
+        "linear-gradient(325deg, var(--o-tl-unavailable-bg) 49%, var(--o-hrg-available-bg, transparent) 50%)"
     );
     expect(diagonalBackground(true, true)).toBe(null);
     expect(diagonalBackground(false, false)).toBe(null);

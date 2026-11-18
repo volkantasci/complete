@@ -13,7 +13,7 @@ export function isHalfDayPrecision(columnUnit, parts) {
 
 /** The grey of an unavailable part (002a R28) and the colour of an available one (R7). */
 const UNAVAILABLE = "var(--o-tl-unavailable-bg)";
-const AVAILABLE = "transparent";
+const AVAILABLE = "var(--o-hrg-available-bg, transparent)";
 
 /** The angle of the diagonal split of R7. */
 export const DIAGONAL_ANGLE = 325;
@@ -21,8 +21,8 @@ export const DIAGONAL_ANGLE = 325;
 /**
  * R7: the background of a cell whose two halves differ: a hard-edged gradient at 325 degrees, the
  * colour of the first half's state up to 49 % and that of the second half's state from 50 %.
- * The available half is transparent, so the cell's own background (the today shade) shows
- * through it. Null when both halves are in the same state (002a R28 draws those).
+ * The available half is the view background (a property that is transparent in today's column, so
+ * the today shade shows through it). Null when both halves are in the same state (002a R28 draws those).
  * @param {boolean} firstUnavailable
  * @param {boolean} secondUnavailable
  * @returns {string|null}

@@ -18,9 +18,19 @@
     }
 }
 
-// R18: a row without a bar keeps the bar's space, so the header is as tall as the others
+// R18: a row without a bar is as tall as the others (the row's own height); its title line is
+// centred in it (M31 reads y 337.5 in a row at 330: the 25 px label centred in the 40 px inside
+// the border), so the bar's space takes no room
 .o_hag_bar_space {
-    visibility: hidden;
+    display: none;
+}
+
+.o_tl_grid .o_tl_row_header:has(> .o_hag_bar_space) {
+    padding-top: 0;
+
+    .o_tl_row_line {
+        min-height: 25px;
+    }
 }
 
 // R20: the helper is under the grid, which keeps its height; the helper's own box is not a
