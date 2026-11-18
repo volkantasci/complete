@@ -12,4 +12,6 @@
     'auto_install': True,
     'application': False,
     'installable': True,
+    'data': ['views/hr_attendance_gantt_views.xml'],
+    'uninstall_hook': 'restore_attendance_action',
 }

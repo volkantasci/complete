@@ -21,7 +21,7 @@ class TestInstall(TransactionCase):
         owned = self.env['ir.model.data'].search([('module', '=', 'hr_attendance_gantt')])
         owned_models = set(owned.mapped('model'))
         for model in (
-            'ir.ui.menu', 'ir.actions.act_window', 'ir.ui.view', 'res.groups',
+            'ir.ui.menu', 'ir.actions.act_window', 'res.groups',
         ):
             self.assertNotIn(model, owned_models, f'hr_attendance_gantt owns no {model}')
         # extending hr.attendance gives the module the model's field records, but no new field
