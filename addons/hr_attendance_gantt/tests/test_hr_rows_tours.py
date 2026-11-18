@@ -142,6 +142,12 @@ class TestHrRowsTours(RealPointerMixin, HttpCase):
         like['HRA Anita'].department_id = sales
         like['HRA Jennie'].department_id = ops
         like['HRA Audrey'].department_id = ops
+        # Audrey has no contract: an attendance on the day gives her a row, so that "no name is
+        # red, not even hers" says something
+        self.env['hr.attendance'].with_context(skip_time_rules=True).create({
+            'employee_id': like['HRA Audrey'].id,
+            'check_in': datetime(2026, 11, 11, 8, 0), 'check_out': datetime(2026, 11, 11, 9, 0),
+        })
         self._tour('hag_a8_levels')
 
     def test_a9_department_rows(self):

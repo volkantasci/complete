@@ -125,6 +125,20 @@ async function realDrag(from, points) {
     });
 }
 
+/**
+ * Resizes the window and waits for it to be that wide and for the view to have taken the phone
+ * layout (or left it) before the next input.
+ */
+async function resizeTo(width, phone) {
+    await resizeWindow(width);
+    await until(() => window.innerWidth === width, `a window ${width} px wide`);
+    await until(
+        () => Boolean($(".o_timeline_view.o_tl_phone")) === phone,
+        `the ${phone ? "phone" : "desktop"} layout at ${width} px`
+    );
+    await sleep(100);
+}
+
 /** The window's size, through the DevTools protocol, without a reload. */
 async function resizeWindow(width, height = 900) {
     await send({
@@ -186,11 +200,13 @@ function clearRemembered() {
 
 async function pickRange(kind) {
     const label = kind[0].toUpperCase() + kind.slice(1);
+    const before = periodSignature();
     $(".o_tl_range_button").click();
     const item = await until(() => $(`.o_tl_range_menu .o_tl_range_${kind}`), `the ${kind} item`);
     item.click();
     await until(() => rangeName() === label, `the range ${label}`);
-    await settle();
+    // the new period's data: the columns, the group labels or the rows are not the old ones
+    await until(() => periodSignature() !== before && $(".o_tl_row_header"), `the data of the ${label} range`, 8000);
 }
 
 const periodSignature = () =>
@@ -213,8 +229,36 @@ async function step(direction, times = 1) {
 }
 
 async function today() {
+    const before = periodSignature();
     $(".o_tl_today").click();
-    await settle();
+    await until(() => periodSignature() !== before, "the period of today", 8000);
+    await settle(300);
+}
+
+/** Waits for a row's label to read `text` (its data is in), then reads on. */
+async function expectLabel(name, text, what) {
+    await until(() => labelOf(name) === text, `${what}: the label of ${name} reads "${text}"`);
+}
+
+/** The muted text colour of the theme, as the browser computes it. */
+function mutedColour() {
+    const probe = document.createElement("span");
+    probe.className = "text-muted";
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+}
+
+/** The label of a row is in the muted colour: the success class, no warning or danger text. */
+function assertMuted(name) {
+    const label = labelEl(name);
+    assert(label.classList.contains("o_hag_success"), `${name}'s label has the muted state class`);
+    assert(
+        !label.classList.contains("text-warning") && !label.classList.contains("text-danger"),
+        `${name}'s label is neither warning nor danger`
+    );
+    assertEqual(getComputedStyle(label).color, mutedColour(), `${name}'s label colour is the muted one`);
 }
 
 // the search bar ------------------------------------------------------------------------------------
@@ -246,19 +290,26 @@ async function removeFacet(text) {
     // the grouping of the action is a facet of the search; once it is removed, the view's own
     // default grouping shows as a facet of the same name (the framework's), and a second
     // removal takes that one away
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
         const current = $$(".o_searchview_facet").find((el) => clean(el.textContent).includes(text));
         if (!current) {
             break;
         }
+        const requested = gantt.requests;
         await realClick($(".o_facet_remove", current));
-        await settle(900);
+        // the view reads its data again (a facet replaced by the default grouping may not)
+        try {
+            await until(() => gantt.requests > requested || !current.isConnected, "the search taken", 2500);
+        } catch {
+            // the same facet stays: the next attempt removes it
+        }
+        await dataSettled();
     }
-    assert(
-        !facets().some((candidate) => candidate.includes(text)),
+    await until(
+        () => !facets().some((candidate) => candidate.includes(text)),
         `the facet "${text}" is gone, facets are ${JSON.stringify(facets())}`
     );
-    await settle();
+    await dataSettled();
 }
 
 /** Closes the open dialog by its own button (Discard, Cancel, Close) or its header's cross. */
@@ -302,6 +353,26 @@ async function menuItem(section, text) {
 }
 
 // requests ---------------------------------------------------------------------------------------
+
+/** The view's data calls, counted when they leave and when their answer comes. */
+const gantt = { requests: 0, responses: 0 };
+const isDataCall = (event) => event.detail?.data?.params?.method === "get_gantt_data";
+rpcBus.addEventListener("RPC:REQUEST", (event) => {
+    if (isDataCall(event)) {
+        gantt.requests++;
+    }
+});
+rpcBus.addEventListener("RPC:RESPONSE", (event) => {
+    if (isDataCall(event)) {
+        gantt.responses++;
+    }
+});
+
+/** No data call is on its way, and the answers have been drawn. */
+async function dataSettled() {
+    await until(() => gantt.responses >= gantt.requests, "the data calls answered", 10000);
+    await sleep(150);
+}
 
 function countDataCalls() {
     const counter = { count: 0 };
@@ -399,16 +470,42 @@ scenario("hag_a8_levels", async () => {
     await closeSearchMenu();
     await until(() => $$(".o_tl_group_row").length > 0, "the employee group rows");
     const groupRows = $$(".o_tl_group_row");
+    // Audrey has no contract, and an attendance on the day so that she has a row: she is the
+    // employee whose name would be red with the grouping by Employee alone
     assertEqual(
         groupRows.map(nameOf),
-        ["HRA Abigail", "HRA Anita", "HRA Jennie"],
+        ["HRA Abigail", "HRA Anita", "HRA Audrey", "HRA Jennie"],
         "R14 does not apply: only the employees with attendances in the period"
     );
     for (const group of groupRows) {
         assert($(".o_hrg_avatar", $(".o_tl_row_header", group)), `${nameOf(group)} has an avatar`);
         assert($(".o_tl_progress_label", group), `${nameOf(group)} has the label`);
     }
-    assert($$(".o_tl_row_label.text-danger").length === 0, "no name is red");
+    // the department sub-rows, under each employee row
+    for (const group of $$(".o_tl_group_row.o_tl_collapsed")) {
+        await realClick($(".o_tl_row_header", group));
+    }
+    await until(() => $$(".o_tl_collapsed").length === 0, "the employee rows open");
+    const outline = [];
+    for (const row of rowEls()) {
+        if (row.classList.contains("o_tl_group_row")) {
+            outline.push([nameOf(row), []]);
+        } else {
+            outline.at(-1)[1].push(nameOf(row));
+        }
+    }
+    assertEqual(
+        outline,
+        [
+            ["HRA Abigail", ["HRA Sales"]],
+            ["HRA Anita", ["HRA Sales"]],
+            ["HRA Audrey", ["HRA Operations"]],
+            ["HRA Jennie", ["HRA Operations"]],
+        ],
+        "the department sub-rows"
+    );
+    assert(!isRed("HRA Audrey"), "no name is red, not even Audrey's (no contract)");
+    assertEqual($$(".o_tl_row_label.text-danger").length, 0, "no name is red");
 });
 
 // A9: rows of another field
@@ -417,6 +514,7 @@ scenario("hag_a9_department_rows", async () => {
     await menuItem(".o_group_by_menu", "Department");
     await closeSearchMenu();
     await until(() => rowNames().includes("HRA Team"), "the department rows");
+    assertEqual(facets(), ["Department"], "the facets hold only the Department grouping");
     assert($$(".o_hrg_avatar").length === 0, "no avatar");
     assert($$(".o_tl_progress_label").length === 0, "no label");
     assert($$(".o_tl_progress").length === 0, "no bar");
@@ -483,18 +581,17 @@ scenario("hag_a11_scroll", async () => {
 
 // A12: the card and the window's width
 scenario("hag_a12_width", async () => {
-    await resizeWindow(768);
-    await settle(1000);
+    await resizeTo(768, false);
     await realClick($(".o_hrg_avatar", rowEl("HRA Anita")));
     await until(() => $(".o_avatar_card"), "at 768 px the card opens");
     document.activeElement.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
     );
     await until(() => !$(".o_avatar_card"), "Escape closes the card");
-    await resizeWindow(767);
-    await settle(1200);
+    await resizeTo(767, true);
     const before = renderer().scrollLeft;
     await realClick($(".o_hrg_avatar", rowEl("HRA Anita")));
+    // nothing opens: wait for the click to have been handled (the pointer's own events), then read
     await settle(1200);
     assert(!$(".o_avatar_card"), "at 767 px a click on an avatar opens no card");
     assert(!$(".o_popover"), "at 767 px nothing opens");
@@ -512,6 +609,10 @@ scenario("hag_a13_tap", async () => {
     assert(!$(".modal"), "a tap opens no dialog");
     assertEqual(renderer().scrollLeft, before, "a tap does not scroll the grid");
     assertEqual(rowNames(), names, "a tap changes no row");
+    // the control: the same tap on the same place at desktop width opens the card (R25)
+    await resizeTo(1024, false);
+    await realTap($(".o_hrg_avatar", rowEl("HRA Anita")));
+    await until(() => $(".o_avatar_card"), "a tap at desktop width opens the card");
 });
 
 // A14: the avatar's tooltip
@@ -529,8 +630,17 @@ scenario("hag_a15_around_today", async () => {
     const dates = dateColumns().map((el) => el.dataset.date);
     assert(dates.includes("2026-11-02") && dates.includes("2026-11-30"), `November: ${dates}`);
     assert(!dates.includes("2026-12-01"), "the Month range holds no December day");
-    assert(foldedHeaders().length >= 4, `the weekends are folded: ${foldedHeaders().length}`);
+    assertEqual(foldedHeaders().length, 4, "the four weekend pairs are folded");
     assertEqual(renderer().scrollLeft, 0, "the grid is not scrolled");
+    // M59: the middle of the visible part of the grid lies on 16 November
+    const view = rectOf(renderer());
+    // the visible part of the grid: right of the row header column
+    const middle = (rectOf($(".o_tl_title_cell")).right + view.right) / 2;
+    const under = dateColumns().find((col) => {
+        const rect = rectOf(col);
+        return rect.left <= middle && middle < rect.right;
+    });
+    assertEqual(under?.dataset.date, "2026-11-16", `the middle of the visible part (x ${middle})`);
     await pickRange("week");
     const week = dateColumns().map((el) => el.dataset.date);
     assert(week.includes("2026-11-09") && week.includes("2026-11-13"), `8 to 14 November: ${week}`);
@@ -539,10 +649,17 @@ scenario("hag_a15_around_today", async () => {
 });
 
 // A16 and A54: the range when today is not shown
-const farWeek = async () => {
+const farWeek = (rows) => async () => {
     await pickRange("month");
     await step(1);
     await pickRange("week");
+    // wait for what the week of 13 to 19 December must show before reading the absences
+    await until(
+        () => dateColumns()[0]?.dataset.date === "2026-12-14" && dateColumns().length === 5,
+        "the header of 13 to 19 December"
+    );
+    await until(() => rowNames().length === rows, `${rows} rows`);
+    await until(() => labelOf("HRA Abigail") === "0h / 40h", "the hours of the week (0h / 40h)");
     const week = dateColumns().map((el) => el.dataset.date);
     assertEqual(
         [week[0], week.at(-1), week.length, foldedHeaders().length],
@@ -552,17 +669,17 @@ const farWeek = async () => {
     assertEqual(allPillTitles(), [], "no pill");
     assert(!$(".o_hag_helper"), "no empty-view helper");
 };
-scenario("hag_a16_far_week", farWeek);
-scenario("hag_a54_far_week_rows", async () => {
-    await farWeek();
-    assertEqual(rowNames().length, 20, "twenty rows without attendance");
-});
+scenario("hag_a16_far_week", farWeek(7));
+scenario("hag_a54_far_week_rows", farWeek(20));
 
 // A17: today in the period but not in view
 scenario("hag_a17_quarter_end", async () => {
     await pickRange("quarter");
     renderer().scrollLeft = renderer().scrollWidth;
-    await settle(800);
+    await until(
+        () => renderer().scrollLeft + renderer().clientWidth >= renderer().scrollWidth - 2,
+        "the grid scrolled to its end"
+    );
     await pickRange("week");
     const week = dateColumns().map((el) => el.dataset.date);
     assert(week.includes("2026-11-08") || week.includes("2026-11-09"), `the week of 8 to 14 November: ${week}`);
@@ -575,9 +692,8 @@ scenario("hag_a17_quarter_end", async () => {
 scenario("hag_a18_day_and_custom", async () => {
     const first = dayLabel();
     await step(-1, 2);
-    assert(JSON.stringify(dayLabel()) !== JSON.stringify(first), "two steps back moved the day");
-    const monday = dayLabel();
-    assert(monday.join(" ").includes("9"), `Monday 9 November: ${monday}`);
+    assertEqual(first, ["Wednesday, November 11, 2026"], "the first header");
+    assertEqual(dayLabel(), ["Monday, November 9, 2026"], "two steps back: the header of Monday 9");
     await today();
     assertEqual(dayLabel(), first, "Today shows Wednesday 11 November again");
     // a custom range of 2 to 20 November
@@ -595,7 +711,8 @@ scenario("hag_a18_day_and_custom", async () => {
     await set(".o_tl_custom_start input", "11/02/2026");
     await set(".o_tl_custom_stop input", "11/20/2026");
     $(".o_tl_apply").click();
-    await settle(1200);
+    await until(() => $(".o_tl_range_button .o_tl_range_start"), "the custom range applied");
+    await until(() => dateColumns().some((col) => col.dataset.date === "2026-11-20"), "the custom days");
     const dates = dateColumns().map((el) => el.dataset.date);
     assert(dates.includes("2026-11-02") && dates.includes("2026-11-20"), `2 to 20 November: ${dates}`);
     assert(!dates.includes("2026-11-01") && !dates.includes("2026-11-21"), "no other day");
@@ -987,7 +1104,7 @@ scenario("hag_a42_folds_day", async () => {
     assertEqual(foldedHeaders().length, 0, "the Day range folds no column");
     await pickRange("month");
     const folded = foldedHeaders();
-    assert(folded.length >= 4, `the Month range folds the weekends: ${folded.length}`);
+    assertEqual(folded.length, 4, "the Month range folds each weekend pair of November");
     for (const header of folded) {
         assertNear(rectOf(header).width, 36, "a folded column is 36 px wide", 1);
     }
@@ -1027,11 +1144,15 @@ scenario("hag_a48_phone_labels", async () => {
         "Gantt Open": ["0h", null],
         "Gantt Quarter": ["0h", null],
     };
+    await until(() => labelOf("Gantt Double") === "+10h", "the labels of Monday 9");
     for (const [name, [label, colour]] of Object.entries(expected)) {
         assertEqual(labelOf(name), label, `${name}'s label`);
         const classes = labelEl(name).classList;
         for (const candidate of ["text-danger", "text-warning"]) {
             assertEqual(classes.contains(candidate), candidate === colour, `${name}: ${candidate}`);
+        }
+        if (colour === null) {
+            assertMuted(name);
         }
     }
 });
@@ -1069,6 +1190,7 @@ scenario("hag_a50_flexible", async () => {
     await searchFor("Gantt");
     await step(-1, 2);
     assertEqual(labelOf("Gantt Free"), "0h", "the label alone");
+    assertMuted("Gantt Free");
     assert(!fillOf("Gantt Free"), "no fill");
     assert(!barOf("Gantt Free"), "no bar");
     assertEqual($$(".o_tl_progress:not(.o_hag_bar_space)").length, 9, "nine bars for ten rows");
@@ -1173,45 +1295,95 @@ scenario("hag_a58_features_off", async () => {
 });
 
 // A59: the inputs left to 002d3
-scenario("hag_a59_framework_inputs", async () => {
-    const pill = pillsOf("HRA Abigail")[0];
-    assert(pill, "Abigail's pill");
-    await realClick(pill);
-    await until(() => $(".o_popover .o_tl_popover_button, .o_popover"), "the popover");
-    await settle();
-    assert($(".o_tl_popover_button"), "002a's popover");
+/** A real click that is repeated until `condition` holds (a click lock may swallow the first). */
+async function clickUntil(target, condition, what, options = {}) {
+    const limit = Date.now() + 12000;
+    for (;;) {
+        await realClick(target(), options);
+        try {
+            return await until(condition, what, 1500);
+        } catch (error) {
+            if (Date.now() > limit) {
+                throw error;
+            }
+        }
+    }
+}
+
+const pressEscape = () =>
     document.activeElement.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
     );
+
+scenario("hag_a59_framework_inputs", async () => {
+    // a click on a pill: 002a's popover
+    await clickUntil(() => pillsOf("HRA Abigail")[0], () => $(".o_tl_popover_button"), "002a's popover");
+    pressEscape();
     await until(() => !$(".o_tl_popover_button"), "Escape closes the popover");
-    await settle(1200);
-    await realClick(pillsOf("HRA Abigail")[0], { count: 2 });
-    const dialog = await until(() => $(".modal .o_form_view"), "002b's record dialog");
+    // a double click: 002b's record dialog
+    const dialog = await clickUntil(
+        () => pillsOf("HRA Abigail")[0],
+        () => $(".modal .o_form_view"),
+        "002b's record dialog",
+        { count: 2 }
+    );
     const shown = $$("input", dialog).map((el) => el.value).join("|") + clean(dialog.textContent);
     assert(shown.includes("HRA Abigail"), `the dialog shows her attendance: ${shown}`);
-    await settle();
     await closeDialog();
-    await settle(1200);
-    // an empty cell: the framework's plan dialog, then its Create New with the attendance form
-    const cell = $$(".o_tl_cell", rowEl("HRA Jennie")).at(14);
-    await realClick(cell);
-    await until(() => $(".modal"), "the dialog of an empty cell");
-    await settle();
-    const create = $$(".modal .btn").find((el) => clean(el.textContent) === "Create New");
-    assert(create, `the plan dialog offers Create New: ${texts(".modal .btn")}`);
+    // a click on an empty cell: the framework's plan dialog, then its Create New with the
+    // attendance form
+    const cell = () => $$(".o_tl_cell", rowEl("HRA Jennie")).at(14);
+    await clickUntil(cell, () => $(".modal"), "the dialog of an empty cell");
+    const create = await until(
+        () => $$(".modal .btn").find((el) => clean(el.textContent) === "Create New"),
+        `the plan dialog offers Create New: ${texts(".modal .btn")}`
+    );
     create.click();
-    await until(() => $(".modal .o_form_view"), "the create dialog");
-    await settle();
+    await until(() => $(".modal .o_form_view [name='check_in']"), "the create dialog");
     const names = $$(".modal .o_form_view [name]").map((el) => el.getAttribute("name"));
     assert(names.includes("employee_id") && names.includes("check_in"), `the attendance form: ${names}`);
     await closeDialog();
-    await settle(1200);
-    // New
+    // a press and drag across empty cells of a row: 002b's create dialog (R25)
+    const dragFrom = centre($$(".o_tl_cell", rowEl("HRA Jennie")).at(16));
+    const dragTo = centre($$(".o_tl_cell", rowEl("HRA Jennie")).at(19));
+    const dragged = async () => {
+        await realDrag(dragFrom, [
+            { x: dragFrom.x + 15, y: dragFrom.y },
+            { x: (dragFrom.x + dragTo.x) / 2, y: dragTo.y },
+            dragTo,
+        ]);
+        return until(() => $(".modal .o_form_view [name='check_in']"), "the drag opens the create dialog", 4000);
+    };
+    for (let attempt = 0; ; attempt++) {
+        try {
+            await dragged();
+            break;
+        } catch (error) {
+            if (attempt >= 3) {
+                throw error;
+            }
+        }
+    }
+    const dragNames = $$(".modal .o_form_view [name]").map((el) => el.getAttribute("name"));
+    assert(dragNames.includes("employee_id"), `the attendance form of the drag: ${dragNames}`);
+    await closeDialog();
+    // New: the create dialog
+    await until(() => $(".o_tl_button_add"), "the New button");
     $(".o_tl_button_add").click();
     await until(() => $(".modal .o_form_view"), "New opens the create dialog");
-    await settle();
     await closeDialog();
-    await settle(1200);
+    // the pointer over an empty cell shows no button and no fill (002b R8)
+    const empty = $$(".o_tl_cell", rowEl("HRA Beth")).at(10);
+    const look = () => ({
+        background: getComputedStyle(empty).backgroundColor + getComputedStyle(empty).backgroundImage,
+        buttons: $$(".o_tl_grid button").length,
+        inside: empty.children.length,
+        frames: $$(".o_tl_selection, .o_tl_cell_picked").length,
+    });
+    const resting = look();
+    await realHover(empty);
+    await settle(800);
+    assertEqual(look(), resting, "the pointer over an empty cell adds no button and no fill");
     // dragging a pill moves it
     const drag = pillsOf("HRA Abigail")[0];
     const column = rectOf(colEl(1)).width;
@@ -1223,7 +1395,6 @@ scenario("hag_a59_framework_inputs", async () => {
         { x: start.x + 2 * column, y: start.y },
     ]);
     await until(() => Math.abs(rectOf(pillsOf("HRA Abigail")[0]).left - before) > column, "the pill moves", 6000);
-    await settle(1000);
     // the move snaps to a quarter of an hour (a quarter of a column)
     assertNear(rectOf(pillsOf("HRA Abigail")[0]).left - before, 2 * column, "moved by two hours", column / 3);
 });
@@ -1242,6 +1413,10 @@ scenario("hag_a61_phone", async () => {
     await realTap($(".o_hrg_avatar", rowEl("HRA Anita")));
     await settle(1000);
     assert(!$(".o_avatar_card") && !$(".o_popover"), "a tap on an avatar opens nothing");
+    // the control: the same tap at desktop width opens the card
+    await resizeTo(1024, false);
+    await realTap($(".o_hrg_avatar", rowEl("HRA Anita")));
+    await until(() => $(".o_avatar_card"), "a tap at desktop width opens the card");
 });
 
 // A62: the view part, Thursday 12 grey
@@ -1262,14 +1437,14 @@ scenario("hag_a62_holiday", async () => {
 scenario("hag_a64_night", async () => {
     await searchFor("Gantt Night");
     await pickRange("month");
-    assertEqual(labelOf("Gantt Night"), "4h / 168h (164h left)", "November");
+    await expectLabel("Gantt Night", "4h / 168h (164h left)", "November");
     const track = rectOf(barOf("Gantt Night")).width;
     const fill = fillOf("Gantt Night");
     assertNear(parseFloat(fill.style.width), 2.4, "the fill in percent", 0.06);
     assertNear(rectOf(fill).width, 6, "6 px", 1);
     assertNear(track, 250, "a 250 px track", 3);
     await step(1);
-    assertEqual(labelOf("Gantt Night"), "4h / 184h (180h left)", "December");
+    await expectLabel("Gantt Night", "4h / 184h (180h left)", "December");
     assertNear(parseFloat(fillOf("Gantt Night").style.width), 2.2, "the fill in percent", 0.06);
     assertNear(rectOf(fillOf("Gantt Night")).width, 5.4, "5.4 px", 1);
     await step(-1);
@@ -1277,5 +1452,5 @@ scenario("hag_a64_night", async () => {
     await step(1, 3);
     const dates = dateColumns().map((el) => el.dataset.date);
     assertEqual([dates[0], dates.at(-1)], ["2026-11-30", "2026-12-04"], "the week of 29 November");
-    assertEqual(labelOf("Gantt Night"), "8h / 40h (32h left)", "the week");
+    await expectLabel("Gantt Night", "8h / 40h (32h left)", "the week");
 });
