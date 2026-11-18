@@ -1,6 +1,16 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/**
+ * R7 and R8 apply only at half-day precision: the scale's columns are days and each column has
+ * two parts. A day scale with half-hour parts is not one (the rule is decided by precision).
+ * @param {string} columnUnit the unit of the scale's columns ("hour", "day" or "month")
+ * @param {number} parts
+ */
+export function isHalfDayPrecision(columnUnit, parts) {
+    return columnUnit === "day" && parts === 2;
+}
+
 /** The grey of an unavailable part (002a R28) and the colour of an available one (R7). */
 const UNAVAILABLE = "var(--o-tl-unavailable-bg)";
 const AVAILABLE = "transparent";
@@ -28,27 +38,34 @@ export function diagonalBackground(firstUnavailable, secondUnavailable) {
 
 /**
  * R8: which sub-column a pill over two sub-columns of one day keeps, at half-day precision.
- * Times are minutes since the midnight of the pill's start day, clipped to the displayed period.
+ * Times are whole minutes of the wall clock (hour * 60 + minute) of the pill's start day, clipped
+ * to the displayed period; a stop at the midnight that ends the day is 1440.
  * @param {Object} params
  * @param {number} params.startMinutes
  * @param {number} params.stopMinutes
  * @param {boolean} params.sameDay start and stop fall on the same calendar day
  * @param {number} params.parts sub-columns per column of the scale
+ * @param {string} [params.columnUnit] unit of the scale's columns, "day" when not given
  * @param {number} params.subColumnsCovered sub-columns the pill covers (002a R12)
  * @returns {"first"|"second"|"both"}
  */
-export function lunchRoundedParts({ startMinutes, stopMinutes, sameDay, parts, subColumnsCovered }) {
-    if (parts !== 2 || subColumnsCovered !== 2 || !sameDay) {
+export function lunchRoundedParts({
+    startMinutes,
+    stopMinutes,
+    sameDay,
+    parts,
+    subColumnsCovered,
+    columnUnit = "day",
+}) {
+    if (!isHalfDayPrecision(columnUnit, parts) || subColumnsCovered !== 2 || !sameDay) {
         return "both";
     }
-    const start = startMinutes / 60;
-    const stop = stopMinutes / 60;
-    // the stop wins a tie
-    const startIsCloser = 12 - start < stop - 12;
-    if (start >= 11 && startIsCloser) {
+    // whole minutes; the stop wins a tie
+    const startIsCloser = 12 * 60 - startMinutes < stopMinutes - 12 * 60;
+    if (startMinutes >= 11 * 60 && startIsCloser) {
         return "second";
     }
-    if (stop <= 14) {
+    if (stopMinutes <= 14 * 60) {
         return "first";
     }
     return "both";

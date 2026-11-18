@@ -2,11 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { advanceTime } from "@odoo/hoot-mock";
-import { patchWithCleanup } from "@web/../tests/web_test_helpers";
+import { MockServer, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 import { timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
 
-import { ARCH, makeEmployeeData, makeEmployeeModel, setupEmployeeFixtures } from "./employee_test_helpers";
+import {
+    ARCH,
+    HALF_HOUR_PRECISION,
+    makeEmployeeData,
+    makeEmployeeModel,
+    setupEmployeeFixtures,
+    utc,
+} from "./employee_test_helpers";
 
 const { DateTime } = luxon;
 
@@ -55,7 +62,9 @@ test("A15: from Month, Week is built around today, not around the middle of the 
 test("A16: when today is not in the displayed period, the middle of the visible part holds", async () => {
     await makeEmployeeData(["Anita Oliver"]);
     const model = await makeEmployeeModel({ arch: ARCH(`default_range="month"`) });
-    // the month range loads the months around the focus: two steps leave November out
+    // The base variant loads the periods around the focus (three months on the month range);
+    // one period per range is the attendance variant's rule (R12, Task 9). One step still shows
+    // November, so the test steps twice to leave it out of the displayed period.
     model.step(1);
     const next = model.step(1);
     await advanceTime(500);
@@ -147,4 +156,50 @@ test("A23: no rounding on the day scale, nor across midnight", async () => {
     const record = model.data.records.find((item) => item.displayName === "L2");
     // 9:00 to 13:00 of the day scale: sixteen quarter hours
     expect(record.span.to - record.span.from).toBe(16);
+});
+
+test("A22: a day scale with half-hour parts is not half-day precision, nothing is rounded", async () => {
+    await makeEmployeeData(["Gantt Lunch"], [["Hour", "Gantt Lunch", [11, "9:00"], [11, "10:00"]]]);
+    const model = await makeEmployeeModel({
+        arch: ARCH(`default_range="day"`, HALF_HOUR_PRECISION),
+    });
+    expect(model.parts).toBe(2);
+    const record = model.data.records.find((item) => item.displayName === "Hour");
+    // one hour column of two half-hour parts: 9:00 to 10:00 stays whole
+    expect(record.span.to - record.span.from).toBe(2);
+    const column = model.columns.findIndex(
+        (item) => item.start.toFormat("yyyy-MM-dd HH") === "2026-11-11 09"
+    );
+    expect(record.span.from).toBe(column * 2);
+});
+
+test("A21: start and stop are clipped to the displayed period before the rule applies", async () => {
+    await makeEmployeeData(["Gantt Lunch"]);
+    const model = await makeEmployeeModel({ arch: ARCH(`default_range="month"`) });
+    const first = model.columns[0].start;
+    const toServer = (date) => date.toUTC().toFormat("yyyy-MM-dd HH:mm:ss");
+    const employee = MockServer.current.env["hr.employee"].find((item) => item.name === "Gantt Lunch").id;
+    MockServer.current.env["hrg.shift"].create([
+        {
+            // 20:00 the evening before the period to 13:00 on its first day: clipped to 0:00 to
+            // 13:00 of one day, the stop is the closer to noon and not after 14:00: the morning
+            name: "Clipped",
+            employee_id: employee,
+            start: toServer(first.minus({ hours: 4 })),
+            stop: toServer(first.plus({ hours: 13 })),
+        },
+        {
+            // 11:30 to the midnight that ends the day: the stop belongs to its own day, the
+            // start is the closer to noon and not before 11:00: the afternoon only
+            name: "Midnight",
+            employee_id: employee,
+            start: toServer(first.plus({ days: 3, hours: 11, minutes: 30 })),
+            stop: toServer(first.plus({ days: 4 })),
+        },
+    ]);
+    // the same focus: the period (and so `first`) does not change
+    await model.setKind("month", model.data.range.focus);
+    const spanOf = (name) => model.data.records.find((item) => item.displayName === name).span;
+    expect([spanOf("Clipped").from, spanOf("Clipped").to]).toEqual([0, 1]);
+    expect([spanOf("Midnight").from, spanOf("Midnight").to]).toEqual([7, 8]);
 });

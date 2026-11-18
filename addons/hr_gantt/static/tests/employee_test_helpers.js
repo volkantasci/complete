@@ -86,8 +86,11 @@ export async function makeEmployeeData(employeeNames, shifts = []) {
 // the precisions of the attendance view (hours by quarters, days by quarters, months by halves)
 const PRECISION = `precision="{'day': 'hour:quarter', 'week': 'day:quarter', 'month': 'day:half'}"`;
 
-export const ARCH = (attrs = "") =>
-    `<gantt date_start="start" date_stop="stop" js_class="hr_gantt" ${PRECISION} ${attrs}/>`;
+export const ARCH = (attrs = "", precision = PRECISION) =>
+    `<gantt date_start="start" date_stop="stop" js_class="hr_gantt" ${precision} ${attrs}/>`;
+
+/** Precision with half-hour parts on the day scale: not half-day precision (R7, R8). */
+export const HALF_HOUR_PRECISION = `precision="{'day': 'hour:half', 'week': 'day:quarter', 'month': 'day:half'}"`;
 
 /** An employee-variant model on `hrg.shift` without a UI. */
 export async function makeEmployeeModel({ arch = ARCH(), groupBy = ["employee_id"], context = {} } = {}) {

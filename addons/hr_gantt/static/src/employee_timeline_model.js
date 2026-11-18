@@ -1,7 +1,8 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { TIMELINE_SCALES } from "@web_gantt/timeline_dates";
 import { TimelineModel } from "@web_gantt/timeline_model";
-import { lunchRoundedParts } from "./employee_layout";
+import { isHalfDayPrecision, lunchRoundedParts } from "./employee_layout";
 
 const { DateTime } = luxon;
 
@@ -58,7 +59,8 @@ export class EmployeeTimelineModel extends TimelineModel {
     }
 
     _lunchRounded(record, span) {
-        if (this.parts !== 2 || span.to - span.from !== 2) {
+        const columnUnit = TIMELINE_SCALES[this.scaleId]?.column;
+        if (!isHalfDayPrecision(columnUnit, this.parts) || span.to - span.from !== 2) {
             return span;
         }
         const { startField, stopField } = this.config;
@@ -75,11 +77,13 @@ export class EmployeeTimelineModel extends TimelineModel {
         // a stop at midnight still belongs to the day that ends there
         const lastMoment = to > from ? to.minus({ milliseconds: 1 }) : to;
         const sameDay = lastMoment.startOf("day").equals(day);
+        // wall-clock minutes, so that a day with a clock change reads right
         const kept = lunchRoundedParts({
-            startMinutes: from.diff(day, "minutes").minutes,
-            stopMinutes: to.diff(day, "minutes").minutes,
+            startMinutes: from.hour * 60 + from.minute,
+            stopMinutes: to.hasSame(day, "day") ? to.hour * 60 + to.minute : 24 * 60,
             sameDay,
             parts: this.parts,
+            columnUnit,
             subColumnsCovered: span.to - span.from,
         });
         if (kept === "first") {

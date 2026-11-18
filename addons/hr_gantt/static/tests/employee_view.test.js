@@ -9,7 +9,13 @@ import { localization } from "@web/core/l10n/localization";
 import { timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
 import { EmployeeTimelineRenderer } from "../src/employee_timeline_renderer";
 
-import { ARCH, makeEmployeeData, setupEmployeeFixtures, utc } from "./employee_test_helpers";
+import {
+    ARCH,
+    HALF_HOUR_PRECISION,
+    makeEmployeeData,
+    setupEmployeeFixtures,
+    utc,
+} from "./employee_test_helpers";
 
 describe.current.tags("desktop");
 
@@ -230,6 +236,25 @@ test("A20: quarter precision keeps 002a's vertical quarters", async () => {
         type: "gantt",
         resModel: "hrg.shift",
         arch: ARCH(`default_range="week" display_unavailability="1"`),
+        groupBy: ["employee_id"],
+    });
+    await animationFrame();
+    const styles = cellsOf("Gantt Hourly").map((cell) => cell.getAttribute("style") || "");
+    expect(styles.filter((style) => style.includes("325deg")).length).toBe(0);
+    expect(styles.filter((style) => style.includes("linear-gradient(to right")).length).toBe(1);
+});
+
+test("A20: half-hour parts on the day scale are not shaded diagonally", async () => {
+    const ids = await makeEmployeeData(["Gantt Hourly"], [["Hourly shift", "Gantt Hourly", [11, "8:00"], [11, "9:00"]]]);
+    // the first half of the 8:00 column is unavailable
+    timelineMock.unavailability = {
+        employee_id: { [ids["Gantt Hourly"]]: [{ start: utc(11, "8:00"), stop: utc(11, "8:30") }] },
+    };
+    await start();
+    await mountView({
+        type: "gantt",
+        resModel: "hrg.shift",
+        arch: ARCH(`default_range="day" display_unavailability="1"`, HALF_HOUR_PRECISION),
         groupBy: ["employee_id"],
     });
     await animationFrame();
