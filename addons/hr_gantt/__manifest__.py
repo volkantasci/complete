@@ -10,6 +10,15 @@
     'website': 'https://github.com/volkantasci/complete',
     'depends': ['hr', 'web_gantt'],
     'auto_install': True,
+    'assets': {
+        'web.assets_backend': [
+            'hr_gantt/static/src/**/*',
+        ],
+        'web.assets_unit_tests': [
+            'hr_gantt/static/tests/**/*.test.js',
+            'hr_gantt/static/tests/employee_test_helpers.js',
+        ],
+    },
     'application': False,
     'installable': True,
 }

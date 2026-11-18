@@ -1,0 +1,20 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R4: the avatar of an employee row, 24 px square with rounded corners, 8 px before the name
+.o_hrg_avatar {
+    flex: 0 0 auto;
+    align-self: center;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+// the name next to an avatar: 14 px at weight 400, cut with an ellipsis (the label already is)
+.o_tl_row_header:has(> .o_hrg_avatar) .o_tl_row_name {
+    font-size: 14px;
+    font-weight: 400;
+}

@@ -12,8 +12,11 @@ feature).
 Features
 ========
 
-At this stage the module is an installable shell. The employee variant of the
-view and the helper arrive with the next parts of this slice.
+- The employee variant of the Gantt view (``js_class="hr_gantt"``): avatar row
+  headers and their card, the user's search passed to the server, the range
+  chosen around today when today is shown, half-day diagonal shading and lunch
+  rounding of pills.
+- The server helper that keeps employees without records in the rows.
 
 Installation
 ============

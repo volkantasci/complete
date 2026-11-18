@@ -1,0 +1,10 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <!-- What an employee row header shows before the name: the avatar (R4), called with `row` in scope. -->
+    <t t-name="hr_gantt.EmployeeRowLead">
+        <t t-set="employee" t-value="this.employeeOf(row)"/>
+        <img t-if="employee" class="o_hrg_avatar" t-att-src="this.avatarUrl(employee)" t-att-data-tooltip="employee.name" title="" alt="" t-on-click.stop="(ev) => this.onAvatarClick(ev, employee)"/>
+        <t t-else=""><t t-call="web_gantt.TimelineRowLead"/></t>
+    </t>
+</templates>
