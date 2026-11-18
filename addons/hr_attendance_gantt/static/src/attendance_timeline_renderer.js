@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { onMounted, onWillUnmount } from "@odoo/owl";
+import { onMounted, onPatched, onWillUnmount, signal } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { AttendanceActionHelper } from "@hr_attendance/views/attendance_helper_view";
 import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
@@ -20,9 +20,18 @@ export const RESIZE_DELAY = 250;
  * the create path, with the form of the dialog read from the view's arch by the controller.
  * Nothing here changes them.
  */
+/**
+ * The helper's top under the box that holds the grid (M54, M55): the header rows (51 px) and 15 px
+ * on the desktop (y 222 under a box at 156), 19.65 px on the phone (y 274.625 under a box at 204).
+ */
+const HELPER_TOP = 66;
+const HELPER_TOP_PHONE = 70.65;
+
 export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     static template = "hr_attendance_gantt.AttendanceTimelineRenderer";
     static components = { ...EmployeeTimelineRenderer.components, AttendanceActionHelper };
+
+    helperRef = signal.ref();
 
     setup() {
         super.setup();
@@ -39,15 +48,26 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
             }
         };
         const onResize = () => {
+            this.placeHelper();
             browser.clearTimeout(timer);
             timer = browser.setTimeout(settle, RESIZE_DELAY);
         };
+        onPatched(() => this.placeHelper());
+        // the control panel above can change its height (the phone's search bar opens and shuts)
+        let observer = null;
         onMounted(() => {
+            this.placeHelper();
+            const panel = document.querySelector(".o_control_panel");
+            if (panel && typeof ResizeObserver !== "undefined") {
+                observer = new ResizeObserver(() => this.placeHelper());
+                observer.observe(panel);
+            }
             browser.addEventListener("resize", onResize);
             // a resize between setup and mount is not lost
             settle();
         });
         onWillUnmount(() => {
+            observer?.disconnect();
             browser.removeEventListener("resize", onResize);
             browser.clearTimeout(timer);
             timer = null;
@@ -82,6 +102,24 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     isWithoutContract(descriptor) {
         const row = descriptor.row;
         return Boolean(row.resId && this.data.withoutContract?.has(row.resId));
+    }
+
+    /**
+     * R20 (M54, M55): the helper is a layer over the view's content, from 66 px under the top of
+     * the grid (its two header rows and 15 px) to the bottom of the window; the page is never
+     * taller than the window because of it.
+     */
+    placeHelper() {
+        const helper = this.helperRef();
+        const box = helper?.offsetParent;
+        if (!box) {
+            return;
+        }
+        const offset = this.ui.isSmall ? HELPER_TOP_PHONE : HELPER_TOP;
+        const top = box.getBoundingClientRect().top + offset;
+        helper.style.top = `${offset}px`;
+        helper.style.bottom = "auto";
+        helper.style.height = `${Math.max(0, browser.innerHeight - top)}px`;
     }
 
     /** R20: at most one row, and that row has no attendance. */

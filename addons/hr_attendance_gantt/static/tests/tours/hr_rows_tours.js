@@ -1254,7 +1254,13 @@ scenario("hag_a53_helper", async () => {
     assert(text.includes("Try the kiosk"), `the kiosk: ${text}`);
     assert($("img[src*='mock-tablet']", helper), "the kiosk picture");
     assert($("img[src*='attendance_dot']", helper), "the picture of the check-in button");
-    assert(rectOf(rowEl("HRA Beth")).bottom <= rectOf(helper).top + 1, "the row stays above the helper");
+    // the helper is a layer over the content: its box lets the pointer through to the row, its
+    // content lies under the row
+    assertEqual(getComputedStyle(helper).pointerEvents, "none", "the box lets the pointer through");
+    assert(
+        rectOf(rowEl("HRA Beth")).bottom <= rectOf($(".o_nocontent_help", helper)).top + 1,
+        "the row stays above the helper's content"
+    );
     assert(rectOf(rowEl("HRA Beth")).height > 0, "the row is visible");
 });
 

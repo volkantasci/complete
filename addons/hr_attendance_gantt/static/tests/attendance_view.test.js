@@ -249,8 +249,9 @@ test("A53: the helper shows below the grid for one employee without attendance",
     expect(".o_tl_row").toHaveCount(1);
     expect(".o_hag_helper .o_view_nocontent").toHaveCount(1);
     expect(".o_hag_helper .o_nocontent_help").toHaveCount(1);
-    // the grid and its row stay above the helper
-    expect(queryRect(".o_tl_row").bottom).not.toBeGreaterThan(queryRect(".o_hag_helper").top + 1);
+    // the helper is a layer over the content: its box lets the pointer through to the row
+    expect(".o_hag_helper").toHaveStyle({ position: "absolute", pointerEvents: "none" });
+    expect(".o_tl_row").toHaveCount(1);
 });
 
 test("A29: the helper shows with the placeholder row of a search that keeps no employee", async () => {

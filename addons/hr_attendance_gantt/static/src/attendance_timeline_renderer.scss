@@ -33,19 +33,35 @@
     }
 }
 
-// R20: the helper is under the grid, which keeps its height; the helper's own box is not a
-// layer over the grid here
-.o_tl_box.o_hag_with_helper > .o_tl_renderer {
-    flex: 0 0 auto;
+// R20 (M54, M55): the helper is a layer over the content under the column headers, down to the
+// window's bottom (its height is set by the renderer); the box lets the pointer through to the
+// row, the content takes it back, and is centred in the space under the one row (26 px: the row's
+// end is 92 px under the grid's top, the box starts at 66)
+.o_tl_box.o_hag_with_helper {
+    position: relative;
+
+    > .o_tl_renderer {
+        flex: 0 0 auto;
+    }
 }
 
 .o_hag_helper {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
+    position: absolute;
+    inset: 66px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 26px;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
 
     > .o_view_nocontent {
         position: static;
-        top: auto;
+        pointer-events: none;
+
+        .o_nocontent_help {
+            pointer-events: auto;
+        }
     }
 }
