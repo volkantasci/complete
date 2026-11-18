@@ -86,6 +86,18 @@ async function realHover(el) {
     await realMove(x, y);
 }
 
+/** The pointer leaves the grid for a place of the control bar, and no tooltip is left open. */
+async function pointerAway() {
+    await realMove(1000, 123);
+    await until(() => !$(".o-tooltip"), "no tooltip is open once the pointer is away");
+}
+
+/**
+ * A popover of the view that is not a tooltip (a tooltip is a popover too: the avatar's and the
+ * bar's): the framework's record popover, the card of an avatar and the like.
+ */
+const popoverOfView = () => $(".o_popover:not(:has(.o-tooltip))");
+
 /** A real click (press and release) at the centre of an element, or at a point. */
 async function realClick(target, { keys = [], at = null, count = 1 } = {}) {
     const { x, y } = at || centre(target);
@@ -605,11 +617,12 @@ scenario("hag_a12_width", async () => {
     await until(() => !$(".o_avatar_card"), "Escape closes the card");
     await resizeTo(767, true);
     const before = renderer().scrollLeft;
+    await pointerAway();
     await realClick($(".o_hrg_avatar", rowEl("HRA Anita")));
     // nothing opens: wait for the click to have been handled (the pointer's own events), then read
     await settle(1200);
-    assert(!$(".o_avatar_card"), "at 767 px a click on an avatar opens no card");
-    assert(!$(".o_popover"), "at 767 px nothing opens");
+    assert(!$(".o_avatar_card"), "at 767 px a click on an avatar opens no employee card");
+    assert(!popoverOfView(), "at 767 px no popover of the view (card, record popover) opens");
     assertEqual(renderer().scrollLeft, before, "at 767 px the grid does not scroll");
 });
 
@@ -617,10 +630,11 @@ scenario("hag_a12_width", async () => {
 scenario("hag_a13_tap", async () => {
     const before = renderer().scrollLeft;
     const names = rowNames();
+    await pointerAway();
     await realTap($(".o_hrg_avatar", rowEl("HRA Anita")));
     await settle(1200);
-    assert(!$(".o_avatar_card"), "a tap opens no card");
-    assert(!$(".o_popover"), "a tap opens no popover");
+    assert(!$(".o_avatar_card"), "a tap opens no employee card");
+    assert(!popoverOfView(), "a tap opens no popover of the view");
     assert(!$(".modal"), "a tap opens no dialog");
     assertEqual(renderer().scrollLeft, before, "a tap does not scroll the grid");
     assertEqual(rowNames(), names, "a tap changes no row");
@@ -1341,7 +1355,7 @@ scenario("hag_a58_features_off", async () => {
     assert(!$(".o_tl_multi_plan") && !$(".o_multi_selection_buttons"), "no multi-selection buttons");
     assert(!$(".o_tl_panel_frame") && !$(".o_tl_panel"), "no side panel");
     assert(!$(".o_tl_connect_handle") && !$(".o_tl_arrow"), "no connector and no arrow");
-    assert(!$(".o_popover"), "no popover opens");
+    assert(!popoverOfView(), "no popover of the view opens");
     // what a press and drag across cells does here is 002b's (the create dialog): close it
     if ($(".modal")) {
         await closeDialog();
@@ -1439,6 +1453,8 @@ scenario("hag_a59_framework_inputs", async () => {
     // the pointer rests on the empty cell for 1 s (A59): nothing appears
     await settle(1000);
     assertEqual(look(), resting, "the pointer over an empty cell adds no button and no fill");
+    assert(!$(".o_tl_grid button"), "no add or plan button inside the grid");
+    assert(!$(".o_tl_selection, .o_tl_cell_picked"), "no selection frame or lit cell on the empty cell");
     // dragging a pill moves it
     const drag = pillsOf("HRA Abigail")[0];
     const column = rectOf(colEl(1)).width;
@@ -1465,9 +1481,11 @@ scenario("hag_a61_phone", async () => {
     assertNear(rectOf(header).width, 130, "the row header column is 130 px wide", 1);
     assert($$(".o_tl_progress:not(.o_hag_bar_space)").length > 0, "the bars show");
     assert($$(".o_tl_progress_label").every((el) => !clean(el.textContent).includes("/")), "short labels");
+    await pointerAway();
     await realTap($(".o_hrg_avatar", rowEl("HRA Anita")));
     await settle(1000);
-    assert(!$(".o_avatar_card") && !$(".o_popover"), "a tap on an avatar opens nothing");
+    assert(!$(".o_avatar_card"), "a tap on an avatar opens no employee card");
+    assert(!popoverOfView(), "a tap on an avatar opens no popover of the view");
     // the control: the same tap at desktop width opens the card
     await resizeTo(1024, false);
     await realTap($(".o_hrg_avatar", rowEl("HRA Anita")));
