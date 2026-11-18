@@ -1,6 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from odoo import api, fields, models
@@ -62,3 +62,38 @@ class HrAttendance(models.Model):
         ])
         covered = set(versions.employee_id.ids)
         return [employee for employee in employee_ids if employee not in covered]
+
+    @api.model
+    def _gantt_unavailability(self, group_field, record_ids, period_start, period_stop, scale_name):
+        """The unavailable periods of the employee rows (R15).
+
+        The Community's per-employee intervals are used: they read each contract period's
+        schedule in the employee's time zone and place the hours at the same clock time
+        in the user's. They are computed with the rights of the system (R22), a day more
+        on each side of the period so that a shift of the clock hours across the period's
+        edge is not lost, then cut to the period. Other fields get the base answer.
+        """
+        if group_field != 'employee_id':
+            return super()._gantt_unavailability(
+                group_field, record_ids, period_start, period_stop, scale_name)
+        if not record_ids or not period_start or not period_stop:
+            return {}
+        margin = timedelta(days=1)
+        start = fields.Datetime.to_datetime(period_start).replace(tzinfo=UTC)
+        stop = fields.Datetime.to_datetime(period_stop).replace(tzinfo=UTC)
+        employees = self.env['hr.employee'].sudo().with_context(active_test=False)
+        employees = employees.browse(record_ids)
+        wide = employees._get_employee_unavailable_intervals(start - margin, stop + margin)
+        result = {}
+        for employee_id in record_ids:
+            cut = []
+            for interval in wide.get(employee_id, []):
+                begin, end = max(interval['start'], start), min(interval['stop'], stop)
+                if begin < end:
+                    cut.append({'start': self._hag_naive(begin), 'stop': self._hag_naive(end)})
+            result[employee_id] = cut
+        return result
+
+    @staticmethod
+    def _hag_naive(moment: datetime) -> datetime:
+        return moment.astimezone(UTC).replace(tzinfo=None)
