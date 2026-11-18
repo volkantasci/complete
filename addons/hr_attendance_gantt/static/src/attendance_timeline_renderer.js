@@ -94,6 +94,11 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
         return view;
     }
 
+    /** R19: the name of an employee without a contract is in the danger colour. */
+    nameClass(descriptor) {
+        return this.isWithoutContract(descriptor) ? "o_hag_no_contract text-danger" : "";
+    }
+
     /** R19: whether the row header's name is drawn in the danger colour. */
     isWithoutContract(descriptor) {
         const row = descriptor.row;
@@ -101,10 +106,10 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     }
 
     /**
-     * R20 ("Where it is placed"). Desktop: the helper is a layer whose top is set, each time it
-     * appears, `helperOffset` (115 px with one row) below the top of the view's content area, the
-     * control bar not counted; it runs to the bottom of the window whatever the window's height,
-     * its content centred in it. Phone: not a layer; the helper takes the grid's place, from the
+     * R20 ("Where it is placed"). Desktop: the helper is a layer whose top is `helperOffset` (115 px
+     * with one row) below the top of the view's content area, measured from that top, the control
+     * bar's height not added; it runs to the bottom of the window whatever the window's height, its
+     * content centred in it. Phone: not a layer; the helper takes the grid's place, from the
      * grid's top to the bottom of the window.
      */
     placeHelper() {

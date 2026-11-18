@@ -400,45 +400,31 @@ class HrProbes(TimelineProbeCase):
         with self.subTest(probe='M4', scheme=scheme, prop='right edge'):
             self.assertAlmostEqual(box['geometry.x'] + box['geometry.width'], 258, delta=0.5)
 
-    def check_title_boxes(self, name, scheme, viewport, label_js=None):
-        """M77 and M78 (IQ6): the title box and the avatar-and-name box of an employee row. The
-        view has no element of its own for either: the avatar-and-name box is the box the avatar
-        and the name's box (M2) make together, the title box the same grown by the 1 px between
-        the two boxes of the original (title box: 1 px of padding around it). Only their geometry
-        is compared; the zero margins, paddings and borders of M78 hold of both elements."""
-        avatar = self.geometry(in_row(name, '.o_hrg_avatar'))
-        label = self.geometry(label_js or in_row(name, '.o_tl_row_label'))
-        left = min(avatar['geometry.x'], label['geometry.x'])
-        top = min(avatar['geometry.y'], label['geometry.y'])
-        right = max(avatar['geometry.x'] + avatar['geometry.width'],
-                    label['geometry.x'] + label['geometry.width'])
-        bottom = max(avatar['geometry.y'] + avatar['geometry.height'],
-                     label['geometry.y'] + label['geometry.height'])
-        boxes = {
-            'M78': {'geometry.x': left, 'geometry.y': top, 'geometry.width': right - left,
-                    'geometry.height': bottom - top},
-            'M77': {'geometry.x': left - 1, 'geometry.y': top - 1,
-                    'geometry.width': right - left + 2, 'geometry.height': bottom - top + 2},
-        }
-        # the boxes end where the hours label starts (M77 at its left edge, M78 one pixel before);
-        # their width depends on the label's text, which differs from the original's by decision
-        # D2 ("9h / 8h (+1h)" for "5h / 8h (3h left)"): the width is compared as that relation
-        label_left = self.geometry(in_row(name, LABEL))['geometry.x']
-        for probe, drop in (('M77', 0), ('M78', 1)):
-            with self.subTest(probe=probe, scheme=scheme, viewport=viewport, prop='right edge'):
-                self.assertAlmostEqual(
-                    boxes[probe]['geometry.x'] + boxes[probe]['geometry.width'],
-                    label_left - drop, delta=0.6)
-        for probe, got in boxes.items():
-            for prop, want in measured(probe, viewport).get(scheme, {}).items():
-                if not prop.startswith('geometry.') or prop == 'geometry.width':
-                    continue
-                with self.subTest(probe=probe, scheme=scheme, viewport=viewport, prop=prop):
-                    why = compare_value(prop, want, got[prop])
-                    if why:
-                        _logger.warning('PROBE-MISMATCH|%s|%s|%s|%s|%s|%s|%s', probe, scheme,
-                                        viewport, prop, want, got[prop], 'title boxes')
-                    self.assertIsNone(why, f'{probe} {scheme}/{viewport} {prop}: {why}')
+    def check_title_boxes(self, name, scheme, viewport):
+        """M77 and M78 (IQ6, ruling RL29): the title box is the row header's title line
+        (``.o_tl_row_line``), the avatar-and-name box its ``.o_hrg_identity`` wrapper. Everything
+        the package gives is compared on the two elements (x, y, height, the margins, paddings,
+        borders, radius and shadow); the width differs only because Anita Oliver's label text
+        differs (decision D2: "9h / 8h (+1h)" for "5h / 8h (3h left)"), so it is compared as the
+        relation: the title box is as wide as the header's inner width, the avatar-and-name box
+        ends one pixel before the hours label starts."""
+        title_js = in_row(name, '.o_tl_row_line')
+        identity_js = in_row(name, '.o_hrg_identity')
+        self.check('M77', title_js, scheme, viewport, 'the title box', skip=('geometry.width',))
+        self.check('M78', identity_js, scheme, viewport, 'the avatar-and-name box',
+                   skip=('geometry.width',))
+        title = self.geometry(title_js)
+        identity = self.geometry(identity_js)
+        label = self.geometry(in_row(name, LABEL))
+        inner = self.js(f"(() => {{ const h = {in_row(name, '.o_tl_row_header')}; "
+                        "const cs = getComputedStyle(h); return h.clientWidth - "
+                        "parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); })()")
+        with self.subTest(probe='M77', scheme=scheme, viewport=viewport, prop='width (RL29)'):
+            self.assertAlmostEqual(title['geometry.width'], inner, delta=0.6)
+        with self.subTest(probe='M78', scheme=scheme, viewport=viewport, prop='width (RL29)'):
+            self.assertAlmostEqual(
+                identity['geometry.x'] + identity['geometry.width'], label['geometry.x'] - 1,
+                delta=0.6)
 
     def check_worked(self, key, name, scheme):
         """A worked value of R16 (Complete's column): the label's text, the colour of its state
@@ -746,8 +732,22 @@ class TestHrRowsProbes(HrProbes):
                 self.search('HRA Beth', phone=True)
                 self.wait("!!document.querySelector('.o_hag_helper')")
                 self.settle(1500)
+                # RL27: the R20 phone rule is asserted: the helper's top is the grid's top and its
+                # bottom the window's bottom. The package's y 274.625 (height 569.375) is the
+                # original's grid top with the search bar open; Complete's shell puts the grid at
+                # y 272.97 there, a known shell difference that is logged, not compared.
                 self.check('M55', "document.querySelector('.o_hag_helper')", scheme, 'phone',
-                           'the helper on the phone')
+                           'the helper on the phone',
+                           skip=('geometry.y', 'geometry.height'))
+                box = self.geometry("document.querySelector('.o_hag_helper')")
+                grid = self.geometry("document.querySelector('.o_tl_renderer')")
+                with self.subTest(probe='M55', scheme=scheme, rule='R20 phone'):
+                    self.assertAlmostEqual(box['geometry.y'], grid['geometry.y'], delta=0.6)
+                    self.assertAlmostEqual(box['geometry.y'] + box['geometry.height'], 844,
+                                           delta=0.6)
+                _logger.warning(
+                    'SHELL-DIFFERENCE|M55|%s|phone grid top %s against the package\'s 274.625',
+                    scheme, box['geometry.y'])
                 # the page is no taller than the window
                 self.assertLessEqual(self.js("document.documentElement.scrollHeight"), 844)
 

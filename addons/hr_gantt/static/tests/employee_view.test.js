@@ -226,6 +226,31 @@ test("A19: exactly the four split Fridays are shaded diagonally on the month sca
     );
 });
 
+test("R7: in today's column the available half is painted in today's shade", async () => {
+    const ids = await makeEmployeeData(["Gantt Hourly"], [["Hourly shift", "Gantt Hourly", [2, "8:00"], [2, "9:00"]]]);
+    // today is Wednesday 11 November: its afternoon is unavailable
+    timelineMock.unavailability = {
+        employee_id: { [ids["Gantt Hourly"]]: [{ start: utc(11, "12:00"), stop: utc(12, "0:00") }] },
+    };
+    await start();
+    await mountView({
+        type: "gantt",
+        resModel: "hrg.shift",
+        arch: ARCH(`default_range="month" display_unavailability="1"`),
+        groupBy: ["employee_id"],
+    });
+    await animationFrame();
+    const split = cellsOf("Gantt Hourly").filter((cell) => cell.classList.contains("o_hrg_split"));
+    expect(split).toHaveCount(1);
+    expect(split[0]).toHaveClass("o_tl_is_today");
+    const style = getComputedStyle(split[0]);
+    // the available half is today's shade (#FFFAEB), the other the unavailable grey; the cell's own
+    // base is the view background, so the shade is drawn once
+    expect(style.backgroundImage).toInclude("rgb(255, 250, 235) 49%");
+    expect(style.backgroundImage).toInclude("rgb(233, 236, 239) 50%");
+    expect(style.backgroundColor).toBe("rgb(255, 255, 255)");
+});
+
 test("A20: quarter precision keeps 002a's vertical quarters", async () => {
     const ids = await makeEmployeeData(["Gantt Hourly"], [["Hourly shift", "Gantt Hourly", [2, "8:00"], [2, "9:00"]]]);
     timelineMock.unavailability = {

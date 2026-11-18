@@ -20,6 +20,12 @@ the spec states with the decision (and the probe says so in its docstring):
   table, 96 px wide from x 459, 747 and 507; ``D1_QUARTER_WED``, ``D1_LUNCH_WED`` and
   ``D1_LUNCH_FRI`` are the three other pills of that table, 96 px from x 891, 891 and 1275.
 - M9 dark (002a D4): the grey 700 role ``#B3B4B8`` with black text, not the pink ``#EFB6B6``.
+- M77, M78 width and M55 y and height are not values of Complete's probes: the first two differ
+  only through the label text of decision D2 and are compared as a relation (ruling RL29), the
+  last two follow the original's phone shell, where the grid's top is 272.97 (ruling RL27: the
+  R20 phone rule, helper top = grid top, bottom = window bottom, is asserted instead).
+- M10 has no width and M76 is not compared (IQ2); M79 has no corners (Complete's theme gives a
+  tooltip 800 px corners), M85 and M86 are the original only.
 - M72 to M75 (decision D2) are ``WORKED``: the label text, the colour of its state and the width
   of the fill, from the worked values of R16.
 """
@@ -923,13 +929,9 @@ HR_ROWS_PROBES = [
     ('M54', 'dark', 'desktop', 'geometry.width', '1600'),
     ('M54', 'dark', 'desktop', 'geometry.height', '678'),
     ('M55', 'light', 'phone', 'geometry.x', '0'),
-    ('M55', 'light', 'phone', 'geometry.y', '274.625'),
     ('M55', 'light', 'phone', 'geometry.width', '390'),
-    ('M55', 'light', 'phone', 'geometry.height', '569.375'),
     ('M55', 'dark', 'phone', 'geometry.x', '0'),
-    ('M55', 'dark', 'phone', 'geometry.y', '274.625'),
     ('M55', 'dark', 'phone', 'geometry.width', '390'),
-    ('M55', 'dark', 'phone', 'geometry.height', '569.375'),
     ('M56', 'light', 'desktop', 'count', '1'),
     ('M56', 'dark', 'desktop', 'count', '1'),
     ('M57', 'light', 'desktop', 'count', '2'),
@@ -1000,23 +1002,18 @@ HR_ROWS_PROBES = [
     ('M71', 'dark', 'desktop', 'count', '1'),
     ('M77', 'light', 'desktop', 'geometry.x', '8.047'),
     ('M77', 'light', 'desktop', 'geometry.y', '251.5'),
-    ('M77', 'light', 'desktop', 'geometry.width', '158.5'),
     ('M77', 'light', 'desktop', 'geometry.height', '27'),
     ('M77', 'light', 'phone', 'geometry.x', '8.062'),
     ('M77', 'light', 'phone', 'geometry.y', '299.5'),
-    ('M77', 'light', 'phone', 'geometry.width', '73.516'),
     ('M77', 'light', 'phone', 'geometry.height', '27'),
     ('M77', 'dark', 'desktop', 'geometry.x', '8.047'),
     ('M77', 'dark', 'desktop', 'geometry.y', '251.5'),
-    ('M77', 'dark', 'desktop', 'geometry.width', '158.5'),
     ('M77', 'dark', 'desktop', 'geometry.height', '27'),
     ('M77', 'dark', 'phone', 'geometry.x', '8.062'),
     ('M77', 'dark', 'phone', 'geometry.y', '299.5'),
-    ('M77', 'dark', 'phone', 'geometry.width', '73.516'),
     ('M77', 'dark', 'phone', 'geometry.height', '27'),
     ('M78', 'light', 'desktop', 'geometry.x', '9.047'),
     ('M78', 'light', 'desktop', 'geometry.y', '252.5'),
-    ('M78', 'light', 'desktop', 'geometry.width', '156.5'),
     ('M78', 'light', 'desktop', 'geometry.height', '25'),
     ('M78', 'light', 'desktop', 'margin-top', '0'),
     ('M78', 'light', 'desktop', 'margin-right', '0'),
@@ -1041,7 +1038,6 @@ HR_ROWS_PROBES = [
     ('M78', 'light', 'desktop', 'box-shadow', 'none'),
     ('M78', 'light', 'phone', 'geometry.x', '9.062'),
     ('M78', 'light', 'phone', 'geometry.y', '300.5'),
-    ('M78', 'light', 'phone', 'geometry.width', '71.516'),
     ('M78', 'light', 'phone', 'geometry.height', '25'),
     ('M78', 'light', 'phone', 'margin-top', '0'),
     ('M78', 'light', 'phone', 'margin-right', '0'),
@@ -1066,7 +1062,6 @@ HR_ROWS_PROBES = [
     ('M78', 'light', 'phone', 'box-shadow', 'none'),
     ('M78', 'dark', 'desktop', 'geometry.x', '9.047'),
     ('M78', 'dark', 'desktop', 'geometry.y', '252.5'),
-    ('M78', 'dark', 'desktop', 'geometry.width', '156.5'),
     ('M78', 'dark', 'desktop', 'geometry.height', '25'),
     ('M78', 'dark', 'desktop', 'margin-top', '0'),
     ('M78', 'dark', 'desktop', 'margin-right', '0'),
@@ -1091,7 +1086,6 @@ HR_ROWS_PROBES = [
     ('M78', 'dark', 'desktop', 'box-shadow', 'none'),
     ('M78', 'dark', 'phone', 'geometry.x', '9.062'),
     ('M78', 'dark', 'phone', 'geometry.y', '300.5'),
-    ('M78', 'dark', 'phone', 'geometry.width', '71.516'),
     ('M78', 'dark', 'phone', 'geometry.height', '25'),
     ('M78', 'dark', 'phone', 'margin-top', '0'),
     ('M78', 'dark', 'phone', 'margin-right', '0'),
@@ -1137,10 +1131,6 @@ HR_ROWS_PROBES = [
     ('M79', 'light', 'desktop', 'border-right-style', 'none'),
     ('M79', 'light', 'desktop', 'border-bottom-style', 'none'),
     ('M79', 'light', 'desktop', 'border-left-style', 'none'),
-    ('M79', 'light', 'desktop', 'border-top-left-radius', '11'),
-    ('M79', 'light', 'desktop', 'border-top-right-radius', '11'),
-    ('M79', 'light', 'desktop', 'border-bottom-right-radius', '11'),
-    ('M79', 'light', 'desktop', 'border-bottom-left-radius', '11'),
     ('M79', 'light', 'desktop', 'box-shadow', 'none'),
     ('M79', 'light', 'desktop', 'geometry.y', '286'),
     ('M79', 'light', 'desktop', 'geometry.height', '27.5'),
@@ -1167,10 +1157,6 @@ HR_ROWS_PROBES = [
     ('M79', 'dark', 'desktop', 'border-right-style', 'none'),
     ('M79', 'dark', 'desktop', 'border-bottom-style', 'none'),
     ('M79', 'dark', 'desktop', 'border-left-style', 'none'),
-    ('M79', 'dark', 'desktop', 'border-top-left-radius', '11'),
-    ('M79', 'dark', 'desktop', 'border-top-right-radius', '11'),
-    ('M79', 'dark', 'desktop', 'border-bottom-right-radius', '11'),
-    ('M79', 'dark', 'desktop', 'border-bottom-left-radius', '11'),
     ('M79', 'dark', 'desktop', 'box-shadow', 'none'),
     ('M79', 'dark', 'desktop', 'geometry.y', '286'),
     ('M79', 'dark', 'desktop', 'geometry.height', '27.5'),

@@ -4,7 +4,7 @@
 // R4: the avatar of an employee row, 24 px square with rounded corners, 8 px before the name
 .o_hrg_avatar {
     flex: 0 0 auto;
-    // 24 px in the 25 px title line: half a pixel below its top (M1: 5 px below the row's top)
+    // 24 px in the 25 px identity box: half a pixel below its top (M1: 5 px below the row's top)
     align-self: flex-start;
     position: relative;
     top: .5px;
@@ -16,22 +16,33 @@
     cursor: pointer;
 }
 
-// the header of an employee row (M1, M2, M4, M5): the avatar starts 9 px from the left while the
-// bar keeps its 8 px (the spacer below), the name and the hours label are 25 px tall boxes at the
-// top of the 27 px title line (M2, M4 read y 252.5 and a height of 25 in a 41 px row), and the
-// label ends 8 px inside the column's right border (x 258 of 267)
-.o_tl_row_header:has(> .o_hrg_avatar) {
-    // the content is centred in the 41 px of the row (border included): 4.5 px above the line
-    padding-top: 1px;
+// The header of an employee row (M1, M2, M4, M5, M77, M78). Its title line is the title box (M77):
+// 27 px tall, from the header's inner left edge to its right end, 3.5 px below the row's top; the
+// identity box (M78: the avatar and the name, no margin, padding or border) lies 1 px inside it;
+// the hours label ends 8 px inside the column's right border (x 258 of 267), one pixel after the
+// identity box. The header's top padding is the line's 1 px margin below instead, so the line
+// starts a pixel higher and the bar keeps its place.
+.o_tl_row_header:has(.o_hrg_identity) {
+    padding-top: 0;
 
-    // a 1 px spacer before the avatar (the avatar has no margin and the bar below keeps x 8)
-    &::before {
-        content: "";
-        flex: 0 0 1px;
+    // the title line takes the whole first line of the wrapping header, so the bar stays under it
+    .o_tl_row_body {
+        flex: 1 1 100%;
     }
 
     .o_tl_row_line {
         min-height: 27px;
+        margin-bottom: 1px;
+        padding: 1px 0 1px 1px;
+    }
+
+    .o_hrg_identity {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: flex-start;
+        margin: 0;
+        padding: 0;
     }
 
     .o_tl_row_name {
@@ -48,6 +59,8 @@
     .o_tl_progress_label {
         align-self: flex-start;
         line-height: 25px;
+        margin-top: 0;
+        margin-left: 1px;
         margin-right: 8px;
     }
 }
@@ -62,7 +75,7 @@
     &.o_tl_is_today {
         --o-hrg-available-bg: #{$o-tl-today-bg};
 
-        &[style*="325deg"] {
+        &.o_hrg_split {
             background-color: $o-view-background-color;
         }
     }

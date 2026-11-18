@@ -16,10 +16,11 @@ export const HEADER_LINES_HEIGHT = 25 + 50;
 export const ROW_INNER_HEIGHT = 40;
 
 /**
- * R20 ("Where it is placed", desktop): the offset of the helper's layer from the top of the view's
- * content area, which begins with the control bar and whose height is not part of the offset: the
- * header lines plus the inner heights of the rows drawn (115 px with one row). It does not depend
- * on the window's height.
+ * R20 ("Where it is placed", desktop): the distance from the top of the view's content area (the
+ * element that begins with the control bar) to the top of the helper's layer. It is the header
+ * lines plus the inner heights of the rows drawn (115 px with one row); the control bar's height is
+ * not added, so the layer's top is simply this far below the content area's top. It does not
+ * depend on the window's height.
  * @param {number} rowCount the rows drawn (the placeholder row of a view without groups counts)
  */
 export function helperOffset(rowCount) {

@@ -15,6 +15,8 @@ const PUBLIC_MODEL = "hr.employee.public";
  * diagonal shading of half-day cells (R7).
  */
 export class EmployeeTimelineRenderer extends TimelineRenderer {
+    static template = "hr_gantt.EmployeeTimelineRenderer";
+
     setup() {
         super.setup();
         this.avatarCard = usePopover(AvatarCard);
@@ -40,6 +42,11 @@ export class EmployeeTimelineRenderer extends TimelineRenderer {
         return { id: row.resId, name: row.name };
     }
 
+    /** The classes of a row's name; a variant adds its own (the red name of a contract-less employee). */
+    nameClass(_descriptor) {
+        return "";
+    }
+
     avatarUrl(employee) {
         return imageUrl(PUBLIC_MODEL, employee.id, "avatar_128");
     }
@@ -53,6 +60,15 @@ export class EmployeeTimelineRenderer extends TimelineRenderer {
             return;
         }
         this.avatarCard.open(ev.currentTarget, { id: employee.id, model: PUBLIC_MODEL });
+    }
+
+    /** The cell of a row; a diagonal (split) cell gets the class that the stylesheet reads. */
+    _cellOf(index, data, covered) {
+        const cell = super._cellOf(index, data, covered);
+        if (covered && covered.length === 2 && Boolean(covered[0]) !== Boolean(covered[1])) {
+            cell.className = `${cell.className} o_hrg_split`.trim();
+        }
+        return cell;
     }
 
     /**

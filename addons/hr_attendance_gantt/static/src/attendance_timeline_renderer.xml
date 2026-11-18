@@ -8,12 +8,9 @@
          so that the stylesheet can give this tooltip alone its 11 px corners (M23). -->
     <t t-name="hr_attendance_gantt.ProgressTip"><span class="o_hag_tip" t-out="text"/></t>
 
-    <t t-name="hr_attendance_gantt.AttendanceTimelineRenderer" t-inherit="web_gantt.TimelineRenderer" t-inherit-mode="primary">
+    <t t-name="hr_attendance_gantt.AttendanceTimelineRenderer" t-inherit="hr_gantt.EmployeeTimelineRenderer" t-inherit-mode="primary">
         <xpath expr="//div[hasclass('o_tl_box')]" position="attributes">
             <attribute name="t-att-class">{ o_tl_box_sample: layout.isSample, o_hag_with_helper: this.showsHelper }</attribute>
-        </xpath>
-        <xpath expr="//span[hasclass('o_tl_row_label')][@t-out]" position="attributes">
-            <attribute name="t-att-class">{ o_hag_no_contract: this.isWithoutContract(row), 'text-danger': this.isWithoutContract(row) }</attribute>
         </xpath>
         <xpath expr="//span[hasclass('o_tl_progress_label')]" position="attributes">
             <attribute name="t-att-class">row.progress.labelClass</attribute>
