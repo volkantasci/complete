@@ -1522,3 +1522,38 @@ scenario("hag_a64_night", async () => {
     assertEqual([dates[0], dates.at(-1)], ["2026-11-30", "2026-12-04"], "the week of 29 November");
     await expectLabel("Gantt Night", "8h / 40h (32h left)", "the week");
 });
+
+// The helpers that the tours of the following slices reuse (tours/actions_tours.js).
+export {
+    $,
+    $$,
+    assert,
+    assertEqual,
+    barOf,
+    cellsOf,
+    clean,
+    clearRemembered,
+    closeDialog,
+    dataSettled,
+    dateColumns,
+    facets,
+    foldedHeaders,
+    labelOf,
+    pickRange,
+    pillsOf,
+    pillTitles,
+    pointerAway,
+    rangeName,
+    ready,
+    realClick,
+    realTap,
+    removeFacet,
+    resizeTo,
+    rowEl,
+    rowNames,
+    settle,
+    sleep,
+    step,
+    texts,
+    until,
+};

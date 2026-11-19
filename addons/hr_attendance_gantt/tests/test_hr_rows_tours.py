@@ -53,8 +53,10 @@ class CommandBridge(MouseBridge):
             self.error = error
 
 
-@tagged('post_install', '-at_install')
-class TestHrRowsTours(RealPointerMixin, HttpCase):
+class HrToursBase(RealPointerMixin, HttpCase):
+    """The helpers of the live tours of the attendance Gantt view: the admin, one language, the
+    real mouse bridge, ``_tour`` and the builders of employees. It holds no test; the tour
+    cases of the slices extend it."""
 
     def setUp(self):
         super().setUp()
@@ -132,6 +134,11 @@ class TestHrRowsTours(RealPointerMixin, HttpCase):
         for name in ('Doris', 'Eli', 'Ernest', 'Rachel'):
             self._employee(f'HRA {name}', contract=None)
         self._employee('HRA Tina', contract=('2018-01-01', '2025-06-30'))
+
+
+
+@tagged('post_install', '-at_install')
+class TestHrRowsTours(HrToursBase):
 
     # -- the employee rows ----------------------------------------------------------------------
 
