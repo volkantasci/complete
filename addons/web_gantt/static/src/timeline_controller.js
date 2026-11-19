@@ -83,6 +83,7 @@ export class TimelineController extends Component {
         ...standardViewProps,
         Model: t.function(),
         Renderer: t.function(),
+        Editor: t.function().optional(),
         archInfo: t.object(),
     });
 
@@ -121,7 +122,8 @@ export class TimelineController extends Component {
         // Community buttons (while they show); both call `clearPicked`, which is idempotent, so
         // the order they are reached in does not matter
         this.pickedButtons = this._makePickedButtons();
-        this.editor = new TimelineEditor({
+        const Editor = this.props.Editor || TimelineEditor;
+        this.editor = new Editor({
             env: this.env,
             model: this.model,
             archInfo: this.props.archInfo,
