@@ -36,6 +36,22 @@
         </field>
     </record>
 
+    <!-- The monthly view of the employee's worked-hours button (R4): the Month copy with the
+         monthly variant (the Community overview above the grid, the form's employee for every
+         creation). Only the employee's monthly action names it. -->
+    <record id="hr_attendance_gantt_view_employee_monthly_hours" model="ir.ui.view">
+        <field name="name">attendance timeline, monthly hours of an employee</field>
+        <field name="model">hr.attendance</field>
+        <field name="mode">primary</field>
+        <field name="priority">32</field>
+        <field name="inherit_id" ref="hr_attendance_gantt_view_default_scale_month"/>
+        <field name="arch" type="xml">
+            <gantt position="attributes">
+                <attribute name="js_class">monthly_attendance_gantt</attribute>
+            </gantt>
+        </field>
+    </record>
+
     <!-- The management action opens the Gantt view first, grouped by employee. -->
     <record id="hr_attendance.hr_attendance_action" model="ir.actions.act_window">
         <field name="view_mode">gantt,list,form</field>

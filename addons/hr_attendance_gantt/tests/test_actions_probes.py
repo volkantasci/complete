@@ -21,9 +21,10 @@ import json
 from odoo.addons.test_web_gantt.tests.timeline_probe import compare_value
 from odoo.tests import tagged
 
+from .actions_fixtures import action_in_november
 from .actions_probe_values import measured
 from .hr_rows_fixtures import TZ, _datetime
-from .test_hr_rows_probes import HrProbes, in_row, pills_of, row_js
+from .test_hr_rows_probes import CLOCK, HrProbes, in_row, pills_of, row_js
 
 SCHEMES = ('light', 'dark')
 VIEWPORTS = ('desktop', 'phone')
@@ -398,3 +399,109 @@ class TestMoveProbes(HrProbes):
                 self.press_and_drag(x, y, -55.5, steps=6)
                 self.release(x - 55.5, y)
                 self.check_count('M48', PILLS_READING_A, scheme, 'desktop', 'pills reading A')
+
+
+WORKED_HOURS = "document.querySelector(\"button[name='action_open_last_month_attendances']\")"
+BUTTON_BOX_TOGGLE = "document.querySelector('.o_form_view .o-form-buttonbox .o_button_more')"
+SWITCH_BUTTONS = "document.querySelectorAll('.o_cp_switch_buttons .o_switch_view')"
+SWITCH_MENU = "document.querySelector('.o_cp_switch_buttons > button')"
+BAND = "document.querySelector('.o_hag_overview_band')"
+CARD = "document.querySelector('.o_hag_overview_band .o_attendance_entry_card')"
+CARD_WORDS = (
+    "{textContent: [...document.querySelectorAll('.o_hag_overview_band "
+    ".o_attendance_entry_card span')].map((el) => el.textContent.trim()).join(' ')}")
+PERIOD_LINE ="document.querySelector('.o_tl_col_group')"
+ROW_HEADERS_SHOWN = (
+    "[...document.querySelectorAll('.o_tl_row:not(.o_tl_total_row) .o_tl_row_header')]"
+    ".filter((el) => el.textContent.trim() || el.querySelector('img, .o_hrg_avatar')).length")
+BARS = "document.querySelectorAll('.o_tl_progress:not(.o_hag_bar_space)').length"
+
+
+@tagged('post_install', '-at_install')
+class TestMonthlyProbes(HrProbes):
+    """Task 9: the monthly view opened from the employee form of Anita (M37 to M43). Her two
+    attendances of 10 and 11 November make the card "29h Work"; she is the only employee."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.archive_others('HRA ')
+        cls.anita = cls.env['hr.employee'].create({
+            'name': 'HRA Anita', 'tz': TZ, 'resource_calendar_id': cls.schedule.id,
+            'contract_date_start': '2026-01-01', 'date_version': '2026-01-01'})
+        for check_in, check_out in (('2026-11-10 03:00:00', '2026-11-11 03:00:00'),
+                                    ('2026-11-11 03:00:10', '2026-11-11 08:00:00')):
+            cls.env['hr.attendance'].with_context(skip_time_rules=True).create({
+                'employee_id': cls.anita.id, 'check_in': _datetime(check_in),
+                'check_out': _datetime(check_out)})
+        cls.env.flush_all()
+
+    def check(self, probe, element_js, scheme, viewport, label):
+        expected = dict(measured(probe, viewport).get(scheme, {}))
+        self.assertTrue(expected, f'no value of {probe} in {scheme}/{viewport}')
+        self.probe(probe, element_js, scheme, viewport, expected, label)
+
+    def check_count(self, probe, count_js, scheme, viewport, label):
+        want = int(measured(probe, viewport)[scheme]['count'])
+        with self.subTest(probe=probe, scheme=scheme, viewport=viewport, element=label):
+            self.assertEqual(self.js(count_js), want, f'{probe} {scheme}/{viewport} {label}')
+
+    def open_form(self, scheme, viewport):
+        return self.page(
+            'hr.open_view_employee_list_my', scheme, viewport, query=f'/{self.anita.id}',
+            touch=False, clock=CLOCK, ready='.o_form_view .o_field_widget[name="name"]')
+
+    def press_worked_hours(self, viewport):
+        """The button, on the phone through the button-box toggle."""
+        self.wait(f"!!{WORKED_HOURS} || !!{BUTTON_BOX_TOGGLE}", timeout=60)
+        if viewport == 'phone':
+            self.click_js(BUTTON_BOX_TOGGLE)
+            self.wait(f"!!{WORKED_HOURS}")
+        self.click_js(WORKED_HOURS)
+        self.wait("!!document.querySelector('.o_list_view')", timeout=60)
+        self.settle(900)
+
+    def choose_gantt(self, viewport):
+        if viewport == 'phone':
+            self.click_js(SWITCH_MENU)
+            self.wait("!![...document.querySelectorAll('.o-dropdown--menu .o-dropdown-item')]"
+                      ".find((el) => el.textContent.trim() === 'Gantt')")
+            self.settle(700)
+            self.click_js("[...document.querySelectorAll('.o-dropdown--menu .o-dropdown-item')]"
+                          ".find((el) => el.textContent.trim() === 'Gantt')")
+        else:
+            self.click_js(f"[...{SWITCH_BUTTONS}].find((el) => el.dataset.tooltip === 'Gantt')")
+        self.wait("!!document.querySelector('.o_tl_renderer .o_tl_row')", timeout=60)
+        self.wait("!!document.querySelector('.o_hag_overview_band .o_attendance_entry_card')",
+                  timeout=30)
+        self.settle(1200)
+
+    def test_m37_m38_the_monthly_list(self):
+        """S11: the list is the default view, and the switcher shows List and Gantt."""
+        for scheme in self.schemes(['M37']):
+            with self.subTest(scheme=scheme), action_in_november(), \
+                    self.open_form(scheme, 'desktop'):
+                self.press_worked_hours('desktop')
+                self.check_count(
+                    'M37', f"{SWITCH_BUTTONS.replace('.o_switch_view', '.o_switch_view.active')}"
+                    ".length", scheme, 'desktop', 'the active view button')
+                self.check_count('M38', f"{SWITCH_BUTTONS}.length", scheme, 'desktop',
+                                 'the view buttons')
+
+    def test_m39_to_m43_the_monthly_gantt(self):
+        """S12: the band, its card, the period line, no row header and no bar."""
+        for scheme in self.schemes(['M39', 'M40', 'M42']):
+            for viewport in VIEWPORTS:
+                if viewport == 'phone' and not measured('M39', 'phone').get(scheme):
+                    continue
+                with self.subTest(scheme=scheme, viewport=viewport), action_in_november(), \
+                        self.open_form(scheme, viewport):
+                    self.press_worked_hours(viewport)
+                    self.choose_gantt(viewport)
+                    self.check('M39', BAND, scheme, viewport, 'the overview band')
+                    if measured('M40', viewport).get(scheme):
+                        self.check('M40', CARD, scheme, viewport, 'the card')
+                    self.check_text(CARD_WORDS, '29h Work', 'the card reads 29h Work')
+                    self.check('M42', PERIOD_LINE, scheme, viewport, 'the period line')
+                    self.check_count('M41', ROW_HEADERS_SHOWN, scheme, viewport, 'row headers')
+                    self.check_count('M43', BARS, scheme, viewport, 'progress bars')

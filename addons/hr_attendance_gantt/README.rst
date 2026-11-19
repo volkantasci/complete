@@ -48,6 +48,15 @@ keeps its default, so there is no multi-selection, side panel or dependency.
 ``hr_attendance_gantt_view_default_scale_month`` is a primary copy of it that opens on the
 Month range. It has a later priority, so the model's default Gantt view stays the original.
 
+``hr_attendance_gantt_view_employee_monthly_hours`` is a primary copy of that Month view with
+``js_class="monthly_attendance_gantt"``. The employee's worked-hours button opens the
+Community action "Attendances This Month" (List, Form), and this module adds that view as its
+third one (``hr.employee.action_open_last_month_attendances``). The monthly variant lays the
+Community attendance overview above the grid (a 96 px band, one card per work entry type of
+the displayed period, read again at every load) and proposes the employee of the form that
+opened the action, the ``active_id`` of its context, in every creation dialog. Its grid has no
+grouping, so it shows one unnamed row.
+
 Attendances also offer ``action_open_details()``: on one attendance it returns the window
 action that opens it in the Community form view; no screen of this module uses it.
 
@@ -141,7 +150,8 @@ empties the check-out. The code is ``AttendanceTimelineEditor.writeValuesFor`` a
 
 The variant is a plain object, ``attendanceTimelineView`` in
 ``attendance_timeline_view.js``; a later module extends the renderer class, registers
-its own entry (for the monthly view, for instance) and chooses it with ``js_class``.
+its own entry and chooses it with ``js_class``; ``monthly_attendance_gantt``
+(``monthly_attendance_view.js``) is built that way.
 
 **The arch accepts more options by inheritance.** The view record names only the
 options listed above. A later module inherits ``hr_attendance_gantt.hr_attendance_gantt_view``

@@ -7,6 +7,7 @@ import importlib.util
 
 from lxml import etree
 from odoo.addons.hr_attendance_gantt.hooks import rename_attendance_view, restore_attendance_action
+from odoo.addons.hr_attendance_gantt.models.hr_employee import HrEmployee as BridgeEmployee
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
 from odoo.tools import file_path
@@ -57,6 +58,43 @@ class TestActionsMenus(TransactionCase):
         extension.active = False
         self.assertFalse(names & filter_names())
         self.assertIn('check_in_filter', filter_names())
+
+    def test_a1_monthly_action_without_the_bridge(self):
+        """A1: what the Community's action has without the bridge's extension (its own method,
+        reached past the bridge's) is List and Form only; the bridge adds the monthly Gantt."""
+        employee = self.env['hr.employee'].create({'name': 'HRA Monthly Action', 'tz': TZ})
+        community = super(BridgeEmployee, employee).action_open_last_month_attendances()
+        self.assertEqual(community['views'], [[False, 'list'], [False, 'form']])
+        monthly = self.env.ref(
+            'hr_attendance_gantt.hr_attendance_gantt_view_employee_monthly_hours')
+        bridged = employee.action_open_last_month_attendances()
+        self.assertEqual(bridged['views'], [*community['views'], [monthly.id, 'gantt']])
+        # the rest of the Community's action is untouched
+        self.assertEqual(
+            {key: value for key, value in bridged.items() if key != 'views'},
+            {key: value for key, value in community.items() if key != 'views'})
+
+    def test_r4_monthly_action_views(self):
+        """R4: List, Form, then the monthly Gantt view; the view is the Month copy with the
+        monthly variant, and the model's default Gantt view stays the main one."""
+        employee = self.env['hr.employee'].create({'name': 'HRA Monthly', 'tz': TZ})
+        action = employee.action_open_last_month_attendances()
+        monthly = self.env.ref(
+            'hr_attendance_gantt.hr_attendance_gantt_view_employee_monthly_hours')
+        self.assertEqual(
+            action['views'], [[False, 'list'], [False, 'form'], [monthly.id, 'gantt']])
+        self.assertEqual(action['res_model'], 'hr.attendance')
+        self.assertEqual(action['context'], {'group_by': ['check_in:week']})
+        copy = self.env.ref('hr_attendance_gantt.hr_attendance_gantt_view_default_scale_month')
+        self.assertEqual((monthly.mode, monthly.inherit_id), ('primary', copy))
+        combined = monthly._get_combined_arch()
+        self.assertEqual(combined.get('js_class'), 'monthly_attendance_gantt')
+        self.assertEqual(
+            (combined.get('default_range'), combined.get('default_scale')), ('month', 'month'))
+        # the copies are not the model's default Gantt view
+        default = self.env['hr.attendance'].get_views([(False, 'gantt')])['views']['gantt']
+        self.assertEqual(
+            default['id'], self.env.ref('hr_attendance_gantt.hr_attendance_gantt_view').id)
 
     def test_a3_my_attendances_modes(self):
         mine = self.env.ref('hr_attendance.hr_attendance_my_action')

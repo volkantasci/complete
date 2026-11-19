@@ -6,9 +6,14 @@
 the tasks of the slice that test roles, filters by role or the warning link reuse it.
 ``make_gantt_moved`` builds the prepared employee "Gantt Moved" (A54 to A56).
 ``drop_actions_records`` removes everything these two made, by name.
+``action_in_november`` fixes the clock of the employee's monthly action (R4).
 """
 
+from contextlib import contextmanager
 from datetime import datetime
+from unittest.mock import patch
+
+from freezegun import freeze_time
 
 from .hr_rows_fixtures import (
     CONTRACT_START,
@@ -33,6 +38,24 @@ ROLES = {
     ),
 }
 ATTENDANCE = (datetime(2026, 11, 11, 7, 0), datetime(2026, 11, 11, 9, 0))
+
+
+@contextmanager
+def action_in_november():
+    """The server's own today is the month of the employee's monthly action (its domain reads
+    the server's clock), and the scenarios of the monthly view draw November 2026: while this is
+    open, the action is made as if the server's clock read Wednesday 11 November 2026, 10:00 UTC,
+    whatever it reads. Only the Python method that returns the action runs on that clock."""
+    from odoo.addons.hr_attendance_gantt.models.hr_employee import HrEmployee
+
+    original = HrEmployee.action_open_last_month_attendances
+
+    def in_november(self):
+        with freeze_time("2026-11-11 10:00:00"):
+            return original(self)
+
+    with patch.object(HrEmployee, "action_open_last_month_attendances", in_november):
+        yield
 
 
 def _schedule(env):

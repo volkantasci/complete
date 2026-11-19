@@ -10,12 +10,15 @@ from zoneinfo import ZoneInfo
 
 from odoo.tests import tagged
 
-from .actions_fixtures import make_gantt_moved, make_role_users
+from .actions_fixtures import action_in_november, make_gantt_moved, make_role_users
 from .hr_rows_fixtures import TZ
 from .test_hr_rows_tours import HrToursBase
 
 MY_ACTION = '/odoo/action-hr_attendance.hr_attendance_my_action'
 PHONE = (390, 844)
+EMPLOYEE_FORM = '/odoo/action-hr.open_view_employee_list_my/%d'
+# the form the users without the Employees officer group are given: the public profile
+PUBLIC_FORM = '/odoo/action-hr.hr_employee_public_action/%d'
 
 
 @tagged('post_install', '-at_install')
@@ -435,3 +438,102 @@ class TestActionsTours(HrToursBase):
             [('employee_id.name', '=', 'Gantt Role Self')]).write({'state': 'validated'})
         self.env.flush_all()
         self._tour('hr_actions_a63_self_validated', path=MY_ACTION, login='gantt_self')
+
+    # -- the monthly view of an employee (R4, R22) -------------------------------------------
+
+    def _monthly(self, name, employee, public=False, **kwargs):
+        """A tour from the form of ``employee`` (the public profile for ``public``); the action
+        it opens is the one of November 2026 (its domain reads the server's own clock)."""
+        form = PUBLIC_FORM if public else EMPLOYEE_FORM
+        with action_in_november():
+            self._tour(name, path=form % employee.id, **kwargs)
+
+    def _by_name(self, name):
+        return self.env['hr.employee'].search([('name', '=', name)])
+
+    def test_a6_monthly_list(self):
+        like = self._demo()
+        with self.subTest(device='desktop'):
+            self._monthly('hr_actions_a6_monthly_list', like['HRA Anita'])
+        with self.subTest(device='phone'):
+            self._monthly('hr_actions_a6_monthly_list_phone', like['HRA Anita'], mobile=PHONE)
+
+    def test_a8_overview_follows_period(self):
+        like = self._demo()
+        with self.subTest(device='desktop'):
+            self._monthly('hr_actions_a8_overview_follows_period', like['HRA Anita'])
+        with self.subTest(device='phone'):
+            self._monthly(
+                'hr_actions_a8_overview_follows_period_phone', like['HRA Anita'], mobile=PHONE)
+
+    def test_a66_monthly_phone(self):
+        like = self._demo()
+        self._monthly('hr_actions_a66_monthly_phone', like['HRA Anita'], mobile=PHONE)
+
+    def test_a9_overview_employee(self):
+        like = self._demo()
+        self._monthly('hr_actions_a9_overview_employee', like['HRA Abigail'])
+
+    def test_a9_overview_open_attendance(self):
+        prepared = self._prepared()
+        self.assertIn('Gantt Open', [employee.name for employee in prepared.values()])
+        self._monthly('hr_actions_a9_overview_open', self._by_name('Gantt Open'))
+
+    def test_a77_create_form_employee(self):
+        like = self._demo()
+        self._monthly('hr_actions_a77_create_form_employee', like['HRA Anita'])
+
+    def test_a80_week_around_today(self):
+        like = self._demo()
+        with self.subTest(device='desktop'):
+            self._monthly('hr_actions_a80_week_around_today', like['HRA Anita'])
+        with self.subTest(device='phone'):
+            self._monthly('hr_actions_a80_week_around_today', like['HRA Anita'], mobile=PHONE)
+
+    def test_a81_lunch_rounding(self):
+        self._prepared()
+        self._monthly('hr_actions_a81_lunch_rounding', self._by_name('Gantt Lunch'))
+
+    def _toni(self):
+        """Toni Jimenez's shape: a schedule of 20 hours a week (4 hours a day), a contract from 1
+        September 2026."""
+        calendar = self.env['resource.calendar'].create({
+            'name': 'HRA 20 hours/week', 'full_time_required_hours': 20,
+            'attendance_ids': [(5, 0, 0)] + [
+                (0, 0, {'dayofweek': str(day), 'hour_from': 8, 'hour_to': 12})
+                for day in range(5)],
+        })
+        self.assertEqual(calendar.hours_per_day, 4)
+        return self._employee(
+            'HRA Toni', contract=('2026-09-01', None), resource_calendar_id=calendar.id)
+
+    def test_a85_admin(self):
+        like = self._demo()
+        toni = self._toni()
+        self._admin_employee()
+        with self.subTest(employee='Toni'):
+            self._monthly('hr_actions_a85_monthly_toni', toni)
+        with self.subTest(employee='Beth'):
+            self._monthly('hr_actions_a85_monthly_beth', like['HRA Beth'])
+        with self.subTest(list='New'):
+            self._monthly('hr_actions_a85_list_new', toni)
+
+    def test_a85_roles(self):
+        self._role_users()
+        peer = self._by_name('Gantt Role Peer')
+        with self.subTest(login='gantt_team'):
+            self._monthly('hr_actions_a85_monthly_team', peer, public=True, login='gantt_team')
+        with self.subTest(login='gantt_self'):
+            self._monthly(
+                'hr_actions_a85_monthly_self', self._by_name('Gantt Role Self'), public=True,
+                login='gantt_self')
+        with self.subTest(login='gantt_self', form='another'):
+            self._monthly('hr_actions_a85_self_other_form', peer, public=True, login='gantt_self')
+        with self.subTest(login='gantt_none'):
+            self._monthly(
+                'hr_actions_a85_monthly_none', self._by_name('Gantt Role None'), public=True,
+                login='gantt_none')
+        self.env.invalidate_all()
+        self.assertEqual(
+            self.env['hr.attendance'].search_count([('employee_id.name', '=', 'Gantt Role None')]),
+            1, 'nothing was created')

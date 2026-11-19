@@ -908,7 +908,8 @@ async function creationDialogShows() {
 
 /** The vertical middle of a row's header, where a click on a cell of the row lands. */
 const rowMiddle = (name) => {
-    const header = $(".o_tl_row_header", rowEl(name)).getBoundingClientRect();
+    // a view without groups draws no row header: the row is measured
+    const header = ($(".o_tl_row_header", rowEl(name)) || rowEl(name)).getBoundingClientRect();
     return header.top + header.height / 2;
 };
 
@@ -1494,4 +1495,296 @@ scenario("hr_actions_a63_self_validated", CALENDAR, async () => {
         [["2026-11-11 07:00:00", "2026-11-11 09:00:00"]],
         "the attendance was not written"
     );
+});
+
+// -- the monthly view of an employee (R4, R22) -------------------------------------------------------
+
+const WORKED_HOURS = "button[name='action_open_last_month_attendances']";
+const EMPLOYEE_FORM = ".o_form_view .o_field_widget[name='name']";
+const BAND = ".o_hag_overview_band";
+/** The cards of the band as "29h Work": the hours, then the work entry type's name. */
+const cards = () =>
+    $$(`${BAND} .o_attendance_entry_card`).map(
+        (card) =>
+            `${clean($(".o_attendance_entry_duration", card).textContent)} ${clean(
+                $(".o_attendance_entry_name", card).textContent
+            )}`
+    );
+
+/**
+ * The worked-hours button of the employee form that is open is pressed; the form's buttons are
+ * behind the button-box toggle on the phone (R22), and `viaToggle` says which way is expected.
+ */
+async function pressWorkedHours({ viaToggle = null } = {}) {
+    await until(() => $(EMPLOYEE_FORM), "the employee form", 30000);
+    await settle(900);
+    let button = $(WORKED_HOURS);
+    if (viaToggle !== null) {
+        assertEqual(!button, viaToggle, `the button is ${viaToggle ? "behind the toggle" : "in the bar"}`);
+    }
+    if (!button) {
+        const toggle = await until(
+            () => $(".o_form_view .o-form-buttonbox .o_button_more"),
+            "the button-box toggle"
+        );
+        await realClick(toggle);
+        button = await until(
+            () => $(`.o-dropdown--menu ${WORKED_HOURS}`),
+            "the worked-hours button in the menu of the toggle"
+        );
+        // the menu is a sheet that slides in: click once it rests
+        await settle(900);
+        button = $(`.o-dropdown--menu ${WORKED_HOURS}`);
+    }
+    await realClick(button);
+    await until(() => $(".o_list_view"), "the list of the month", 20000);
+    await settle(600);
+}
+
+/** Gantt is chosen in the switcher of the monthly action; the view and its band are drawn. */
+async function showMonthlyGantt() {
+    await switchTo("Gantt");
+    await until(() => $(".o_tl_renderer .o_tl_row"), "the grid", 30000);
+    await settle(300);
+    await until(() => $(BAND), "the overview band");
+    await dataSettled();
+    await settle(900);
+}
+
+/** A range of the menu is chosen (the view has no row header, which `pickRange` waits for). */
+async function chooseRange(kind) {
+    const label = kind[0].toUpperCase() + kind.slice(1);
+    $(".o_tl_range_button").click();
+    const item = await until(() => $(`.o_tl_range_menu .o_tl_range_${kind}`), `the ${kind} item`);
+    item.click();
+    await until(() => rangeName() === label, `the range ${label}`);
+    await dataSettled();
+    await settle(800);
+}
+
+/** A pill's box: its body lies one pixel inside it (002a). */
+const boxOfPill = (pill) => {
+    const rect = rectOf(pill);
+    return { left: rect.left - 1, width: rect.width + 2 };
+};
+
+// A6 and the phone's part of R22: the button, the list, the switcher
+const monthlyList = (phone) => async () => {
+    await pressWorkedHours({ viaToggle: phone });
+    assertEqual(lastCrumb(), "Attendances This Month", "the action's name");
+    const entries = await switcherEntries();
+    assertEqual(entries.names, ["List", "Gantt"], "the switcher shows List and Gantt");
+    assertEqual(entries.active, ["List"], "List is active");
+    const groups = $$(".o_list_view .o_group_header");
+    assert(groups.length > 0, "the list is grouped (by week)");
+    assert(/W\d+/.test(clean(groups[0].textContent)), `a week group: ${groups[0].textContent}`);
+};
+scenario("hr_actions_a6_monthly_list", EMPLOYEE_FORM, monthlyList(false));
+scenario("hr_actions_a6_monthly_list_phone", EMPLOYEE_FORM, monthlyList(true));
+
+// A7 (structure) and A8: the overview follows the period
+const overviewFollows = (phone) => async () => {
+    await pressWorkedHours({ viaToggle: phone });
+    await showMonthlyGantt();
+    assertEqual(rangeName(), "Month", "the Month range");
+    assert(
+        dateColumns().every((el) => el.dataset.date.startsWith("2026-11")),
+        "the days of November 2026"
+    );
+    await until(() => cards().length, "the card of the month");
+    assertEqual(cards(), ["29h Work"], "the hours of the month by work entry type");
+    const band = rectOf($(BAND));
+    assertNear(band.height, 96, "the band's height", 0.5);
+    assertNear(band.width, window.innerWidth, "as wide as the view", 1);
+    assert(rectOf(renderer()).top >= band.bottom - 0.5, "the grid lies under the band");
+    // one unnamed row: no header text, no avatar, no label, no bar
+    assertEqual(rowNames(), [""], "one unnamed row");
+    assertEqual(pillsOf("").length, 2, "its two pills");
+    assert(!$(".o_tl_row_label"), "no label");
+    assert(!$(".o_tl_row_header .o_hrg_avatar"), "no avatar");
+    assert(!$(".o_tl_progress:not(.o_hag_bar_space)"), "no bar");
+    // October: no card, the band keeps its height
+    await step(-1);
+    await until(() => cards().length === 0, "no card in October");
+    assertNear(rectOf($(BAND)).height, 96, "the band keeps its height in October", 0.5);
+    // December, after two steps
+    await step(1, 2);
+    await settle(1200);
+    assertEqual(cards(), [], "no card in December");
+    assertNear(rectOf($(BAND)).height, 96, "the band keeps its height in December", 0.5);
+    // and back: the cards follow the period both ways
+    await step(-1);
+    await until(() => cards().length === 1, "the card of November again");
+    assertEqual(cards(), ["29h Work"], "November again");
+};
+scenario("hr_actions_a8_overview_follows_period", EMPLOYEE_FORM, overviewFollows(false));
+scenario("hr_actions_a8_overview_follows_period_phone", EMPLOYEE_FORM, overviewFollows(true));
+
+// A66: the monthly view on the phone, reached through the button-box toggle
+scenario("hr_actions_a66_monthly_phone", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours({ viaToggle: true });
+    await showMonthlyGantt();
+    await until(() => cards().length, "the card of the month");
+    assertNear(rectOf($(BAND)).height, 96, "the band's height", 0.5);
+    assert(rectOf(renderer()).top >= rectOf($(BAND)).bottom - 0.5, "the grid lies under the band");
+});
+
+// A9: the overview is the form's employee's
+scenario("hr_actions_a9_overview_employee", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    await until(() => cards().length, "the card of the employee");
+    assertEqual(cards(), ["3h 30m Work"], "her attendance of 11 November, not Anita's 29 h");
+});
+scenario("hr_actions_a9_overview_open", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    await settle(1500);
+    assertEqual(pillsOf("").length, 1, "the open attendance is drawn");
+    assertEqual(cards(), [], "an open attendance adds no card");
+    assertNear(rectOf($(BAND)).height, 96, "the band keeps its height", 0.5);
+});
+
+// A77: creating proposes the form's employee
+scenario("hr_actions_a77_create_form_employee", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    await clickCell("", "2026-11-17");
+    assertEqual(
+        proposal(),
+        { employee: "HRA Anita", from: "11-17 00:00", to: "11-17 08:00", worked: "8h" },
+        "a click on 17 November"
+    );
+    assertEqual(warnings().length, 0, "no warning");
+    await closeDialog();
+    await until(() => !$(".modal"), "the dialog closes");
+    await realClick($(".o_tl_button_add"));
+    await creationDialogShows();
+    assertEqual(
+        proposal(),
+        { employee: "HRA Anita", from: "11-01 00:00", to: "11-01 08:00", worked: "8h" },
+        "the New button"
+    );
+    await closeDialog();
+    await until(() => !$(".modal"), "the dialog closes");
+    const from = await cellPoint("", "2026-11-17");
+    const to = await cellPoint("", "2026-11-19");
+    const y = rowMiddle("");
+    await realDrag({ x: from.x, y }, [
+        { x: from.x + 20, y },
+        { x: (from.x + to.x) / 2, y },
+        { x: to.x, y },
+    ]);
+    await creationDialogShows();
+    assertEqual(
+        proposal(),
+        { employee: "HRA Anita", from: "11-17 00:00", to: "11-17 08:00", worked: "8h" },
+        "a press dragged from 17 to 19 November"
+    );
+    await closeDialog();
+});
+
+// A80: the range chosen around today in the monthly view
+scenario("hr_actions_a80_week_around_today", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    if (onPhone()) {
+        // scrolled to the end of the month
+        renderer().scrollLeft = renderer().scrollWidth;
+        await settle(600);
+    }
+    await chooseRange("week");
+    const dates = dateColumns().map((el) => el.dataset.date.slice(0, 10));
+    assert(dates.includes("2026-11-11"), `today's day is in the week: ${dates}`);
+    assert(
+        dates.every((date) => date >= "2026-11-08" && date <= "2026-11-14"),
+        `the week of 8 to 14 November: ${dates}`
+    );
+    assert(dates.includes("2026-11-09") && dates.includes("2026-11-13"), `Monday to Friday: ${dates}`);
+});
+
+// A81: lunch rounding in the monthly view (half days, as 002d2 S7 draws them)
+scenario("hr_actions_a81_lunch_rounding", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    const pills = pillsOf("");
+    assertEqual(pills.length, 5, "five pills");
+    const column = (date) => rectOf(dateColumns().find((el) => el.dataset.date.startsWith(date)));
+    const expectations = [
+        ["2026-11-02", 0, 1], // 9:00 to 13:00, the morning half
+        ["2026-11-03", 1, 1], // 12:30 to 17:00, the afternoon half
+        ["2026-11-04", 1, 1], // 11:00 to 15:00, the afternoon half
+        ["2026-11-05", 0, 2], // 10:00 to 15:00, both halves
+        ["2026-11-06", 0, 1], // 11:30 to 12:15, the morning half
+    ];
+    for (const [date, from, size] of expectations) {
+        const day = column(date);
+        const half = day.width / 2;
+        const pill = pills.find((candidate) => {
+            const box = boxOfPill(candidate);
+            return box.left >= day.left - 1 && box.left < day.right - 1;
+        });
+        assert(pill, `a pill on ${date}`);
+        const box = boxOfPill(pill);
+        assertNear(box.left, day.left + from * half, `${date}: left`);
+        assertNear(box.width, size * half, `${date}: width`);
+    }
+});
+
+// A85: the form's employee, its hours and its warning
+const proposesOn17 = (employee, to, { warned = false, readonly = false } = {}) => async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    await clickCell("", "2026-11-17");
+    assertEqual(
+        proposal(),
+        { employee, from: "11-17 00:00", to: `11-17 ${to}`, worked: `${Number(to.slice(0, 2))}h` },
+        `the dialog for ${employee}`
+    );
+    assertEqual(warnings().length, warned ? 1 : 0, warned ? "the warning shows" : "no warning");
+    if (warned) {
+        assertEqual(links().length, 1, "with the link");
+        assertEqual(clean(links()[0].textContent), "Correct employee", "the link's text");
+    }
+    if (readonly) {
+        assert(!$(".modal .o_field_widget[name='employee_id'] input"), "the employee is read-only");
+    }
+    await closeDialog();
+};
+scenario("hr_actions_a85_monthly_toni", EMPLOYEE_FORM, proposesOn17("HRA Toni", "04:00"));
+scenario("hr_actions_a85_monthly_beth", EMPLOYEE_FORM, proposesOn17("HRA Beth", "08:00", { warned: true }));
+scenario("hr_actions_a85_monthly_team", EMPLOYEE_FORM, proposesOn17("Gantt Role Peer", "08:00"));
+scenario(
+    "hr_actions_a85_monthly_self",
+    EMPLOYEE_FORM,
+    proposesOn17("Gantt Role Self", "08:00", { readonly: true })
+);
+
+// Self reaches the monthly view of its own employee alone: the button is not on another's form
+scenario("hr_actions_a85_self_other_form", EMPLOYEE_FORM, async () => {
+    await until(() => $(EMPLOYEE_FORM), "the employee form", 30000);
+    await settle(1500);
+    assert(!$(WORKED_HOURS), "no worked-hours button on another employee's form");
+    assert(!$(".o_form_view .o-form-buttonbox .o_button_more"), "nothing behind a toggle either");
+});
+
+// No role: no New, and a click on a cell opens nothing
+scenario("hr_actions_a85_monthly_none", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    assert(!$(".o_tl_button_add"), "no New button");
+    await realClick(null, { at: await cellPoint("", "2026-11-17") });
+    await settle(1200);
+    assertEqual(MODALS().length, 0, "nothing opens for a click on a cell");
+});
+
+// In the list of the same action New opens the Community form with the user's own employee
+scenario("hr_actions_a85_list_new", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await realClick(await until(() => $(".o_list_button_add"), "the New button of the list"));
+    const input = await until(
+        () => $(".o_form_view .o_field_widget[name='employee_id'] input"),
+        "the Community form"
+    );
+    assertEqual(clean(input.value), "Mitchell Admin", "the user's own employee");
 });
