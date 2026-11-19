@@ -173,7 +173,7 @@ do not.
 | Nothing worked, but the employee is tracked by attendances | warning colour | empty |
 | Fully flexible schedule | muted, hours only | none, and no tooltip |
 
-A flexible employee who is also tracked by attendances still gets the warning
+A fully flexible employee who is also tracked by attendances still gets the warning
 colour, as nothing is expected and nothing counts. Resting the pointer on the
 label or the bar shows a tooltip such as "29h/40h (72%)", with the percentage
 rounded to the nearest whole number. It has no tooltip when nothing is
@@ -243,7 +243,8 @@ grey all day folds its 24 hour columns into one column as wide as the grid.
 When the page has **at most one row and that row has no attendance** (a search
 on one employee who has not checked in, an unmatched search, a period with
 nothing in it), the view shows the helper of the Attendances application, in its
-own wording: onboarding for an officer, a short note for others. It is laid over
+own wording: onboarding for an attendance officer or above who is also an Employees officer, a
+short note for others. It is laid over
 the grid from 115 px below the top of the view, so the row stays visible and can
 still be clicked through it, and it stretches to the bottom of the window. On a
 phone, the helper takes the place of the grid instead. Two or more rows never
@@ -260,8 +261,8 @@ only row is grey all day, so the page folds right after the search.
 
 Below the small-screen breakpoint the view is the phone layout of the Gantt
 view. The row header column is narrower, the names are cut with an ellipsis and
-the label always takes its short form. The pager and the search facets live in
-the control panel's folded menu; the search button opens the search bar. A tap
+the label always takes its short form. The pager sits in the control panel, and the search facets show once the search
+bar is opened with its button. A tap
 on an avatar opens nothing.
 
 ![The attendances on a phone, light](../assets/attendance_gantt/01-day.mobile.png)
@@ -295,7 +296,8 @@ The bridge adds no group, access right or record rule.
 
 In this release, a click on a pill opens its popover and a double click opens the
 record in a dialog, as in any Gantt view; a click on an empty cell and the New
-button open the create dialog with the attendance model's default form. Where
+button open the create dialog with the attendance model's default form (the
+view does not offer the Gantt view's plan dialog). Where
 the pointer is over an empty cell, nothing lights up and no button appears. A
 later release changes these actions to suit attendances.
 

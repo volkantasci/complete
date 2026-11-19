@@ -1542,8 +1542,9 @@ A module can register its own variant of the view and choose it with the
 (exported by `@web_gantt/timeline_view`), replaces `Model` or `Renderer` with
 subclasses of `TimelineModel` or `TimelineRenderer`, and adds it to the
 `views` registry. Four places are meant to be overridden. The employee variant of
-[Employees Timeline](employee_gantt.md) uses all four; the plain view behaves
-exactly as before when none is overridden.
+[Employees Timeline](employee_gantt.md) uses the other three and reshapes the
+row name through an inheriting template instead of `rowLeadTemplate`; the plain
+view behaves exactly as before when none is overridden.
 
 | Place | On | What a variant may do | What the view guarantees |
 |---|---|---|---|

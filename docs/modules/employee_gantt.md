@@ -58,7 +58,12 @@ rules the helper follows:
 - Your search, the period and the read rule of the view's model are first turned
   into conditions on the employees. A condition that cannot be turned into one
   on the employee is left out, as if it were true inside an "and" and false
-  inside an "or".
+  inside an "or". An "and" or "or" none of whose parts can be turned into one is
+  left out whole (ruling RL26): otherwise the period condition of a week with no
+  open attendance would be false and empty every row, while that week must show
+  all its employees (scenario A54, probe M68). This differs from the literal text
+  of the rule for such operators only; the question stays open for the verifier
+  (Q6).
 - The employees are searched with your own rights, so you never see a row of an
   employee you may not see. Archived employees appear only when the search asks
   for them.

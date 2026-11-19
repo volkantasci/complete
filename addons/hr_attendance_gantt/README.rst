@@ -120,8 +120,10 @@ and adds attributes to the ``gantt`` element, which the Gantt view already reads
         </field>
     </record>
 
-``plan`` (default on) decides whether a click on an empty cell opens the plan dialog
-or the create dialog; ``form_view_id`` is the database identifier of the form view
+``plan`` decides whether a click on an empty cell opens the plan dialog or the create
+dialog. The view record does not name it, and the attendance variant reads an absent
+``plan`` as off (the create dialog opens, scenario A59); an arch that names it is read
+as the Gantt view reads it; ``form_view_id`` is the database identifier of the form view
 that the create and record dialogs use. The identifier is not known when an XML file
 is written, so a module that needs it sets the attribute from code, when it
 installs.

@@ -54,7 +54,11 @@ A model calls it from its own ``get_gantt_data``; the Attendances bridge does.
   conditions. A condition that cannot be converted is replaced by the value that
   leaves its operator unchanged: true inside an "and", false inside an "or"; an
   operator none of whose parts can be converted says nothing and is left out of
-  its parent.
+  its parent (ruling RL26). The reason is the browser's own period condition: an
+  "or" of two attendance conditions would otherwise be false inside an "and" and
+  empty every row of a period without an open-attendance branch, such as the
+  future week of 13 to 19 December (A54, M68). The literal rule differs only for
+  such operators; the question (Q6) stays open for the verifier.
 - The context key ``user_domain`` is what the browser's variant sends. A model
   reads it to decide whether every condition of the user's search concerns the
   related record (``_hrg_concerns_only(domain, field_name)``) before it chooses the
@@ -93,8 +97,10 @@ Model (``EmployeeTimelineModel``, a ``TimelineModel``)
     view); the lunch rule is applied through it.
 
 Renderer (``EmployeeTimelineRenderer``, a ``TimelineRenderer``)
-  - ``rowLeadTemplate``: the template that comes before the name in a row header;
-    here ``hr_gantt.EmployeeRowLead`` (the Gantt view's slot).
+  - ``employeeField``: the name of the view's employee field (``employee_id``);
+    only its rows get avatars, not those of another many-to-one to employees
+    (a Manager grouping). Override it for a model whose employee field has another
+    name.
   - ``employeeOf(descriptor)``: the employee a row stands for, ``{id, name}``, or
     null.
   - ``nameClass(descriptor)``: extra classes of the row's name (the attendance
@@ -104,6 +110,9 @@ Renderer (``EmployeeTimelineRenderer``, a ``TimelineRenderer``)
   - ``partialCellStyle(covered)``: the style of a partly unavailable cell (the
     hook of the Gantt view); a cell with two different halves also gets the class
     ``o_hrg_split``.
+
+The variant does not use the Gantt view's ``rowLeadTemplate`` (the avatar sits in
+the name's box); that extension point stays in ``web_gantt`` for other variants.
 
 Pure helpers in ``employee_layout.js`` (``lunchRoundedParts``,
 ``diagonalBackground``, ``isHalfDayPrecision``) carry the rules and can be tested
