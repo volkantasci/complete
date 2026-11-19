@@ -1,11 +1,6 @@
 <!-- Copyright 2026 Complete contributors -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
-    <!-- What an employee row header shows before the name: the avatar (R4), called with `row` in scope. -->
-    <!-- What an employee row header shows before the name, called with `row` in scope: only the
-         thumbnail of 002a's lead; the avatar sits in the identity box of the title line below. -->
-    <t t-name="hr_gantt.EmployeeRowLead"><t t-call="web_gantt.TimelineRowLead"/></t>
-
     <!-- The employee variant's grid: in an employee row's title line the avatar and the name share
          one box (the identity box, R4), before the hours label. -->
     <t t-name="hr_gantt.EmployeeTimelineRenderer" t-inherit="web_gantt.TimelineRenderer" t-inherit-mode="primary">

@@ -33,6 +33,7 @@ export class Shift extends models.Model {
     active = fields.Boolean({ default: true });
     employee_id = fields.Many2one({ relation: "hr.employee", string: "Employee" });
     department_id = fields.Many2one({ relation: "hr.department", string: "Department" });
+    manager_id = fields.Many2one({ relation: "hr.employee", string: "Manager" });
     start = fields.Datetime({ string: "Start" });
     stop = fields.Datetime({ string: "Stop" });
 
@@ -81,6 +82,7 @@ export async function makeEmployeeData(employeeNames, shifts = []) {
         shifts.map(([name, employee, start, stop]) => ({
             name,
             employee_id: employee ? byName[employee] : false,
+            manager_id: employee ? byName[employee] : false,
             start: utc(...start),
             stop: utc(...stop),
         }))

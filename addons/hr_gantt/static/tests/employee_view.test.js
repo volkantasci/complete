@@ -120,6 +120,12 @@ test("A9: rows of another field keep 002a's look", async () => {
     expect(".o_tl_row_header").toHaveCount(1);
 });
 
+test("R4: a many-to-one to employees other than the employee field (Manager) shows no avatar", async () => {
+    await mountEmployees({ groupBy: ["manager_id"] });
+    expect(avatars()).toHaveCount(0);
+    expect(".o_tl_row_header:contains(Anita Oliver)").toHaveCount(1);
+});
+
 // ----------------------------------------------------------------------------
 // R5
 // ----------------------------------------------------------------------------

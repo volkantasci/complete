@@ -22,8 +22,12 @@ export class EmployeeTimelineRenderer extends TimelineRenderer {
         this.avatarCard = usePopover(AvatarCard);
     }
 
-    get rowLeadTemplate() {
-        return "hr_gantt.EmployeeRowLead";
+    /**
+     * R4: the name of the view's employee field, the only field whose rows get avatars (a
+     * Manager grouping keeps 002a's look). A variant of another model overrides it.
+     */
+    get employeeField() {
+        return "employee_id";
     }
 
     /**
@@ -32,7 +36,7 @@ export class EmployeeTimelineRenderer extends TimelineRenderer {
      */
     employeeOf(descriptor) {
         const row = descriptor.row;
-        if (!row.fieldName || !row.resId || row.isEmptyValueRow) {
+        if (row.fieldName !== this.employeeField || !row.resId || row.isEmptyValueRow) {
             return null;
         }
         const field = this.props.model.fields[row.fieldName];
