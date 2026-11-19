@@ -20,6 +20,7 @@ from .hr_rows_fixtures import (
     make_demo_like,
     make_prepared,
     make_whole_day_schedule,
+    move_others_away,
 )
 
 ACTION = '/odoo/action-hr_attendance.hr_attendance_action'
@@ -66,6 +67,8 @@ class TestHrRowsTours(RealPointerMixin, HttpCase):
         })
         self._one_language()
         self.schedule = make_whole_day_schedule(self.env, SCHEDULE)
+        # the demo's employees (when loaded) leave the page: another company hides them
+        move_others_away(self.env)
 
     def _one_language(self):
         """One active language: a second one changes no element of the views, but adds buttons

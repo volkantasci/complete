@@ -15,7 +15,7 @@ Two worlds, because the rows of the demo data and the prepared records cannot sh
   read a position that depends on the rows above (M1's y 253, M8, M16, M19) need the same rows,
   in the same order, as the demo page: Anita Oliver is the second row (one row above her); Keith
   Byrd the eleventh, with eight single rows between Anita Oliver and him (ruling T11-1). The other
-  demo employees are archived so that no stray row shows.
+  demo employees move to another company so that no stray row shows.
 * ``TestHrRowsPreparedProbes`` builds the prepared employees "Gantt ..." of acceptance.md, found
   with the search "Gantt" (ruling T11-2).
 
@@ -54,6 +54,7 @@ from .hr_rows_fixtures import (
     make_demo_like,
     make_prepared,
     make_whole_day_schedule,
+    move_others_away,
 )
 from .hr_rows_probe_values import WORKED, measured
 
@@ -142,8 +143,9 @@ class HrProbes(TimelineProbeCase):
 
     @classmethod
     def archive_others(cls, prefix):
-        """The demo data's employees (when loaded) leave the page: only ``prefix`` ones show."""
-        cls.env['hr.employee'].search([('name', 'not like', prefix + '%')]).write({'active': False})
+        """The demo data's employees (when loaded) leave the page: only ``prefix`` ones show. They
+        move to another company, so none is archived (the Archived Employees filter shows none)."""
+        move_others_away(cls.env, prefix)
 
     # -- the page -------------------------------------------------------------------------------
 
@@ -492,7 +494,8 @@ class TestHrRowsProbes(HrProbes):
             like[f'HRA {name}'] = self.employee(f'HRA {name}')
         for index in range(1, 9):
             self.employee(f'HRA Pat {index:02d}')
-        self.assertEqual(self.env['hr.employee'].search_count([('active', '=', True)]), 22)
+        self.assertEqual(self.env['hr.employee'].search_count(
+            [('active', '=', True), ('name', 'like', 'HRA %')]), 22)
         self.env.flush_all()
         return like
 

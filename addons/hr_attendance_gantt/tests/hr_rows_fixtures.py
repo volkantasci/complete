@@ -68,6 +68,24 @@ def make_whole_day_schedule(env, name=DEMO_SCHEDULE):
     return env["resource.calendar"].create({"name": name, "full_time_required_hours": 40})
 
 
+def move_others_away(env, keep_prefix=None):
+    """Keep every employee that a test did not create, with its attendances, out of the views.
+
+    The employees that exist now (the demo's, when loaded; all but those named ``keep_prefix...``)
+    move to a company that is not one of the test users' companies, so the multi-company rules
+    hide them from the rows and from the attendance search. They stay active (the Archived
+    Employees filter must show none) and are not deleted (demo users link to them).
+    """
+    domain = [("name", "not like", keep_prefix + "%")] if keep_prefix else []
+    others = env["hr.employee"].with_context(active_test=False).search(domain)
+    if not others:
+        return
+    away = env["res.company"].search([("name", "=", "HRA Elsewhere")], limit=1)
+    away = away or env["res.company"].create({"name": "HRA Elsewhere"})
+    others.write({"company_id": away.id})
+    env.flush_all()
+
+
 def find_demo_schedule(env):
     """The demo's "40 hours/week" schedule, or a clear error when the database lacks it."""
     schedule = env["resource.calendar"].search([("name", "=", DEMO_SCHEDULE)], limit=1)
