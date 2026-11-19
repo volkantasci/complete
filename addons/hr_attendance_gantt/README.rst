@@ -19,21 +19,37 @@ The Community management action (Attendances > Management > Dashboard,
 List, Form, with Gantt as the default. Its context becomes the grouping by
 employee as the search default, which shows as the "Employee" facet; the
 Community's grouping by month is dropped. Name, search view and help are kept.
+The Community **My Attendances** action (``hr_attendance.hr_attendance_my_action``) gets
+the Gantt view mode as its second one: Calendar (still first and the default), Gantt, List,
+Pivot, Graph. Its condition, context and calendar view are kept; the Gantt mode uses the
+model's default Gantt view.
+
 The module's uninstall hook, ``restore_attendance_action`` in ``hooks.py``, writes
-the Community's view modes (``list,form``) and context back.
+the Community's view modes (``list,form`` and ``calendar,list,pivot,graph``) and the
+management action's context back.
 
 The view
 --------
 
-``hr_attendance_view_gantt`` is a Gantt view of ``hr.attendance`` with
+``hr_attendance_gantt_view`` is a Gantt view of ``hr.attendance`` (version 20.0.1.1.0
+renamed it from ``hr_attendance_view_gantt``; the migration renames the identifier, and
+the record keeps its database id) with
 ``js_class="attendance_gantt"``: the title "Days" over the row headers, check-in
 and check-out as start and stop, the work entry type's colour, grouping by
 employee, 20 groups per page, the Day range as default, precision of quarter
 hours on the day scale, quarter days on the week scale and half days on the month
 scale, unavailable periods on, and progress bars for the employee field. The
 two-week precision entry names a scale the view does not know, and is ignored.
-Every other option keeps its default, so there is no multi-selection, side panel or
-dependency.
+The form of its dialogs is the Community creation form
+(``hr_attendance.hr_attendance_create_view_form``, the ``form_view_id`` option) and the
+plan option is off (``plan="0"``), so a click on an empty cell creates. Every other option
+keeps its default, so there is no multi-selection, side panel or dependency.
+
+``hr_attendance_gantt_view_default_scale_month`` is a primary copy of it that opens on the
+Month range. It has a later priority, so the model's default Gantt view stays the original.
+
+Attendances also offer ``action_open_details()``: on one attendance it returns the window
+action that opens it in the Community form view; no screen of this module uses it.
 
 The variant ``attendance_gantt``
 --------------------------------
@@ -107,11 +123,11 @@ The variant is a plain object, ``attendanceTimelineView`` in
 its own entry (for the monthly view, for instance) and chooses it with ``js_class``.
 
 **The arch accepts more options by inheritance.** The view record names only the
-options listed above. A later module inherits ``hr_attendance_gantt.hr_attendance_view_gantt``
+options listed above. A later module inherits ``hr_attendance_gantt.hr_attendance_gantt_view``
 and adds attributes to the ``gantt`` element, which the Gantt view already reads::
 
     <record id="my_attendance_view_gantt" model="ir.ui.view">
-        <field name="inherit_id" ref="hr_attendance_gantt.hr_attendance_view_gantt"/>
+        <field name="inherit_id" ref="hr_attendance_gantt.hr_attendance_gantt_view"/>
         <field name="arch" type="xml">
             <gantt position="attributes">
                 <attribute name="plan">0</attribute>
@@ -121,12 +137,10 @@ and adds attributes to the ``gantt`` element, which the Gantt view already reads
     </record>
 
 ``plan`` decides whether a click on an empty cell opens the plan dialog or the create
-dialog. The view record does not name it, and the attendance variant reads an absent
-``plan`` as off (the create dialog opens, scenario A59); an arch that names it is read
-as the Gantt view reads it; ``form_view_id`` is the database identifier of the form view
-that the create and record dialogs use. The identifier is not known when an XML file
-is written, so a module that needs it sets the attribute from code, when it
-installs.
+dialog; the view record sets it off (``plan="0"``), and the attendance variant also reads an
+absent ``plan`` as off. ``form_view_id`` is the database identifier of the form view that
+the create and record dialogs use; in an XML file it is written
+``%(module.xmlid)d``, as the view record does.
 
 Installation
 ============

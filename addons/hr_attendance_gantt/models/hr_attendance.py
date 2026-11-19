@@ -12,6 +12,22 @@ from odoo.tools.intervals import Intervals
 class HrAttendance(models.Model):
     _inherit = 'hr.attendance'
 
+    def action_open_details(self):
+        """The window action that opens this attendance in the Community form.
+
+        Kept for modules that call it on one attendance; no screen of this module uses it.
+        """
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': self.env._("Attendance"),
+            'res_model': 'hr.attendance',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'views': [(self.env.ref('hr_attendance.hr_attendance_view_form').id, 'form')],
+            'target': 'current',
+        }
+
     @api.model
     @api.readonly
     def get_gantt_data(
