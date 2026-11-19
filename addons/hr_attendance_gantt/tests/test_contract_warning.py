@@ -7,6 +7,7 @@ contracts."""
 from datetime import datetime
 
 from lxml import etree
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
 
@@ -63,7 +64,7 @@ class TestContractWarning(TransactionCase):
         users = make_role_users(self.env, schedule=self.schedule)
         user = users['gantt_self']
         self.assertFalse(user.has_group('hr.group_hr_user'))
-        with self.assertRaises(Exception):  # noqa: B017 - the Community's access error
+        with self.assertRaises(AccessError):
             self.env['hr.version'].with_user(user).search([])
         mine = self.Attendance.search([('employee_id', '=', user.employee_id.id)])
         self.assertEqual(len(mine), 1)
