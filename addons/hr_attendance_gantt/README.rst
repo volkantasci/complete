@@ -121,6 +121,24 @@ The code is ``AttendanceTimelineRenderer.onPillClick`` and
 ``AttendanceTimelineEditor`` (the editor of the view's ``Editor`` slot) in
 ``attendance_timeline_editor.js``.
 
+Moving and resizing
+===================
+
+Dragging a pill, or one of its ends, writes the attendance as the Gantt view does for any
+record; the Community's own rules apply to the write (an overlap, a check-out before the
+check-in, the access rules), and a refused write shows its error and the pill goes back. A
+move with Ctrl held asks for a copy, which the Community refuses (an error dialog; nothing
+is created or moved). Some writes run the Community's time rules, which can split an
+attendance longer than the schedule; Undo then gives the first part its values back but
+cannot join the parts again.
+
+An open attendance (no check-out) is drawn up to the instant its data was loaded ("now").
+Moving it writes the check-in only, so it stays open; dragging its start writes the
+check-in; dragging its end writes a check-out of "now" plus the sub-columns of the drag, with
+the seconds of "now". Undo gives the earlier check-in back and, after a move or an end drag,
+empties the check-out. The code is ``AttendanceTimelineEditor.writeValuesFor`` and
+``undoValuesFor`` (the value hooks of the framework's editor).
+
 The variant is a plain object, ``attendanceTimelineView`` in
 ``attendance_timeline_view.js``; a later module extends the renderer class, registers
 its own entry (for the monthly view, for instance) and chooses it with ``js_class``.

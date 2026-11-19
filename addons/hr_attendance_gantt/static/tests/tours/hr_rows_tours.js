@@ -1540,6 +1540,8 @@ export {
     removeFacet,
     resizeTo,
     searchFor,
+    send,
+    mouse,
     renderer,
     rowEl,
     rowNames,

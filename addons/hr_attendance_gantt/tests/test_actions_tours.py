@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from odoo.tests import tagged
 
-from .actions_fixtures import make_role_users
+from .actions_fixtures import make_gantt_moved, make_role_users
 from .hr_rows_fixtures import TZ
 from .test_hr_rows_tours import HrToursBase
 
@@ -342,3 +342,95 @@ class TestActionsTours(HrToursBase):
     def test_a48_never_plan(self):
         self._cells()
         self._tour('hr_actions_a48_never_plan')
+
+    # -- moving and resizing (R17 to R19, R18) -------------------------------------------------
+
+    def _abigail_restored(self):
+        """Abigail's attendance is written back to 06:00 to 09:30 UTC after the scenario, and the
+        attendances a scenario added to her are removed, also when it fails."""
+        def restore():
+            self.env.invalidate_all()
+            attendances = self._abigail_attendance()
+            attendances.filtered(lambda a: a.check_in != datetime(2026, 11, 11, 6, 0)).with_context(
+                skip_time_rules=True).unlink()
+            self._abigail_attendance().with_context(skip_time_rules=True).write({
+                'check_in': datetime(2026, 11, 11, 6, 0),
+                'check_out': datetime(2026, 11, 11, 9, 30)})
+        self.addCleanup(restore)
+
+    def test_a49_move(self):
+        self._demo()
+        self._abigail_restored()
+        self._tour('hr_actions_a49_move')
+
+    def test_a50_undo(self):
+        self._demo()
+        self._abigail_restored()
+        self._tour('hr_actions_a50_undo')
+
+    def test_a51_resize_end(self):
+        self._demo()
+        self._abigail_restored()
+        self._tour('hr_actions_a51_resize_end')
+
+    def test_a52_refused_move(self):
+        like = self._demo()
+        self._abigail_restored()
+        self.env['hr.attendance'].with_context(skip_time_rules=True).create({
+            'employee_id': like['HRA Abigail'].id, 'check_in': datetime(2026, 11, 11, 11, 0),
+            'check_out': datetime(2026, 11, 11, 12, 0)})
+        self.env.flush_all()
+        self._tour('hr_actions_a52_refused_move')
+
+    def test_a53_ctrl_copy(self):
+        self._demo()
+        self._abigail_restored()
+        self._tour('hr_actions_a53_ctrl_copy')
+
+    def _gantt_moved(self):
+        """The open attendance of "Gantt Moved" is put back to 07:00 UTC after the scenario."""
+        make_gantt_moved(self.env, self.schedule)
+
+        def restore():
+            self.env.invalidate_all()
+            self._moved_attendance().with_context(skip_time_rules=True).write({
+                'check_in': datetime(2026, 11, 11, 7, 0), 'check_out': False})
+        self.addCleanup(restore)
+
+    def _moved_attendance(self):
+        self.env.invalidate_all()
+        return self.env['hr.attendance'].search([('employee_id.name', '=', 'Gantt Moved')])
+
+    def test_a54_move_open(self):
+        self._gantt_moved()
+        self._tour('hr_actions_a54_move_open')
+        self.assertEqual(self._moved_attendance().check_in, datetime(2026, 11, 11, 9, 0))
+        self.assertFalse(self._moved_attendance().check_out)
+
+    def test_a55_resize_start_open(self):
+        self._gantt_moved()
+        self._tour('hr_actions_a55_resize_start_open')
+
+    def test_a56_undo_move_open(self):
+        self._gantt_moved()
+        self._tour('hr_actions_a56_undo_move_open')
+
+    def test_a76_end_drag_open(self):
+        self._gantt_moved()
+        self._tour('hr_actions_a76_end_drag_open')
+        self.assertEqual(self._moved_attendance().check_out, datetime(2026, 11, 11, 11, 0, 2))
+
+    def test_a83_undo_end_drag_open(self):
+        self._gantt_moved()
+        self._tour('hr_actions_a83_undo_end_drag_open')
+
+    def test_a63_self_validated(self):
+        self._role_users()
+        company = self.users['gantt_self'].company_id
+        self.addCleanup(company.write, {'attendance_validation': company.attendance_validation})
+        company.attendance_validation = 'manual_validation'
+        # the administrator validated the attendance of the Self user
+        self.env['hr.attendance'].search(
+            [('employee_id.name', '=', 'Gantt Role Self')]).write({'state': 'validated'})
+        self.env.flush_all()
+        self._tour('hr_actions_a63_self_validated', path=MY_ACTION, login='gantt_self')

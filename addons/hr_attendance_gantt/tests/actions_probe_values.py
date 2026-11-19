@@ -15,6 +15,12 @@ the boxes of the dialog with the warning (Beth Evans), M17 to M21 the same boxes
 without it (Abigail Peterson), M22 the warning line, M23 the link, M24 the number of warnings
 the dialog without it shows, M25 the number of dialogs after the link and M26 the breadcrumb's
 last item after it.
+
+M44 is the box of the pill being dragged 111 px to the right (the pill's outer box), M45 the box
+of the pill after the drop (the pill grown by its 1 px gap), M46 the notifications with an Undo
+button, M48 the pills reading "A" alone after the start handle of an open attendance is dragged one
+hour column to the left. M47 (the same count after a move, 0 on the original) is the original's
+defect corrected by decision D4: it is not listed, the probe reads one.
 """
 
 FONT = (
@@ -711,6 +717,26 @@ ACTIONS_PROBES = [
     ('M9', 'dark', 'desktop', 'count', '1'),
     ('M10', 'light', 'phone', 'count', '1'),
     ('M10', 'dark', 'phone', 'count', '1'),
+    ('M44', 'light', 'desktop', 'geometry.x', '766.781'),
+    ('M44', 'light', 'desktop', 'geometry.y', '207'),
+    ('M44', 'light', 'desktop', 'geometry.width', '194.406'),
+    ('M44', 'light', 'desktop', 'geometry.height', '25'),
+    ('M44', 'dark', 'desktop', 'geometry.x', '766.781'),
+    ('M44', 'dark', 'desktop', 'geometry.y', '207'),
+    ('M44', 'dark', 'desktop', 'geometry.width', '194.406'),
+    ('M44', 'dark', 'desktop', 'geometry.height', '25'),
+    ('M45', 'light', 'desktop', 'geometry.x', '766.875'),
+    ('M45', 'light', 'desktop', 'geometry.y', '207'),
+    ('M45', 'light', 'desktop', 'geometry.width', '194.391'),
+    ('M45', 'light', 'desktop', 'geometry.height', '25'),
+    ('M45', 'dark', 'desktop', 'geometry.x', '766.875'),
+    ('M45', 'dark', 'desktop', 'geometry.y', '207'),
+    ('M45', 'dark', 'desktop', 'geometry.width', '194.391'),
+    ('M45', 'dark', 'desktop', 'geometry.height', '25'),
+    ('M46', 'light', 'desktop', 'count', '1'),
+    ('M46', 'dark', 'desktop', 'count', '1'),
+    ('M48', 'light', 'desktop', 'count', '1'),
+    ('M48', 'dark', 'desktop', 'count', '1'),
     ('M49', 'light', 'desktop', 'count', '1'),
     ('M49', 'dark', 'desktop', 'count', '1'),
     ('M50', 'light', 'desktop', 'count', '1'),

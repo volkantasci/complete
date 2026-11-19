@@ -279,3 +279,122 @@ class TestActionsProbes(HrProbes):
                 self.real_click(cut)
                 self.settle(1500)
                 self.check_count('M50', DIALOGS, scheme, 'desktop', 'dialogs')
+
+
+NOTICES_WITH_UNDO = (
+    "[...document.querySelectorAll('.o_tl_notification')]"
+    ".filter((el) => el.querySelector('.o_notification_buttons button')).length")
+PILLS_READING_A = (
+    "[...document.querySelectorAll('.o_tl_pill_title')]"
+    ".filter((el) => el.textContent.trim() === 'A').length")
+MOVED_BODY = "document.querySelector('.o_tl_pill_moved > .o_tl_pill')"
+
+
+@tagged('post_install', '-at_install')
+class TestMoveProbes(HrProbes):
+    """Task 8: the pill being dragged and dropped (M44 to M46) and an open attendance moved or
+    resized (M47, M48). Abigail's attendance and the open one of "HRA Moved" (open since 8:00
+    Brussels time) are the whole world; every test starts from the class's records again."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.archive_others('HRA ')
+        for name, attendances in (
+            ('HRA Abigail', [('2026-11-11 06:00:00', '2026-11-11 09:30:00')]),
+            ('HRA Moved', [('2026-11-11 07:00:00', None)]),
+        ):
+            cls.env['hr.employee'].create({
+                'name': name, 'tz': TZ, 'resource_calendar_id': cls.schedule.id,
+                'contract_date_start': '2026-01-01', 'date_version': '2026-01-01',
+            })
+            employee = cls.env['hr.employee'].search([('name', '=', name)])
+            for check_in, check_out in attendances:
+                cls.env['hr.attendance'].with_context(skip_time_rules=True).create({
+                    'employee_id': employee.id, 'check_in': _datetime(check_in),
+                    'check_out': _datetime(check_out)})
+        cls.env.flush_all()
+
+    def restore(self):
+        """The records as the class made them: one scheme's drag leaves nothing to the next."""
+        self.env.invalidate_all()
+        attendances = self.env['hr.attendance']
+        for name, check_in, check_out in (
+            ('HRA Abigail', '2026-11-11 06:00:00', '2026-11-11 09:30:00'),
+            ('HRA Moved', '2026-11-11 07:00:00', None),
+        ):
+            attendances.search([('employee_id.name', '=', name)]).with_context(
+                skip_time_rules=True).write({
+                    'check_in': _datetime(check_in), 'check_out': _datetime(check_out)})
+        self.env.flush_all()
+
+    def check_count(self, probe, count_js, scheme, viewport, label):
+        want = int(measured(probe, viewport)[scheme]['count'])
+        with self.subTest(probe=probe, scheme=scheme, viewport=viewport, element=label):
+            self.assertEqual(self.js(count_js), want, f'{probe} {scheme}/{viewport} {label}')
+
+    def check_grown(self, probe, element_js, scheme, label):
+        """The box of an element grown by the 1 px gap on each side (the pill's outer box)."""
+        box = self.geometry(element_js)
+        grown = {
+            'geometry.x': box['geometry.x'] - 1, 'geometry.y': box['geometry.y'] - 1,
+            'geometry.width': box['geometry.width'] + 2,
+            'geometry.height': box['geometry.height'] + 2,
+        }
+        for prop, want in measured(probe)[scheme].items():
+            with self.subTest(probe=probe, scheme=scheme, prop=prop, element=label):
+                why = compare_value(prop, want, grown[prop])
+                self.assertIsNone(why, f'{probe} {scheme} {prop}: {why}')
+
+    def press_and_drag(self, x, y, dx, steps=12):
+        self.mouse('mouseMoved', x, y, buttons=0)
+        self.mouse('mousePressed', x, y, button='left', buttons=1, clickCount=1)
+        for step in range(1, steps + 1):
+            self.mouse('mouseMoved', x + dx * step / steps, y, buttons=1)
+        self.settle(400)
+
+    def release(self, x, y):
+        self.mouse('mouseReleased', x, y, button='left', buttons=0, clickCount=1)
+        self.settle(1500)
+
+    def test_m44_to_m46_a_pill_dragged_and_dropped(self):
+        pill = f"({pills_of('HRA Abigail')})[0]"
+        for scheme in self.schemes(['M44']):
+            self.restore()
+            with self.subTest(scheme=scheme), self.open(scheme):
+                self.loaded()
+                x, y = self.centre(pill)
+                self.press_and_drag(x, y, 111)
+                self.check_grown('M44', MOVED_BODY, scheme, 'the pill being dragged')
+                self.release(x + 111, y)
+                self.check_grown('M45', pill, scheme, 'the pill after the drop')
+                self.check_count('M46', NOTICES_WITH_UNDO, scheme, 'desktop', 'notifications')
+
+    def test_m47_open_attendance_stays_open_after_a_move(self):
+        """M47 is the original's defect (the moved open attendance gets a check-out and reads a
+        duration, no pill reads "A"); decision D4: Complete's pill still reads "A"."""
+        pill = f"({pills_of('HRA Moved')})[0]"
+        with self.open('light'):
+            self.loaded()
+            self.assertEqual(self.js(PILLS_READING_A), 1)
+            x, y = self.centre(pill)
+            self.press_and_drag(x, y, 111)
+            self.release(x + 111, y)
+            self.assertEqual(self.js(PILLS_READING_A), 1)
+            self.env.invalidate_all()
+            self.assertFalse(self.env['hr.attendance'].search(
+                [('employee_id.name', '=', 'HRA Moved')]).check_out)
+
+    def test_m48_start_of_an_open_attendance(self):
+        pill = f"({pills_of('HRA Moved')})[0]"
+        for scheme in self.schemes(['M48']):
+            self.restore()
+            with self.subTest(scheme=scheme), self.open(scheme):
+                self.loaded()
+                self.rest_on(pill, settle=0.5)
+                box = self.geometry(pill)
+                x = box['geometry.x'] + 4
+                y = box['geometry.y'] + box['geometry.height'] / 2
+                self.press_and_drag(x, y, -55.5, steps=6)
+                self.release(x - 55.5, y)
+                self.check_count('M48', PILLS_READING_A, scheme, 'desktop', 'pills reading A')

@@ -22,6 +22,7 @@ import {
     foldedHeaders,
     labelOf,
     menuItem,
+    mouse,
     openSearchMenu,
     pager,
     pickRange,
@@ -41,6 +42,7 @@ import {
     rowEl,
     rowNames,
     searchFor,
+    send,
     settle,
     step,
     texts,
@@ -1207,4 +1209,283 @@ scenario("hr_actions_a48_never_plan", GRID, async () => {
         await closeDialog();
         await until(() => !$(".modal"), "the dialog closes");
     }
+});
+
+// -- moving and resizing (R17 to R19) ----------------------------------------------------------------
+
+const HOUR = 55.5; // one hour column of the Day range at 1600 px
+const MODIFIER = { ctrl: 2 };
+
+const readAttendances = (name) =>
+    rpc("/web/dataset/call_kw/hr.attendance/search_read", {
+        model: "hr.attendance",
+        method: "search_read",
+        args: [[["employee_id.name", "=", name]], ["check_in", "check_out"]],
+        kwargs: { order: "check_in asc" },
+    }).then((rows) => rows.map((row) => [row.check_in, row.check_out]));
+
+/** Press at `from`, move to `dx` px on the right in `steps` equal moves and stay pressed. */
+async function pressAndMove(from, dx, steps = 12, keys = []) {
+    const modifiers = keys.reduce((sum, key) => sum + MODIFIER[key], 0);
+    const moves = Array.from({ length: steps }, (_, index) =>
+        mouse("mouseMoved", from.x + (dx * (index + 1)) / steps, from.y, { buttons: 1, modifiers })
+    );
+    await send({
+        events: [
+            mouse("mouseMoved", from.x, from.y, { button: "none", buttons: 0, modifiers }),
+            mouse("mousePressed", from.x, from.y, { buttons: 1, clickCount: 1, modifiers }),
+            ...moves,
+        ],
+    });
+}
+
+async function releaseAt(point, keys = []) {
+    const modifiers = keys.reduce((sum, key) => sum + MODIFIER[key], 0);
+    await send({
+        events: [mouse("mouseReleased", point.x, point.y, { buttons: 0, clickCount: 1, modifiers })],
+    });
+}
+
+/** The pill pressed at its centre, moved by `dx` and released; returns what was seen during it. */
+async function movePill(pill, dx, { keys = [] } = {}) {
+    const from = centre(pill);
+    await pressAndMove(from, dx, 12, keys);
+    const image = await until(() => $(".o_tl_pill_moved"), "the moved image of the pill");
+    const during = rectOf(image);
+    await releaseAt({ x: from.x + dx, y: from.y }, keys);
+    return during;
+}
+
+/** An end handle (4 px inside the edge of the pill) pressed, dragged by `dx` and released. */
+async function dragHandle(pill, edge, dx) {
+    await realHover(pill);
+    const handle = await until(() => $(`.o_tl_handle_${edge}`, pill), `the ${edge} handle`);
+    assert(rectOf(handle).width > 0, "the handle is drawn");
+    const box = rectOf(pill);
+    const x = edge === "stop" ? box.right - 4 : box.left + 4;
+    const from = { x, y: box.top + box.height / 2 };
+    await pressAndMove(from, dx, 6);
+    await releaseAt({ x: from.x + dx, y: from.y });
+}
+
+/** The notifications with an Undo button. */
+const undoNotices = () => $$(".o_tl_notification").filter((el) => $(".o_notification_buttons button", el));
+
+async function anError(text) {
+    await until(() => $(".modal .o_error_dialog, .modal.o_technical_modal"), "an error dialog", 8000);
+    const body = clean($(".modal")?.textContent || "");
+    assert(body.includes(text), `the error dialog says "${text}": ${body.slice(0, 300)}`);
+}
+
+/** Abigail's move by two hour columns, and the readings of it (A49). */
+async function moveAbigail() {
+    const pill = pillsOf("HRA Abigail")[0];
+    const before = rectOf(pill);
+    const during = await movePill(pill, 2 * HOUR);
+    await until(() => !$(".o_tl_pill_moved"), "the drag is over");
+    await until(() => pillTitles("HRA Abigail")[0] === "A - 3h 30m" && Math.abs(rectOf(pillsOf("HRA Abigail")[0]).left - before.left - 2 * HOUR) < 3, "the pill is drawn two hours later", 8000);
+    await dataSettled();
+    const after = rectOf(pillsOf("HRA Abigail")[0]);
+    return {
+        duringLeft: during.left,
+        duringWidth: during.width,
+        values: await readAttendances("HRA Abigail"),
+        left: after.left,
+        width: after.width,
+        notices: undoNotices().length,
+    };
+}
+
+// A49: moving a pill
+scenario("hr_actions_a49_move", GRID, async () => {
+    await ready();
+    assertEqual(pillTitles("HRA Abigail"), ["A - 3h 30m"], "the pill before");
+    const first = await moveAbigail();
+    // M44: the outer box of the pill being dragged, M45 the pill after it, M46 one notification
+    assertNear(first.duringLeft - 1, 766.781, "the pill's outer box during the drag", 1.5);
+    assertNear(first.left - 1, 766.875, "the pill after the drop", 1.5);
+    assertEqual(first.notices, 1, "one notification with Undo");
+    assertEqual(
+        first.values,
+        [["2026-11-11 08:00:00", "2026-11-11 11:30:00"]],
+        "9:00 to 12:30 Brussels time"
+    );
+    await pressUndo();
+    await until(() => Math.abs(rectOf(pillsOf("HRA Abigail")[0]).left - first.left + 2 * HOUR) < 3, "the pill is back", 8000);
+    // the same gesture again gives the same readings
+    const second = await moveAbigail();
+    assertEqual(second, first, "two runs, the same readings");
+});
+
+// A50: Undo of a move
+scenario("hr_actions_a50_undo", GRID, async () => {
+    await ready();
+    await moveAbigail();
+    await pressUndo();
+    await until(() => pillTitles("HRA Abigail")[0] === "A - 3h 30m", "the pill is drawn", 8000);
+    assertEqual(
+        await readAttendances("HRA Abigail"),
+        [["2026-11-11 06:00:00", "2026-11-11 09:30:00"]],
+        "7:00 to 10:30 Brussels time again"
+    );
+});
+
+// A51: resizing the end
+scenario("hr_actions_a51_resize_end", GRID, async () => {
+    await ready();
+    await dragHandle(pillsOf("HRA Abigail")[0], "stop", HOUR);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await dataSettled();
+    assertEqual(
+        await readAttendances("HRA Abigail"),
+        [["2026-11-11 06:00:00", "2026-11-11 10:30:00"]],
+        "the check-out is 11:30 Brussels time, the check-in 7:00"
+    );
+});
+
+// A52: a refused move
+scenario("hr_actions_a52_refused_move", GRID, async () => {
+    await ready();
+    const before = rectOf(pillsOf("HRA Abigail")[0]);
+    await movePill(pillsOf("HRA Abigail")[0], 2 * HOUR);
+    await anError("Cannot create new attendance record");
+    await closeDialog();
+    await dataSettled();
+    await settle(500);
+    const after = rectOf(pillsOf("HRA Abigail")[0]);
+    assertNear(after.left, before.left, "the pill went back", 1);
+    assertEqual(pillTitles("HRA Abigail")[0], "A - 3h 30m", "with its title");
+    assertEqual(
+        (await readAttendances("HRA Abigail")).map((row) => row[0]),
+        ["2026-11-11 06:00:00", "2026-11-11 11:00:00"],
+        "the attendance was not written"
+    );
+});
+
+// A53: Ctrl with a drag
+scenario("hr_actions_a53_ctrl_copy", GRID, async () => {
+    await ready();
+    const before = rectOf(pillsOf("HRA Abigail")[0]);
+    const rows = await readAttendances("HRA Abigail");
+    await movePill(pillsOf("HRA Abigail")[0], 4 * HOUR, { keys: ["ctrl"] });
+    await anError("cannot duplicate an attendance");
+    await closeDialog();
+    await dataSettled();
+    await settle(500);
+    assertEqual(await readAttendances("HRA Abigail"), rows, "nothing was added or moved");
+    assertNear(rectOf(pillsOf("HRA Abigail")[0]).left, before.left, "the pill is where it was", 1);
+});
+
+// -- open attendances (R18, D4) --------------------------------------------------------------------
+
+/**
+ * The browser's clock of the view reads 11 November 11:00:02 (Brussels) for every load made while
+ * `body` runs: the luxon clock the model takes the "now" of a load from stands still (the page's own
+ * clock goes on).
+ */
+const loadedAtEleven = (body) => async () => {
+    const saved = luxon.Settings.now;
+    luxon.Settings.now = () => Date.UTC(2026, 10, 11, 10, 0, 2);
+    try {
+        await body();
+    } finally {
+        luxon.Settings.now = saved;
+    }
+};
+
+const MOVED = "Gantt Moved";
+const movedScenario = (name, body) => scenario(name, GRID, loadedAtEleven(async () => {
+    await ready();
+    await searchFor(MOVED);
+    await until(() => pillsOf(MOVED).length === 1, "the pill of the open attendance");
+    await dataSettled();
+    await body();
+}));
+
+/** The pill of "Gantt Moved" reads "A" and is `hours` hour columns long. */
+function assertDrawn(hours, what) {
+    assertEqual(pillTitles(MOVED), ["A"], `${what}: the pill reads A`);
+    assertNear(rectOf(pillsOf(MOVED)[0]).width, hours * HOUR, `${what}: its length`, 3);
+}
+
+const OPEN_FROM = (hour) => [[`2026-11-11 ${hour}:00:00`, false]];
+
+// A54: moving an open attendance keeps it open
+movedScenario("hr_actions_a54_move_open", async () => {
+    assertDrawn(3.25, "before"); // 8:00 to 11:15
+    const before = rectOf(pillsOf(MOVED)[0]);
+    await movePill(pillsOf(MOVED)[0], 2 * HOUR);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await dataSettled();
+    assertEqual(await readAttendances(MOVED), OPEN_FROM("09"), "check-in 09:00:00 UTC, no check-out");
+    // M47 corrected by D4: the attendance is still open and its pill reads "A" alone
+    assertEqual(pillTitles(MOVED), ["A"], "the pill still reads A");
+    const after = rectOf(pillsOf(MOVED)[0]);
+    assertNear(after.width, 1.25 * HOUR, "drawn from 10:00 to 11:15", 3);
+    assertNear(after.right, before.right, "up to the same instant", 2);
+});
+
+// A55: resizing the start of an open attendance
+movedScenario("hr_actions_a55_resize_start_open", async () => {
+    await dragHandle(pillsOf(MOVED)[0], "start", -HOUR);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await dataSettled();
+    assertEqual(await readAttendances(MOVED), OPEN_FROM("06"), "the check-in is 7:00 Brussels time");
+    assertEqual(pillTitles(MOVED), ["A"], "the pill still reads A");
+});
+
+// A56: Undo after moving an open attendance
+movedScenario("hr_actions_a56_undo_move_open", async () => {
+    const before = rectOf(pillsOf(MOVED)[0]);
+    await movePill(pillsOf(MOVED)[0], 2 * HOUR);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await dataSettled();
+    await pressUndo();
+    await until(() => Math.abs(rectOf(pillsOf(MOVED)[0]).width - before.width) < 3, "the pill is drawn from 8:00", 8000);
+    assertEqual(await readAttendances(MOVED), OPEN_FROM("07"), "check-in 07:00:00 UTC, no check-out");
+    assertEqual(pillTitles(MOVED), ["A"], "the pill reads A");
+    assertNear(rectOf(pillsOf(MOVED)[0]).left, before.left, "drawn from 8:00", 2);
+});
+
+// A76: dragging the end of an open attendance
+movedScenario("hr_actions_a76_end_drag_open", async () => {
+    await dragHandle(pillsOf(MOVED)[0], "stop", HOUR);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await dataSettled();
+    assertEqual(
+        await readAttendances(MOVED),
+        [["2026-11-11 07:00:00", "2026-11-11 11:00:02"]],
+        "the check-out is the moment of the load plus an hour, with its seconds"
+    );
+    await until(() => pillTitles(MOVED)[0] === "A - 4h", "the pill reads A - 4h", 8000);
+});
+
+// A83: Undo after dragging the end of an open attendance
+movedScenario("hr_actions_a83_undo_end_drag_open", async () => {
+    await dragHandle(pillsOf(MOVED)[0], "stop", HOUR);
+    await until(() => pillTitles(MOVED)[0] === "A - 4h", "the pill reads A - 4h", 8000);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await pressUndo();
+    await until(() => pillTitles(MOVED)[0] === "A", "the attendance is open again", 8000);
+    assertEqual(await readAttendances(MOVED), OPEN_FROM("07"), "check-in 07:00:00 UTC, no check-out");
+});
+
+// A63: a Self user cannot write a validated attendance
+scenario("hr_actions_a63_self_validated", CALENDAR, async () => {
+    await settle();
+    await switchTo("Gantt");
+    await ready(1);
+    const name = rowNames()[0];
+    const before = rectOf(pillsOf(name)[0]);
+    await movePill(pillsOf(name)[0], 2 * HOUR);
+    await anError("access to: - Attendance");
+    await closeDialog();
+    await dataSettled();
+    await settle(500);
+    assertNear(rectOf(pillsOf(name)[0]).left, before.left, "the pill went back", 1);
+    assertEqual(
+        await readAttendances(name),
+        [["2026-11-11 07:00:00", "2026-11-11 09:00:00"]],
+        "the attendance was not written"
+    );
 });
