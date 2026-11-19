@@ -9,11 +9,15 @@ import {
     barOf,
     clean,
     clearRemembered,
+    closeSearchMenu,
     dataSettled,
     dateColumns,
     facets,
     foldedHeaders,
     labelOf,
+    menuItem,
+    openSearchMenu,
+    pager,
     pickRange,
     pillTitles,
     pillsOf,
@@ -223,4 +227,111 @@ scenario("hr_actions_a79_self_rules", CALENDAR, async () => {
         "the week of 8 to 14 November"
     );
     assert(!week.includes("2026-11-16"), "not 15 to 21 November");
+});
+
+// -- the search menu and the contract filters (R5, R6) ----------------------------------------------
+
+const GROUPINGS = ".o_group_by_menu .o_menu_item:not(.o_add_custom_group_menu)";
+const FILTER_MENU = ".o_filter_menu";
+const FILTERS = `${FILTER_MENU} .o_menu_item`;
+const CONTRACT_FILTERS = ["Ongoing Contract", "No Active Contract"];
+
+// A10: the Date grouping is hidden in the Gantt view, and offered by the list
+scenario("hr_actions_a10_no_date_grouping", GRID, async () => {
+    await ready(2);
+    await openSearchMenu();
+    assertEqual(
+        texts(GROUPINGS),
+        ["Employee", "Department", "Manager", "Method"],
+        "the groupings of the Gantt view, without Date"
+    );
+    assert($(".o_add_custom_group_menu"), "Custom Group is offered");
+    await closeSearchMenu();
+    await switchTo("List");
+    await until(() => $(".o_list_view"), "the list view");
+    await settle();
+    await openSearchMenu();
+    assert(texts(GROUPINGS).includes("Date"), `the list offers Date: ${texts(GROUPINGS)}`);
+});
+
+// A11: a custom grouping on a date is dropped
+scenario("hr_actions_a11_custom_group_dropped", GRID, async () => {
+    await ready(2);
+    const rows = rowNames();
+    assertEqual(rows.length, 2, "one row per employee");
+    await openSearchMenu();
+    const select = $(".o_add_custom_group_menu");
+    const option = $$("option", select).find((el) => clean(el.textContent) === "Check In");
+    assert(option, `Check In in the custom groupings: ${texts(".o_add_custom_group_menu option")}`);
+    select.value = option.value;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await until(
+        () => facets().some((facet) => facet.includes("Check In")),
+        "the grouping facet of Check In"
+    );
+    await settle(1200);
+    await dataSettled();
+    assertEqual(rowNames(), rows, "the rows do not change");
+});
+
+// A12: the contract filters by role
+const filtersShown = (shown) => async () => {
+    await settle();
+    await openSearchMenu();
+    const filters = texts(FILTERS);
+    if (!shown) {
+        assertEqual(
+            filters.filter((text) => CONTRACT_FILTERS.includes(text)),
+            [],
+            `no contract filter in ${filters}`
+        );
+        return;
+    }
+    const at = filters.indexOf("Ongoing Contract");
+    assert(at > 0, `Ongoing Contract is offered: ${filters}`);
+    assertEqual(filters[at - 1], "Date", "Ongoing Contract follows the Date filter");
+    assertEqual(filters[at + 1], "No Active Contract", "No Active Contract follows it");
+    assertEqual(
+        filters.filter((text) => CONTRACT_FILTERS.includes(text)).length,
+        2,
+        "each of the two filters once"
+    );
+};
+scenario("hr_actions_a12_filters_by_role_shown", GRID, filtersShown(true));
+scenario("hr_actions_a12_filters_by_role_hidden", GRID, filtersShown(false));
+
+// A13 to A15: employees without a contract today and employees with one
+// (tests/test_actions_tours.py makes them relative to the server's today)
+const NO_CONTRACT = ["HRC Former", "HRC Future", "HRC Never"];
+const WITH_CONTRACT = ["HRC Ends today", "HRC Ongoing"];
+
+scenario("hr_actions_a13_no_active_contract", GRID, async () => {
+    await ready(5);
+    assertEqual(rowNames().length, 5, "every employee has a row");
+    await menuItem(FILTER_MENU, "No Active Contract");
+    await until(() => rowNames().length === 3, "the three rows without a contract");
+    assertEqual(rowNames(), NO_CONTRACT, "the employees without a contract today");
+    assertEqual(pager(), "1-3 / 3", "the pager counts them");
+    assertEqual($$(".o_tl_pill").length, 0, "no pill on 11 November");
+});
+
+scenario("hr_actions_a14_ongoing_contract", GRID, async () => {
+    await ready(5);
+    await menuItem(FILTER_MENU, "Ongoing Contract");
+    await until(() => rowNames().length === 2, "the two rows with a contract");
+    assertEqual(rowNames(), WITH_CONTRACT, "the employees with a contract today");
+    assertEqual(pager(), "1-2 / 2", "the pager counts them");
+    await menuItem(FILTER_MENU, "No Active Contract");
+    await until(() => rowNames().length === 5, "both filters keep everyone");
+    assertEqual(pager(), "1-5 / 5", "the pager counts all five");
+});
+
+// A15: the user's time zone is Pacific/Kiritimati (the test sets it): the employee whose
+// contract ended the day before that zone's today is without a contract
+scenario("hr_actions_a15_today_in_the_users_zone", GRID, async () => {
+    await ready(5);
+    await menuItem(FILTER_MENU, "No Active Contract");
+    await until(() => rowNames().length === 4, "the four rows without a contract");
+    assertEqual(rowNames(), ["HRC Edge", ...NO_CONTRACT], "the edge employee is without one");
+    assertEqual(pager(), "1-4 / 4", "the pager counts them");
 });

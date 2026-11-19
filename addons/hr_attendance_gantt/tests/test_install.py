@@ -25,6 +25,10 @@ class TestInstall(TransactionCase):
         ):
             self.assertNotIn(model, owned_models, f'hr_attendance_gantt owns no {model}')
         # extending hr.attendance gives the module the model's field records, but no new field
+        # other than the ones of 002d3's model.md (the contract fields, never stored)
         for name, field in self.env['hr.attendance']._fields.items():
+            if name in ('has_active_contract', 'show_contract_warning'):
+                self.assertFalse(field.store, name)
+                continue
             self.assertNotEqual(
                 getattr(field, '_module', None), 'hr_attendance_gantt', f'no field {name}')

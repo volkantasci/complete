@@ -40,6 +40,24 @@ class TestActionsMenus(TransactionCase):
         self.assertEqual((mine.context, mine.domain), (context, domain))
         self.assertEqual(mine.view_id, self.env.ref('hr_attendance.hr_attendance_my_calendar_view'))
 
+    def test_a1_contract_filters_leave_with_the_bridge_view(self):
+        """The filters live in the bridge's inherited view alone: without it, the Community's
+        search view has none (what the uninstall removes with the module's records)."""
+        search_view = self.env.ref('hr_attendance.hr_attendance_view_filter')
+
+        def filter_names():
+            arch = self.env['hr.attendance'].get_views(
+                [(search_view.id, 'search')])['views']['search']['arch']
+            return {node.get('name') for node in etree.fromstring(arch).iter('filter')}
+
+        names = {'ongoing_contract', 'no_active_contract'}
+        self.assertTrue(names <= filter_names())
+        extension = self.env.ref('hr_attendance_gantt.hr_attendance_view_filter_contract')
+        self.assertEqual(extension.inherit_id, search_view)
+        extension.active = False
+        self.assertFalse(names & filter_names())
+        self.assertIn('check_in_filter', filter_names())
+
     def test_a3_my_attendances_modes(self):
         mine = self.env.ref('hr_attendance.hr_attendance_my_action')
         calendar = self.env.ref('hr_attendance.hr_attendance_my_calendar_view')

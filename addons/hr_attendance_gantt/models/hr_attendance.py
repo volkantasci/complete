@@ -4,13 +4,84 @@ from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
+from odoo.fields import Domain
 from odoo.tools.date_utils import sum_intervals
 from odoo.tools.intervals import Intervals
 
 
 class HrAttendance(models.Model):
     _inherit = 'hr.attendance'
+
+    has_active_contract = fields.Boolean(
+        string="Has Active Contract",
+        compute='_compute_has_active_contract', search='_search_has_active_contract',
+        groups='hr_attendance.group_hr_attendance_officer')
+
+    @api.depends('employee_id')
+    def _compute_has_active_contract(self):
+        # a search field: it has no value of its own to read
+        self.has_active_contract = False
+
+    @api.model
+    def _hag_today(self):
+        """The calendar date now, in the time zone sent with the call (else the user's)."""
+        zone = ZoneInfo(self.env.context.get('tz') or self.env.user.tz or 'UTC')
+        return fields.Datetime.now().replace(tzinfo=UTC).astimezone(zone).date()
+
+    @api.model
+    def _hag_active_contract_employees(self):
+        """The ids of the employees with an active contract today (R6 point 2).
+
+        An active, not archived version whose contract starts before tomorrow and ends on or
+        after today, or never. The versions are read with the rights of the system (R6 point 3).
+        """
+        today = self._hag_today()
+        versions = self.env['hr.version'].sudo().search([
+            ('employee_id', '!=', False),
+            ('contract_date_start', '!=', False),
+            ('contract_date_start', '<', today + timedelta(days=1)),
+            '|', ('contract_date_end', '=', False), ('contract_date_end', '>=', today),
+        ])
+        return versions.employee_id.ids
+
+    @api.model
+    def _hag_contract_wanted(self, operator, value):
+        """The set of values (with a contract: True, without: False) a search keeps."""
+        if operator in ('=', '!='):
+            wanted = {bool(value)} if operator == '=' else {not value}
+        elif operator in ('in', 'not in'):
+            wanted = {bool(item) for item in value}
+            if operator == 'not in':
+                wanted = {True, False} - wanted
+        else:
+            raise UserError(self.env._("This search is not supported for the contract filter."))
+        return wanted
+
+    @api.model
+    def _search_has_active_contract(self, operator, value):
+        wanted = self._hag_contract_wanted(operator, value)
+        if wanted == {True, False}:
+            return Domain.TRUE
+        if not wanted:
+            return Domain.FALSE
+        operator = 'in' if True in wanted else 'not in'
+        return Domain('employee_id', operator, self._hag_active_contract_employees())
+
+    @api.model
+    def _hrg_relation_leaf(self, condition, field_name):
+        """The contract condition is a condition on the employee (R6 point 4)."""
+        if field_name == 'employee_id' and condition.field_expr == 'has_active_contract':
+            if not self.env.user.has_group('hr_attendance.group_hr_attendance_officer'):
+                raise AccessError(self.env._("You are not allowed to search by contract."))
+            wanted = self._hag_contract_wanted(condition.operator, condition.value)
+            if wanted == {True, False}:
+                return Domain.TRUE
+            if not wanted:
+                return Domain.FALSE
+            operator = 'in' if True in wanted else 'not in'
+            return Domain('id', operator, self._hag_active_contract_employees())
+        return super()._hrg_relation_leaf(condition, field_name)
 
     def action_open_details(self):
         """The window action that opens this attendance in the Community form.

@@ -55,4 +55,23 @@
     <record id="hr_attendance.hr_attendance_my_action" model="ir.actions.act_window">
         <field name="view_mode">calendar,gantt,list,pivot,graph</field>
     </record>
+
+    <!-- The two contract filters, in a section of their own after the Date filter, for the
+         officer group and above (R6). They answer for every view of the attendance actions. -->
+    <record id="hr_attendance_view_filter_contract" model="ir.ui.view">
+        <field name="name">attendance search, contract filters</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_filter"/>
+        <field name="arch" type="xml">
+            <filter name="check_in_filter" position="after">
+                <separator/>
+                <filter string="Ongoing Contract" name="ongoing_contract"
+                        domain="[('has_active_contract', '=', True)]"
+                        groups="hr_attendance.group_hr_attendance_officer"/>
+                <filter string="No Active Contract" name="no_active_contract"
+                        domain="[('has_active_contract', '=', False)]"
+                        groups="hr_attendance.group_hr_attendance_officer"/>
+            </filter>
+        </field>
+    </record>
 </odoo>
