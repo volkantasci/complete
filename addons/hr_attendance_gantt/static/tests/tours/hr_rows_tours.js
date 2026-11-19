@@ -1398,16 +1398,10 @@ scenario("hag_a59_framework_inputs", async () => {
     const shown = $$("input", dialog).map((el) => el.value).join("|") + clean(dialog.textContent);
     assert(shown.includes("HRA Abigail"), `the dialog shows her attendance: ${shown}`);
     await closeDialog();
-    // a click on an empty cell: the framework's plan dialog, then its Create New with the
-    // attendance form
+    // a click on an empty cell: 002b's create dialog with the attendance form (R25, A59)
     const cell = () => $$(".o_tl_cell", rowEl("HRA Jennie")).at(14);
     await clickUntil(cell, () => $(".modal"), "the dialog of an empty cell");
-    const create = await until(
-        () => $$(".modal .btn").find((el) => clean(el.textContent) === "Create New"),
-        `the plan dialog offers Create New: ${texts(".modal .btn")}`
-    );
-    create.click();
-    await until(() => $(".modal .o_form_view [name='check_in']"), "the create dialog");
+    await until(() => $(".modal .o_form_view [name='check_in']"), "the create dialog, with no plan dialog before it");
     const names = $$(".modal .o_form_view [name]").map((el) => el.getAttribute("name"));
     assert(names.includes("employee_id") && names.includes("check_in"), `the attendance form: ${names}`);
     await closeDialog();
