@@ -28,8 +28,8 @@ let log;
 
 class ValueEditor extends TimelineEditor {
     writeValuesFor(change) {
-        seen.push({ hook: "write", kind: change.kind, steps: change.steps, name: change.record.name });
-        return { ...change.values, x_variant: change.kind };
+        seen.push({ hook: "write", kind: change.kind, steps: change.steps, resId: change.record.resId });
+        return { ...change.values, name: `variant ${change.kind}` };
     }
 
     undoValuesFor(change) {
@@ -99,12 +99,12 @@ async function dragPill(name, dx, { handle } = {}) {
 test("EditorValues: a move writes the values of the write hook, Undo sends those of the undo hook", async () => {
     await mountVariant();
     await dragPill("Review", 2 * partWidth());
-    expect(seen[0]).toEqual({ hook: "write", kind: "move", steps: 2, name: "Review" });
+    expect(seen[0]).toEqual({ hook: "write", kind: "move", steps: 2, resId: 6 });
     expect(seen[1].hook).toBe("undo");
     expect(seen[1].kind).toBe("move");
-    expect(seen[1].write.x_variant).toBe(undefined);
+    expect(seen[1].write.name).toBe(undefined);
     expect(log).toHaveLength(1);
-    expect(log[0].values.x_variant).toBe("move");
+    expect(log[0].values.name).toBe("variant move");
     await contains(".o_notification .o_notification_buttons button").click();
     await animationFrame();
     const undo = log.find((entry) => entry.call === "undo");
@@ -117,7 +117,7 @@ test("EditorValues: a resize names the edge in the kind", async () => {
     await dragPill("Build", partWidth(), { handle: "stop" });
     expect(seen[0].kind).toBe("resize-stop");
     expect(seen[0].steps).toBe(1);
-    expect(log[0].values.x_variant).toBe("resize-stop");
+    expect(log[0].values.name).toBe("variant resize-stop");
     await contains(".o_notification .o_notification_buttons button").click();
     await animationFrame();
     expect(log.find((entry) => entry.call === "undo").values.x_variant_undo).toBe("resize-stop");
@@ -131,5 +131,5 @@ test("EditorValues: a copy sends the defaults of the write hook and has no undo 
     const copy = log.find((entry) => entry.call === "copy");
     expect(seen.filter((entry) => entry.hook === "undo")).toHaveLength(0);
     expect(seen[0].kind).toBe("copy");
-    expect(copy.default.x_variant).toBe("copy");
+    expect(copy.default.name).toBe("variant copy");
 });
