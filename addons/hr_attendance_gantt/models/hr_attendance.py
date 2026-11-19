@@ -18,7 +18,7 @@ class HrAttendance(models.Model):
         compute='_compute_has_active_contract', search='_search_has_active_contract',
         groups='hr_attendance.group_hr_attendance_officer')
 
-    @api.depends('employee_id')
+    @api.depends()
     def _compute_has_active_contract(self):
         # a search field: it has no value of its own to read
         self.has_active_contract = False
@@ -59,14 +59,20 @@ class HrAttendance(models.Model):
         return wanted
 
     @api.model
-    def _search_has_active_contract(self, operator, value):
+    def _hag_contract_condition(self, field_name, operator, value):
+        """The condition on ``field_name`` (``id`` or ``employee_id``) that a search on the
+        contract field stands for."""
         wanted = self._hag_contract_wanted(operator, value)
         if wanted == {True, False}:
             return Domain.TRUE
         if not wanted:
             return Domain.FALSE
-        operator = 'in' if True in wanted else 'not in'
-        return Domain('employee_id', operator, self._hag_active_contract_employees())
+        return Domain(
+            field_name, 'in' if True in wanted else 'not in', self._hag_active_contract_employees())
+
+    @api.model
+    def _search_has_active_contract(self, operator, value):
+        return self._hag_contract_condition('employee_id', operator, value)
 
     @api.model
     def _hrg_relation_leaf(self, condition, field_name):
@@ -74,13 +80,7 @@ class HrAttendance(models.Model):
         if field_name == 'employee_id' and condition.field_expr == 'has_active_contract':
             if not self.env.user.has_group('hr_attendance.group_hr_attendance_officer'):
                 raise AccessError(self.env._("You are not allowed to search by contract."))
-            wanted = self._hag_contract_wanted(condition.operator, condition.value)
-            if wanted == {True, False}:
-                return Domain.TRUE
-            if not wanted:
-                return Domain.FALSE
-            operator = 'in' if True in wanted else 'not in'
-            return Domain('id', operator, self._hag_active_contract_employees())
+            return self._hag_contract_condition('id', condition.operator, condition.value)
         return super()._hrg_relation_leaf(condition, field_name)
 
     def action_open_details(self):

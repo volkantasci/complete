@@ -96,8 +96,10 @@ class TestActionsTours(HrToursBase):
                 self._tour('hr_actions_a12_filters_by_role_shown', login=login)
         with self.subTest(login='admin'):
             self._tour('hr_actions_a12_filters_by_role_shown')
-        with self.subTest(login='gantt_self'):
-            self._tour('hr_actions_a12_filters_by_role_hidden', login='gantt_self')
+        # both read the management Gantt by its address: the absence is what they see
+        for login in ('gantt_none', 'gantt_self'):
+            with self.subTest(login=login):
+                self._tour('hr_actions_a12_filters_by_role_hidden', login=login)
 
     def _days(self, zone=TZ):
         """The server's today in ``zone``: the contracts of A13 to A15 are made from it, so the

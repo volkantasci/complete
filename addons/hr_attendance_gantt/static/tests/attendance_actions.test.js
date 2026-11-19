@@ -63,3 +63,29 @@ test("R5 the list view of the same search view keeps Date", async () => {
     await toggleSearchBarMenu();
     expect(groupings()).toEqual(["Employee", "Date", "Week of Check In", "Day of Check In"]);
 });
+
+test("R5 a favourite naming the month of check-in is dropped, not an error", async () => {
+    await mountAttendances({
+        employees: ["Anita Oliver"],
+        attendances: [["Anita Oliver", [11, "8:00"], [11, "9:00"]]],
+        searchViewArch: SEARCH,
+        irFilters: [
+            {
+                user_ids: [2],
+                name: "By month",
+                id: 5,
+                context: `{"group_by": ["check_in:month"]}`,
+                domain: "[]",
+                is_default: true,
+                model_id: "hag.attendance",
+                action_id: false,
+            },
+        ],
+    });
+    await animationFrame();
+    expect(".o_tl_renderer").toHaveCount(1);
+    // no row is a month of the check-in: the grouping is not applied
+    expect(queryAllTexts(".o_tl_row_header").join(" ")).not.toMatch(/November|2026/);
+    await toggleSearchBarMenu();
+    expect(groupings()).toEqual(["Employee", "Day of Check In"]);
+});
