@@ -141,10 +141,12 @@ const myGantt = (phone) => async () => {
     await ready(1);
     assertEqual(rowNames(), ["Mitchell Admin"], "one row, the user's own employee");
     assertEqual($$(".o_tl_pill").length, 0, "no pill on 11 November");
+    // 002d2 R17: the long form from 1400 px, the short form below it ("0h" when nothing is worked)
+    const label = phone ? "0h" : "0h / 8h";
+    await until(() => labelOf("Mitchell Admin") === label, `the label of the row reads ${label}`);
     if (!phone) {
         // on the phone the search bar is behind its own button, and its facets are not drawn
         assertEqual(facets(), ["Employee"], "one facet, the Employee grouping");
-        await until(() => labelOf("Mitchell Admin") === "0h / 8h", "the label of the row reads 0h / 8h");
     }
 };
 scenario("hr_actions_a4_my_gantt", CALENDAR, myGantt(false));
@@ -174,8 +176,8 @@ scenario("hr_actions_a5_without_employee", SWITCHER, async () => {
     assert(notice, "the notice shows");
     await settle(1500);
     const dialog = $(".modal");
-    assert(!dialog, `no error dialog: ${dialog && clean(dialog.textContent).slice(0, 400)}`);
-    assert($(".o_calendar_view"), `the calendar shows: ${clean($(".o_action_manager")?.textContent || "").slice(0, 300)}`);
+    assert(!dialog, "no error dialog shows");
+    assert($(".o_calendar_view"), "the calendar shows");
     // the notice lies over the switcher: it closes by itself, or by its button
     const close = $(".o_notification .btn-close");
     if (close) {
@@ -214,6 +216,11 @@ scenario("hr_actions_a79_self_rules", CALENDAR, async () => {
     assertEqual(foldedHeaders().length, 4, "the four weekend pairs are folded");
     await pickRange("week");
     const week = dateColumns().map((el) => el.dataset.date);
-    assert(week.includes("2026-11-09") && week.includes("2026-11-13"), `8 to 14 November: ${week}`);
+    // 8 to 14 November: Sunday and Saturday are folded, so the date columns run Monday to Friday
+    assertEqual(
+        [week[0], week.at(-1), week.length, foldedHeaders().length],
+        ["2026-11-09", "2026-11-13", 5, 2],
+        "the week of 8 to 14 November"
+    );
     assert(!week.includes("2026-11-16"), "not 15 to 21 November");
 });

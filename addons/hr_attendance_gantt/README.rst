@@ -148,7 +148,8 @@ Installation
 Nothing to do: the module installs by itself once the Attendances application
 (``hr_attendance``) and the Employees timeline module (``hr_gantt``) are both
 installed. It is not an application and adds no menu, group or setting.
-Uninstalling it restores the management action's view modes and context.
+Uninstalling it restores the management action's view modes and context, and the view
+modes of My Attendances (``calendar,list,pivot,graph``).
 
 Configuration
 =============
