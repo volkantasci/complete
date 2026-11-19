@@ -193,9 +193,12 @@ class HrAttendance(models.Model):
                         ('count_as', '=', 'absence')],
             )[employee.resource_id.id]
             return sum_intervals(intervals)
-        # The Community's own method also takes a contract that starts on the day after the
-        # period, whose hours would lean into it when the zones differ: the versions that
-        # overlap the days are the only ones counted, each with its schedule and leaves.
+        # The block below (the no-version branch above and the loop that follows) follows
+        # ``_get_expected_attendances`` in odoo/addons/hr/models/hr_employee.py of Odoo
+        # Community (LGPL-3.0, Copyright Odoo S.A.), kept with its notice. The one change
+        # (decision D5): only the versions that overlap the period's days are counted. The
+        # Community's method also takes a contract that starts on the day after the period,
+        # whose hours would lean into it when the zones differ.
         employee_tz = ZoneInfo(employee.tz) if employee.tz else None
         intervals = Intervals()
         previous = datetime.combine(versions[0].date_start, time.min, employee_tz)
