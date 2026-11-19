@@ -357,11 +357,12 @@ working schedules and attendances, which show the states the demo data lacks
 (over and under target, an open attendance, an hourly schedule, lunch rounding).
 The command removes earlier prepared records first, so it can be run again, and
 prints the record counts before and after. `--night` adds an attendance across
-the end of a month, and `--holiday` adds a company-wide leave on 12 November.
-Both are optional:
+the end of a month (A64), `--holiday` adds a company-wide leave on 12 November
+(A62), and `--differences` adds "Gantt Above" and "Gantt Under", whose
+attendances differ from the target by ten seconds (A68). All three are optional:
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py prepare -d DB --night --holiday
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py prepare -d DB --night --holiday --differences
 ```
 
 Remove them again, with their employees, schedules and the holiday:
