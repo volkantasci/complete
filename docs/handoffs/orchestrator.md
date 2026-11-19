@@ -31,7 +31,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
   - Put these rules into every implementer dispatch.
   - End commit messages with a `Co-Authored-By` line that names the model you run as, and the session line the coordinator gives.
 - **Containers.**
-  - Run each container command as one plain command: no `cd`, no pipes, nothing combined with it.
+  - Run each container command as one plain command: no `cd`, no pipes, nothing combined with it. The guard also refuses a redirection, a `;`, a heredoc, and braces or a starred call in the arguments, such as a format string or `count(*)` in a query: write the command in a form without them.
   - Run module tests with the command in [isolation.md](../isolation.md#containers). Only the project's images and compose containers are allowed.
   - Never run a container as root.
   - The output of a container run in the foreground can be cut off. Start a long run, such as a test suite, as a background command, wait for it inside the turn as "Long runs" says, and read its output file.
@@ -39,7 +39,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
   - A run that writes files through a container, such as screenshots or browser logs, leaves them owned by the container's user. Write them under `.cache/` at the repository's root, which `.gitignore` ignores, through a bind mount of the run, and copy what you keep. If you cannot remove that directory afterwards, name it in your report: the owner's next command removes it.
   - Never add a line to the repository's local exclude file. It hides a stray file from `git status`, and so from the tree check.
   - Keep the scratch files of a run in one directory under `.cache/` too, and remove that directory before your final message.
-- **Long runs.** A subagent waits for its own long runs, such as screenshot batches and test suites, inside its turn, with a foreground command or a monitor. It never ends its turn while one is still running, because the harness may not wake it again. Put this rule into every dispatch that starts a long run.
+- **Long runs.** A subagent waits for its own long runs, such as screenshot batches and test suites, inside its turn, with a foreground command or a monitor. It never ends its turn while one is still running, because the harness may not wake it again. Before it ends its turn, it stops every monitor and wait loop it started. Put this rule into every dispatch that starts a long run.
 - **Names.** Use technical names only where `model.md` requires them. Give every other identifier a name of your own ([module-authoring.md](../module-authoring.md#naming)).
 - **Wording.** The spec's screenshots show the original's wording. Write every user-facing text in your own words, with the meaning the spec gives, except the texts the spec prescribes.
 - **Isolation files** (listed in [isolation.md](../isolation.md)) stay unchanged.
@@ -64,6 +64,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - A unit test of a delay or a deadline freezes the test clock and advances it itself. A check that relies on real time, such as 99 ms of a 100 ms delay, fails on a loaded CI runner.
    - A unit test finds every element in the page, including those a stylesheet hides. Assert what a user sees, such as a dialog's visible buttons, in a tour.
    - Tests create the records they need, so that they pass with and without demo data. CI installs every module without it.
+   - A tour or a probe that counts or places the rows of an application's view first moves the records it did not create out of that view, for example to another company. Run the module tests with demo data once as soon as the first tour exists, not only in the final runs: an application's demo records enter a view that a test built for its own records.
    - When your module depends on a Community application that no module under `addons/` needed before, run CI's configuration once as soon as the module's manifest exists. A new application can change pages and test bundles that earlier tests rely on. Correct an earlier test in a commit of its own, and report the cause.
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
    - A tour of a gesture plays the scenario's own path, with real pointer events at the package's points. A tour that reaches the same state by another path can pass while the scenario's path fails.
