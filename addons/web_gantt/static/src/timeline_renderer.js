@@ -2720,12 +2720,21 @@ export class TimelineRenderer extends Component {
      * view background, today's shade in today's column; R23). A variant may draw it otherwise.
      */
     partialCellStyle(covered) {
-        const stops = covered.map((grey, part) => {
+        // part i spans i*100/n to (i+1)*100/n: its colour is set at the start (but the first) and
+        // up to one point before the end (but the last), as the measured gradient does (M82)
+        const count = covered.length;
+        const stops = [];
+        covered.forEach((grey, part) => {
             const colour = grey ? "var(--o-tl-unavailable-bg)" : "var(--o-tl-available-bg)";
-            return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
+            if (part > 0) {
+                stops.push(`${colour} ${(part * 100) / count}%`);
+            }
+            if (part < count - 1) {
+                stops.push(`${colour} ${((part + 1) * 100) / count - 1}%`);
+            }
         });
-        const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
-        return `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
+        const angle = getComputedStyle(document.documentElement).direction === "rtl" ? 270 : 90;
+        return `background-image: linear-gradient(${angle}deg, ${stops.join(", ")})`;
     }
 
     _columnView(header) {

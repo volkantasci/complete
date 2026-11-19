@@ -792,10 +792,10 @@ scenario("hag_a20_quarters", async () => {
     assert(!background.includes("325deg"), `no diagonal: ${background}`);
     const grey = "var(--o-tl-unavailable-bg)";
     const day = "var(--o-tl-available-bg)";
-    const parts = background.match(/(var\(--o-tl-unavailable-bg\)|var\(--o-tl-available-bg\)) [\d.]+% [\d.]+%/g) || [];
+    const parts = background.match(/(var\(--o-tl-unavailable-bg\)|var\(--o-tl-available-bg\)) [\d.]+%/g) || [];
     assertEqual(
         parts.map((part) => part.split(" ")[0]),
-        [grey, day, day, grey],
+        [grey, day, day, day, day, grey],
         `the four quarters: ${background}`
     );
 });

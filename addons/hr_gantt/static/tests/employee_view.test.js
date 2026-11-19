@@ -277,7 +277,7 @@ test("A20: quarter precision keeps 002a's vertical quarters", async () => {
     await animationFrame();
     const styles = cellsOf("Gantt Hourly").map((cell) => cell.getAttribute("style") || "");
     expect(styles.filter((style) => style.includes("325deg")).length).toBe(0);
-    expect(styles.filter((style) => style.includes("linear-gradient(to right")).length).toBe(1);
+    expect(styles.filter((style) => style.includes("linear-gradient(90deg")).length).toBe(1);
 });
 
 test("R7: half-hour parts of an hour column are shaded diagonally (any column with two parts)", async () => {
@@ -296,5 +296,5 @@ test("R7: half-hour parts of an hour column are shaded diagonally (any column wi
     await animationFrame();
     const styles = cellsOf("Gantt Hourly").map((cell) => cell.getAttribute("style") || "");
     expect(styles.filter((style) => style.includes("325deg")).length).toBe(1);
-    expect(styles.filter((style) => style.includes("linear-gradient(to right")).length).toBe(0);
+    expect(styles.filter((style) => style.includes("linear-gradient(90deg")).length).toBe(0);
 });

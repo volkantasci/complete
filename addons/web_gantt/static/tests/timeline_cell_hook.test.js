@@ -47,7 +47,7 @@ async function mountWithHalfDayGrey(arch) {
 
 test("cell hook: the plain view draws a half grey cell with 002a's vertical halves", async () => {
     const cell = await mountWithHalfDayGrey(ARCH());
-    expect(getComputedStyle(cell).backgroundImage).toMatch(/^linear-gradient\(to right, /);
+    expect(getComputedStyle(cell).backgroundImage).toMatch(/^linear-gradient\(90deg, /);
 });
 
 test("cell hook: a variant draws the style of a partly unavailable cell", async () => {
@@ -86,12 +86,11 @@ async function mountWithNightGrey(days) {
 test("R23 available quarters painted", async () => {
     const cells = await mountWithNightGrey([0, 2]);
     const grey = "rgb(233, 236, 239)";
-    const stops = (available) =>
-        `linear-gradient(to right, ${grey} 0%, ${grey} 25%, ${available} 25%, ${available} 50%, ` +
-        `${available} 50%, ${available} 75%, ${grey} 75%, ${grey} 100%)`;
-    // an ordinary day: the available quarters take the view background, not transparent
+    const stops = (day) =>
+        `linear-gradient(90deg, ${grey} 24%, ${day} 25%, ${day} 49%, ${day} 50%, ${day} 74%, ${grey} 75%)`;
+    // an ordinary day (M82): the available quarters take the view background, not transparent
     expect(getComputedStyle(cells[13]).backgroundImage).toBe(stops("rgb(255, 255, 255)"));
-    // today's column: they take today's shade
+    // today's column (M83): they take today's shade
     expect(cells[11]).toHaveClass("o_tl_is_today");
     expect(getComputedStyle(cells[11]).backgroundImage).toBe(stops("rgb(255, 250, 235)"));
 });
