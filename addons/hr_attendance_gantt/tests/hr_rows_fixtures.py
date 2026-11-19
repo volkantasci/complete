@@ -121,6 +121,8 @@ def _employee(env, name, schedule, tracked, attendances):
             "tz": TZ,
             "resource_calendar_id": schedule.id,
             "contract_date_start": CONTRACT_START,
+            # the version is dated at the contract's start, never on the day the test runs
+            "date_version": CONTRACT_START,
             "attendance_based": tracked,
         }
     )
@@ -220,8 +222,10 @@ def make_demo_like(env, schedule=None):
     made = {}
     for name, (attendances, contract) in DEMO_LIKE.items():
         values = {"name": name, "tz": TZ, "resource_calendar_id": schedule.id}
+        values["date_version"] = CONTRACT_START
         if contract:
             values["contract_date_start"], values["contract_date_end"] = contract
+            values["date_version"] = contract[0]
         employee = env["hr.employee"].create(values)
         for check_in, check_out in attendances:
             # skip_time_rules keeps the Community's time rules from adding overtime attendances;

@@ -1,5 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
+from datetime import date
+
+from freezegun import freeze_time
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
@@ -86,14 +89,23 @@ class TestProgress(HrRowsCase, TransactionCase):
         self.assertEqual(self.expected('HRA Beth'), 8)
 
     def test_a44_two_versions_in_one_week(self):
-        # Monday and Tuesday on the whole-day schedule (16 h), then from Wednesday on the
-        # hourly one (8 h Wednesday and Thursday, 4 h Friday): 36 h, not 40 h
-        hourly = self.prepared['Gantt Hourly'].resource_calendar_id
+        # Monday and Tuesday on the whole-day schedule (8 h a day), then from Wednesday on
+        # a schedule of 6 h a day: the week holds 16 + 18 = 34 h, which only a version
+        # change on Wednesday gives (40 h on either schedule alone would be 40 or 30).
+        # Her first version is dated at her contract's start, long before the change.
+        short = self.env['resource.calendar'].create({
+            'name': 'HRA 6 hours/day', 'calendar_type': 'fixed',
+            'attendance_ids': [(5, 0, 0)] + [
+                (0, 0, {'dayofweek': str(dow), 'hour_from': hour_from, 'hour_to': hour_to})
+                for dow in range(5) for hour_from, hour_to in ((8, 12), (13, 15))],
+        })
         employee = self.like['HRA Abigail']
-        employee.create_version({
-            'date_version': '2026-11-11', 'resource_calendar_id': hourly.id})
+        self.assertEqual(employee._get_version(date(2026, 11, 10)).date_version, date(2026, 10, 1))
+        employee.create_version({'date_version': '2026-11-11', 'resource_calendar_id': short.id})
         self.env.flush_all()
-        self.assertEqual(self.expected('HRA Abigail', WEEK), 36)
+        self.assertEqual(self.expected('HRA Abigail', DAY_10), 8)  # Tuesday: the old schedule
+        self.assertEqual(self.expected('HRA Abigail', DAY_11), 6)  # Wednesday: the new one
+        self.assertEqual(self.expected('HRA Abigail', WEEK), 34)
 
     def test_r16_contract_starting_the_day_after_the_period(self):
         # no contract overlaps the days of the period: the current schedule counts, the
@@ -101,7 +113,7 @@ class TestProgress(HrRowsCase, TransactionCase):
         schedule = self.schedule
         employee = self.env['hr.employee'].create({
             'name': 'HRA Later', 'tz': 'Europe/Brussels', 'resource_calendar_id': schedule.id,
-            'contract_date_start': '2026-12-01'})
+            'contract_date_start': '2026-12-01', 'date_version': '2026-01-01'})
         day = (utc('2026-11-29 23:00'), utc('2026-11-30 23:00'))  # Monday 30 November
         month = (utc('2026-10-31 23:00'), utc('2026-11-30 23:00'))
         model = self.Attendance.with_context(tz='Europe/Brussels')
@@ -129,7 +141,7 @@ class TestProgress(HrRowsCase, TransactionCase):
         split = self.prepared['Gantt Hourly'].resource_calendar_id
         tokyo = self.env['hr.employee'].create({
             'name': 'HRA Tokyo', 'tz': 'Asia/Tokyo', 'resource_calendar_id': split.id,
-            'contract_date_start': '2026-01-01'})
+            'contract_date_start': '2026-01-01', 'date_version': '2026-01-01'})
         model = self.Attendance.with_context(tz='Asia/Tokyo')
 
         def maximum(start, stop):
@@ -193,6 +205,12 @@ class TestProgress(HrRowsCase, TransactionCase):
         self.assertEqual(found[whole.id]['max_value'], 8)  # Tuesday 10 November
 
     def test_r16_the_flag_reads_the_current_schedule(self):
+        # "The current schedule" is the schedule of the employee today: the clock is frozen
+        # after the change of 2026-11-11 so that the test does not depend on the real day.
+        with freeze_time('2026-11-19 10:00:00'):
+            self.check_flag_reads_the_current_schedule()
+
+    def check_flag_reads_the_current_schedule(self):
         free = self.prepared['Gantt Free'].resource_calendar_id
         employee = self.env['hr.employee'].create({
             'name': 'HRA Became Free', 'tz': 'Europe/Brussels',

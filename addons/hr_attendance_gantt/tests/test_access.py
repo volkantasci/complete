@@ -21,11 +21,13 @@ class TestAccess(TransactionCase):
         Employee = cls.env['hr.employee']
         cls.own = cls.own_user.employee_id or Employee.create(
             {'name': 'HRA Own', 'user_id': cls.own_user.id})
+        # the versions are dated at the contract's start, never on the day the test runs
         cls.own.write({
-            'resource_calendar_id': schedule.id, 'contract_date_start': '2026-01-01'})
+            'resource_calendar_id': schedule.id, 'contract_date_start': '2026-01-01',
+            'date_version': '2026-01-01'})
         cls.other = Employee.create({
             'name': 'HRA Other', 'tz': 'Europe/Brussels', 'resource_calendar_id': schedule.id,
-            'contract_date_start': '2026-01-01'})
+            'contract_date_start': '2026-01-01', 'date_version': '2026-01-01'})
         Attendance = cls.env['hr.attendance'].with_context(skip_time_rules=True)
         for employee, hours in ((cls.own, 2), (cls.other, 4)):
             Attendance.create({

@@ -96,6 +96,8 @@ class TestHrRowsTours(RealPointerMixin, HttpCase):
             'name': name, 'tz': TZ, 'resource_calendar_id': self.schedule.id,
             'contract_date_start': contract[0] if contract else False,
             'contract_date_end': contract[1] if contract else False,
+            # the version is dated at the contract's start, never on the day the test runs
+            'date_version': contract[0] if contract else '2026-01-01',
         }
         vals.update(values)
         employee = self.env['hr.employee'].create(vals)
