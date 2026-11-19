@@ -284,9 +284,17 @@ export class TimelineModel extends Model {
     /** Choose a named range around `focus` (default: the current focus). */
     async setKind(kind, focus) {
         this._dropPendingStep();
-        const range = namedRange(kind, (focus || this.visibleMiddleDate()).startOf("day"));
+        const range = namedRange(kind, (focus || this._focusForKind(kind)).startOf("day"));
         await this._reload({ range });
         this.notify();
+    }
+
+    /**
+     * The date a named range chosen from the menu is built around when the caller gives none
+     * (002a R10 point 3: the middle of the visible part). A variant of the view may choose another.
+     */
+    _focusForKind(_kind) {
+        return this.visibleMiddleDate();
     }
 
     /** Apply custom dates; `edited` tells which date the user changed last. */
@@ -708,6 +716,9 @@ export class TimelineModel extends Model {
         this.parts = partsFor(scaleId, this.config.precision);
         this.isSample = !this._hasLoaded && this.config.sample && !result.records.length;
         this._hasLoaded = true;
+        // every load of the data counts: the renderer works the folding out again after it (the
+        // note on 002a R29, decision D4 of 002d2)
+        this._loadSerial = (this._loadSerial || 0) + 1;
         this._response = result;
         this._unavailability = this.isSample ? {} : this._parseUnavailability(result);
         this._progress = this.isSample ? {} : result.progress_bars || {};
@@ -746,6 +757,14 @@ export class TimelineModel extends Model {
             : deserializeDateTime(value);
     }
 
+    /**
+     * The sub-columns a record covers (R12), or null when it is outside the period. A variant of
+     * the view may change them; `record` holds its start and stop as `DateTime`s.
+     */
+    _spanOf(record) {
+        return pillSpan(record, this.placement, this.columns, this.parts);
+    }
+
     /** Records that can be drawn: both dates, stop not before start, inside the period. */
     _parseRecords(rawRecords) {
         const { startField, stopField } = this.config;
@@ -764,7 +783,7 @@ export class TimelineModel extends Model {
             };
             record[startField] = start;
             record[stopField] = stop;
-            const span = start && stop && pillSpan(record, this.placement, this.columns, this.parts);
+            const span = start && stop && this._spanOf(record);
             if (span) {
                 record.span = span;
                 records.push(record);
@@ -1043,6 +1062,7 @@ export class TimelineModel extends Model {
         this._data = {
             range: this.range,
             focusVersion: this._focusVersion,
+            loadSerial: this._loadSerial || 0,
             pendingRange: this._targetRange,
             scaleId: this.scaleId,
             period: this.period,

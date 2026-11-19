@@ -22,7 +22,8 @@ The view has no menu of its own. It appears in any window action whose view
 modes include **Gantt**, next to the other views in the view switcher, or as
 the first view of such an action. The first Community applications that use it
 arrive in later slices. The first one is the tracks of an event (see
-[Event Tracks Timeline](event_track_gantt.md)); besides it the view is reached
+[Event Tracks Timeline](event_track_gantt.md), and the attendances of the
+employees follow in [Attendances Timeline](attendance_gantt.md)); besides them the view is reached
 through actions written by other modules, such as the scratch host of the hidden test module
 [`test_web_gantt`](../../addons/test_web_gantt/README.md), used for the
 screenshots below. The search bar of the action (filters, group by, favourites)
@@ -332,8 +333,10 @@ such as the employee, attendance, event track and time off applications of later
   header shows two arrows pointing at each other. Click the folded header or a
   folded cell to open the run, and click the header of an open one to fold it
   again. While you point at the header of an open column of such a run, the
-  headers of the run show outward arrows and the others dim. Folding is reset
-  when the range or scale changes.
+  headers of the run show outward arrows and the others dim. The folding is
+  worked out again at every load of the view's data (a change of range, scale
+  or period, a search, a filter, a grouping, the pager, the reload after a
+  write); a run you opened stays open until the next load.
 
 ![Capacity bars and unavailable periods, light](../assets/gantt_view/18-progress-unavailability.png)
 
@@ -1532,6 +1535,32 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
   `gantt_show_connectors,<view id>,<action id>` holds `true` or `false`.
   `manual` never reaches the server.
 
+### Extension points for view variants
+
+A module can register its own variant of the view and choose it with the
+`js_class` attribute of the definition: it builds an object from `timelineView`
+(exported by `@web_gantt/timeline_view`), replaces `Model` or `Renderer` with
+subclasses of `TimelineModel` or `TimelineRenderer`, and adds it to the
+`views` registry. Four places are meant to be overridden. The employee variant of
+[Employees Timeline](employee_gantt.md) uses the other three and reshapes the
+row name through an inheriting template instead of `rowLeadTemplate`; the plain
+view behaves exactly as before when none is overridden.
+
+| Place | On | What a variant may do | What the view guarantees |
+|---|---|---|---|
+| `rowLeadTemplate` | renderer, a getter | Return the name of its own template to draw what comes before the name in a row header. | The template is called with `row` (the row's descriptor) in scope, once for every row that has a header, group rows included; it sits after the group caret and before the row's body (name, label, bar). The default, `web_gantt.TimelineRowLead`, draws the thumbnail of the row's value when it has one, which is what the view always did. |
+| `_focusForKind(kind)` | model | Return a `DateTime` that the named range `kind` is built around. | It is asked only when a named range is chosen from the range menu and the caller gives no date; the view sets the date to the start of its day, and builds the range of that kind around it. Custom ranges, previous, next and Today never ask. The default is the middle of the visible part (`visibleMiddleDate()`). |
+| `_spanOf(record)` | model | Return the sub-columns a record covers, `{from, to, ...}` (`to` is not included), or null to leave the record out. | It is called for every record that has both dates, with the start and the stop as `DateTime`s in the record's fields, and the result is the pill's place. A null result drops the record from the drawing; the record's own data is never changed by it. The default places the record by the rules of the view (a pill over every sub-column it touches). |
+| `partialCellStyle(covered)` | renderer | Return the style declarations of a cell that is partly unavailable. | `covered[part]` is true for a grey part, in the order of the cell's parts; the hook is called only when some parts are grey and some are not (a fully grey cell takes the unavailable class and no style). The returned text becomes the cell's `style`. The default is the hard-edged gradient of grey and transparent parts that follows the language's direction. |
+
+A variant that overrides `rowLeadTemplate` supplies the template through its
+own XML file, as an ordinary `t-name`; a template that inherits the grid
+(`t-inherit` of `web_gantt.TimelineRenderer`) can reshape more, as the employee
+variant does for the row name. These hooks do not change the data call, the
+folding (worked out at every load, see
+[Capacity bars, unavailable periods and folded columns](#capacity-bars-unavailable-periods-and-folded-columns))
+or the gestures.
+
 ### The server side
 
 - `get_gantt_data` is the model call the view makes in one go. It returns
@@ -1539,6 +1568,11 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
   `progress_bars`.
 - `_gantt_unavailability` and `_gantt_progress_bar` are the two hooks a host
   model overrides to fill the last two keys. The base versions return nothing.
+- The module [Employees Timeline](employee_gantt.md) adds
+  `_get_gantt_data_with_empty` to every model: the same call, answered with a
+  group for every matching record of the one related model the view groups by,
+  also those that have no record. A model that wants employee rows without
+  records calls it from its own `get_gantt_data`.
 - `gantt_undo_drag_drop(drag_kind, values=None)` takes back a move, a resize
   or a copy. Called on the one record, it deletes the record when the kind is
   `copy`, and writes `values` (earlier start, stop and grouping values) when the
@@ -1585,8 +1619,9 @@ browser under the key `timelinePanelOpen-view-<view id>-action-<action id>`.
 taller than with a mouse in Complete, where the original differs by 14 px; this
 is left to a later batch.
 
-The Gantt views of employees, attendances and time off are
-delivered in later slices (the event tracks view is described in
-[Event Tracks Timeline](event_track_gantt.md)), as are the parts that project tasks and work orders
+The Gantt view of time off is delivered in a later slice (the event tracks view
+is described in [Event Tracks Timeline](event_track_gantt.md), the attendances
+in [Attendances Timeline](attendance_gantt.md), the employee rows in
+[Employees Timeline](employee_gantt.md)), as are the parts that project tasks and work orders
 add to rescheduling (working calendars, conflicts with other tasks, planned
 record highlight, dashed arrows).

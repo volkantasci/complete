@@ -1,0 +1,82 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R4: the avatar of an employee row, 24 px square with rounded corners, 8 px before the name
+.o_hrg_avatar {
+    flex: 0 0 auto;
+    // 24 px in the 25 px identity box: half a pixel below its top (M1: 5 px below the row's top)
+    align-self: flex-start;
+    position: relative;
+    top: .5px;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+// The header of an employee row (M1, M2, M4, M5, M77, M78). Its title line is the title box (M77):
+// 27 px tall, from the header's inner left edge to its right end, 3.5 px below the row's top; the
+// identity box (M78: the avatar and the name, no margin, padding or border) lies 1 px inside it;
+// the hours label ends 8 px inside the column's right border (x 258 of 267), one pixel after the
+// identity box. The header's top padding is the line's 1 px margin below instead, so the line
+// starts a pixel higher and the bar keeps its place.
+.o_tl_row_header:has(.o_hrg_identity) {
+    padding-top: 0;
+
+    // the title line takes the whole first line of the wrapping header, so the bar stays under it
+    .o_tl_row_body {
+        flex: 1 1 100%;
+    }
+
+    .o_tl_row_line {
+        min-height: 27px;
+        margin-bottom: 1px;
+        padding: 1px 0 1px 1px;
+    }
+
+    .o_hrg_identity {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: flex-start;
+        margin: 0;
+        padding: 0;
+    }
+
+    .o_tl_row_name {
+        align-self: flex-start;
+        font-size: 14px;
+        font-weight: 400;
+    }
+
+    .o_tl_row_label {
+        line-height: 25px;
+        text-align: left;
+    }
+
+    .o_tl_progress_label {
+        align-self: flex-start;
+        line-height: 25px;
+        margin-top: 0;
+        margin-left: 1px;
+        margin-right: 8px;
+    }
+}
+
+// R7: the available half of a diagonal cell is painted: in the view background (the day colour),
+// in today's column in today's shade (the property is read by the gradient of
+// `diagonalBackground`). In today's column the cell's own shade lies under the gradient, so a
+// diagonal cell there takes the view background as its base and the gradient paints the shade once.
+.o_tl_cell {
+    --o-hrg-available-bg: #{$o-view-background-color};
+
+    &.o_tl_is_today {
+        --o-hrg-available-bg: #{$o-tl-today-bg};
+
+        &.o_hrg_split {
+            background-color: $o-view-background-color;
+        }
+    }
+}

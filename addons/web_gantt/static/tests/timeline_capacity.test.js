@@ -481,6 +481,36 @@ test("A75: an open run is forgotten when a search removes it", async () => {
     expect(".o_tl_col.o_tl_folded").toHaveCount(1);
 });
 
+test("note on 002a R29 (002d2 D4): a run the user opened folds again at the next load of the data", async () => {
+    // a search that keeps the same period and the same run still loads the data again
+    unavailableOnWeekend([1, 2, 3], [3, 5]);
+    await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: H12,
+        groupBy: GROUP_BY,
+        searchViewArch: `<search>
+            <filter name="quiet" string="Quiet" domain="[['id', 'in', [4, 5, 6, 9]]]"/>
+            <filter name="same" string="Same" domain="[['id', 'in', [9, 6, 5, 4]]]"/>
+        </search>`,
+        context: { search_default_quiet: 1 },
+    });
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+    await contains(".o_tl_col.o_tl_folded").click();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+    // opening a run is no load: it stays open while nothing is loaded
+    await settle();
+    expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+    // a filter that leaves the run as foldable as before: the data is loaded, the run folds again
+    const calls = timelineMock.calls.length;
+    await toggleSearchBarMenu();
+    await toggleMenuItem("Same");
+    await settle();
+    expect(timelineMock.calls.length).toBeGreaterThan(calls);
+    expect(".o_tl_col").toHaveCount(20);
+    expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+});
+
 test("A75: Saturday and Sunday across two weeks fold into one column", async () => {
     // D+2 (Saturday 11-14) and D+3 (Sunday 11-15) lie in two different weeks
     timelineMock.unavailability = {

@@ -173,11 +173,16 @@ export class TimelineRenderer extends Component {
 
     rendererRef = signal.ref();
 
+    /** The template of what a row header shows before the name; a variant names its own. */
+    get rowLeadTemplate() {
+        return "web_gantt.TimelineRowLead";
+    }
+
     setup() {
         this.ui = useService("ui");
         this._cache = { data: null, small: null, version: null, layout: null };
-        // folded columns: the runs the user opened, by the index of their first column; reset when
-        // the range or the scale changes. `state.version` makes a change redraw the grid.
+        // folded columns: the runs the user opened, by the index of their first column; reset at
+        // every load of the data. `state.version` makes a change redraw the grid.
         this.state = proxy({ version: 0, selection: null, drag: null, hover: null });
         this._opened = new Set();
         this._openedKey = null;
@@ -2525,7 +2530,16 @@ export class TimelineRenderer extends Component {
             this._cache.small !== small ||
             this._cache.version !== version
         ) {
-            const key = [data.scaleId, data.range.kind, data.range.start, data.range.stop].join("|");
+            // the folding is worked out again at every load of the data (the note on 002a R29,
+            // 002d2 decision D4): a run the user opened stays open until the next load, which
+            // also happens at every change of range, scale or period
+            const key = [
+                data.scaleId,
+                data.range.kind,
+                data.range.start,
+                data.range.stop,
+                data.loadSerial,
+            ].join("|");
             if (key !== this._openedKey) {
                 this._openedKey = key;
                 this._opened.clear();
@@ -2695,15 +2709,22 @@ export class TimelineRenderer extends Component {
         if (covered && covered.every(Boolean)) {
             classes.push("o_tl_unavailable");
         } else if (covered) {
-            // hard edges: each part is either grey or transparent
-            const stops = covered.map((grey, part) => {
-                const colour = grey ? "var(--o-tl-unavailable-bg)" : "transparent";
-                return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
-            });
-            const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
-            style = `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
+            style = this.partialCellStyle(covered);
         }
         return { key: index, column: index, className: classes.join(" "), style };
+    }
+
+    /**
+     * The style of a cell whose parts are partly unavailable (`covered[part]` is true for a grey
+     * part): hard edges, each part either grey or transparent. A variant may draw it otherwise.
+     */
+    partialCellStyle(covered) {
+        const stops = covered.map((grey, part) => {
+            const colour = grey ? "var(--o-tl-unavailable-bg)" : "transparent";
+            return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
+        });
+        const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
+        return `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
     }
 
     _columnView(header) {
