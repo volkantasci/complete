@@ -694,6 +694,13 @@ scenario("hr_actions_a33_cut_pills", GRID, async () => {
         counts[clean($(".o_tl_pill_title", pill).textContent) + "@" + Math.round(rectOf(pill).left)] =
             await handlesOnHover(pill);
     }
+    // a cut pill has the handle of its uncut end only: the end of "A - 24h", not its start
+    const titleOf = (pill) => clean($(".o_tl_pill_title", pill).textContent);
+    const cutPill = pillsOf("HRA Anita").find((pill) => titleOf(pill) === "A - 24h");
+    assert(cutPill?.classList.contains("o_tl_pill_cut_start"), "A - 24h is cut at the start");
+    await realHover(cutPill);
+    await until(() => $(".o_tl_handle_stop", cutPill), "the end handle of the cut pill");
+    assert(!$(".o_tl_handle_start", cutPill), "no handle on the cut end");
     const movable = all.filter((pill) => !pill.classList.contains("o_tl_pill_cut_start") && !pill.classList.contains("o_tl_pill_cut_stop"));
     assertEqual(movable.length, 2, `two movable pills of four: ${JSON.stringify(counts)}`);
     // the cut pill "A - 24h" does not move under a drag, and its click opens its dialog

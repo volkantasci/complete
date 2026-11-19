@@ -173,20 +173,25 @@ describe("R9 to R12 clicks", () => {
         expect(`${DIALOG} .o_form_button_cancel`).toHaveCount(1);
     });
 
-    test("R10 second click within 200 ms does nothing", async () => {
+    test("R10 busy guard: a second click and a double click while the dialog is open open nothing", async () => {
         await mountPills();
         await click(pills()[0]);
         await dialogReady();
         await click(pills()[0]);
         await animationFrame();
         expect(DIALOG).toHaveCount(1);
-        // a click event on the pill of the other kind, the double click event, opens nothing either
         await dblclick(pills()[0]);
         await animationFrame();
         expect(DIALOG).toHaveCount(1);
+    });
+
+    test("R10 lock alone: the dialog closed within 200 ms, a click before 200 ms opens nothing", async () => {
+        await mountPills();
+        await click(pills()[0]);
+        await dialogReady();
         await discard();
         expect(DIALOG).toHaveCount(0);
-        // the lock runs on although the dialog is closed
+        // no dialog is opening or open: only the lock of the first click holds
         await advanceTime(100);
         await click(pills()[0]);
         await animationFrame();

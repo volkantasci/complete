@@ -220,11 +220,7 @@ class TestActionsProbes(HrProbes):
                               timeout=30)
                     self.settle(1500)
                     self.check_text(TITLE, 'Open', 'the dialog is titled Open')
-                    # RL-T6-1: the full-screen dialog's edge shadow (a 1 px line of the border
-                    # colour on the original's phone) belongs to the theme's dialog, not to this
-                    # bridge; the Community dialog keeps its own shadow on the phone
-                    self.check('M5', CONTENT, scheme, viewport, 'the dialog',
-                               skip=('box-shadow',) if viewport == 'phone' else ())
+                    self.check('M5', CONTENT, scheme, viewport, 'the dialog')
                     self.check('M8', TITLE, scheme, viewport, 'the title')
                     self.check_count('M6', POPOVERS, scheme, viewport, 'popovers')
                     self.check_count('M7', FOOTER_BUTTONS, scheme, viewport, 'footer buttons')

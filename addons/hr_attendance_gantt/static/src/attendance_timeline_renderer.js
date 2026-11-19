@@ -89,6 +89,9 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
      * framework's click stay: the release of a drag, of a drawing or of a selection is no click.
      */
     onPillClick(ev, pill, row) {
+        // The guards below are a copy of the ones at the top of `TimelineRenderer.onPillClick`
+        // (web_gantt/static/src/timeline_renderer.js, from its `_pillPointer.tap` line to the
+        // `this._drag.consumeClick` test) minus the popover; keep them in step with that method.
         // a tap leaves the pill in the pointer-over state: its handles show (002c R11)
         this._pillPointer.tap(ev, pill, row);
         if (this.connect.consumeClick()) {
