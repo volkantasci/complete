@@ -1,7 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { start } from "@mail/../tests/mail_test_helpers";
-import { describe, expect, test } from "@odoo/hoot";
+import { describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { queryAllTexts } from "@odoo/hoot-dom";
 import { animationFrame } from "@odoo/hoot-mock";
 import { mountView, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
@@ -65,6 +65,9 @@ test("R5 the list view of the same search view keeps Date", async () => {
 });
 
 test("R5 a favourite naming the month of check-in is dropped, not an error", async () => {
+    // the attendance lies on the displayed day, so that the employee's row shows
+    mockTimeZone(1);
+    mockDate("2026-11-11T10:00:05Z");
     await mountAttendances({
         employees: ["Anita Oliver"],
         attendances: [["Anita Oliver", [11, "8:00"], [11, "9:00"]]],
@@ -84,7 +87,9 @@ test("R5 a favourite naming the month of check-in is dropped, not an error", asy
     });
     await animationFrame();
     expect(".o_tl_renderer").toHaveCount(1);
-    // no row is a month of the check-in: the grouping is not applied
+    // the employee's row shows (a blank view fails here), and no row is a month of the
+    // check-in: the grouping is not applied
+    expect(queryAllTexts(".o_tl_row_header").join(" ")).toMatch(/Anita Oliver/);
     expect(queryAllTexts(".o_tl_row_header").join(" ")).not.toMatch(/November|2026/);
     await toggleSearchBarMenu();
     expect(groupings()).toEqual(["Employee", "Day of Check In"]);
