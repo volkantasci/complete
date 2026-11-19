@@ -23,6 +23,31 @@ class HrAttendance(models.Model):
         # a search field: it has no value of its own to read
         self.has_active_contract = False
 
+    show_contract_warning = fields.Boolean(
+        string="Show Contract Warning", compute='_compute_show_contract_warning',
+        compute_sudo=True)
+
+    @api.depends('employee_id', 'date')
+    def _compute_show_contract_warning(self):
+        """R7: the employee has no active contract on the attendance's date.
+
+        ``date`` is the Community's (the check-in's day in the employee's time zone, today while
+        the check-in is empty). The versions are read with the rights of the system, so a user
+        who may not read contracts gets the value too.
+        """
+        versions = self.env['hr.version'].sudo()
+        for attendance in self:
+            employee, day = attendance.employee_id, attendance.date
+            if not employee or not day:
+                attendance.show_contract_warning = False
+                continue
+            attendance.show_contract_warning = not versions.search_count([
+                ('employee_id', '=', employee._origin.id or employee.id),
+                ('contract_date_start', '!=', False),
+                ('contract_date_start', '<=', day),
+                '|', ('contract_date_end', '=', False), ('contract_date_end', '>=', day),
+            ], limit=1)
+
     @api.model
     def _hag_today(self):
         """The calendar date now, in the time zone sent with the call (else the user's)."""
