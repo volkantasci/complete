@@ -512,12 +512,9 @@ scenario("hr_actions_a25_link_drops_changes", GRID, async () => {
     await step(-1);
     assertEqual(dateColumns()[0].dataset.date.slice(0, 10), "2026-11-10", "the 10th of November");
     const pill = await until(() => pillsOf("HRA Beth")[0], "the pill of Beth");
-    // 002d2 opens the record dialog by a double click (a later task makes it a click)
-    await until(
-        () => realClick(pill, { count: 2 }).then(() => $(DIALOG)),
-        "the record dialog",
-        15000
-    );
+    // a click opens the record dialog (R9)
+    await realClick(pill);
+    await until(() => $(DIALOG), "the record dialog", 15000);
     await settle(600);
     assertEqual(clean($(".modal-title").textContent), "Open", "the dialog's title");
     assertEqual(warnings().length, 1, "the warning shows in the opened record");
