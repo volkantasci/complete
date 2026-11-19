@@ -30,6 +30,9 @@ def test_odoo_args_follow_the_separator():
 def test_subcommands_take_a_database_and_flags():
     ns = parse_args(["prepare", "-d", "db", "--night", "--holiday"])
     assert (ns.command, ns.database, ns.night, ns.holiday) == ("prepare", "db", True, True)
+    assert ns.differences is False
+    ns = parse_args(["prepare", "-d", "db", "--differences"])
+    assert (ns.night, ns.holiday, ns.differences) == (False, False, True)
     ns = parse_args(["unprepare", "-d", "db"])
     assert (ns.command, ns.database) == ("unprepare", "db")
     assert parse_args(["check-demo", "-d", "db"]).command == "check-demo"

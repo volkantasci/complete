@@ -10,7 +10,7 @@ Inside the Odoo image (bind-mount ``./tools`` to ``/mnt/instant``)::
     python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- \
         -d DB -i MODS --with-demo --stop-after-init
     python3 /mnt/instant/odoo_at_instant.py check-demo -d DB
-    python3 /mnt/instant/odoo_at_instant.py prepare -d DB [--night] [--holiday]
+    python3 /mnt/instant/odoo_at_instant.py prepare -d DB [--night] [--holiday] [--differences]
     python3 /mnt/instant/odoo_at_instant.py unprepare -d DB
 
 The image's entrypoint runs any command that is not ``odoo`` as is, so this
@@ -60,6 +60,11 @@ def build_sub_parser(command: str) -> argparse.ArgumentParser:
         parser.add_argument("--night", action="store_true", help="also create Gantt Night (A64)")
         parser.add_argument(
             "--holiday", action="store_true", help="also create Gantt Holiday (A62)"
+        )
+        parser.add_argument(
+            "--differences",
+            action="store_true",
+            help="also create Gantt Above and Gantt Under (A68)",
         )
     return parser
 
@@ -309,7 +314,8 @@ def main(argv: list[str] | None = None) -> int:
             print_counts("before", counts(env))
             fixtures = _fixtures()
             if ns.command == "prepare":
-                fixtures.make_prepared(env, night=ns.night, holiday=ns.holiday)
+                fixtures.make_prepared(
+                    env, night=ns.night, holiday=ns.holiday, differences=ns.differences)
             else:
                 fixtures.remove_prepared(env)
             cr.commit()
