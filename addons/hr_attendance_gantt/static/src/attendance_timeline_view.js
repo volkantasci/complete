@@ -4,15 +4,16 @@ import { registry } from "@web/core/registry";
 import { employeeTimelineView } from "@hr_gantt/employee_timeline_view";
 import { parseTimelineArch } from "@web_gantt/timeline_arch_parser";
 import { TimelineSearchModel } from "@web_gantt/timeline_view";
+import { AttendanceTimelineEditor } from "./attendance_timeline_editor";
 import { AttendanceTimelineModel } from "./attendance_timeline_model";
 import { AttendanceTimelineRenderer } from "./attendance_timeline_renderer";
 
-export { AttendanceTimelineModel, AttendanceTimelineRenderer };
+export { AttendanceTimelineEditor, AttendanceTimelineModel, AttendanceTimelineRenderer };
 
 /**
- * R25, A59: a click on an empty cell opens the create dialog, not the plan dialog. The view
- * definition names no `plan` option (A5), so the variant reads an absent option as off; an
- * arch that names `plan` (a later module's inheritance) is read as the Gantt view reads it.
+ * R13, A59: a click on an empty cell opens the create dialog, not the plan dialog. The view
+ * definition names `plan="0"`; an arch that names no `plan` option (an older definition, or a
+ * test's) is read as off here as well, and one that names it is read as the Gantt view reads it.
  */
 export const attendanceArchParser = {
     parse(arch, fields) {
@@ -46,8 +47,8 @@ export class AttendanceSearchModel extends TimelineSearchModel {
 
 /**
  * The attendance variant of the Gantt view, chosen by `js_class="attendance_gantt"` (R11).
- * 002d3 builds on it: it overrides the renderer's `onPillClick` and `onPillDoubleClick` and the
- * editor's `openRecord`, and reads the form of the creation from the arch.
+ * The renderer opens the record dialog on a click (R9 to R12); the editor is the variant's
+ * (`AttendanceTimelineEditor`, the slot of the Gantt view).
  */
 export const attendanceTimelineView = {
     ...employeeTimelineView,
@@ -55,6 +56,7 @@ export const attendanceTimelineView = {
     SearchModel: AttendanceSearchModel,
     Model: AttendanceTimelineModel,
     Renderer: AttendanceTimelineRenderer,
+    Editor: AttendanceTimelineEditor,
 };
 
 registry.category("views").add("attendance_gantt", attendanceTimelineView);

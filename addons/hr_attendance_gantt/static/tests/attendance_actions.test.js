@@ -1,10 +1,18 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { start } from "@mail/../tests/mail_test_helpers";
-import { describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { queryAllTexts } from "@odoo/hoot-dom";
-import { animationFrame } from "@odoo/hoot-mock";
-import { mountView, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
+import { beforeEach, describe, expect, freezeTime, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { click, dblclick, hover, queryAll, queryAllTexts, queryOne } from "@odoo/hoot-dom";
+import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import {
+    contains,
+    mountView,
+    patchWithCleanup,
+    toggleSearchBarMenu,
+} from "@web/../tests/web_test_helpers";
+import { localization } from "@web/core/l10n/localization";
+import { TimelineController } from "@web_gantt/timeline_controller";
+import { CLICK_LOCK } from "../src/attendance_timeline_renderer";
 import {
     makeAttendanceData,
     mountAttendances,
@@ -93,4 +101,168 @@ test("R5 a favourite naming the month of check-in is dropped, not an error", asy
     expect(queryAllTexts(".o_tl_row_header").join(" ")).not.toMatch(/November|2026/);
     await toggleSearchBarMenu();
     expect(groupings()).toEqual(["Employee", "Day of Check In"]);
+});
+
+// ----------------------------------------------------------------------------
+// R9 to R12: what a click on a pill does
+// ----------------------------------------------------------------------------
+
+const DIALOG = ".o_dialog";
+const pills = () => queryAll(".o_tl_pill");
+const titles = () => queryAllTexts(`${DIALOG} .modal-title`);
+let controller;
+
+describe("R9 to R12 clicks", () => {
+    beforeEach(() => {
+        mockTimeZone(1);
+        mockDate("2026-11-11T10:00:05Z");
+        patchWithCleanup(localization, { weekStart: 7 });
+        patchWithCleanup(TimelineController.prototype, {
+            setup() {
+                super.setup(...arguments);
+                controller = this;
+            },
+        });
+    });
+
+    /** Two employees with an attendance each on the Day range of 11 November. */
+    const mountPills = async () => {
+        await mountAttendances({
+            employees: ["Anita Oliver", "Beth Evans"],
+            attendances: [
+                ["Anita Oliver", [11, "8:00"], [11, "9:30"]],
+                ["Beth Evans", [11, "9:00"], [11, "10:00"]],
+            ],
+        });
+        // the clock stands still from here: only advanceTime moves it (the 200 ms locks)
+        freezeTime();
+    };
+
+    /** Lets the record dialog open and its form render (the clock stands still). */
+    const dialogReady = async () => {
+        for (let turn = 0; turn < 20 && !queryAll(`${DIALOG} .o_form_view`).length; turn++) {
+            await animationFrame();
+        }
+        await animationFrame();
+    };
+
+    /** Closes the open record dialog with its Discard button (the view reloads). */
+    async function discard() {
+        await contains(`${DIALOG} .o_form_button_cancel`).click();
+        await animationFrame();
+    }
+
+    test("R9 click opens dialog at once without popover", async () => {
+        await mountPills();
+        await click(pills()[0]);
+        // no wait: not one tick of the clock has passed
+        await animationFrame();
+        await dialogReady();
+        expect(DIALOG).toHaveCount(1);
+        expect(titles()).toEqual(["Open"]);
+        await advanceTime(400);
+        expect(".o_tl_popover").toHaveCount(0);
+        expect(DIALOG).toHaveCount(1);
+    });
+
+    test("R9 no Remove button", async () => {
+        await mountPills();
+        await click(pills()[0]);
+        await dialogReady();
+        expect(`${DIALOG} .o_form_button_remove`).toHaveCount(0);
+        expect(`${DIALOG} .o_form_button_cancel`).toHaveCount(1);
+    });
+
+    test("R10 second click within 200 ms does nothing", async () => {
+        await mountPills();
+        await click(pills()[0]);
+        await dialogReady();
+        await click(pills()[0]);
+        await animationFrame();
+        expect(DIALOG).toHaveCount(1);
+        // a click event on the pill of the other kind, the double click event, opens nothing either
+        await dblclick(pills()[0]);
+        await animationFrame();
+        expect(DIALOG).toHaveCount(1);
+        await discard();
+        expect(DIALOG).toHaveCount(0);
+        // the lock runs on although the dialog is closed
+        await advanceTime(100);
+        await click(pills()[0]);
+        await animationFrame();
+        expect(DIALOG).toHaveCount(0);
+    });
+
+    test("R10 click after 200 ms opens again", async () => {
+        await mountPills();
+        await click(pills()[0]);
+        await dialogReady();
+        await discard();
+        await advanceTime(CLICK_LOCK);
+        await click(pills()[0]);
+        await dialogReady();
+        expect(DIALOG).toHaveCount(1);
+    });
+
+    test("R10 ignored click does not restart the lock", async () => {
+        await mountPills();
+        await click(pills()[0]);
+        await dialogReady();
+        await discard();
+        await advanceTime(150);
+        await click(pills()[0]); // ignored, at 150 ms
+        await animationFrame();
+        expect(DIALOG).toHaveCount(0);
+        await advanceTime(60); // 210 ms after the first click, 60 after the ignored one
+        await click(pills()[0]);
+        await dialogReady();
+        expect(DIALOG).toHaveCount(1);
+    });
+
+    test("R10 other pill opens at once when no dialog", async () => {
+        await mountPills();
+        await click(pills()[0]);
+        await dialogReady();
+        await discard();
+        await advanceTime(50);
+        await click(pills()[1]);
+        await dialogReady();
+        expect(DIALOG).toHaveCount(1);
+        expect(`${DIALOG} .o_field_widget[name='employee_id'] input`).toHaveValue("Beth Evans");
+    });
+
+    test("R10 no second dialog while opening", async () => {
+        await mountPills();
+        let release;
+        controller.model.trackWrite(new Promise((resolve) => (release = resolve)));
+        await click(pills()[0]);
+        await animationFrame();
+        // the dialog waits for the write: a click on another pill opens nothing either
+        await click(pills()[1]);
+        await advanceTime(300);
+        await click(pills()[0]);
+        await animationFrame();
+        expect(DIALOG).toHaveCount(0);
+        release();
+        await dialogReady();
+        await animationFrame();
+        expect(DIALOG).toHaveCount(1);
+        expect(`${DIALOG} .o_field_widget[name='employee_id'] input`).toHaveValue("Anita Oliver");
+        // and still none while it is open, after the locks are long gone
+        await click(pills()[1]);
+        await animationFrame();
+        expect(DIALOG).toHaveCount(1);
+    });
+
+    test("R12 handle press-release opens dialog", async () => {
+        await mountPills();
+        await hover(pills()[0]);
+        await animationFrame();
+        await click(queryOne(".o_tl_handle_stop"));
+        await dialogReady();
+        expect(DIALOG).toHaveCount(1);
+        expect(titles()).toEqual(["Open"]);
+        expect(".o_tl_popover").toHaveCount(0);
+    });
+
 });

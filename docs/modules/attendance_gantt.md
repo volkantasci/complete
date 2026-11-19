@@ -292,14 +292,19 @@ The bridge adds no group, access right or record rule.
   action itself belongs to every user of the attendance groups, and its address
   opens it for them too.
 
-## What a click does for now
+## What a click does
 
-In this release, a click on a pill opens its popover and a double click opens the
-record in a dialog, as in any Gantt view; a click on an empty cell and the New
-button open the create dialog with the attendance model's default form (the
-view does not offer the Gantt view's plan dialog). Where
-the pointer is over an empty cell, nothing lights up and no button appears. A
-later release changes these actions to suit attendances.
+A click or a tap on a pill, or a press and release on one of its ends without
+moving, opens the record in a dialog at once, with the Community's form for
+creating an attendance and its own footer (Save & Close, Discard, and Delete for
+a manager of the attendance; Delete removes without asking). There is no popover.
+The first click on an attendance locks it for 200 ms, so a double click or two
+quick taps open one dialog, and no click opens a second dialog while one is
+opening or open. When the dialog closes the view loads its data again and stays
+on the same range, period and scroll position. A click on an empty cell and the
+New button open the create dialog (the view does not offer the Gantt view's plan
+dialog). Where the pointer is over an empty cell, nothing lights up and no button
+appears.
 
 ## For developers
 
@@ -307,7 +312,7 @@ The module adds one Gantt view record on `hr.attendance`, changes the management
 window action, and registers the view variant `attendance_gantt` in the
 browser; it adds no model and no stored field. The Python side overrides the
 model's data call, the unavailability hook and the progress hook. The
-description of the extension points for the next part is in the
+description of the clicks and of the extension points is in the
 [README](../../addons/hr_attendance_gantt/README.rst).
 
 ### The demo database at the project's instant

@@ -103,20 +103,23 @@ may read that employee's attendances); labels and bars are for internal users
 only; schedules, contracts and versions are read with the rights of the system for
 the employees that have a row.
 
-For the next part of the slice (002d3)
-======================================
+Clicks, taps and the record dialog
+==================================
 
-The module leaves the following places for a later module to change what a click and
-the creation do. They are unchanged now.
+A click or a tap on a pill (its body, its text, or an end pressed and released without
+moving) opens the record dialog of the attendance at once: titled "Open", the creation form
+of the Community with its own footer (Save & Close, Discard and, for a manager of the
+attendance, Delete, which deletes without a confirmation). There is no popover, and the
+framework's Remove button is not offered. The dialog waits for a write still being sent,
+and the view reloads when it closes, on the same range, period and scroll position.
 
-- ``AttendanceTimelineRenderer.onPillClick(ev, pill, row)``: a click or a tap on a
-  pill; it opens the popover of the Gantt view.
-- ``AttendanceTimelineRenderer.onPillDoubleClick(ev, pill)``: a double click; it
-  opens the record dialog through the editor.
-- ``props.editor.openRecord(resId)`` (the Gantt editor): opens the record dialog,
-  and the creation path of the editor (a cell, a drawing across cells, the New
-  button) opens the create dialog. Both take the form of the dialog from the
-  view's arch.
+A first click on an attendance locks that attendance for 200 ms: a click on it in the rest
+of the 200 ms does nothing (so a double click, or two quick taps, open one dialog), and the
+lock does not restart. While a record dialog is opening or open no click opens another;
+a click on another attendance, with no dialog opening or open, opens its dialog at once.
+The code is ``AttendanceTimelineRenderer.onPillClick`` and
+``AttendanceTimelineEditor`` (the editor of the view's ``Editor`` slot) in
+``attendance_timeline_editor.js``.
 
 The variant is a plain object, ``attendanceTimelineView`` in
 ``attendance_timeline_view.js``; a later module extends the renderer class, registers

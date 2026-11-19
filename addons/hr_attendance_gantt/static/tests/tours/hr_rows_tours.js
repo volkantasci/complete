@@ -113,15 +113,13 @@ async function realClick(target, { keys = [], at = null, count = 1 } = {}) {
 }
 
 /** A real finger tap at the centre of an element. */
-async function realTap(el) {
+async function realTap(el, { count = 1 } = {}) {
     const { x, y } = centre(el);
-    await send({
-        touch: true,
-        events: [
-            { type: "touchStart", touchPoints: [{ x, y }] },
-            { type: "touchEnd", touchPoints: [] },
-        ],
-    });
+    const events = [];
+    for (let tap = 0; tap < count; tap++) {
+        events.push({ type: "touchStart", touchPoints: [{ x, y }] }, { type: "touchEnd", touchPoints: [] });
+    }
+    await send({ touch: true, events });
 }
 
 /** A real press, a drag through the points and a release. */
@@ -1363,7 +1361,7 @@ scenario("hag_a58_features_off", async () => {
     }
 });
 
-// A59: the inputs left to 002d3
+// A59: the inputs of the empty cells and the drag of a pill (the clicks on a pill are 002d3's, A26 to A33)
 /** A real click that is repeated until `condition` holds (a click lock may swallow the first). */
 async function clickUntil(target, condition, what, options = {}) {
     const limit = Date.now() + 12000;
@@ -1379,26 +1377,7 @@ async function clickUntil(target, condition, what, options = {}) {
     }
 }
 
-const pressEscape = () =>
-    document.activeElement.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
-    );
-
 scenario("hag_a59_framework_inputs", async () => {
-    // a click on a pill: 002a's popover
-    await clickUntil(() => pillsOf("HRA Abigail")[0], () => $(".o_tl_popover_button"), "002a's popover");
-    pressEscape();
-    await until(() => !$(".o_tl_popover_button"), "Escape closes the popover");
-    // a double click: 002b's record dialog
-    const dialog = await clickUntil(
-        () => pillsOf("HRA Abigail")[0],
-        () => $(".modal .o_form_view"),
-        "002b's record dialog",
-        { count: 2 }
-    );
-    const shown = $$("input", dialog).map((el) => el.value).join("|") + clean(dialog.textContent);
-    assert(shown.includes("HRA Abigail"), `the dialog shows her attendance: ${shown}`);
-    await closeDialog();
     // a click on an empty cell: 002b's create dialog with the attendance form (R25, A59)
     const cell = () => $$(".o_tl_cell", rowEl("HRA Jennie")).at(14);
     await clickUntil(cell, () => $(".modal"), "the dialog of an empty cell");
@@ -1529,12 +1508,15 @@ export {
     $$,
     assert,
     assertEqual,
+    assertNear,
     barOf,
     cellsOf,
+    centre,
     clean,
     clearRemembered,
     closeDialog,
     closeSearchMenu,
+    countDataCalls,
     dataSettled,
     dateColumns,
     facets,
@@ -1547,12 +1529,18 @@ export {
     pillsOf,
     pillTitles,
     pointerAway,
+    popoverOfView,
     rangeName,
     ready,
     realClick,
+    realDrag,
+    realHover,
     realTap,
+    rectOf,
     removeFacet,
     resizeTo,
+    searchFor,
+    renderer,
     rowEl,
     rowNames,
     settle,
