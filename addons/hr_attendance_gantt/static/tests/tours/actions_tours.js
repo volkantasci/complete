@@ -943,7 +943,7 @@ scenario("hr_actions_a34_cell_day", GRID, async () => {
     await creationDialogShows();
     assertEqual(
         proposal(),
-        { employee: "HRA Abigail", from: "11-11 15:00", to: "11-11 16:00", worked: proposal().worked },
+        { employee: "HRA Abigail", from: "11-11 15:00", to: "11-11 16:00", worked: "1h" },
         "the cell's hour"
     );
     assertEqual(MODALS().length, 1, "no plan dialog");

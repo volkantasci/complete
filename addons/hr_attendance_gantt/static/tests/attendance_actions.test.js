@@ -19,6 +19,8 @@ import {
     setupAttendanceFixtures,
 } from "./attendance_test_helpers";
 
+const { DateTime } = luxon;
+
 describe.current.tags("desktop");
 
 setupAttendanceFixtures();
@@ -270,4 +272,48 @@ describe("R9 to R12 clicks", () => {
         expect(".o_tl_popover").toHaveCount(0);
     });
 
+});
+
+describe("the scale of the creation context (R15)", () => {
+    let controller;
+    beforeEach(() => {
+        patchWithCleanup(TimelineController.prototype, {
+            setup() {
+                super.setup(...arguments);
+                controller = this;
+            },
+        });
+    });
+
+    const scaleOf = () =>
+        controller.editor.creationContextFor({
+            period: { start: DateTime.local(2026, 11, 11, 9), stop: DateTime.local(2026, 11, 11, 10) },
+        }).scale;
+
+    test("R15 the Quarter range sends month, a Custom range the scale of its length", async () => {
+        await mountAttendances({ employees: ["Anita Oliver"] });
+        expect(scaleOf()).toBe("day");
+        const { model } = controller;
+        for (const [kind, scale] of [
+            ["week", "week"],
+            ["month", "month"],
+            ["quarter", "month"],
+            ["year", "year"],
+        ]) {
+            await model.setKind(kind);
+            await animationFrame();
+            expect(scaleOf()).toBe(scale);
+        }
+        // nine days: the week scale; two days: the day scale; four months: the month scale
+        for (const [start, stop, scale] of [
+            [DateTime.local(2026, 11, 9), DateTime.local(2026, 11, 18), "week"],
+            [DateTime.local(2026, 11, 9), DateTime.local(2026, 11, 11), "day"],
+            [DateTime.local(2026, 9, 1), DateTime.local(2026, 12, 31), "month"],
+        ]) {
+            await model.applyCustom(start, stop);
+            await animationFrame();
+            expect(model.range.kind).toBe("custom");
+            expect(scaleOf()).toBe(scale);
+        }
+    });
 });
