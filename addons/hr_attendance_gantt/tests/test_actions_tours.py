@@ -348,14 +348,15 @@ class TestActionsTours(HrToursBase):
     def _abigail_restored(self):
         """Abigail's attendance is written back to 06:00 to 09:30 UTC after the scenario, and the
         attendances a scenario added to her are removed, also when it fails."""
+        original = self._abigail_attendance().ids
+
         def restore():
             self.env.invalidate_all()
-            attendances = self._abigail_attendance()
-            attendances.filtered(lambda a: a.check_in != datetime(2026, 11, 11, 6, 0)).with_context(
-                skip_time_rules=True).unlink()
-            self._abigail_attendance().with_context(skip_time_rules=True).write({
+            attendances = self._abigail_attendance().with_context(skip_time_rules=True)
+            attendances.browse(original).write({
                 'check_in': datetime(2026, 11, 11, 6, 0),
                 'check_out': datetime(2026, 11, 11, 9, 30)})
+            (attendances - attendances.browse(original)).unlink()
         self.addCleanup(restore)
 
     def test_a49_move(self):

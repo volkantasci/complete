@@ -119,7 +119,7 @@ class TestOpenMoves(TransactionCase):
         self._kept(closed, self.admin, {'check_out': datetime(2026, 11, 12, 5, 0)},
                    ValidationError)
 
-    def test_e1_overlap_refused(self):
+    def test_a52_e1_overlap_refused(self):
         """A52: a move onto another attendance of the same employee is refused, keeping values."""
         first = self._attendance(self.mover, datetime(2026, 11, 12, 6, 0),
                                  datetime(2026, 11, 12, 9, 30))

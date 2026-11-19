@@ -124,6 +124,28 @@ describe("an open attendance (R18)", () => {
         expect(await undo()).toEqual({ check_in: utc(11, "8:00"), check_out: false });
     });
 
+    test("R18 a move to another employee's row writes the employee and the check-in, no check-out", async () => {
+        const ids = await mountAttendances({
+            employees: ["Anita Oliver", "Beth Evans"],
+            attendances: [["Anita Oliver", [11, "8:00"], null]],
+            expand: true,
+        }).then(({ ids }) => ids);
+        const rows = queryAll(".o_tl_row:not(.o_tl_total_row)");
+        const rect = queryRect(pill());
+        const start = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        const target = queryRect(rows[1]);
+        const end = { x: start.x + 4 * quarter(), y: target.top + target.height / 2 };
+        const helpers = await drag(pill(), { position: start });
+        await helpers.moveTo(document.elementFromPoint(end.x, end.y), { position: end });
+        await animationFrame();
+        await helpers.drop();
+        await advanceTime(100);
+        await animationFrame();
+        expect(writes().map((entry) => entry.values)).toEqual([
+            { check_in: utc(11, "9:00"), employee_id: ids["Beth Evans"] },
+        ]);
+    });
+
     test("R18 a move to the left has negative steps", async () => {
         await mountOpen();
         await dragBy(pill(), -4 * quarter());

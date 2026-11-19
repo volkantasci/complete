@@ -1381,7 +1381,8 @@ scenario("hr_actions_a53_ctrl_copy", GRID, async () => {
 /**
  * The browser's clock of the view reads 11 November 11:00:02 (Brussels) for every load made while
  * `body` runs: the luxon clock the model takes the "now" of a load from stands still (the page's own
- * clock goes on).
+ * clock goes on). RL-T8-1: the check-out of an end drag is the load's "now" with its seconds, which a
+ * running clock cannot give twice.
  */
 const loadedAtEleven = (body) => async () => {
     const saved = luxon.Settings.now;
@@ -1396,6 +1397,11 @@ const loadedAtEleven = (body) => async () => {
 const MOVED = "Gantt Moved";
 const movedScenario = (name, body) => scenario(name, GRID, loadedAtEleven(async () => {
     await ready();
+    assertEqual(
+        luxon.DateTime.now().toUTC().toFormat("HH:mm:ss"),
+        "10:00:02",
+        "the load instant is frozen"
+    );
     await searchFor(MOVED);
     await until(() => pillsOf(MOVED).length === 1, "the pill of the open attendance");
     await dataSettled();
