@@ -2716,11 +2716,12 @@ export class TimelineRenderer extends Component {
 
     /**
      * The style of a cell whose parts are partly unavailable (`covered[part]` is true for a grey
-     * part): hard edges, each part either grey or transparent. A variant may draw it otherwise.
+     * part): hard edges, each part either grey or painted in the cell's available colour (the
+     * view background, today's shade in today's column; R23). A variant may draw it otherwise.
      */
     partialCellStyle(covered) {
         const stops = covered.map((grey, part) => {
-            const colour = grey ? "var(--o-tl-unavailable-bg)" : "transparent";
+            const colour = grey ? "var(--o-tl-unavailable-bg)" : "var(--o-tl-available-bg)";
             return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
         });
         const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";

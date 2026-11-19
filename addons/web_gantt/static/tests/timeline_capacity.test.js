@@ -218,11 +218,12 @@ test("A74: unavailable cells and today fill kept", async () => {
     const image = css(cells[13], "backgroundImage");
     expect(image).toMatch(/^linear-gradient\(to right, /);
     expect(image).toInclude(`${GREY} 0%, ${GREY} 50%`);
-    expect(image).toInclude("50%, rgba(0, 0, 0, 0) 100%");
-    // today (D0): the second half is grey, the available half keeps the today fill
+    // R23: the available half is painted in the view background, no longer transparent
+    expect(image).toInclude("50%, rgb(255, 255, 255) 50%");
+    // today (D0): the second half is grey, the available half is painted in the today fill
     expect(cells[11]).toHaveClass("o_tl_is_today");
     expect(css(cells[11], "backgroundColor")).toBe(TODAY_FILL);
-    expect(css(cells[11], "backgroundImage")).toInclude(`rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 50%, ${GREY} 50%`);
+    expect(css(cells[11], "backgroundImage")).toInclude(`${TODAY_FILL} 0%, ${TODAY_FILL} 50%, ${GREY} 50%`);
     // another contact and the row without a value get nothing
     for (const name of ["Host Contact 2", "Undefined Contact"]) {
         for (const cell of cellsOf(rowOf(name))) {

@@ -382,7 +382,11 @@
     border-right-width: 1px;
     border-bottom-width: 1px;
 
+    // R23: the available parts of a partly unavailable cell are painted, not left transparent
+    --o-tl-available-bg: #{$o-view-background-color};
+
     &.o_tl_is_today {
+        --o-tl-available-bg: #{$o-tl-today-bg};
         background-color: $o-tl-today-bg;
         border-left-color: $o-tl-today-border;
     }

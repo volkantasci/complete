@@ -778,7 +778,7 @@ scenario("hag_a19_diagonals", async () => {
     assertNear(rectOf(diagonal[0]).width, 52, "its width", 1);
 });
 
-// A20: quarters keep 002a's shading
+// A20: quarters keep 002a's shading (the available quarters are painted since 002d3 R23)
 scenario("hag_a20_quarters", async () => {
     await searchFor("Gantt");
     await pickRange("week");
@@ -791,10 +791,11 @@ scenario("hag_a20_quarters", async () => {
     const background = gradientOf(cell);
     assert(!background.includes("325deg"), `no diagonal: ${background}`);
     const grey = "var(--o-tl-unavailable-bg)";
-    const parts = background.match(/(var\(--o-tl-unavailable-bg\)|transparent) [\d.]+% [\d.]+%/g) || [];
+    const day = "var(--o-tl-available-bg)";
+    const parts = background.match(/(var\(--o-tl-unavailable-bg\)|var\(--o-tl-available-bg\)) [\d.]+% [\d.]+%/g) || [];
     assertEqual(
         parts.map((part) => part.split(" ")[0]),
-        [grey, "transparent", "transparent", grey],
+        [grey, day, day, grey],
         `the four quarters: ${background}`
     );
 });
