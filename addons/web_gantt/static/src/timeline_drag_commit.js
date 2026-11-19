@@ -104,25 +104,31 @@ export function commitDrag(host, { mode, pill, rowId, target, line }) {
     const { n, bounds, targetChain } = moveSteps(host, record, target);
     let change;
     if (mode === "copy") {
+        // the value hook of the editor may reshape the defaults of the duplicate
+        const hook = { kind: "copy", record, steps: n, bounds };
         change = {
             kind: "copy",
             resId: record.resId,
-            values: copyDefaults({ bounds, targetChain, fields, placement }),
+            values: editor.writeValuesFor({
+                ...hook,
+                values: copyDefaults({ bounds, targetChain, fields, placement }),
+            }),
         };
     } else {
+        const hook = { kind: "move", record, steps: n, bounds };
+        const values = moveWriteValues({ record, bounds, n, targetChain, fields, placement });
+        const undo = undoValues({
+            kind: "move",
+            record,
+            fromChain: rowValueChain(data.rows, rowId, fields),
+            fields,
+            placement,
+        });
         change = {
             kind: "move",
             resId: record.resId,
-            values: moveWriteValues({ record, bounds, n, targetChain, fields, placement }),
-            undo: {
-                values: undoValues({
-                    kind: "move",
-                    record,
-                    fromChain: rowValueChain(data.rows, rowId, fields),
-                    fields,
-                    placement,
-                }),
-            },
+            values: editor.writeValuesFor({ ...hook, values }),
+            undo: { values: editor.undoValuesFor({ ...hook, values: undo, writeValues: values }) },
         };
     }
     // a closed group row that received the record opens once the server accepted (R5, R7, R15)
@@ -167,16 +173,22 @@ export function commitResize(host, { mode, pill, target }) {
     }
     const field = edge === "start" ? placement.startField : placement.stopField;
     const isDate = edge === "start" ? placement.startIsDate : placement.stopIsDate;
+    const values = { [field]: serializeBound(value, isDate ? "date" : "datetime") };
+    const hook = { kind: `resize-${edge}`, record, steps: n, bound: value };
     return editor.applyChange({
         kind: "resize",
         resId: record.resId,
-        values: { [field]: serializeBound(value, isDate ? "date" : "datetime") },
+        values: editor.writeValuesFor({ ...hook, values }),
         undo: {
-            values: undoValues({
-                kind: "resize",
-                record,
-                fields: model.fields,
-                placement,
+            values: editor.undoValuesFor({
+                ...hook,
+                writeValues: values,
+                values: undoValues({
+                    kind: "resize",
+                    record,
+                    fields: model.fields,
+                    placement,
+                }),
             }),
         },
     });
