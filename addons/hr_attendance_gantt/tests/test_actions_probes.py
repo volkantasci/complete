@@ -23,7 +23,7 @@ from odoo.tests import tagged
 
 from .actions_probe_values import measured
 from .hr_rows_fixtures import TZ, _datetime
-from .test_hr_rows_probes import HrProbes, in_row, row_js
+from .test_hr_rows_probes import HrProbes, in_row, pills_of, row_js
 
 SCHEMES = ('light', 'dark')
 VIEWPORTS = ('desktop', 'phone')
@@ -43,6 +43,19 @@ WARNINGS_DRAWN = (
     ".filter((el) => el.getClientRects().length > 0).length")
 
 
+DIALOGS = f"document.querySelectorAll('{MODAL}').length"
+POPOVERS = "document.querySelectorAll('.o_popover:not(:has(.o-tooltip))').length"
+FOOTER_BUTTONS = (
+    f"[...document.querySelectorAll('{MODAL} .modal-footer button')]"
+    ".filter((el) => el.getClientRects().length > 0).length")
+TITLE = f"document.querySelector('{MODAL} .modal-title')"
+CONTENT = f"document.querySelector('{MODAL} .modal-content')"
+CUT = ".o_tl_pill_cut_start, .o_tl_pill_cut_stop"
+MOVABLE = (
+    "[...document.querySelectorAll('.o_tl_pill')]"
+    f".filter((el) => !el.matches('{CUT}')).length")
+
+
 @tagged('post_install', '-at_install')
 class TestActionsProbes(HrProbes):
     """Abigail (a contract) and Beth (none), named "HRA ..." as the demo-like world."""
@@ -54,6 +67,12 @@ class TestActionsProbes(HrProbes):
         cls.employee('HRA Abigail', ('2026-10-01', '2027-01-11'),
                      [('2026-11-11 06:00:00', '2026-11-11 09:30:00')])
         cls.employee('HRA Beth', None, [])
+        # the cut pills of the Day range (M50, M51)
+        cls.employee('HRA Anita', ('2026-01-01', None), [
+            ('2026-11-10 03:00:00', '2026-11-11 03:00:00'),
+            ('2026-11-11 03:00:10', '2026-11-11 08:00:00')])
+        cls.employee('HRA Jennie', ('2024-11-01', '2026-12-01'),
+                     [('2026-11-10 19:00:00', '2026-11-11 07:00:00')])
         cls.env.flush_all()
 
     @classmethod
@@ -179,3 +198,88 @@ class TestActionsProbes(HrProbes):
                                   strict=True):
                 why = compare_value(prop, role, own[prop])
                 self.assertIsNone(why, f'{prop}: {json.dumps(own)}')
+
+    # -- Task 6: the record dialog opened by a click, a tap or a handle (R9 to R12; M5 to M11,
+    # M49 to M51). M11 is the original's defect (two dialogs, decision D1): Complete shows one.
+
+    def abigail(self):
+        return f"({pills_of('HRA Abigail')})[0]"
+
+    def test_m05_to_m08_the_dialog_of_a_click(self):
+        for scheme in self.schemes(['M5', 'M8']):
+            for viewport in VIEWPORTS:
+                with self.subTest(scheme=scheme, viewport=viewport), self.open(scheme, viewport):
+                    self.loaded(viewport)
+                    if viewport == 'phone':
+                        self.js(f"{self.abigail()}.scrollIntoView({{inline: 'center'}})")
+                        self.settle(500)
+                        self.finger_tap(self.abigail())
+                    else:
+                        self.real_click(self.abigail())
+                    self.wait(f"!!document.querySelector('{MODAL} .o_form_view .o_form_sheet')",
+                              timeout=30)
+                    self.settle(1500)
+                    self.check_text(TITLE, 'Open', 'the dialog is titled Open')
+                    # RL-T6-1: the full-screen dialog's edge shadow (a 1 px line of the border
+                    # colour on the original's phone) belongs to the theme's dialog, not to this
+                    # bridge; the Community dialog keeps its own shadow on the phone
+                    self.check('M5', CONTENT, scheme, viewport, 'the dialog',
+                               skip=('box-shadow',) if viewport == 'phone' else ())
+                    self.check('M8', TITLE, scheme, viewport, 'the title')
+                    self.check_count('M6', POPOVERS, scheme, viewport, 'popovers')
+                    self.check_count('M7', FOOTER_BUTTONS, scheme, viewport, 'footer buttons')
+
+    def test_m09_tap_with_touch_on_the_desktop(self):
+        for scheme in self.schemes(['M9']):
+            with self.subTest(scheme=scheme), self.open(scheme, 'desktop', touch=True):
+                self.loaded('desktop')
+                self.finger_tap(self.abigail())
+                self.settle(1500)
+                self.check_count('M9', DIALOGS, scheme, 'desktop', 'dialogs')
+
+    def test_m10_tap_on_the_phone_scrolled(self):
+        for scheme in self.schemes(['M10'], 'phone'):
+            with self.subTest(scheme=scheme), self.open(scheme, 'phone', touch=True):
+                self.loaded('phone')
+                self.js("document.querySelector('.o_tl_renderer').scrollLeft += 120")
+                self.settle(600)
+                self.finger_tap(self.abigail())
+                self.settle(1500)
+                self.check_count('M10', DIALOGS, scheme, 'phone', 'dialogs')
+
+    def test_m11_two_clicks_open_one_dialog(self):
+        """The original opens two dialogs (M11); Complete opens one (decision D1)."""
+        with self.open('light'):
+            self.loaded()
+            x, y = self.centre(self.abigail())
+            self.mouse('mouseMoved', x, y, buttons=0)
+            for count in (1, 2):
+                self.mouse('mousePressed', x, y, button='left', buttons=1, clickCount=count)
+                self.mouse('mouseReleased', x, y, button='left', buttons=0, clickCount=count)
+            self.settle(1500)
+            self.assertEqual(self.js(DIALOGS), 1)
+
+    def test_m49_handle_press_release(self):
+        for scheme in self.schemes(['M49']):
+            with self.subTest(scheme=scheme), self.open(scheme):
+                self.loaded()
+                self.rest_on(self.abigail(), settle=0.5)
+                box = self.geometry(self.abigail())
+                x = box['geometry.x'] + box['geometry.width'] - 4
+                y = box['geometry.y'] + box['geometry.height'] / 2
+                self.mouse('mouseMoved', x, y, buttons=0)
+                self.mouse('mousePressed', x, y, button='left', buttons=1, clickCount=1)
+                self.mouse('mouseReleased', x, y, button='left', buttons=0, clickCount=1)
+                self.settle(1500)
+                self.check_count('M49', DIALOGS, scheme, 'desktop', 'dialogs')
+
+    def test_m50_m51_cut_pills(self):
+        for scheme in self.schemes(['M50']):
+            with self.subTest(scheme=scheme), self.open(scheme):
+                self.loaded()
+                self.check_count('M51', MOVABLE, scheme, 'desktop', 'pills that can be moved')
+                cut = (f"[...{row_js('HRA Anita')}.querySelectorAll('.o_tl_pill')]"
+                       f".find((el) => el.matches('{CUT}'))")
+                self.real_click(cut)
+                self.settle(1500)
+                self.check_count('M50', DIALOGS, scheme, 'desktop', 'dialogs')

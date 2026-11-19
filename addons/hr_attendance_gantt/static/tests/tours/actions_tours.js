@@ -1,17 +1,21 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { registry } from "@web/core/registry";
+import { rpc } from "@web/core/network/rpc";
 import {
     $,
     $$,
     assert,
     assertEqual,
+    assertNear,
     barOf,
     cellsOf,
+    centre,
     clean,
     clearRemembered,
     closeDialog,
     closeSearchMenu,
+    countDataCalls,
     dataSettled,
     dateColumns,
     facets,
@@ -23,11 +27,20 @@ import {
     pickRange,
     pillTitles,
     pillsOf,
+    pointerAway,
+    popoverOfView,
     ready,
     realClick,
+    realDrag,
+    realHover,
+    realTap,
+    rectOf,
     rangeName,
+    renderer,
+    resizeTo,
     rowEl,
     rowNames,
+    searchFor,
     settle,
     step,
     texts,
@@ -512,3 +525,280 @@ scenario("hr_actions_a25_link_drops_changes", GRID, async () => {
     await realClick(links()[0]);
     await assertEmployeeForm("HRA Beth");
 });
+
+// -- clicks, taps and the record dialog (R9 to R12, R20) -----------------------------------------------
+
+const MODALS = () => $$(".modal");
+const FOOTER = () => texts(".modal-footer button");
+const titleOfDialog = () => clean($(".modal-title")?.textContent || "");
+const stopKey = (key) =>
+    document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+
+/** A footer button of the open dialog, by its text, pressed with a real click. */
+async function pressFooter(text) {
+    const button = $$(".modal-footer button").find((el) => clean(el.textContent) === text);
+    assert(button, `the button ${text} in ${FOOTER()}`);
+    await realClick(button);
+}
+
+/** The dialog shows with its form, once the click has been made. */
+async function recordDialogShows() {
+    await until(() => $(DIALOG), "the record dialog", 4000);
+    await settle(500);
+    assertEqual(MODALS().length, 1, "one dialog");
+    assertEqual(titleOfDialog(), "Open", "the dialog's title");
+    assert(!popoverOfView(), "no popover");
+}
+
+/** The dialog is gone, the data is read again, and the pill of `name` reads `title`. */
+async function closedAndShows(name, title) {
+    await until(() => !$(".modal"), "the dialog closes", 8000);
+    await dataSettled();
+    await until(() => pillTitles(name)[0] === title, `the pill of ${name} reads ${title}`, 8000);
+}
+
+// A26: a click opens the record dialog
+scenario("hr_actions_a26_record_dialog", GRID, async () => {
+    await ready();
+    assertEqual(pillTitles("HRA Abigail"), ["A - 3h 30m"], "her pill");
+    await realClick(pillsOf("HRA Abigail")[0]);
+    // at once: the dialog is there, without the popover's wait (the clock of the check is the tour's)
+    await until(() => $(".modal-title"), "the title of the dialog", 1500);
+    await recordDialogShows();
+    assertEqual(
+        FOOTER().filter((text) => ["Save & Close", "Discard", "Delete"].includes(text)),
+        ["Save & Close", "Discard", "Delete"],
+        "the footer of the creation form"
+    );
+    assert(!$(".modal .o_form_button_remove"), "no Remove button");
+    assert(texts(".modal .o_form_statusbar button").includes("Refuse"), "the form shows Refuse");
+    const stages = texts(".modal .o_statusbar_status button");
+    assert(stages.includes("Draft") && stages.includes("Validated"), `the stages: ${stages}`);
+    await settle(400);
+    assert(!popoverOfView(), "still no popover");
+    await closeDialog();
+});
+
+// A27: Save & Close saves, Discard, Escape and the cross save nothing
+scenario("hr_actions_a27_save_discard", GRID, async () => {
+    await ready();
+    const read = () => pillTitles("HRA Abigail")[0];
+    await realClick(pillsOf("HRA Abigail")[0]);
+    await recordDialogShows();
+    await typeInto(".modal [name='break_duration'] input", "0:30");
+    await pressFooter("Save & Close");
+    await closedAndShows("HRA Abigail", "A - 3h");
+    assertEqual(rangeName(), "Day", "the same Day range");
+    assertEqual(dateColumns()[0].dataset.date.slice(0, 10), "2026-11-11", "the same day");
+    for (const way of ["Discard", "Escape", "cross"]) {
+        await settle(400);
+        await realClick(pillsOf("HRA Abigail")[0]);
+        await recordDialogShows();
+        await typeInto(".modal [name='break_duration'] input", "0:45");
+        if (way === "Discard") {
+            await pressFooter("Discard");
+        } else if (way === "Escape") {
+            stopKey("Escape");
+        } else {
+            await realClick($(".modal .btn-close"));
+        }
+        await closedAndShows("HRA Abigail", "A - 3h");
+        assertEqual(read(), "A - 3h", `${way} saved nothing`);
+    }
+});
+
+// A28: Delete deletes at once
+scenario("hr_actions_a28_delete_at_once", GRID, async () => {
+    await ready();
+    await searchFor("Gantt Exact");
+    await step(-1, 2);
+    assertEqual(dateColumns()[0].dataset.date.slice(0, 10), "2026-11-09", "the 9th of November");
+    assertEqual(pillTitles("Gantt Exact"), ["A - 8h"], "his pill");
+    await realClick(pillsOf("Gantt Exact")[0]);
+    await recordDialogShows();
+    await pressFooter("Delete");
+    await settle(300);
+    assert(
+        !MODALS().some((modal) => modal.textContent.includes("Bye-bye")),
+        "no confirmation shows"
+    );
+    await until(() => !$(".modal"), "the dialog closes", 8000);
+    await dataSettled();
+    await until(() => pillsOf("Gantt Exact").length === 0, "the pill is gone", 8000);
+});
+
+// A29: two clicks within 200 ms open one dialog
+scenario("hr_actions_a29_double_click_one_dialog", GRID, async () => {
+    await ready();
+    await realClick(pillsOf("HRA Abigail")[0], { count: 2 });
+    await recordDialogShows();
+    await closeDialog();
+    await until(() => !$(".modal"), "no dialog remains");
+    await settle(600);
+    assertEqual(MODALS().length, 0, "still none");
+});
+
+// A30 (touch at desktop size) and A31 (phone): a tap opens the record dialog
+scenario("hr_actions_a30_tap_desktop_touch", GRID, async () => {
+    await ready();
+    await realTap(pillsOf("HRA Abigail")[0]);
+    await recordDialogShows();
+    await closeDialog();
+});
+
+scenario("hr_actions_a31_tap_phone", GRID, async () => {
+    await ready();
+    renderer().scrollLeft += 120;
+    await settle(500);
+    const pill = pillsOf("HRA Abigail")[0];
+    const box = rectOf(pill);
+    assert(box.right > 0 && box.left < window.innerWidth, `the pill is in the window: ${box.left}`);
+    await realTap(pill);
+    await recordDialogShows();
+    const content = rectOf($(".modal-content"));
+    assertEqual(
+        [Math.round(content.width), Math.round(content.height)],
+        [window.innerWidth, window.innerHeight],
+        "the dialog fills the screen"
+    );
+    await closeDialog();
+});
+
+// A32: a press and release on a handle opens the dialog and changes nothing
+scenario("hr_actions_a32_handle_press_release", GRID, async () => {
+    await ready();
+    const pill = pillsOf("HRA Abigail")[0];
+    await realHover(pill);
+    const handle = await until(() => $(".o_tl_handle_stop", pill), "the end handle");
+    const box = rectOf(pill);
+    const before = [box.left, box.right];
+    assert(rectOf(handle).width > 0, "the handle is drawn");
+    await realClick(null, { at: { x: box.right - 4, y: box.top + box.height / 2 } });
+    await recordDialogShows();
+    await closeDialog();
+    await dataSettled();
+    await settle(400);
+    const after = rectOf(pillsOf("HRA Abigail")[0]);
+    assertEqual([after.left, after.right], before, "the pill is where it was");
+});
+
+// A33: cut pills cannot be moved, their uncut end can be resized, a click opens
+scenario("hr_actions_a33_cut_pills", GRID, async () => {
+    await ready();
+    const all = $$(".o_tl_pill");
+    assertEqual(all.length, 4, "four pills on 11 November");
+    const handlesOnHover = async (pill) => {
+        await realHover(pill);
+        await settle(300);
+        return $$(".o_tl_handle", pill).length;
+    };
+    const counts = {};
+    for (const pill of all) {
+        counts[clean($(".o_tl_pill_title", pill).textContent) + "@" + Math.round(rectOf(pill).left)] =
+            await handlesOnHover(pill);
+    }
+    const movable = all.filter((pill) => !pill.classList.contains("o_tl_pill_cut_start") && !pill.classList.contains("o_tl_pill_cut_stop"));
+    assertEqual(movable.length, 2, `two movable pills of four: ${JSON.stringify(counts)}`);
+    // the cut pill "A - 24h" does not move under a drag, and its click opens its dialog
+    const cut = pillsOf("HRA Anita").find((pill) => clean($(".o_tl_pill_title", pill).textContent) === "A - 24h");
+    assert(cut, "the pill A - 24h");
+    const before = rectOf(cut);
+    const start = centre(cut);
+    await realDrag(start, [
+        { x: start.x + 20, y: start.y },
+        { x: start.x + 90, y: start.y },
+        { x: start.x + 140, y: start.y },
+    ]);
+    await settle(800);
+    const still = pillsOf("HRA Anita").find((pill) => clean($(".o_tl_pill_title", pill).textContent) === "A - 24h");
+    assertEqual(rectOf(still).left, before.left, "the cut pill did not move");
+    assert(!$(".o_tl_notification"), "no write, no notification");
+    await realClick(still);
+    await recordDialogShows();
+    await closeDialog();
+});
+
+// A74: where the user lands
+scenario("hr_actions_a74_where_user_lands", GRID, async () => {
+    await ready();
+    await resizeTo(900, false);
+    await pickRange("week");
+    await dataSettled();
+    const scroller = renderer();
+    scroller.scrollLeft = Math.min(scroller.scrollWidth - scroller.clientWidth, scroller.scrollLeft + 150);
+    await settle(500);
+    const left = scroller.scrollLeft;
+    const dates = dateColumns().map((el) => el.dataset.date).join();
+    assert(left > 0, `the grid is scrolled to the right: ${left}`);
+    const pill = pillsOf("HRA Abigail")[0];
+    assert(rectOf(pill).right > 0 && rectOf(pill).left < window.innerWidth, "her pill is in view");
+    assertEqual(pillTitles("HRA Abigail"), ["A - 3h 30m"], "the pill before");
+    await realClick(pill);
+    await recordDialogShows();
+    // another user's change, made while the dialog is open: a write of the attendance's break through the
+    // server's own call (the view's editor sends nothing), so the view can show it only by reading again
+    const ids = await rpc("/web/dataset/call_kw/hr.attendance/search", {
+        model: "hr.attendance",
+        method: "search",
+        args: [[["employee_id.name", "=", "HRA Abigail"]]],
+        kwargs: {},
+    });
+    await rpc("/web/dataset/call_kw/hr.attendance/write", {
+        model: "hr.attendance",
+        method: "write",
+        args: [ids, { break_duration: 1 }],
+        kwargs: {},
+    });
+    await pressFooter("Discard");
+    await until(() => !$(".modal"), "the dialog closes", 8000);
+    await dataSettled();
+    assertEqual(rangeName(), "Week", "the same range");
+    assertEqual(dateColumns().map((el) => el.dataset.date).join(), dates, "the same period");
+    assertNear(renderer().scrollLeft, left, "the same scroll position", 2);
+    await until(() => pillTitles("HRA Abigail")[0] === "A - 2h 30m", "the change of the other user shows", 8000);
+});
+
+// A75: Escape closes the record dialog and the view reads again
+scenario("hr_actions_a75_escape", GRID, async () => {
+    await ready();
+    await realClick(pillsOf("HRA Abigail")[0]);
+    await recordDialogShows();
+    const calls = countDataCalls();
+    stopKey("Escape");
+    await until(() => !$(".modal"), "Escape closes the dialog");
+    await until(() => calls.count >= 1, "the view reads its data again", 8000);
+    assertEqual(rangeName(), "Day", "the same range");
+});
+
+// A82: a double click, one dialog; Escape; the next click opens at once
+scenario("hr_actions_a82_double_click_then_next", GRID, async () => {
+    await ready();
+    await realClick(pillsOf("HRA Abigail")[0], { count: 2 });
+    await recordDialogShows();
+    const calls = countDataCalls();
+    stopKey("Escape");
+    await until(() => !$(".modal"), "Escape closes the one dialog");
+    await until(() => calls.count >= 1, "the view reads its data again", 8000);
+    await dataSettled();
+    assertEqual(MODALS().length, 0, "no dialog remains");
+    assertEqual(rangeName(), "Day", "the same range");
+    await settle(300);
+    await realClick(pillsOf("HRA Abigail")[0]);
+    await recordDialogShows();
+    await closeDialog();
+});
+
+// A86: two quick taps, on desktop with touch and on the phone
+const quickTaps = async () => {
+    await ready();
+    if (onPhone()) {
+        renderer().scrollLeft += 120;
+        await settle(500);
+    }
+    await realTap(pillsOf("HRA Abigail")[0], { count: 2 });
+    await recordDialogShows();
+    await closeDialog();
+    await settle(500);
+    assertEqual(MODALS().length, 0, "none remains");
+};
+scenario("hr_actions_a86_two_quick_taps", GRID, quickTaps);

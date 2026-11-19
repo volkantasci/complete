@@ -197,3 +197,70 @@ class TestActionsTours(HrToursBase):
         self._tour('hr_actions_a25_link_drops_changes')
         self.env.invalidate_all()
         self.assertEqual(self._break_of(beth), [0], 'the changes of the dialog are dropped')
+
+    # -- clicks, taps and the record dialog (R9 to R12, R20) ---------------------------------------
+
+    def _abigail_attendance(self):
+        self.env.invalidate_all()
+        return self.env['hr.attendance'].search([('employee_id.name', '=', 'HRA Abigail')])
+
+    def test_a26_record_dialog(self):
+        self._demo()
+        self._tour('hr_actions_a26_record_dialog')
+
+    def test_a27_save_discard(self):
+        self._demo()
+        self._tour('hr_actions_a27_save_discard')
+        # Save & Close wrote 0:30; Discard, Escape and the cross left it as it was
+        self.assertEqual(self._abigail_attendance().break_duration, 0.5)
+
+    def test_a28_delete_at_once(self):
+        self._prepared()
+        self._tour('hr_actions_a28_delete_at_once')
+        self.env.invalidate_all()
+        self.assertFalse(self.env['hr.attendance'].search(
+            [('employee_id.name', '=', 'Gantt Exact')]), 'deleted without a confirmation')
+
+    def test_a29_double_click_one_dialog(self):
+        self._demo()
+        self._tour('hr_actions_a29_double_click_one_dialog')
+
+    def test_a30_tap_desktop_touch(self):
+        self._demo()
+        self.touch_enabled = True
+        self._tour('hr_actions_a30_tap_desktop_touch')
+
+    def test_a31_tap_phone(self):
+        self._demo()
+        self._tour('hr_actions_a31_tap_phone', mobile=PHONE)
+
+    def test_a32_handle_press_release(self):
+        self._demo()
+        before = self._abigail_attendance().read(['check_in', 'check_out'])
+        self._tour('hr_actions_a32_handle_press_release')
+        self.assertEqual(self._abigail_attendance().read(['check_in', 'check_out']), before)
+
+    def test_a33_cut_pills(self):
+        self._demo()
+        self._tour('hr_actions_a33_cut_pills')
+
+    def test_a74_where_user_lands(self):
+        self._demo()
+        self._tour('hr_actions_a74_where_user_lands')
+        self.assertEqual(self._abigail_attendance().break_duration, 1)
+
+    def test_a75_escape(self):
+        self._demo()
+        self._tour('hr_actions_a75_escape')
+
+    def test_a82_double_click_then_next(self):
+        self._demo()
+        self._tour('hr_actions_a82_double_click_then_next')
+
+    def test_a86_two_quick_taps(self):
+        self._demo()
+        with self.subTest(device='desktop touch'):
+            self.touch_enabled = True
+            self._tour('hr_actions_a86_two_quick_taps')
+        with self.subTest(device='phone'):
+            self._tour('hr_actions_a86_two_quick_taps', mobile=PHONE)
