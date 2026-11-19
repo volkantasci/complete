@@ -369,11 +369,22 @@ Remove them again, with their employees, schedules and the holiday:
 podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py unprepare -d DB
 ```
 
-Start the server on that database, published on port 8069:
+Start the server on that database with the clock started at the instant and
+running on, published on port 8069 (the server answers at
+`http://localhost:8069`). Run it in the background or in its own terminal:
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 8069:8069 odoo odoo -d DB
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB
 ```
+
+Stop it by name: `podman ps` lists the run container (its name looks like
+`docker_odoo_run_...`), and
+
+```
+podman stop CONTAINER
+```
+
+stops it; `--rm` removes it.
 
 Drop the database, under the same clock as the other commands:
 
