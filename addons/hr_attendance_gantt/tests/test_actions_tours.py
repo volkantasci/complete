@@ -264,3 +264,77 @@ class TestActionsTours(HrToursBase):
             self._tour('hr_actions_a86_two_quick_taps')
         with self.subTest(device='phone'):
             self._tour('hr_actions_a86_two_quick_taps', mobile=PHONE)
+
+    # -- creating (R13 to R16, R20) ----------------------------------------------------------------
+
+    def _cells(self):
+        """An employee with a contract and no attendance, whose cells are all empty."""
+        return self._employee('HRA Cells')
+
+    def test_a34_cell_day(self):
+        abigail, _beth = self._warning_world()
+        self._tour('hr_actions_a34_cell_day')
+        self.env.invalidate_all()
+        created = self.env['hr.attendance'].search([
+            ('employee_id', '=', abigail.id), ('check_in', '=', datetime(2026, 11, 11, 14, 0))])
+        self.assertEqual(created.check_out, datetime(2026, 11, 11, 15, 0))
+        created.with_context(skip_time_rules=True).unlink()  # removed after
+
+    def test_a35_week(self):
+        self._cells()
+        self._tour('hr_actions_a35_week')
+
+    def test_a36_month(self):
+        self._cells()
+        self._tour('hr_actions_a36_month')
+
+    def test_a37_year(self):
+        self._warning_world()
+        # a row under contract all year keeps the months before October from folding (002a R29)
+        self._cells()
+        self._tour('hr_actions_a37_year')
+
+    def test_a38_quarter(self):
+        self._cells()
+        self._tour('hr_actions_a38_quarter')
+
+    def test_a39_double_click_cell(self):
+        self._warning_world()
+        self._tour('hr_actions_a39_double_click_cell')
+
+    def test_a40_drag_day(self):
+        self._warning_world()
+        self._tour('hr_actions_a40_drag_day')
+
+    def test_a41_drag_week(self):
+        self._cells()
+        self._tour('hr_actions_a41_drag_week')
+
+    def test_a42_follows_checkin(self):
+        self._warning_world()
+        self._cells()
+        self._tour('hr_actions_a42_follows_checkin')
+
+    def test_a45_new_day(self):
+        self._admin_employee()
+        self._tour('hr_actions_a45_new_day')
+
+    def test_a46_new_week(self):
+        self._admin_employee()
+        self._tour('hr_actions_a46_new_week')
+
+    def test_a78_new_month_quarter_year(self):
+        self._admin_employee()
+        self._tour('hr_actions_a78_new_month_quarter_year')
+
+    def test_a47_no_create_none(self):
+        self._role_users()
+        self._tour('hr_actions_a47_no_create_none', login='gantt_none')
+        self.env.invalidate_all()
+        self.assertEqual(
+            self.env['hr.attendance'].search_count([('employee_id.name', '=', 'Gantt Role None')]),
+            1, 'nothing was created')
+
+    def test_a48_never_plan(self):
+        self._cells()
+        self._tour('hr_actions_a48_never_plan')

@@ -20,6 +20,16 @@ export class AttendanceTimelineEditor extends TimelineEditor {
         });
     }
 
+    /**
+     * R15: the creation dialog's context carries `scale`, the id of the displayed scale (`day`,
+     * `week`, `month`, `year`; the Quarter range is on the month scale, a Custom range on the
+     * scale of its length), which the server's change handler of the check-in reads. Every way
+     * of creating goes through here; the record dialog (R9) opens with the view's own context.
+     */
+    creationContextFor(params) {
+        return { ...super.creationContextFor(params), scale: this.model.scaleId };
+    }
+
     /** R10 point 4: a record dialog is waiting for a write, or is open. */
     get isRecordBusy() {
         return Boolean(this._recordOpen);

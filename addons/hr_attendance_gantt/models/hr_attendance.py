@@ -108,6 +108,32 @@ class HrAttendance(models.Model):
             return self._hag_contract_condition('id', condition.operator, condition.value)
         return super()._hrg_relation_leaf(condition, field_name)
 
+    @api.onchange('check_in')
+    def _onchange_check_in_default_check_out(self):
+        """R15: the creation dialog of a Gantt view (the context's ``scale`` is week, month or
+        year) sets the check-out to the check-in plus the employee's hours per day, each time the
+        check-in changes, and when the dialog opens with one. A check-in emptied leaves the
+        check-out as it is. No employee, or a schedule of 0 hours per day, gives a check-out
+        equal to the check-in (E6, E7). The form of a record opened from the view and any other
+        form carry no ``scale`` and are left alone.
+        """
+        if self.env.context.get('scale') not in ('week', 'month', 'year'):
+            return
+        for attendance in self:
+            if attendance.check_in:
+                attendance.check_out = attendance.check_in + timedelta(
+                    hours=attendance._hag_hours_per_day())
+
+    def _hag_hours_per_day(self):
+        """The hours per day of the schedule of the employee's version in effect on the UTC date
+        of the check-in (R15 point 2), read with the rights of the system; 0 with no employee."""
+        self.ensure_one()
+        employee = self.employee_id.sudo()
+        if not employee or not self.check_in:
+            return 0.0
+        version = employee._get_version(self.check_in.date())
+        return version.resource_calendar_id.hours_per_day or 0.0
+
     def action_open_details(self):
         """The window action that opens this attendance in the Community form.
 

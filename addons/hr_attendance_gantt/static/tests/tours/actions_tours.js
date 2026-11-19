@@ -772,6 +772,16 @@ scenario("hr_actions_a75_escape", GRID, async () => {
     await until(() => !$(".modal"), "Escape closes the dialog");
     await until(() => calls.count >= 1, "the view reads its data again", 8000);
     assertEqual(rangeName(), "Day", "the same range");
+    await dataSettled();
+    // the creation dialog closes the same way, without saving
+    await clickCellAt("HRA Abigail", 15);
+    const created = countDataCalls();
+    stopKey("Escape");
+    await until(() => !$(".modal"), "Escape closes the creation dialog");
+    await until(() => created.count >= 1, "the view reads its data again", 8000);
+    await dataSettled();
+    assertEqual(rangeName(), "Day", "the same range after the creation dialog");
+    assertEqual(pillTitles("HRA Abigail"), ["A - 3h 30m"], "nothing was saved");
 });
 
 // A82: a double click, one dialog; Escape; the next click opens at once
@@ -806,3 +816,363 @@ const quickTaps = async () => {
     assertEqual(MODALS().length, 0, "none remains");
 };
 scenario("hr_actions_a86_two_quick_taps", GRID, quickTaps);
+
+// -- creating (R13 to R16, R20; A34 to A48, A75, A78) ---------------------------------------------
+
+const { DateTime } = luxon;
+const DIALOG_BUTTON = ".modal-footer button";
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A date and time as the form shows it, as "MM-DD HH:MM" (24 h), whatever the language's format. */
+function normalised(text) {
+    const numeric = text.match(/(\d{1,2})\/(\d{1,2})\/\d{4}/);
+    const named = text.match(/([A-Z][a-z]{2}) (\d{1,2})/);
+    const [month, day] = numeric
+        ? [Number(numeric[1]), Number(numeric[2])]
+        : [MONTHS.indexOf(named?.[1]) + 1, Number(named?.[2])];
+    const time = text.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)?/);
+    let hours = Number(time?.[1]);
+    if (time?.[3] === "PM" && hours < 12) {
+        hours += 12;
+    } else if (time?.[3] === "AM" && hours === 12) {
+        hours = 0;
+    }
+    const two = (value) => String(value).padStart(2, "0");
+    return `${two(month)}-${two(day)} ${two(hours)}:${time?.[2]}`;
+}
+
+const fieldText = (name) => {
+    const el = $(`.modal [data-field='${name}']`);
+    return clean(el ? el.value ?? el.textContent : "");
+};
+const employeeOfDialog = () =>
+    clean($(".modal [name='employee_id'] input")?.value || "") ||
+    clean($(".modal [name='employee_id']")?.textContent || "");
+
+/** What the open creation dialog proposes: the employee, the check-in and out, the worked time. */
+function proposal() {
+    return {
+        employee: employeeOfDialog(),
+        from: normalised(fieldText("check_in")),
+        to: normalised(fieldText("check_out")),
+        worked: clean($(".modal [name='worked_hours']")?.textContent || ""),
+    };
+}
+
+/** The dialog titled Create shows, alone, with the footer of the creation form, and no plan dialog. */
+async function creationDialogShows() {
+    await until(() => $(DIALOG), "the creation dialog", 12000);
+    await settle(700);
+    assertEqual(MODALS().length, 1, "one dialog");
+    assertEqual(titleOfDialog(), "Create", "the dialog's title");
+    assertEqual(
+        FOOTER().filter((text) => ["Save & Close", "Discard", "Delete"].includes(text)),
+        ["Save & Close", "Discard"],
+        "the footer of the creation form"
+    );
+}
+
+/** The vertical middle of a row's header, where a click on a cell of the row lands. */
+const rowMiddle = (name) => {
+    const header = $(".o_tl_row_header", rowEl(name)).getBoundingClientRect();
+    return header.top + header.height / 2;
+};
+
+/** The header of the column that starts with `date` ("2026-11-11", or "2026-04" for a month). */
+const findColumn = (date) => dateColumns().find((el) => el.dataset.date.startsWith(date));
+async function columnOf(date) {
+    // the grid draws the columns near its viewport only: scroll from the left until it is drawn
+    const scroller = renderer();
+    for (let at = 0; !findColumn(date) && at <= scroller.scrollWidth; at += scroller.clientWidth / 2) {
+        scroller.scrollLeft = at;
+        await settle(400);
+    }
+    const column = findColumn(date);
+    assert(
+        column,
+        `a column for ${date} in ${dateColumns().map((el) => el.dataset.date)} of ${$$(".o_tl_col").length}, range ${$(".o_tl_range_button")?.textContent}, scroll ${scroller.scrollWidth}/${scroller.clientWidth}`
+    );
+    return column;
+}
+
+/** The point inside the cell of `name`'s row in the column of `date`, `inset` px from its left. */
+async function cellPoint(name, date, inset = 20) {
+    const column = await columnOf(date);
+    column.scrollIntoView({ inline: "center", block: "nearest" });
+    await settle(500);
+    return { x: column.getBoundingClientRect().left + inset, y: rowMiddle(name) };
+}
+
+/** The point 20 px inside the cell of `hour` of a row of the Day range. */
+const hourPoint = (name, hour) => {
+    const cell = cellsOf(name).find((el) => Number(el.dataset.column) === hour);
+    assert(cell, `the cell of ${hour}:00 in the row of ${name}`);
+    return { x: cell.getBoundingClientRect().left + 20, y: rowMiddle(name) };
+};
+
+/** A click on an empty cell of the grid (the Day range's hour when `date` is a number); the
+ * creation dialog is waited for. */
+async function clickCell(name, date, options = {}) {
+    const at = typeof date === "number" ? hourPoint(name, date) : await cellPoint(name, date);
+    await realClick(null, { at, ...options });
+    await creationDialogShows();
+}
+
+/** The new check-in is typed into the dialog's field, with the language's own format. */
+async function setCheckIn(month, day, hours, minutes = 0) {
+    const button = $(".modal .o_daterange_start");
+    if (button) {
+        await realClick(button);
+    }
+    const input = await until(() => $(".modal input[data-field='check_in']"), "the check-in input");
+    input.focus();
+    input.select();
+    input.value = DateTime.local(2026, month, day, hours, minutes).toFormat(
+        luxon.Settings.defaultLocale.startsWith("en") ? "MM/dd/yyyy HH:mm:ss" : "yyyy-MM-dd HH:mm:ss"
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await settle(700);
+}
+
+// A34: a click on an empty cell on the Day range
+scenario("hr_actions_a34_cell_day", GRID, async () => {
+    await ready();
+    await clickCellAt("HRA Abigail", 15);
+    await creationDialogShows();
+    assertEqual(
+        proposal(),
+        { employee: "HRA Abigail", from: "11-11 15:00", to: "11-11 16:00", worked: proposal().worked },
+        "the cell's hour"
+    );
+    assertEqual(MODALS().length, 1, "no plan dialog");
+    await pressFooter("Save & Close");
+    await closedAndShows("HRA Abigail", "A - 3h 30m");
+    await until(
+        () => pillTitles("HRA Abigail").includes("A - 1h"),
+        "the new pill reads A - 1h",
+        8000
+    );
+});
+
+// A35 to A38: the check-out default on the Week, Month, Year and Quarter ranges
+const defaultOn = (kind, name, date, expected) => async () => {
+    await ready();
+    await pickRange(kind);
+    await dataSettled();
+    await settle(500);
+    await clickCell(name, date);
+    assertEqual(proposal(), { ...expected, worked: "8h" }, `the ${kind} range proposes a day of 8 h`);
+    assert(!$(".modal-title")?.textContent.includes("Plan"), "no plan dialog");
+    await closeDialog();
+};
+scenario(
+    "hr_actions_a35_week",
+    GRID,
+    defaultOn("week", "HRA Cells", "2026-11-11", {
+        employee: "HRA Cells",
+        from: "11-11 00:00",
+        to: "11-11 08:00",
+    })
+);
+scenario(
+    "hr_actions_a36_month",
+    GRID,
+    defaultOn("month", "HRA Cells", "2026-11-04", {
+        employee: "HRA Cells",
+        from: "11-04 00:00",
+        to: "11-04 08:00",
+    })
+);
+scenario("hr_actions_a37_year", GRID, async () => {
+    await ready();
+    await pickRange("year");
+    await dataSettled();
+    await settle(500);
+    await clickCell("HRA Abigail", "2026-04");
+    assertEqual(
+        proposal(),
+        { employee: "HRA Abigail", from: "04-01 00:00", to: "04-01 08:00", worked: "8h" },
+        "April's first day, a working day"
+    );
+    assertEqual(warnings().length, 1, "the contract warning shows (her contract starts in October)");
+    await closeDialog();
+});
+scenario(
+    "hr_actions_a38_quarter",
+    GRID,
+    defaultOn("quarter", "HRA Cells", "2026-11-04", {
+        employee: "HRA Cells",
+        from: "11-04 00:00",
+        to: "11-04 08:00",
+    })
+);
+
+// A39: a double click on an empty cell opens one dialog
+scenario("hr_actions_a39_double_click_cell", GRID, async () => {
+    await ready();
+    await clickCell("HRA Beth", 15, { count: 2 });
+    await settle(600);
+    assertEqual(MODALS().length, 1, "still one dialog");
+    await closeDialog();
+    await until(() => !$(".modal"), "no dialog remains");
+    await settle(500);
+    assertEqual(MODALS().length, 0, "none remains");
+});
+
+// A40: a press dragged over cells on the Day range
+scenario("hr_actions_a40_drag_day", GRID, async () => {
+    await ready();
+    const left = (hour) =>
+        cellsOf("HRA Beth").find((el) => Number(el.dataset.column) === hour).getBoundingClientRect().left;
+    const y = rowMiddle("HRA Beth");
+    const from = { x: left(13) + 10, y };
+    const to = { x: left(16) + 10, y };
+    await realDrag(from, [
+        { x: from.x + 40, y },
+        { x: left(15), y },
+        to,
+    ]);
+    await creationDialogShows();
+    const shown = proposal();
+    assertEqual([shown.employee, shown.from, shown.to], ["HRA Beth", "11-11 13:00", "11-11 16:15"], "the span");
+    await closeDialog();
+});
+
+// A41: a press dragged over cells on the Week range: one working day on the first day
+scenario("hr_actions_a41_drag_week", GRID, async () => {
+    await ready();
+    await pickRange("week");
+    await dataSettled();
+    await settle(500);
+    const from = await cellPoint("HRA Cells", "2026-11-09");
+    const to = await cellPoint("HRA Cells", "2026-11-11");
+    await realDrag(from, [
+        { x: from.x + 40, y: from.y },
+        { x: (from.x + to.x) / 2, y: from.y },
+        to,
+    ]);
+    await creationDialogShows();
+    assertEqual(
+        proposal(),
+        { employee: "HRA Cells", from: "11-09 00:00", to: "11-09 08:00", worked: "8h" },
+        "one day of 8 h on the first day"
+    );
+    await closeDialog();
+});
+
+// A42: the default follows the check-in
+scenario("hr_actions_a42_follows_checkin", GRID, async () => {
+    await ready();
+    await pickRange("week");
+    await dataSettled();
+    await settle(500);
+    await clickCell("HRA Cells", "2026-11-11");
+    await setCheckIn(11, 12, 9);
+    const week = proposal();
+    assertEqual([week.from, week.to], ["11-12 09:00", "11-12 17:00"], "the week follows the check-in");
+    await closeDialog();
+    await pickRange("day");
+    await dataSettled();
+    await clickCellAt("HRA Cells", 15);
+    await creationDialogShows();
+    await setCheckIn(11, 11, 9);
+    const day = proposal();
+    assertEqual([day.from, day.to], ["11-11 09:00", "11-11 16:00"], "the day keeps its end");
+    await closeDialog();
+    // an opened record on the Week range keeps its check-out
+    await pickRange("week");
+    await dataSettled();
+    await settle(500);
+    await realClick(pillsOf("HRA Abigail")[0]);
+    await recordDialogShows();
+    const before = proposal();
+    await setCheckIn(11, 11, 5);
+    const after = proposal();
+    assertEqual([after.from, after.to], ["11-11 05:00", before.to], "the opened record keeps its check-out");
+    await closeDialog();
+});
+
+// A45 and A46: the New button
+const newProposes = (kind, expected) => async () => {
+    await ready();
+    if (kind !== "day") {
+        await pickRange(kind);
+        await dataSettled();
+        await settle(500);
+    }
+    await realClick($(".o_tl_button_add"));
+    await creationDialogShows();
+    assertEqual(proposal(), expected, `New on the ${kind} range`);
+    await closeDialog();
+};
+const MITCHELL = { employee: "Mitchell Admin" };
+scenario(
+    "hr_actions_a45_new_day",
+    GRID,
+    newProposes("day", { ...MITCHELL, from: "11-11 00:00", to: "11-12 00:00", worked: "24h" })
+);
+scenario(
+    "hr_actions_a46_new_week",
+    GRID,
+    newProposes("week", { ...MITCHELL, from: "11-08 00:00", to: "11-08 08:00", worked: "8h" })
+);
+
+// A78: New on the Month, Quarter and Year ranges
+scenario("hr_actions_a78_new_month_quarter_year", GRID, async () => {
+    await ready();
+    for (const [kind, from] of [
+        ["month", "11-01 00:00"],
+        ["quarter", "11-01 00:00"],
+        ["year", "01-01 00:00"],
+    ]) {
+        await pickRange(kind);
+        await dataSettled();
+        await settle(500);
+        await realClick($(".o_tl_button_add"));
+        await creationDialogShows();
+        const shown = proposal();
+        assertEqual(
+            [shown.employee, shown.from, shown.to, shown.worked],
+            ["Mitchell Admin", from, from.replace("00:00", "08:00"), "8h"],
+            `New on the ${kind} range`
+        );
+        await closeDialog();
+        await until(() => !$(".modal"), "the dialog closes");
+    }
+});
+
+// A47: without the right to create nothing opens and no New shows
+scenario("hr_actions_a47_no_create_none", GRID, async () => {
+    await ready();
+    assert(!$(".o_tl_button_add"), "no New button");
+    await realClick(null, { at: hourPoint("Gantt Role None", 15) });
+    await settle(1200);
+    assertEqual(MODALS().length, 0, "nothing opens for a click on an empty cell");
+    assert(!$(".o_popover"), "no popover either");
+});
+
+// A48: the plan dialog never opens, on any range
+scenario("hr_actions_a48_never_plan", GRID, async () => {
+    await ready();
+    const empty = {
+        day: ["HRA Cells", 15],
+        week: ["HRA Cells", "2026-11-11"],
+        month: ["HRA Cells", "2026-11-04"],
+        quarter: ["HRA Cells", "2026-11-04"],
+        year: ["HRA Cells", "2026-04"],
+    };
+    for (const [kind, [name, date]] of Object.entries(empty)) {
+        if (kind !== "day") {
+            await pickRange(kind);
+            await dataSettled();
+            await settle(500);
+        }
+        await clickCell(name, date);
+        assertEqual(titleOfDialog(), "Create", `the ${kind} range opens the creation dialog`);
+        assertEqual(MODALS().length, 1, `one dialog on the ${kind} range`);
+        await closeDialog();
+        await until(() => !$(".modal"), "the dialog closes");
+    }
+});
