@@ -242,6 +242,10 @@ class TestActionsTours(HrToursBase):
 
     def test_a33_cut_pills(self):
         self._demo()
+        # the tour resizes a 24-hour attendance: the Community's time rules would split a longer
+        # than scheduled attendance when its check-out is written, and Undo cannot join the
+        # parts again; that pipeline is not what the scenario is about
+        self.env['hr.time.rule'].search([]).write({'active': False})
         self._tour('hr_actions_a33_cut_pills')
 
     def test_a74_where_user_lands(self):

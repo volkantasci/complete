@@ -538,6 +538,16 @@ async function pressFooter(text) {
     await realClick(button);
 }
 
+/** The notification of the last change shows with its Undo button: pressed with a real click. */
+async function pressUndo() {
+    const button = await until(
+        () => $(".o_tl_notification .o_notification_buttons button"),
+        "the Undo button of the notification"
+    );
+    await realClick(button);
+    await dataSettled();
+}
+
 /** The dialog shows with its form, once the click has been made. */
 async function recordDialogShows() {
     await until(() => $(DIALOG), "the record dialog", 4000);
@@ -720,6 +730,28 @@ scenario("hr_actions_a33_cut_pills", GRID, async () => {
     await realClick(still);
     await recordDialogShows();
     await closeDialog();
+    await dataSettled();
+    await settle(400);
+    // its uncut end resizes (one hour column to the left), and Undo gives the whole attendance back,
+    // from its real check-in on the 10th and not from the start of the displayed day
+    const titles = () => pillTitles("HRA Anita");
+    assertEqual(titles(), ["A - 24h", "A - 5h"], "Anita's pills before");
+    const cutAgain = pillsOf("HRA Anita")[0];
+    await realHover(cutAgain);
+    const handle = await until(() => $(".o_tl_handle_stop", cutAgain), "the end handle");
+    const edge = rectOf(cutAgain);
+    const from = { x: edge.right - 4, y: edge.top + edge.height / 2 };
+    assert(
+        rectOf(handle).left <= from.x && from.x <= rectOf(handle).right,
+        "the press is on the handle"
+    );
+    await realDrag(from, [{ x: from.x - 20, y: from.y }, { x: from.x - 55.5, y: from.y }]);
+    await until(() => titles()[0] === "A - 23h", "the attendance is one hour shorter", 8000);
+    await dataSettled();
+    assertEqual(titles(), ["A - 23h", "A - 5h"], "Anita's pills after the resize");
+    await pressUndo();
+    await until(() => titles()[0] === "A - 24h", "Undo gives the 24 hours back", 8000);
+    assertEqual(titles(), ["A - 24h", "A - 5h"], "Anita's pills after Undo");
 });
 
 // A74: where the user lands
