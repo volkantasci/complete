@@ -137,3 +137,63 @@ class TestActionsTours(HrToursBase):
         self.admin.tz = zone
         self.env.flush_all()
         self._tour('hr_actions_a15_today_in_the_users_zone')
+
+    # -- the contract warning and its link (R7, R8) ----------------------------------------------
+
+    def _warning_world(self):
+        """Abigail (a contract from 1 October 2026 to 11 January 2027, an attendance on 11
+        November) and Beth (no contract, nothing on that day): the two employees of A18 to A25."""
+        abigail = self._employee(
+            'HRA Abigail', contract=('2026-10-01', '2027-01-11'),
+            attendances=[('2026-11-11 06:00:00', '2026-11-11 09:30:00')])
+        beth = self._employee('HRA Beth', contract=None)
+        return abigail, beth
+
+    def _break_of(self, employee):
+        return self.env['hr.attendance'].search([('employee_id', '=', employee.id)]).mapped(
+            'break_duration')
+
+    def test_a19_no_warning(self):
+        self._warning_world()
+        self._tour('hr_actions_a19_no_warning')
+
+    def test_a21_follows_form(self):
+        self._warning_world()
+        self._tour('hr_actions_a21_follows_form')
+
+    def test_a22_full_page_form(self):
+        _abigail, beth = self._warning_world()
+        # alone in the list: the other attendance moves out of the list's way
+        self.env['hr.attendance'].search(
+            [('employee_id', '!=', beth.id)]).with_context(skip_time_rules=True).unlink()
+        self.env['hr.attendance'].with_context(skip_time_rules=True).create({
+            'employee_id': beth.id, 'check_in': datetime(2026, 11, 10, 8, 0),
+            'check_out': datetime(2026, 11, 10, 12, 0)})
+        self.env.flush_all()
+        self._tour('hr_actions_a22_full_page_form')
+        self.env.invalidate_all()
+        self.assertEqual(self._break_of(beth), [0.75], 'the Community saves the changed form')
+
+    def test_a23_link_by_group(self):
+        self._warning_world()
+        self._role_users()
+        with self.subTest(login='gantt_all'):
+            self._tour('hr_actions_a23_link_without_group', login='gantt_all')
+        with self.subTest(login='gantt_allhr'):
+            self._tour('hr_actions_a23_link_with_group', login='gantt_allhr')
+
+    def test_a24_link_opens_employee(self):
+        _abigail, beth = self._warning_world()
+        self._tour('hr_actions_a24_link_opens_employee')
+        self.env.invalidate_all()
+        self.assertFalse(self._break_of(beth), 'nothing was saved: Beth has no attendance')
+
+    def test_a25_link_drops_changes(self):
+        _abigail, beth = self._warning_world()
+        self.env['hr.attendance'].with_context(skip_time_rules=True).create({
+            'employee_id': beth.id, 'check_in': datetime(2026, 11, 10, 8, 0),
+            'check_out': datetime(2026, 11, 10, 12, 0)})
+        self.env.flush_all()
+        self._tour('hr_actions_a25_link_drops_changes')
+        self.env.invalidate_all()
+        self.assertEqual(self._break_of(beth), [0], 'the changes of the dialog are dropped')

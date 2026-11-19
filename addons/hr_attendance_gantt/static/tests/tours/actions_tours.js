@@ -7,8 +7,10 @@ import {
     assert,
     assertEqual,
     barOf,
+    cellsOf,
     clean,
     clearRemembered,
+    closeDialog,
     closeSearchMenu,
     dataSettled,
     dateColumns,
@@ -23,6 +25,8 @@ import {
     pillsOf,
     ready,
     realClick,
+    rangeName,
+    rowEl,
     rowNames,
     settle,
     step,
@@ -334,4 +338,177 @@ scenario("hr_actions_a15_today_in_the_users_zone", GRID, async () => {
     await until(() => rowNames().length === 4, "the four rows without a contract");
     assertEqual(rowNames(), ["HRC Edge", ...NO_CONTRACT], "the edge employee is without one");
     assertEqual(pager(), "1-4 / 4", "the pager counts them");
+});
+
+// -- the contract warning and its link (R7, R8) ----------------------------------------------------
+
+const DIALOG = ".modal .o_form_view";
+const WARNING = ".o_hag_contract_warning";
+const LINK = ".o_hag_correct_employee";
+const isDrawn = (el) => el.getClientRects().length > 0;
+/** The warning lines that show in the open form (a hidden line is not counted). */
+const warnings = () => $$(`.o_form_view ${WARNING}`).filter(isDrawn);
+const links = () => $$(`.o_form_view ${LINK}`).filter(isDrawn);
+
+/**
+ * A click on the cell at `hour` of a row: 20 px right of the hour column's left edge, at the
+ * vertical centre of the row's header (acceptance "Navigating").
+ */
+async function clickCellAt(name, hour) {
+    const cell = cellsOf(name).find((el) => Number(el.dataset.column) === hour);
+    assert(cell, `the cell of ${hour}:00 in the row of ${name}`);
+    const header = $(".o_tl_row_header", rowEl(name)).getBoundingClientRect();
+    const box = cell.getBoundingClientRect();
+    await realClick(null, { at: { x: box.left + 20, y: header.top + header.height / 2 } });
+    await until(() => $(DIALOG), `the dialog of the cell at ${hour}:00 of ${name}`, 12000);
+    await settle(600);
+}
+
+/** The employee of the open form is changed to `name`, with the field's own autocomplete. */
+async function pickEmployee(name) {
+    const input = await until(
+        () => $(".modal .o_field_widget[name='employee_id'] input"),
+        "the employee field"
+    );
+    input.focus();
+    input.value = name;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    const item = await until(
+        () => $$(".o-autocomplete--dropdown-item").find((el) => clean(el.textContent) === name),
+        `the entry ${name} of the employee field`
+    );
+    await realClick(item);
+    await until(
+        () => $(".modal .o_field_widget[name='employee_id'] input")?.value === name,
+        `${name} in the employee field`
+    );
+    await settle(500);
+}
+
+/** A text is typed into the input of a form field, which is then left. */
+async function typeInto(selector, text) {
+    const input = await until(() => $(selector), `the field ${selector}`);
+    input.focus();
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.blur();
+    await settle(500);
+}
+
+const lastCrumb = () => clean($(".o_breadcrumb .active")?.textContent || "");
+
+/** After the link: no dialog, the employee's form fills the window, the crumb ends in the name. */
+async function assertEmployeeForm(name) {
+    await until(() => !$(".modal"), "no dialog is left", 8000);
+    await until(() => $(".o_form_view [name='name']"), "the employee form");
+    await until(() => lastCrumb() === name, `the breadcrumb ends in ${name}`);
+    assert(!$(".modal"), "still no dialog");
+    assert(!$(".o_tl_renderer"), "the Gantt view is not on screen");
+}
+
+// A19: no warning for an employee under contract
+scenario("hr_actions_a19_no_warning", GRID, async () => {
+    await ready();
+    await clickCellAt("HRA Abigail", 15);
+    assertEqual(clean($(".modal-title").textContent), "Create", "the dialog's title");
+    assertEqual(warnings().length, 0, "no warning shows (M24)");
+    await closeDialog();
+});
+
+// A21: the warning follows the form
+scenario("hr_actions_a21_follows_form", GRID, async () => {
+    await ready();
+    await clickCellAt("HRA Abigail", 15);
+    assertEqual(warnings().length, 0, "no warning for Abigail");
+    await pickEmployee("HRA Beth");
+    await until(() => warnings().length === 1, "the warning appears without saving");
+    await pickEmployee("HRA Abigail");
+    await until(() => warnings().length === 0, "the warning is gone");
+    await closeDialog();
+});
+
+// A23: the link by group
+const linkByGroup = (shown) => async () => {
+    await ready();
+    await clickCellAt("HRA Beth", 15);
+    assertEqual(warnings().length, 1, "the warning shows");
+    assertEqual(links().length, shown ? 1 : 0, shown ? "the link shows" : "no link");
+    if (shown) {
+        assertEqual(clean(links()[0].textContent), "Correct employee", "the link's text");
+    }
+    await closeDialog();
+};
+scenario("hr_actions_a23_link_without_group", GRID, linkByGroup(false));
+scenario("hr_actions_a23_link_with_group", GRID, linkByGroup(true));
+
+// A24: the link opens the employee and saves nothing
+scenario("hr_actions_a24_link_opens_employee", GRID, async () => {
+    await ready();
+    await clickCellAt("HRA Beth", 15);
+    assertEqual(warnings().length, 1, "the warning shows");
+    assertEqual(links().length, 1, "with the link");
+    await realClick(links()[0]);
+    await assertEmployeeForm("HRA Beth");
+    // the breadcrumb's first step leads back to the view, on the Day range of 11 November
+    await realClick($(".o_breadcrumb .breadcrumb-item:not(.active)"));
+    await until(() => $(".o_tl_renderer .o_tl_row_header"), "the Gantt view returns");
+    await ready();
+    assertEqual(rangeName(), "Day", "the Day range");
+    assertEqual(dateColumns()[0].dataset.date.slice(0, 10), "2026-11-11", "the 11th of November");
+    assertEqual(pillsOf("HRA Beth").length, 0, "Beth has no attendance");
+});
+
+// A22: the full-page form (opened from the list; its break is saved with the link)
+scenario("hr_actions_a22_full_page_form", GRID, async () => {
+    await ready();
+    await switchTo("List");
+    // the action's search default groups the list by employee: the one group is opened
+    await until(
+        () => $(".o_list_view .o_data_row, .o_list_view .o_group_header"),
+        "the list of attendances"
+    );
+    if (!$(".o_list_view .o_data_row")) {
+        await realClick($(".o_list_view .o_group_header"));
+    }
+    const row = await until(
+        () => $$(".o_list_view .o_data_row").find((el) => el.textContent.includes("HRA Beth")),
+        "the attendance of Beth in the list"
+    );
+    await realClick($(".o_data_cell", row));
+    await until(() => $(".o_form_view [name='break_duration']"), "the form");
+    await settle(600);
+    assertEqual(warnings().length, 1, "the warning shows on the full-page form");
+    assertEqual(links().length, 1, "with the link");
+    // between the status bar and the sheet
+    const bar = $(".o_form_statusbar").getBoundingClientRect();
+    const line = warnings()[0].getBoundingClientRect();
+    const sheet = $(".o_form_sheet").getBoundingClientRect();
+    assert(
+        bar.bottom <= line.top + 0.5 && line.bottom <= sheet.top + 0.5,
+        `the line lies between the status bar and the sheet: ${bar.bottom} ${line.top} ${line.bottom} ${sheet.top}`
+    );
+    await typeInto(".o_form_view [name='break_duration'] input", "0:45");
+    await realClick(links()[0]);
+    await assertEmployeeForm("HRA Beth");
+});
+
+// A25: the link drops the changes of an opened record
+scenario("hr_actions_a25_link_drops_changes", GRID, async () => {
+    await ready();
+    await step(-1);
+    assertEqual(dateColumns()[0].dataset.date.slice(0, 10), "2026-11-10", "the 10th of November");
+    const pill = await until(() => pillsOf("HRA Beth")[0], "the pill of Beth");
+    // 002d2 opens the record dialog by a double click (a later task makes it a click)
+    await until(
+        () => realClick(pill, { count: 2 }).then(() => $(DIALOG)),
+        "the record dialog",
+        15000
+    );
+    await settle(600);
+    assertEqual(clean($(".modal-title").textContent), "Open", "the dialog's title");
+    assertEqual(warnings().length, 1, "the warning shows in the opened record");
+    await typeInto(".modal [name='break_duration'] input", "0:30");
+    await realClick(links()[0]);
+    await assertEmployeeForm("HRA Beth");
 });
