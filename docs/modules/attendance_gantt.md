@@ -338,8 +338,9 @@ podman compose --env-file docker/versions.env --env-file docker/.env -f docker/c
 
 Everything after `--` is the Odoo command line. The module list is the one the
 tool was checked with; `hr_attendance_gantt` brings Attendances, Employees and
-both bridges. The clock matters only while the database is created: afterwards
-the server may run at the real time.
+both bridges. The demo data need the clock while the database is created; the
+server is then started under the same clock (below), so that its pages read the
+same day as the package's scenarios.
 
 Check that the demo data came out as expected. The command lists every employee
 with schedule, time zone, contracts and attendances, then one line `DIFF ...`
@@ -374,11 +375,11 @@ running on, published on port 8069 (the server answers at
 `http://localhost:8069`). Run it in the background or in its own terminal:
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 127.0.0.1:8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB
 ```
 
 Stop it by name: `podman ps` lists the run container (its name looks like
-`docker_odoo_run_...`), and
+`docker-odoo-run-c38678dc7f23`), and
 
 ```
 podman stop CONTAINER
