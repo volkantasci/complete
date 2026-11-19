@@ -1,0 +1,10 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="hr_attendance_gantt.CorrectEmployeeButton">
+        <button t-if="this.employeeId" type="button" class="btn btn-link p-0 o_hag_correct_employee"
+                t-on-click.prevent.stop="this.onClick">
+            <i class="oi me-1" data-icon="arrow_forward" role="img" aria-hidden="true"/><t>Correct employee</t>
+        </button>
+    </t>
+</templates>

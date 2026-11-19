@@ -74,4 +74,26 @@
             </filter>
         </field>
     </record>
+
+    <!-- The contract warning (R7) between the status bar and the sheet of the Community form.
+         The creation form and the My Attendances form inherit from this form, so the line
+         reaches them too. Its link (R8) is a field widget on the employee, for Employees
+         officers only. -->
+    <record id="hr_attendance_view_form_contract_warning" model="ir.ui.view">
+        <field name="name">attendance form, contract warning</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
+        <field name="arch" type="xml">
+            <sheet position="before">
+                <field name="show_contract_warning" invisible="1"/>
+                <div class="o_hag_contract_warning" role="alert"
+                     invisible="not show_contract_warning">
+                    <span>This employee has no contract on this day.</span>
+                    <field id="employee_correct_link" name="employee_id" nolabel="1"
+                           widget="correct_employee_button" readonly="1"
+                           groups="hr.group_hr_user"/>
+                </div>
+            </sheet>
+        </field>
+    </record>
 </odoo>
