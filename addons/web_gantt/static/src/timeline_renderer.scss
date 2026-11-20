@@ -384,6 +384,8 @@
 
     // R23: the available parts of a partly unavailable cell are painted, not left transparent
     --o-tl-available-bg: #{$o-view-background-color};
+    // under the painted parts of a partly unavailable cell (its own style sets it)
+    --o-tl-view-bg: #{$o-view-background-color};
 
     &.o_tl_is_today {
         --o-tl-available-bg: #{$o-tl-today-bg};

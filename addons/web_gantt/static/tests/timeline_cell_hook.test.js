@@ -94,3 +94,13 @@ test("R23 available quarters painted", async () => {
     expect(cells[11]).toHaveClass("o_tl_is_today");
     expect(getComputedStyle(cells[11]).backgroundImage).toBe(stops("rgb(255, 250, 235)"));
 });
+
+test("R23 a partial cell of today's column has the view background under its painted parts", async () => {
+    const cells = await mountWithNightGrey([0, 2]);
+    expect(cells[11]).toHaveClass("o_tl_is_today");
+    // the translucent today shade of the cell itself is not laid under the gradient (dark)
+    expect(getComputedStyle(cells[11]).backgroundColor).toBe("rgb(255, 255, 255)");
+    expect(getComputedStyle(cells[13]).backgroundColor).toBe("rgb(255, 255, 255)");
+    // a whole-day cell keeps its own today shade
+    expect(getComputedStyle(cells[10]).backgroundColor).not.toBe("rgb(255, 255, 255)");
+});

@@ -214,7 +214,8 @@ test("A74: unavailable cells and today fill kept", async () => {
     expect(css(cells[10], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
     // D+1 is grey, D+2 on its first half only (hard edge at 50 %)
     expect(css(cells[12], "backgroundColor")).toBe(GREY);
-    expect(css(cells[13], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
+    // (a partly unavailable cell has the view background under its painted parts, R23)
+    expect(css(cells[13], "backgroundColor")).toBe("rgb(255, 255, 255)");
     const image = css(cells[13], "backgroundImage");
     expect(image).toMatch(/^linear-gradient\(90deg, /);
     expect(image).toInclude(`${GREY} 49%, `);
@@ -222,7 +223,8 @@ test("A74: unavailable cells and today fill kept", async () => {
     expect(image).toInclude("rgb(255, 255, 255) 50%)");
     // today (D0): the second half is grey, the available half is painted in the today fill
     expect(cells[11]).toHaveClass("o_tl_is_today");
-    expect(css(cells[11], "backgroundColor")).toBe(TODAY_FILL);
+    // the cell's own today fill is not laid under the painted parts (translucent in dark)
+    expect(css(cells[11], "backgroundColor")).toBe("rgb(255, 255, 255)");
     expect(css(cells[11], "backgroundImage")).toInclude(`${TODAY_FILL} 49%, ${GREY} 50%)`);
     // another contact and the row without a value get nothing
     for (const name of ["Host Contact 2", "Undefined Contact"]) {

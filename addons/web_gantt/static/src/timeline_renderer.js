@@ -2734,7 +2734,8 @@ export class TimelineRenderer extends Component {
             }
         });
         const angle = getComputedStyle(document.documentElement).direction === "rtl" ? 270 : 90;
-        return `background-image: linear-gradient(${angle}deg, ${stops.join(", ")})`;
+        // the cell's own translucent today shade must not lie under the painted parts (dark)
+        return `background-image: linear-gradient(${angle}deg, ${stops.join(", ")}); background-color: var(--o-tl-view-bg)`;
     }
 
     _columnView(header) {
