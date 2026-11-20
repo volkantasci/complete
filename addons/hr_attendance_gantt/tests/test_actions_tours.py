@@ -14,6 +14,7 @@ from .actions_fixtures import (
     PEER_NAME,
     action_in_november,
     demo_time_rule_state,
+    make_gantt_cards,
     make_gantt_moved,
     make_page_employees,
     make_role_users,
@@ -71,6 +72,22 @@ class TestActionsTours(HrToursBase):
     def test_a4_my_gantt_phone(self):
         self._admin_employee()
         self._tour('hr_actions_a4_my_gantt_phone', path=MY_ACTION, mobile=PHONE)
+
+    def test_a94_helper_place_my_attendances(self):
+        self._admin_employee()
+        self._tour('hr_actions_a94_helper_place_my', path=MY_ACTION)
+
+    def test_a94_helper_place_my_attendances_phone(self):
+        self._admin_employee()
+        self._tour('hr_actions_a94_helper_place_my_phone', path=MY_ACTION, mobile=PHONE)
+
+    def test_a94_helper_place_search_keeps_no_employee(self):
+        self._employee('HRA Search A')
+        self._tour('hr_actions_a94_helper_place_search')
+
+    def test_a94_helper_place_search_keeps_no_employee_phone(self):
+        self._employee('HRA Search A')
+        self._tour('hr_actions_a94_helper_place_search_phone', mobile=PHONE)
 
     def test_a65_phone_switcher(self):
         self._admin_employee()
@@ -312,6 +329,10 @@ class TestActionsTours(HrToursBase):
         self._demo()
         self._tour('hr_actions_a75_escape')
 
+    def test_a75_escape_after_typing(self):
+        self._demo()
+        self._tour('hr_actions_a75_escape_after_typing')
+
     def test_a82_double_click_then_next(self):
         self._demo()
         self._tour('hr_actions_a82_double_click_then_next')
@@ -517,6 +538,13 @@ class TestActionsTours(HrToursBase):
         with self.subTest(device='phone'):
             self._monthly(
                 'hr_actions_a8_overview_follows_period_phone', like['HRA Anita'], mobile=PHONE)
+
+    def test_a95_twelve_cards(self):
+        cards = make_gantt_cards(self.env, self.schedule)
+        with self.subTest(device='desktop'):
+            self._monthly('hr_actions_a95_twelve_cards', cards)
+        with self.subTest(device='phone'):
+            self._monthly('hr_actions_a95_twelve_cards_phone', cards, mobile=PHONE)
 
     def test_a66_monthly_phone(self):
         like = self._demo()

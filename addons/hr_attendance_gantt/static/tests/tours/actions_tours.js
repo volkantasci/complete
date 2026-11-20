@@ -156,6 +156,77 @@ scenario("hr_actions_a3_my_calendar_phone", CALENDAR, async () => {
     await calendarOpens();
 });
 
+/**
+ * R26 (A4, A65, A94): where the empty-view helper lies against the one row and the period line,
+ * read by what lies under the pointer, so that a helper over the row or the period line fails it.
+ * Desktop: a layer 15 px into the row that lets the pointer through, also at the row's bottom.
+ * Phone: a block at the fixed y 274.6 (2 px allowed, 002d2's P2) that takes the pointer: with the
+ * search bar closed the period line, the hour line and the row's upper 19.6 px lie above it, with
+ * it open the row is covered and only the period line lies clear of it.
+ */
+async function helperPlace({ phone, searchOpen = false, name = "Mitchell Admin", periodClear = true }) {
+    const helper = await until(() => $(".o_hag_helper"), "the Community attendance helper");
+    await settle(600);
+    const row = rowEl(name);
+    const header = rectOf($(".o_tl_row_header", row) || row);
+    const layer = rectOf(helper);
+    const under = (x, y) => document.elementFromPoint(x, y);
+    const inHelper = (el) => Boolean(el?.closest(".o_hag_helper"));
+    const x = header.right + 60;
+    const periodLine = rectOf($(".o_tl_col_group"));
+    if (periodClear) {
+        const atPeriod = under(x, periodLine.top + periodLine.height / 2);
+        assert(
+            atPeriod && !inHelper(atPeriod),
+            `the period line lies above the helper (bar ${searchOpen ? "open" : "closed"}, period line ${periodLine.top} to ${periodLine.bottom}, helper from ${layer.top}, x ${x})`
+        );
+    }
+    assertNear(layer.bottom, window.innerHeight, "the helper reaches the window's bottom", 1);
+    if (!phone) {
+        assertNear(layer.top - header.top, 15, "the layer starts 15 px into the row", 0.6);
+        assertEqual(getComputedStyle(helper).pointerEvents, "none", "the layer lets the pointer through");
+        for (const y of [header.top + 5, header.top + 30, header.bottom - 3]) {
+            const el = under(x, y);
+            assert(el && !inHelper(el) && el.closest(".o_tl_row"), `the row is under the pointer at y ${y}`);
+        }
+        return { x, coveredX: x, covered: header.bottom - 3, visible: header.top + 5 };
+    }
+    assertNear(layer.top, 274.6, "the phone's helper has its fixed top", 2);
+    assert(!helper.closest(".o_tl_renderer"), "it is no layer of the grid");
+    if (searchOpen) {
+        assert(header.top > layer.top - 0.5, "the open bar pushes the row under the helper");
+        assert(inHelper(under(x, header.top + 5)), "the row is covered");
+    } else {
+        // the page of a tour has its own control bar: the exact 19.6 px are the probe M101's
+        const above = layer.top - header.top;
+        assert(above > 10 && above < 25, `the row's upper part lies above it (${above} px)`);
+        assert(!inHelper(under(x, header.top + 5)), "the row's upper part is not covered");
+        assert(inHelper(under(x, header.top + 30)), "the row's lower part is covered");
+        const hours = $$(".o_tl_col").filter((el) => rectOf(el).bottom <= header.top + 0.5);
+        assert(hours.length > 0, "the hour line lies above the row");
+        assert(!inHelper(under(x, rectOf(hours.at(-1)).top + 5)), "the hour line is not covered");
+    }
+    // the covered press lands on the helper's own margin, not on a link of its content
+    return { x, coveredX: 3, covered: header.top + 30, visible: header.top + 5 };
+}
+
+/** A press on the row at `y` (R14): the creation dialog opens, or nothing does. */
+async function pressRowAt(x, y, opens) {
+    await realClick(null, { at: { x, y } });
+    if (opens) {
+        await creationDialogShows();
+        await closeDialog();
+        await until(() => !$(".modal"), "the dialog closes");
+    } else {
+        await settle(900);
+        assert(!$(".modal"), "a press under the helper does nothing");
+    }
+    await settle(300);
+}
+
+const searchButton = () =>
+    $$(".o_control_panel button").find((button) => $("i[data-icon='search']", button));
+
 // A4: the Gantt view of My Attendances
 const myGantt = (phone) => async () => {
     await settle();
@@ -177,9 +248,62 @@ const myGantt = (phone) => async () => {
         // on the phone the search bar is behind its own button, and its facets are not drawn
         assertEqual(facets(), ["Employee"], "one facet, the Employee grouping");
     }
+    await helperPlace({ phone });
 };
 scenario("hr_actions_a4_my_gantt", CALENDAR, myGantt(false));
 scenario("hr_actions_a4_my_gantt_phone", CALENDAR, myGantt(true));
+
+// A94: where the empty-view helper lies (R26), by presses and by what lies under the pointer
+const helperPresses = async ({ phone, searchOpen, name, periodClear }) => {
+    const place = await helperPlace({ phone, searchOpen, name, periodClear });
+    if (!phone) {
+        // the visible part and the part under the layer both create (R14)
+        await pressRowAt(place.x, place.visible, true);
+        await pressRowAt(place.coveredX, place.covered, true);
+    } else if (!searchOpen) {
+        await pressRowAt(place.x, place.visible, true);
+        await pressRowAt(place.coveredX, place.covered, false);
+    } else {
+        await pressRowAt(place.coveredX, place.covered, false);
+    }
+};
+const a94My = (phone) => async () => {
+    await settle();
+    await switchTo("Gantt");
+    await until(() => $(GRID), "the grid of the Gantt view");
+    await ready(1);
+    await helperPresses({ phone, searchOpen: false });
+    if (phone) {
+        await realClick(searchButton());
+        await until(() => $(".o_searchview_input"), "the search bar opens");
+        await settle(900);
+        // (the open bar of a tour's page is taller than the probe's: the period line's place there
+        // is the probe M102/M103's to read; here the helper's fixed top and the covered row are)
+        await helperPresses({ phone, searchOpen: true, periodClear: false });
+        await realClick(searchButton());
+        await until(() => !$(".o_searchview_input"), "the search bar closes");
+        await settle(900);
+        await helperPresses({ phone, searchOpen: false });
+    }
+};
+scenario("hr_actions_a94_helper_place_my", CALENDAR, a94My(false));
+scenario("hr_actions_a94_helper_place_my_phone", CALENDAR, a94My(true));
+const a94Search = (phone) => async () => {
+    await ready();
+    if (phone) {
+        await realClick(searchButton());
+        await until(() => $(".o_searchview_input"), "the search bar opens");
+    }
+    await searchFor("zzzz");
+    await until(() => $(".o_hag_helper"), "the helper of the search that keeps no employee");
+    assertEqual(rowNames(), [""], "one empty row");
+    await settle(900);
+    // the open bar pushes the empty row of the management view to y 324: the helper's fixed top
+    // lies on the period line there, which only My Attendances' row (y 297) leaves clear
+    await helperPresses({ phone, searchOpen: phone, name: "", periodClear: !phone });
+};
+scenario("hr_actions_a94_helper_place_search", GRID, a94Search(false));
+scenario("hr_actions_a94_helper_place_search_phone", GRID, a94Search(true));
 
 // A65: the phone's switcher button opens a menu of the five views, and Gantt shows A4's one row
 scenario("hr_actions_a65_phone_switcher", CALENDAR, async () => {
@@ -414,6 +538,20 @@ async function pickEmployee(name) {
     await settle(500);
 }
 
+/** A text is typed into the input of a form field, which stays being edited (it keeps the focus). */
+async function typeAndStay(selector, text) {
+    const input = await until(() => $(selector), `the field ${selector}`);
+    input.focus();
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle(300);
+    assert(document.activeElement === input, "the field is still being edited");
+    return input;
+}
+
+/** R20: the focus lies on a button of the record dialog when it opens (no field is edited). */
+const focusIsOnAButton = () => document.activeElement?.closest(".modal") && document.activeElement.tagName === "BUTTON";
+
 /** A text is typed into the input of a form field, which is then left. */
 async function typeInto(selector, text) {
     const input = await until(() => $(selector), `the field ${selector}`);
@@ -547,6 +685,13 @@ const titleOfDialog = () => clean($(".modal-title")?.textContent || "");
 const stopKey = (key) =>
     document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 
+/** Escape pressed on `el`; the event is returned (`defaultPrevented` says that a hotkey took it). */
+function pressEscape(el) {
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    el.dispatchEvent(event);
+    return event;
+}
+
 /** A footer button of the open dialog, by its text, pressed with a real click. */
 async function pressFooter(text) {
     const button = $$(".modal-footer button").find((el) => clean(el.textContent) === text);
@@ -617,12 +762,22 @@ scenario("hr_actions_a27_save_discard", GRID, async () => {
         await settle(400);
         await realClick(pillsOf("HRA Abigail")[0]);
         await recordDialogShows();
-        await typeInto(".modal [name='break_duration'] input", "0:45");
-        if (way === "Discard") {
-            await pressFooter("Discard");
-        } else if (way === "Escape") {
+        assert(focusIsOnAButton(), `the focus lies on a button when the dialog opens (${document.activeElement?.tagName})`);
+        if (way === "Escape") {
+            // R20: with the focus still in the field after typing, the first Escape ends the
+            // field's editing and the dialog stays open; the second closes it, nothing saved
+            const input = await typeAndStay(".modal [name='break_duration'] input", "0:45");
+            const first = pressEscape(input);
+            await settle(2500);
+            assert(first.defaultPrevented, "the first Escape is handled by the field's editing");
+            assert($(".modal"), "the first Escape leaves the dialog open");
             stopKey("Escape");
         } else {
+            await typeInto(".modal [name='break_duration'] input", "0:45");
+        }
+        if (way === "Discard") {
+            await pressFooter("Discard");
+        } else if (way === "cross") {
             await realClick($(".modal .btn-close"));
         }
         await closedAndShows("HRA Abigail", "A - 3h");
@@ -871,20 +1026,46 @@ scenario("hr_actions_a75_escape", GRID, async () => {
     await ready();
     await realClick(pillsOf("HRA Abigail")[0]);
     await recordDialogShows();
+    assert(focusIsOnAButton(), "the focus lies on a button when the record dialog opens");
     const calls = countDataCalls();
     stopKey("Escape");
-    await until(() => !$(".modal"), "Escape closes the dialog");
+    await until(() => !$(".modal"), "one Escape closes the dialog, no field being edited");
     await until(() => calls.count >= 1, "the view reads its data again", 8000);
     assertEqual(rangeName(), "Day", "the same range");
     await dataSettled();
-    // the creation dialog closes the same way, without saving
+    // the creation dialog: its focus is in the employee field before anything is typed, so one
+    // Escape closes it without saving; after typing, the first Escape ends the editing and the
+    // second closes it
     await clickCellAt("HRA Abigail", 15);
+    assert(
+        document.activeElement?.closest(".modal") && document.activeElement.closest("[name='employee_id']"),
+        "the focus lies in the employee field of the creation dialog"
+    );
     const created = countDataCalls();
     stopKey("Escape");
-    await until(() => !$(".modal"), "Escape closes the creation dialog");
+    await until(() => !$(".modal"), "one Escape closes the creation dialog");
     await until(() => created.count >= 1, "the view reads its data again", 8000);
     await dataSettled();
     assertEqual(rangeName(), "Day", "the same range after the creation dialog");
+    assertEqual(pillTitles("HRA Abigail"), ["A - 3h 30m"], "nothing was saved");
+});
+
+// A75 (R20): after typing in a field, the first Escape ends its editing and the second closes the
+// creation dialog, nothing saved
+scenario("hr_actions_a75_escape_after_typing", GRID, async () => {
+    await ready();
+    await clickCellAt("HRA Abigail", 15);
+    const created = countDataCalls();
+    const field = await typeAndStay(".modal [name='break_duration'] input", "0:20");
+    // the first Escape is taken by the field's editing (a handler consumes it) and the dialog stays
+    const first = pressEscape(field);
+    await settle(2500);
+    assert(first.defaultPrevented, "the first Escape is handled by the field's editing");
+    assert($(".modal"), "the first Escape leaves the creation dialog open");
+    stopKey("Escape");
+    await until(() => !$(".modal"), "the second Escape closes the creation dialog");
+    await until(() => created.count >= 1, "the view reads its data again", 8000);
+    await dataSettled();
     assertEqual(pillTitles("HRA Abigail"), ["A - 3h 30m"], "nothing was saved");
 });
 
@@ -1151,8 +1332,10 @@ scenario("hr_actions_a41_drag_week", GRID, async () => {
     await pickRange("week");
     await dataSettled();
     await settle(500);
-    const from = await cellPoint("HRA Cells", "2026-11-09");
-    const to = await cellPoint("HRA Cells", "2026-11-11");
+    // R14 point 3: the span starts at the beginning of the sub-column under the press; the press
+    // is 10 px inside the left edge of Monday 9, the release at the same place in Wednesday 11
+    const from = await cellPoint("HRA Cells", "2026-11-09", 10);
+    const to = await cellPoint("HRA Cells", "2026-11-11", 10);
     await realDrag(from, [
         { x: from.x + 40, y: from.y },
         { x: (from.x + to.x) / 2, y: from.y },
@@ -1163,6 +1346,23 @@ scenario("hr_actions_a41_drag_week", GRID, async () => {
         proposal(),
         { employee: "HRA Cells", from: "11-09 00:00", to: "11-09 08:00", worked: "8h" },
         "one day of 8 h on the first day"
+    );
+    await closeDialog();
+    await until(() => !$(".modal"), "the dialog closes");
+    // pressed at Monday 9's centre instead (its third quarter), the span starts at 12:00
+    const half = (await columnOf("2026-11-09")).getBoundingClientRect().width / 2 + 1;
+    const centre = await cellPoint("HRA Cells", "2026-11-09", half);
+    const end = await cellPoint("HRA Cells", "2026-11-11", half);
+    await realDrag(centre, [
+        { x: centre.x + 40, y: centre.y },
+        { x: (centre.x + end.x) / 2, y: centre.y },
+        end,
+    ]);
+    await creationDialogShows();
+    assertEqual(
+        proposal(),
+        { employee: "HRA Cells", from: "11-09 12:00", to: "11-09 20:00", worked: "8h" },
+        "pressed at the day's centre: 12:00 PM to 8:00 PM"
     );
     await closeDialog();
 });
@@ -1658,6 +1858,30 @@ const monthlyList = (phone) => async () => {
 scenario("hr_actions_a6_monthly_list", EMPLOYEE_FORM, monthlyList(false));
 scenario("hr_actions_a6_monthly_list_phone", EMPLOYEE_FORM, monthlyList(true));
 
+/** A month without a card: the 16 px band, the grid right under it, the message from y 182 / 178. */
+async function emptyMonth(name) {
+    const band = rectOf($(BAND));
+    assertNear(band.height, 16, `the band is 16 px tall in ${name}`, 0.5);
+    assertNear(rectOf($(".o_tl_col_group")).top, band.bottom + 1, `the period line starts under the band in ${name}`, 1);
+    const helper = await until(() => $(".o_hag_helper"), `the generic message in ${name}`);
+    assert($(".o_view_nocontent_empty_folder", helper), "the Community's generic message");
+    assertNear(
+        rectOf(helper).top,
+        rectOf($(".o_content")).top + 75,
+        `the message lies 75 px below the view's area in ${name}`,
+        0.6
+    );
+    assertEqual(getComputedStyle(helper).pointerEvents, "none", "it lets the pointer through");
+    if (!onPhone()) {
+        assert(rectOf(helper).top > band.bottom, "the band lies above it");
+    } else {
+        // on the phone the transparent layer starts above the band, which shows through it (R26)
+        // the page of a tour has its own control bar (about 4 px more): the exact y 178 is the probe M108's
+        assertNear(rectOf(helper).top, 178, "the phone's message starts at y 178", 6);
+        assert(rectOf(helper).top < band.top, "the band shows through the layer");
+    }
+}
+
 // A7 (structure) and A8: the overview follows the period
 const overviewFollows = (phone) => async () => {
     await pressWorkedHours({ viaToggle: phone });
@@ -1670,7 +1894,7 @@ const overviewFollows = (phone) => async () => {
     await until(() => cards().length, "the card of the month");
     assertEqual(cards(), ["29h Work"], "the hours of the month by work entry type");
     const band = rectOf($(BAND));
-    assertNear(band.height, 96, "the band's height", 0.5);
+    assertNear(band.height, 96, "the band's height with one line of cards", 0.5);
     assertNear(band.width, window.innerWidth, "as wide as the view", 1);
     assert(rectOf(renderer()).top >= band.bottom - 0.5, "the grid lies under the band");
     // one unnamed row: no header text, no avatar, no label, no bar
@@ -1679,15 +1903,17 @@ const overviewFollows = (phone) => async () => {
     assert(!$(".o_tl_row_label"), "no label");
     assert(!$(".o_tl_row_header .o_hrg_avatar"), "no avatar");
     assert(!$(".o_tl_progress:not(.o_hag_bar_space)"), "no bar");
-    // October: no card, the band keeps its height
+    // October: no card, the band follows its cards (16 px, R4 point 2), the grid starts right under
+    // it and the generic message lies from 75 px below the view's area (R26 point 1)
     await step(-1);
     await until(() => cards().length === 0, "no card in October");
-    assertNear(rectOf($(BAND)).height, 96, "the band keeps its height in October", 0.5);
+    await settle(900);
+    await emptyMonth("October");
     // December, after two steps
     await step(1, 2);
     await settle(1200);
     assertEqual(cards(), [], "no card in December");
-    assertNear(rectOf($(BAND)).height, 96, "the band keeps its height in December", 0.5);
+    await emptyMonth("December");
     // and back: the cards follow the period both ways
     await step(-1);
     await until(() => cards().length === 1, "the card of November again");
@@ -1695,6 +1921,39 @@ const overviewFollows = (phone) => async () => {
 };
 scenario("hr_actions_a8_overview_follows_period", EMPLOYEE_FORM, overviewFollows(false));
 scenario("hr_actions_a8_overview_follows_period_phone", EMPLOYEE_FORM, overviewFollows(true));
+
+// A95: more cards than one line holds stay on one line that scrolls sideways (R4 point 2)
+const twelveCards = (phone) => async () => {
+    // the capture harness draws no scrollbar: the band's line of cards would carry one
+    document.head.appendChild(
+        Object.assign(document.createElement("style"), {
+            textContent: "* { scrollbar-width: none !important; }",
+        })
+    );
+    await pressWorkedHours({ viaToggle: phone });
+    await showMonthlyGantt();
+    await until(() => cards().length === 12, "twelve cards");
+    const band = rectOf($(BAND));
+    assertNear(band.height, 96, "the band stays 96 px tall", 0.5);
+    const tops = new Set($$(`${BAND} .o_attendance_entry_card`).map((card) => rectOf(card).top));
+    assertEqual(tops.size, 1, "the cards stay on one line");
+    const line = $(`${BAND} .overflow-x-auto`);
+    assertNear(rectOf(line).left, 16, "the line starts at x 16", 0.5);
+    assertNear(rectOf(line).width, window.innerWidth - 32, "the line's width", 1);
+    assertEqual(line.scrollLeft, 0, "the line is not scrolled");
+    const twelfth = $$(`${BAND} .o_attendance_entry_card`)[11];
+    assert(rectOf(twelfth).left > band.right, "the twelfth card lies beyond the band's right edge");
+    if (!phone) {
+        // the x follows the widths of the names, which the browser's fonts decide (45 px allowed)
+        assertNear(rectOf(twelfth).left, 2084.9, "the twelfth card's x", 45);
+    }
+    assertNear(rectOf($(".o_tl_col_group")).top, band.bottom + 1, "the grid starts under the band", 1);
+    line.scrollLeft = line.scrollWidth;
+    await settle(400);
+    assert(rectOf(twelfth).right <= band.right + 0.5, "scrolling the line brings it into view");
+};
+scenario("hr_actions_a95_twelve_cards", EMPLOYEE_FORM, twelveCards(false));
+scenario("hr_actions_a95_twelve_cards_phone", EMPLOYEE_FORM, twelveCards(true));
 
 // A66: the monthly view on the phone, reached through the button-box toggle
 scenario("hr_actions_a66_monthly_phone", EMPLOYEE_FORM, async () => {
@@ -1718,7 +1977,7 @@ scenario("hr_actions_a9_overview_open", EMPLOYEE_FORM, async () => {
     await settle(1500);
     assertEqual(pillsOf("").length, 1, "the open attendance is drawn");
     assertEqual(cards(), [], "an open attendance adds no card");
-    assertNear(rectOf($(BAND)).height, 96, "the band keeps its height", 0.5);
+    assertNear(rectOf($(BAND)).height, 16, "the band is 16 px tall with no card", 0.5);
 });
 
 // A77: creating proposes the form's employee
@@ -1743,8 +2002,10 @@ scenario("hr_actions_a77_create_form_employee", EMPLOYEE_FORM, async () => {
     );
     await closeDialog();
     await until(() => !$(".modal"), "the dialog closes");
-    const from = await cellPoint("", "2026-11-17");
-    const to = await cellPoint("", "2026-11-19");
+    // R14 point 3: a press 10 px inside the left edge of 17 November, released at the same place
+    // in 19 November
+    const from = await cellPoint("", "2026-11-17", 10);
+    const to = await cellPoint("", "2026-11-19", 10);
     const y = rowMiddle("");
     await realDrag({ x: from.x, y }, [
         { x: from.x + 20, y },
@@ -1756,6 +2017,23 @@ scenario("hr_actions_a77_create_form_employee", EMPLOYEE_FORM, async () => {
         proposal(),
         { employee: "HRA Anita", from: "11-17 00:00", to: "11-17 08:00", worked: "8h" },
         "a press dragged from 17 to 19 November"
+    );
+    await closeDialog();
+    await until(() => !$(".modal"), "the dialog closes");
+    // a press at the cell's centre starts at 12:00
+    const half = (await columnOf("2026-11-17")).getBoundingClientRect().width / 2 + 1;
+    const middle = await cellPoint("", "2026-11-17", half);
+    const middleEnd = await cellPoint("", "2026-11-19", half);
+    await realDrag({ x: middle.x, y }, [
+        { x: middle.x + 20, y },
+        { x: (middle.x + middleEnd.x) / 2, y },
+        { x: middleEnd.x, y },
+    ]);
+    await creationDialogShows();
+    assertEqual(
+        proposal(),
+        { employee: "HRA Anita", from: "11-17 12:00", to: "11-17 20:00", worked: "8h" },
+        "a press at the cell's centre starts at 12:00"
     );
     await closeDialog();
 });
@@ -2245,12 +2523,17 @@ function partsOf(cell) {
     };
 }
 
-// A89: the Week range of 8 to 14 November in Arabic (set as the administrator's language)
+// A89: the Week range in Arabic (set as the administrator's language): the language's own week,
+// Saturday 7 to Friday 13 November (002b D2, 002a R5)
 scenario("hr_actions_a89_split_cells_rtl", GRID, async () => {
     await ready();
-    // (Arabic's week starts on another day than English's: the days shown are 7 to 13 or 8 to 14)
     await pickRangeByClass("week", "2026-11-13");
     assertEqual(dateColumns().length, 7, "seven days");
+    assertEqual(
+        dateColumns().map((el) => el.dataset.date),
+        ["2026-11-07", "2026-11-08", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"],
+        "the week runs from Saturday 7 to Friday 13 November"
+    );
     assertEqual(getComputedStyle(document.body).direction, "rtl", "the page runs right to left");
     // the columns run from right to left: the first day lies right of the last
     const days = dateColumns();
