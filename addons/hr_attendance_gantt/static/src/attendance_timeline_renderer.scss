@@ -43,10 +43,11 @@
     }
 }
 
-// R20 (M54, M55): on desktop the helper is a layer over the content under the control bar, down to
-// the window's bottom, its content centred in it (the renderer sets its top and height, see
-// `placeHelper`); the box lets the pointer through to the row, the content takes it back. On the
-// phone it is no layer: it takes the grid's place from the grid's top and takes the pointer.
+// R26 (M100 to M108): the helper is a layer over the content under the control bar, down to the
+// window's bottom, its content centred in it (the renderer sets its top and height, see
+// `placeHelper`); the box lets the pointer through to the row, the content takes it back. The
+// phone's attendance helper is no layer: a block in the view's background at a fixed place, which
+// takes the pointer.
 .o_tl_box.o_hag_with_helper {
     position: relative;
 

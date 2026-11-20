@@ -11,20 +11,26 @@ import { namedRange, stepRange } from "@web_gantt/timeline_dates";
 /** R17 point 1: the window width from which the label shows its long form. */
 export const WIDE_LABEL_WIDTH = 1400;
 
-/** R20, desktop: the inner heights of the two column header lines and of a drawn row (a 41 px row). */
+/** R26 point 1: the inner heights of the two column header lines and of a drawn row (a 41 px row). */
 export const HEADER_LINES_HEIGHT = 25 + 50;
 export const ROW_INNER_HEIGHT = 40;
 
 /**
- * R20 ("Where it is placed", desktop): the distance from the top of the view's content area (the
- * element that begins with the control bar) to the top of the helper's layer. It is the header
- * lines plus the inner heights of the rows drawn (115 px with one row); the control bar's height is
- * not added, so the layer's top is simply this far below the content area's top. It does not
- * depend on the window's height.
- * @param {number} rowCount the rows drawn (the placeholder row of a view without groups counts)
+ * R26 point 2: the fixed place of the phone's attendance helper, from the top of the control panel
+ * (the bottom of the navigation bar): y 274.625 in a 46 px high navigation bar. It does not move
+ * with the search bar, which pushes the grid down but not the helper.
+ */
+export const PHONE_HELPER_TOP = 228.625;
+
+/**
+ * R26 point 1: the distance from the top of the view's area (the area under the control panel) to
+ * the top of the helper's layer: the header lines plus the inner heights of the employee rows
+ * drawn (115 px with one row, 75 px with none). The control bar and the overview band are not
+ * counted. It does not depend on the window's height.
+ * @param {number} rowCount the employee rows drawn (a view without row headers draws none)
  */
 export function helperOffset(rowCount) {
-    return HEADER_LINES_HEIGHT + Math.max(1, rowCount) * ROW_INNER_HEIGHT;
+    return HEADER_LINES_HEIGHT + rowCount * ROW_INNER_HEIGHT;
 }
 
 /**

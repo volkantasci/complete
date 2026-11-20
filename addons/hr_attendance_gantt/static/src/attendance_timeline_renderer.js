@@ -4,7 +4,12 @@ import { onMounted, onPatched, onWillUnmount, signal } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { AttendanceActionHelper } from "@hr_attendance/views/attendance_helper_view";
 import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
-import { helperOffset, progressView, WIDE_LABEL_WIDTH } from "./attendance_layout";
+import {
+    helperOffset,
+    PHONE_HELPER_TOP,
+    progressView,
+    WIDE_LABEL_WIDTH,
+} from "./attendance_layout";
 
 /** Longest wait between the end of a window resize and the redraw of the labels (R17, D3). */
 export const RESIZE_DELAY = 250;
@@ -56,9 +61,17 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
         onMounted(() => {
             this.placeHelper();
             const panel = document.querySelector(".o_control_panel");
-            if (panel && typeof ResizeObserver !== "undefined") {
+            if (typeof ResizeObserver !== "undefined") {
                 observer = new ResizeObserver(() => this.placeHelper());
-                observer.observe(panel);
+                if (panel) {
+                    observer.observe(panel);
+                }
+                // the overview band of the monthly variant follows its cards (R4 point 2): the
+                // layer's place is worked out again when it grows or shrinks
+                const band = this.rendererRef()?.closest(".o_content")?.querySelector(".o_hag_overview_band");
+                if (band) {
+                    observer.observe(band);
+                }
             }
             browser.addEventListener("resize", onResize);
             // a resize between setup and mount is not lost
@@ -165,11 +178,12 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
     }
 
     /**
-     * R20 ("Where it is placed"). Desktop: the helper is a layer whose top is `helperOffset` (115 px
-     * with one row) below the top of the view's content area, measured from that top, the control
-     * bar's height not added; it runs to the bottom of the window whatever the window's height, its
-     * content centred in it. Phone: not a layer; the helper takes the grid's place, from the
-     * grid's top to the bottom of the window.
+     * R26 ("Where the empty-view helper lies"). Everything but the phone's attendance helper is a
+     * layer: its top is `helperOffset` below the top of the view's area (the control bar and the
+     * overview band are not counted), it runs to the bottom of the window whatever the window's
+     * height, its content centred in it, and it lets the pointer through. The phone's attendance
+     * helper is a block in the view's background at a fixed place under the control panel's top,
+     * which the search bar does not move.
      */
     placeHelper() {
         const helper = this.helperRef();
@@ -179,23 +193,28 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
             return;
         }
         let top;
-        if (this.ui.isSmall) {
-            top = grid.getBoundingClientRect().top;
+        if (this.usesPhoneBlock) {
+            const panel = document.querySelector(".o_control_panel");
+            top = (panel ? panel.getBoundingClientRect().top : 0) + PHONE_HELPER_TOP;
         } else {
             const content = grid.closest(".o_content") || grid.closest(".o_timeline_view");
-            // the monthly variant lays its overview band between the control bar and the grid:
-            // the grid's header lines begin below it, and so does the helper's layer (A8)
-            const band = content.querySelector(".o_hag_overview_band");
-            top =
-                content.getBoundingClientRect().top +
-                (band ? band.getBoundingClientRect().height : 0) +
-                helperOffset(this.layout.rows.length);
+            top = content.getBoundingClientRect().top + helperOffset(this.drawnRowCount);
         }
         // `top` is read from the padding box: a border of the box (a panel frame) is not in it
         const frame = parseFloat(getComputedStyle(box).borderTopWidth) || 0;
         helper.style.top = `${top - box.getBoundingClientRect().top - frame}px`;
         helper.style.bottom = "auto";
         helper.style.height = `${Math.max(0, browser.innerHeight - top)}px`;
+    }
+
+    /** R26 point 2: the phone shows the attendance helper as a block, not as a layer. */
+    get usesPhoneBlock() {
+        return this.ui.isSmall && Boolean(this.props.noContentHelp);
+    }
+
+    /** R26 point 1: the employee rows drawn; the unnamed row of a view without headers is not one. */
+    get drawnRowCount() {
+        return this.layout.hasRowHeaders ? Math.max(1, this.layout.rows.length) : 0;
     }
 
     /** R20: at most one row, and that row has no attendance. */
