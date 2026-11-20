@@ -4,8 +4,8 @@
 // R4 point 2 (M39, M40): the band of the Community attendance overview, in the view's flow, always
 // 96 px tall (an empty period keeps it). The Community styles the cards inside its calendar only,
 // so the card's measures are repeated here for this band (160 x 80 from x 16, 6 px corners:
-// the hours at 40 px, the name at 15 px). No colour is set: the card's colour class and the
-// theme's own values decide, in light and in dark (decision D6).
+// the hours at 40 px, the name at 15 px, the name in the body text colour as there). The card's
+// own colours (its colour class) are left to the theme, in light and in dark (decision D6).
 .o_hag_overview_band {
     flex: 0 0 auto;
     height: 96px;

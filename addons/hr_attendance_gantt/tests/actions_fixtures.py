@@ -5,7 +5,9 @@
 ``make_role_users`` builds the five role users of acceptance.md "Users" and their employees;
 the tasks of the slice that test roles, filters by role or the warning link reuse it.
 ``make_gantt_moved`` builds the prepared employee "Gantt Moved" (A54 to A56).
-``drop_actions_records`` removes everything these two made, by name.
+``make_team_officer`` builds a created team officer of four employees (A62's stand-in for the
+demo's Marc Demo) and ``make_page_employees`` the twenty employees of a full page of the
+management view (A60, A61). ``drop_actions_records`` removes everything these made, by name.
 ``action_in_november`` fixes the clock of the employee's monthly action (R4).
 """
 
@@ -24,6 +26,9 @@ from .hr_rows_fixtures import (
 
 PEER_NAME = "Gantt Role Peer"
 MOVED_NAME = "Gantt Moved"
+OFFICER_NAME = "Gantt Officer"
+MANAGED_NAMES = [f"Gantt Managed {number}" for number in range(1, 5)]
+PAGE_PREFIX = "Gantt Page "
 LOGIN_PREFIX = "gantt_"
 
 # login -> (name, groups xmlids; the internal user group is always set, and nothing else is)
@@ -152,12 +157,77 @@ def make_gantt_moved(env, schedule=None):
     return employee
 
 
+def make_team_officer(env, schedule=None):
+    """A team officer who manages four employees, standing in for the demo's Marc Demo (A62).
+
+    The user "Gantt Officer" (login and password ``gantt_officer``) holds the internal user and
+    "Officer: Manage attendances" groups and has an employee of the same name; the four employees
+    "Gantt Managed 1" to "4" have him as attendance manager. Each of the first three has an
+    attendance on 11 November 2026 (07:00 to 09:00 UTC), the fourth none; the officer's own
+    employee has one too. Returns the user. Removed by ``drop_actions_records``.
+    """
+    schedule = schedule or _schedule(env)
+    groups = env.ref("base.group_user") | env.ref("hr_attendance.group_hr_attendance_officer")
+    user = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": OFFICER_NAME,
+                "login": "gantt_officer",
+                "password": "gantt_officer",
+                "tz": TZ,
+                "lang": "en_US",
+                "email": "gantt_officer@example.com",
+                "group_ids": [(6, 0, groups.ids)],
+            }
+        )
+    )
+    _employee(env, OFFICER_NAME, schedule, user=user)
+    for index, name in enumerate(MANAGED_NAMES):
+        employee = _employee(env, name, schedule, manager=user)
+        if index == 3:
+            env["hr.attendance"].search([("employee_id", "=", employee.id)]).unlink()
+    env.flush_all()
+    return user
+
+
+def make_page_employees(env, schedule=None):
+    """Twenty employees "Gantt Page 01" to "Gantt Page 20" that fill a page of the management
+    view before the role users' employees (names sort so): the first four have an attendance on
+    11 November 2026 (07:00 to 09:00 UTC), the fifth has no contract. Returns them in order."""
+    schedule = schedule or _schedule(env)
+    employees = []
+    for number in range(1, 21):
+        name = f"{PAGE_PREFIX}{number:02d}"
+        if number <= 4:
+            employee = _employee(env, name, schedule)
+        else:
+            employee = env["hr.employee"].create(
+                {
+                    "name": name,
+                    "tz": TZ,
+                    "resource_calendar_id": schedule.id,
+                    "contract_date_start": False if number == 5 else CONTRACT_START,
+                    "date_version": CONTRACT_START,
+                }
+            )
+        employees.append(employee)
+    env.flush_all()
+    return employees
+
+
 def drop_actions_records(env):
     """Remove, by name, the role users, their employees (the peer, "Gantt Moved") and their
     attendances; archived ones too. The schedules are left (they may be the demo's)."""
-    names = [name for name, _groups in ROLES.values()] + [PEER_NAME, MOVED_NAME]
-    employees = (
-        env["hr.employee"].with_context(active_test=False).search([("name", "in", names)])
+    names = [name for name, _groups in ROLES.values()] + [
+        PEER_NAME,
+        MOVED_NAME,
+        OFFICER_NAME,
+        *MANAGED_NAMES,
+    ]
+    employees = env["hr.employee"].with_context(active_test=False).search(
+        ["|", ("name", "in", names), ("name", "=like", PAGE_PREFIX + "%")]
     )
     env["hr.attendance"].search([("employee_id", "in", employees.ids)]).unlink()
     employees.unlink()

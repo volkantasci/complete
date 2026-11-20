@@ -18,6 +18,7 @@ from . import (
     test_open_moves,
     test_progress,
     test_records,
+    test_roles,
     test_rows,
     test_unavailability,
 )

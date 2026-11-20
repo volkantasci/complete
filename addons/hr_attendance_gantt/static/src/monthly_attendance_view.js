@@ -42,16 +42,22 @@ export class MonthlyAttendanceController extends TimelineController {
     }
 }
 
+// The models of the forms that give the monthly action their employee.
+const EMPLOYEE_MODELS = ["hr.employee", "hr.employee.public"];
+
 /**
  * R4 point 4 (decision D5): every way of creating in the monthly view proposes the employee
  * whose form opened the action, the `active_id` of its context, not the user's own employee.
  * The action carries none when it is opened another way: the Community's default then stands.
+ * `active_id` is read as an employee's only when `active_model` is an employee model (the form
+ * and the public profile of an employee) or absent: another model's record may have opened it.
  */
 export class MonthlyAttendanceEditor extends AttendanceTimelineEditor {
     creationContextFor(params) {
         const context = super.creationContextFor(params);
-        const employeeId = this.model.context.active_id;
-        return employeeId ? { ...context, default_employee_id: employeeId } : context;
+        const { active_id: employeeId, active_model: model } = this.model.context;
+        const isEmployee = !model || EMPLOYEE_MODELS.includes(model);
+        return employeeId && isEmployee ? { ...context, default_employee_id: employeeId } : context;
     }
 }
 

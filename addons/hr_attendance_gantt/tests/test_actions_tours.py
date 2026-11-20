@@ -10,7 +10,14 @@ from zoneinfo import ZoneInfo
 
 from odoo.tests import tagged
 
-from .actions_fixtures import action_in_november, make_gantt_moved, make_role_users
+from .actions_fixtures import (
+    PEER_NAME,
+    action_in_november,
+    make_gantt_moved,
+    make_page_employees,
+    make_role_users,
+    make_team_officer,
+)
 from .hr_rows_fixtures import TZ
 from .test_hr_rows_tours import HrToursBase
 
@@ -537,3 +544,109 @@ class TestActionsTours(HrToursBase):
         self.assertEqual(
             self.env['hr.attendance'].search_count([('employee_id.name', '=', 'Gantt Role None')]),
             1, 'nothing was created')
+
+    # -- the matrix of roles (R21; A57 to A63) ---------------------------------------------------
+    # The cell-by-cell list of the matrix, with the test of each cell, is in test_roles.py; the
+    # server's refusals are asserted there. Here: what each user sees.
+
+    def _attendance_times(self, name):
+        self.env.invalidate_all()
+        return self.env['hr.attendance'].search(
+            [('employee_id.name', '=', name)]).read(['check_in', 'check_out'])
+
+    def _ends_contracts(self):
+        """Every contract of the role users' employees ended before 11 November: their attendance
+        has the warning."""
+        for employee in self.env['hr.employee'].search(
+                [('name', 'in', ['Gantt Role None', 'Gantt Role Self', 'Gantt Role Team',
+                                 'Gantt Role All', 'Gantt Role Allhr', PEER_NAME])]):
+            employee.write({'contract_date_end': '2026-10-31'})
+        self.env.flush_all()
+
+    def test_a57_role_none(self):
+        self._role_users()
+        self._tour('hr_actions_a57_role_none', login='gantt_none')
+        self.assertEqual(
+            [(row['check_in'], row['check_out'])
+             for row in self._attendance_times('Gantt Role None')],
+            [(datetime(2026, 11, 11, 7, 0), datetime(2026, 11, 11, 9, 0))])
+
+    def test_a58_role_self(self):
+        self._role_users()
+        self._tour('hr_actions_a58_role_self', login='gantt_self')
+        self.assertEqual(
+            [(row['check_in'], row['check_out'])
+             for row in self._attendance_times('Gantt Role Self')],
+            [(datetime(2026, 11, 11, 9, 0), datetime(2026, 11, 11, 11, 0))])
+
+    def test_a59_role_team(self):
+        self._role_users()
+        self._tour('hr_actions_a59_role_team', login='gantt_team')
+        self.assertEqual(
+            [(row['check_in'], row['check_out']) for row in self._attendance_times(PEER_NAME)],
+            [(datetime(2026, 11, 11, 9, 0), datetime(2026, 11, 11, 11, 0))])
+        self.assertEqual(
+            [(row['check_in'], row['check_out'])
+             for row in self._attendance_times('Gantt Role Team')],
+            [(datetime(2026, 11, 11, 7, 0), datetime(2026, 11, 11, 9, 0))])
+
+    def _full_page(self):
+        """Twenty employees before the role users' in the order of names: the first page of the
+        management view has 20 rows and four pills (M70, M72)."""
+        self._role_users()
+        make_page_employees(self.env, schedule=self.schedule)
+
+    def test_a60_role_all(self):
+        self._full_page()
+        self._tour('hr_actions_a60_role_all', login='gantt_all')
+
+    def test_a61_role_allhr(self):
+        self._full_page()
+        self._tour('hr_actions_a61_role_allhr', login='gantt_allhr')
+
+    def test_r21_role_admin(self):
+        self._full_page()
+        self._tour('hr_actions_r21_role_admin')
+
+    def test_r21_my_attendances_by_address(self):
+        """R21 rows "Attendances in the home menu", "Top bar menus" (M57, M63, M69, M75, M81) and
+        "My Attendances by its address": the calendar, the menus and the own row, per role."""
+        self._role_users()
+        self._admin_employee()
+        for login, name in (
+            ('gantt_none', 'none'), ('gantt_self', 'self'), ('gantt_team', 'team'),
+            ('gantt_all', 'all'), ('gantt_allhr', 'allhr'), ('admin', 'admin'),
+        ):
+            with self.subTest(login=login):
+                self._tour(f'hr_actions_r21_mine_{name}', path=MY_ACTION, login=login)
+
+    def test_r21_warning_and_link(self):
+        """R21 rows "the warning" (every role) and "the link" (the Employees officer group)."""
+        self._role_users()
+        self._ends_contracts()
+        for login, tour in (
+            ('gantt_none', 'hr_actions_r21_warning_no_link'),
+            ('gantt_self', 'hr_actions_r21_warning_no_link'),
+            ('gantt_team', 'hr_actions_r21_warning_no_link'),
+            ('gantt_all', 'hr_actions_r21_warning_no_link'),
+            ('gantt_allhr', 'hr_actions_r21_warning_link'),
+            ('admin', 'hr_actions_r21_warning_link'),
+        ):
+            with self.subTest(login=login):
+                self._tour(tour, login=login)
+
+    def test_a62_team_officer(self):
+        """A62 in CI: a created team officer of four employees stands in for Marc Demo."""
+        make_team_officer(self.env, schedule=self.schedule)
+        self._tour('hr_actions_a62_team_officer', login='gantt_officer')
+
+    def test_a62_demo_marc(self):
+        """A62 on the demo data: Marc Demo (login demo); skipped when the database has none."""
+        if not self.env['res.users'].search([('login', '=', 'demo')]):
+            self.skipTest('the database has no demo data (the user demo)')
+        # the demo's employees are the scenario's: they come back from the other company
+        self.env['hr.employee'].with_context(active_test=False).search(
+            [('company_id.name', '=', 'HRA Elsewhere')]).write(
+            {'company_id': self.env.ref('base.main_company').id})
+        self.env.flush_all()
+        self._tour('hr_actions_a62_demo_marc', login='demo')

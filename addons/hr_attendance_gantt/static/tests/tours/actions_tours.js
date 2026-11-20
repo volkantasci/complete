@@ -1788,3 +1788,245 @@ scenario("hr_actions_a85_list_new", EMPLOYEE_FORM, async () => {
     );
     assertEqual(clean(input.value), "Mitchell Admin", "the user's own employee");
 });
+
+// -- the matrix of roles (R21; A57 to A63) ------------------------------------------------------------
+// One user per role (tests/actions_fixtures.py). Where a role may not act the control is absent: what
+// is counted here is what the user sees; the server's refusals are in tests/test_roles.py.
+
+const NEW_BUTTON = ".o_tl_button_add";
+const SECTIONS = () => texts(".o_menu_sections [data-menu-xmlid]");
+
+/** The names of the applications of the home menu (the grid button at the left of the top bar). */
+async function appsOfHomeMenu() {
+    $(".o_navbar_apps_menu button").click();
+    await until(() => $(".o_home_menu .o_app"), "the applications of the home menu");
+    await settle(500);
+    const apps = texts(".o_home_menu .o_app .o_caption");
+    $(".o_navbar_apps_menu button").click();
+    await until(() => !$(".o_home_menu") && $(CALENDAR), "the home menu closes and the calendar is back");
+    return apps;
+}
+
+/**
+ * My Attendances by its address (R3, R21): the calendar shows; the top bar offers `sections`
+ * (the Community's menus); the home menu offers the Attendances application or not; the Gantt
+ * view shows the user's own row (`row`, null for a user with no employee).
+ */
+const mineByAddress = ({ attendances, sections, row }) => async () => {
+    await settle();
+    assert($(CALENDAR), "the calendar shows");
+    const apps = await appsOfHomeMenu();
+    assertEqual(apps.includes("Attendances"), attendances, `the home menu: ${apps}`);
+    assert(apps.includes("Employees"), `the Employees application stays: ${apps}`);
+    assertEqual(SECTIONS(), sections, "the menus of the top bar");
+    if (row) {
+        await switchTo("Gantt");
+        await ready(1);
+        assertEqual(rowNames(), [row], "the user's own row");
+        assertEqual(SECTIONS(), sections, "the menus of the top bar on the Gantt view too");
+    }
+};
+const ALL_MENUS = ["My Attendances", "Management", "Kiosk Mode", "Reporting"];
+// M57 (none), M63 (Self), M69 (Team), M75 (All), M81 (All and Employees officer)
+scenario("hr_actions_r21_mine_none", CALENDAR, mineByAddress({ attendances: false, sections: [], row: "Gantt Role None" }));
+scenario("hr_actions_r21_mine_self", CALENDAR, mineByAddress({ attendances: true, sections: ["My Attendances"], row: "Gantt Role Self" }));
+scenario("hr_actions_r21_mine_team", CALENDAR, mineByAddress({ attendances: true, sections: [], row: "Gantt Role Team" }));
+scenario("hr_actions_r21_mine_all", CALENDAR, mineByAddress({ attendances: true, sections: ALL_MENUS, row: "Gantt Role All" }));
+scenario("hr_actions_r21_mine_allhr", CALENDAR, mineByAddress({ attendances: true, sections: ALL_MENUS, row: "Gantt Role Allhr" }));
+scenario("hr_actions_r21_mine_admin", CALENDAR, mineByAddress({ attendances: true, sections: [...ALL_MENUS, "Configuration"], row: "Mitchell Admin" }));
+
+/** The pills of the view, and how many of them show resize handles when the pointer rests on them. */
+async function movablePills() {
+    const pills = $$(".o_tl_pill");
+    let movable = 0;
+    for (const pill of pills) {
+        await realHover(pill);
+        await settle(150);
+        if ($$(".o_tl_handle", pill).length) {
+            movable++;
+        }
+    }
+    await pointerAway();
+    return { pills: pills.length, movable };
+}
+
+/** The search menu: the contract filters by role, and no Date grouping whatever the role. */
+async function searchMenuOfRole(filters) {
+    await filtersShown(filters)();
+    assert(!texts(GROUPINGS).includes("Date"), `no Date grouping: ${texts(GROUPINGS)}`);
+    await closeSearchMenu();
+}
+
+const FORM_ROOT = ".modal .o_form_view";
+const headerButtons = () => texts(".modal .o_statusbar_buttons button");
+const employeeInput = () => $(".modal .o_field_widget[name='employee_id'] input");
+
+/** The record dialog of the pill of `name`: its footer, its status bar buttons and its employee. */
+async function pillDialog(name, { footer, refuse, employeeEditable, readOnly = false }) {
+    await realClick(pillsOf(name)[0]);
+    await recordDialogShows();
+    const shown = $$(".modal-footer button").filter(isDrawn).map((el) => clean(el.textContent));
+    assertEqual(shown, footer, `the footer of the dialog of ${name}`);
+    assertEqual(headerButtons().includes("Refuse"), refuse, `Refuse: ${headerButtons()}`);
+    assertEqual(headerButtons().includes("Validate"), false, `no Validate: ${headerButtons()}`);
+    assertEqual(Boolean(employeeInput()), employeeEditable, "the employee field is editable or not");
+    const inputs = $$(`${FORM_ROOT} input:not([type=hidden]):not([readonly]):not([disabled])`);
+    assertEqual(inputs.length === 0, readOnly, `the form is read only: ${inputs.length} inputs`);
+    await closeDialog();
+    await until(() => !$(".modal"), "the dialog closes");
+}
+
+/** A click on an empty cell of the row of `name`: the creation dialog proposes `employee`. */
+async function creationFor(name, employee, { employeeEditable }) {
+    await clickCell(name, 15);
+    assertEqual(employeeOfDialog(), employee, "the employee of the creation dialog");
+    assertEqual(Boolean(employeeInput()), employeeEditable, "the employee field is editable or not");
+    await closeDialog();
+    await until(() => !$(".modal"), "the dialog closes");
+}
+
+// A57 (M52 to M56): No role
+scenario("hr_actions_a57_role_none", GRID, async () => {
+    await ready(1);
+    assertEqual(rowNames(), ["Gantt Role None"], "one row (M52)");
+    assert(!$(NEW_BUTTON), "no New button (M53)");
+    assertEqual(await movablePills(), { pills: 1, movable: 0 }, "one pill that cannot be moved (M54)");
+    await searchMenuOfRole(false); // M55
+    // a drag does nothing: no image of the pill follows the pointer, nothing is written
+    const from = centre(pillsOf("Gantt Role None")[0]);
+    await pressAndMove(from, 2 * HOUR);
+    await settle(400);
+    // the framework holds a locked pill in place: its ghost does not follow the pointer
+    const held = $(".o_tl_pill_moved");
+    assert(!held || Math.abs(centre(held).x - from.x) < 5, "the pill did not follow the pointer");
+    await releaseAt({ x: from.x + 2 * HOUR, y: from.y });
+    await settle(900);
+    assertEqual(MODALS().length, 0, "nothing opens after the drag");
+    assertEqual(
+        await readAttendances("Gantt Role None"),
+        [["2026-11-11 07:00:00", "2026-11-11 09:00:00"]],
+        "the attendance was not written"
+    );
+    // the dialog is the read-only form with Discard alone (M56)
+    await pillDialog("Gantt Role None", { footer: ["Discard"], refuse: false, employeeEditable: false, readOnly: true });
+});
+
+// A58 (M58 to M62): Self
+scenario("hr_actions_a58_role_self", GRID, async () => {
+    await ready(1);
+    assertEqual(rowNames(), ["Gantt Role Self"], "its own row only (M58)");
+    assert($(NEW_BUTTON), "the New button (M59)");
+    assertEqual(await movablePills(), { pills: 1, movable: 1 }, "its pill can be moved (M60)");
+    await searchMenuOfRole(false); // M61
+    await creationFor("Gantt Role Self", "Gantt Role Self", { employeeEditable: false });
+    await pillDialog("Gantt Role Self", {
+        footer: ["Save & Close", "Discard"], // M62
+        refuse: false,
+        employeeEditable: false,
+    });
+    await movePill(pillsOf("Gantt Role Self")[0], 2 * HOUR);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await dataSettled();
+    assertEqual(
+        await readAttendances("Gantt Role Self"),
+        [["2026-11-11 09:00:00", "2026-11-11 11:00:00"]],
+        "the move was written"
+    );
+});
+
+// A59 (M64 to M68): Team
+scenario("hr_actions_a59_role_team", GRID, async () => {
+    await ready(2);
+    assertEqual(rowNames(), ["Gantt Role Peer", "Gantt Role Team"], "the employees it manages (M64)");
+    assert($(NEW_BUTTON), "the New button (M65)");
+    assertEqual(await movablePills(), { pills: 2, movable: 2 }, "both pills can be moved (M66)");
+    await searchMenuOfRole(true); // M67
+    await creationFor("Gantt Role Peer", "Gantt Role Peer", { employeeEditable: true });
+    await pillDialog("Gantt Role Team", {
+        footer: ["Save & Close", "Discard", "Delete"], // M68
+        refuse: true,
+        employeeEditable: true,
+    });
+    await pillDialog("Gantt Role Peer", {
+        footer: ["Save & Close", "Discard", "Delete"],
+        refuse: true,
+        employeeEditable: true,
+    });
+    await movePill(pillsOf("Gantt Role Peer")[0], 2 * HOUR);
+    await until(() => undoNotices().length === 1, "the notification with Undo", 8000);
+    await dataSettled();
+    assertEqual(
+        await readAttendances("Gantt Role Peer"),
+        [["2026-11-11 09:00:00", "2026-11-11 11:00:00"]],
+        "the move was written"
+    );
+});
+
+/**
+ * A60, A61 (M70 to M74, M76 to M80) and the administrator: every employee, twenty to a page
+ * (the test makes 20 employees named "Gantt Page 01" to "20", four of them with an attendance, and
+ * the fifth one without a contract); the warning follows the Employees officer group (`link`).
+ */
+const everyone = (link) => async () => {
+    await ready(20);
+    assert(/^1-20 \/ \d+$/.test(pager()), `twenty rows to the page (M70): ${pager()}`);
+    assert($(NEW_BUTTON), "the New button (M71)");
+    assertEqual(await movablePills(), { pills: 4, movable: 4 }, "the four pills can be moved (M72)");
+    await searchMenuOfRole(true); // M73
+    await pillDialog("Gantt Page 01", {
+        footer: ["Save & Close", "Discard", "Delete"], // M74
+        refuse: true,
+        employeeEditable: true,
+    });
+    // the warning of an employee with no contract, with the link for the Employees officer only
+    await clickCellAt("Gantt Page 05", 15);
+    assertEqual(warnings().length, 1, "the warning shows");
+    assertEqual(links().length, link ? 1 : 0, link ? "with the link" : "without the link");
+    await closeDialog();
+    await until(() => !$(".modal"), "the dialog closes");
+};
+scenario("hr_actions_a60_role_all", GRID, everyone(false));
+scenario("hr_actions_a61_role_allhr", GRID, everyone(true));
+scenario("hr_actions_r21_role_admin", GRID, everyone(true));
+
+// R21 "the warning" and "the link": every role sees the warning on its attendance in the dialog;
+// the link needs the Employees officer group (the test ended every contract before 11 November)
+const warningOnPill = (link) => async () => {
+    await ready();
+    const name = rowNames().includes("Gantt Role Peer") ? "Gantt Role Peer" : rowNames()[0];
+    await realClick(pillsOf(name)[0]);
+    await recordDialogShows();
+    await until(() => warnings().length === 1, `the warning shows on the attendance of ${name}`);
+    assertEqual(links().length, link ? 1 : 0, link ? "with the link" : "without the link");
+    await closeDialog();
+};
+scenario("hr_actions_r21_warning_link", GRID, warningOnPill(true));
+scenario("hr_actions_r21_warning_no_link", GRID, warningOnPill(false));
+
+// A62: a team officer of four employees (the demo's Marc Demo in CI is a created user)
+scenario("hr_actions_a62_team_officer", GRID, async () => {
+    await ready(5);
+    assertEqual(
+        rowNames(),
+        ["Gantt Managed 1", "Gantt Managed 2", "Gantt Managed 3", "Gantt Managed 4", "Gantt Officer"],
+        "five rows, the four employees it manages and its own"
+    );
+    await pillDialog("Gantt Managed 1", {
+        footer: ["Save & Close", "Discard", "Delete"],
+        refuse: true,
+        employeeEditable: true,
+    });
+    await creationFor("Gantt Managed 4", "Gantt Managed 4", { employeeEditable: true });
+});
+
+// A62 with the demo data: Marc Demo
+scenario("hr_actions_a62_demo_marc", GRID, async () => {
+    await ready(5);
+    assertEqual(rowNames().length, 5, `five rows: ${rowNames()}`);
+    await pillDialog("Abigail Peterson", {
+        footer: ["Save & Close", "Discard", "Delete"],
+        refuse: true,
+        employeeEditable: true,
+    });
+    await creationFor("Keith Byrd", "Keith Byrd", { employeeEditable: true });
+});
