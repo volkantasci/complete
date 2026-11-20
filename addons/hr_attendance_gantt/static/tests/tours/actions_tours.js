@@ -175,6 +175,14 @@ const myGantt = (phone) => async () => {
 scenario("hr_actions_a4_my_gantt", CALENDAR, myGantt(false));
 scenario("hr_actions_a4_my_gantt_phone", CALENDAR, myGantt(true));
 
+// A65: the phone's switcher button opens a menu of the five views, and Gantt shows A4's one row
+scenario("hr_actions_a65_phone_switcher", CALENDAR, async () => {
+    await settle();
+    assert(onPhone(), "the phone has one button for the views");
+    await calendarOpens();
+    await myGantt(true)();
+});
+
 // A5: a Self user
 scenario("hr_actions_a5_self", CALENDAR, async () => {
     await settle();

@@ -67,6 +67,10 @@ class TestActionsTours(HrToursBase):
         self._admin_employee()
         self._tour('hr_actions_a4_my_gantt_phone', path=MY_ACTION, mobile=PHONE)
 
+    def test_a65_phone_switcher(self):
+        self._admin_employee()
+        self._tour('hr_actions_a65_phone_switcher', path=MY_ACTION, mobile=PHONE)
+
     def test_a5_self(self):
         self._role_users()
         self._tour('hr_actions_a5_self', path=MY_ACTION, login='gantt_self')
