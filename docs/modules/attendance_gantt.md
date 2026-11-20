@@ -145,7 +145,9 @@ much they should have worked.
   period's own days, less the company-wide leaves (a public holiday on a working
   day lowers the week from 40 to 32 hours). A flexible schedule with hours per
   week is reckoned by whole weeks plus the remaining days, capped by the weekly
-  hours. An employee whose schedule is fully flexible has no expectation.
+  hours. An employee whose schedule is fully flexible is expected 24 hours for each day
+  of the period; nothing a user sees depends on it (the label shows the hours
+  worked alone).
 
 ### What the label says
 

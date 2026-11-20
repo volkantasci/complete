@@ -202,6 +202,24 @@ test("A50: a flexible row with hours worked", async () => {
     expect(barOf("Flexible Worker")).toBe(null);
 });
 
+test("N2: a fully flexible row with hours worked and the maximum of 24 h the server sends", async () => {
+    await mountLabels({ "Tracked Flexible": entry(3.5, 24, true, true) });
+    const label = labelOf("Tracked Flexible");
+    expect(label).toHaveText("3h 30m");
+    expect(label).toHaveClass("o_hag_success");
+    expect(label).not.toHaveAttribute("data-tooltip");
+    expect(barOf("Tracked Flexible")).toBe(null);
+});
+
+test("N2 (A70): a whole day worked by a fully flexible employee", async () => {
+    await mountLabels({ "Flexible Worker": entry(24, 24, false, true) });
+    const label = labelOf("Flexible Worker");
+    expect(label).toHaveText("24h");
+    expect(label).toHaveClass("o_hag_success");
+    expect(label).not.toHaveAttribute("data-tooltip");
+    expect(barOf("Flexible Worker")).toBe(null);
+});
+
 test("A45: a fully flexible employee tracked by attendances has a warning label", async () => {
     await mountLabels({ "Tracked Flexible": entry(0, 0, true, true) });
     const label = labelOf("Tracked Flexible");
