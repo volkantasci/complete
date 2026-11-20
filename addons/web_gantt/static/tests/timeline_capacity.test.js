@@ -214,8 +214,8 @@ test("A74: unavailable cells and today fill kept", async () => {
     expect(css(cells[10], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
     // D+1 is grey, D+2 on its first half only (hard edge at 50 %)
     expect(css(cells[12], "backgroundColor")).toBe(GREY);
-    // (a partly unavailable cell has the view background under its painted parts, R23)
-    expect(css(cells[13], "backgroundColor")).toBe("rgb(255, 255, 255)");
+    // (a partly unavailable cell is transparent: the gradient paints its available parts, R23)
+    expect(css(cells[13], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
     const image = css(cells[13], "backgroundImage");
     expect(image).toMatch(/^linear-gradient\(90deg, /);
     expect(image).toInclude(`${GREY} 49%, `);
@@ -223,9 +223,13 @@ test("A74: unavailable cells and today fill kept", async () => {
     expect(image).toInclude("rgb(255, 255, 255) 50%)");
     // today (D0): the second half is grey, the available half is painted in the today fill
     expect(cells[11]).toHaveClass("o_tl_is_today");
-    // the cell's own today fill is not laid under the painted parts (translucent in dark)
-    expect(css(cells[11], "backgroundColor")).toBe("rgb(255, 255, 255)");
+    // the cell's own today fill is not laid under the painted parts (translucent in dark, M83)
+    expect(css(cells[11], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
     expect(css(cells[11], "backgroundImage")).toInclude(`${TODAY_FILL} 49%, ${GREY} 50%)`);
+    // a wholly available cell of today's column keeps the today fill, with no gradient (M96)
+    const otherToday = cellsOf(rowOf("Host Contact 2"))[11];
+    expect(css(otherToday, "backgroundImage")).toBe("none");
+    expect(css(otherToday, "backgroundColor")).toBe(TODAY_FILL);
     // another contact and the row without a value get nothing
     for (const name of ["Host Contact 2", "Undefined Contact"]) {
         for (const cell of cellsOf(rowOf(name))) {

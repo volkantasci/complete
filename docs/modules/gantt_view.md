@@ -330,7 +330,13 @@ such as the employee, attendance, event track and time off applications of later
   partly covered is grey only where it is covered; its available parts are
   painted in the colour of an ordinary cell (the view background, and today's
   shade in today's column), not left transparent, so they look the same on a
-  row whose own background differs, such as a hovered row.
+  row whose own background differs, such as a hovered row. In today's column
+  the cell's own background colour is transparent and the gradient carries the
+  shade once (it would show twice in the dark look otherwise); a wholly
+  available cell of that column has the same shade as its background colour.
+  The parts follow the direction of the grid: in a right-to-left language the
+  first part lies at the cell's right edge and the gradient runs towards the
+  left with the same stops.
 - **Folded columns.** When every row is unavailable for a whole column and no
   pill touches it, runs of such columns fold into one narrow column whose
   header shows two arrows pointing at each other. Click the folded header or a
@@ -1555,7 +1561,7 @@ view behaves exactly as before when none is overridden.
 | `rowLeadTemplate` | renderer, a getter | Return the name of its own template to draw what comes before the name in a row header. | The template is called with `row` (the row's descriptor) in scope, once for every row that has a header, group rows included; it sits after the group caret and before the row's body (name, label, bar). The default, `web_gantt.TimelineRowLead`, draws the thumbnail of the row's value when it has one, which is what the view always did. |
 | `_focusForKind(kind)` | model | Return a `DateTime` that the named range `kind` is built around. | It is asked only when a named range is chosen from the range menu and the caller gives no date; the view sets the date to the start of its day, and builds the range of that kind around it. Custom ranges, previous, next and Today never ask. The default is the middle of the visible part (`visibleMiddleDate()`). |
 | `_spanOf(record)` | model | Return the sub-columns a record covers, `{from, to, ...}` (`to` is not included), or null to leave the record out. | It is called for every record that has both dates, with the start and the stop as `DateTime`s in the record's fields, and the result is the pill's place. A null result drops the record from the drawing; the record's own data is never changed by it. The default places the record by the rules of the view (a pill over every sub-column it touches). |
-| `partialCellStyle(covered)` | renderer | Return the style declarations of a cell that is partly unavailable. | `covered[part]` is true for a grey part, in the order of the cell's parts; the hook is called only when some parts are grey and some are not (a fully grey cell takes the unavailable class and no style). The returned text becomes the cell's `style`. The default is the hard-edged gradient of grey parts and available parts (painted in the view background, in today's column in today's shade) that follows the language's direction. |
+| `partialCellStyle(covered)` | renderer | Return the style declarations of a cell that is partly unavailable. | `covered[part]` is true for a grey part, in the order of the cell's parts; the hook is called only when some parts are grey and some are not (a fully grey cell takes the unavailable class and no style). The returned text becomes the cell's `style`. The default is the hard-edged gradient of grey parts and available parts (painted in the view background, in today's column in today's shade, on a transparent cell) that follows the language's direction. |
 
 #### The editor slot and the editor hooks
 
