@@ -6,10 +6,12 @@
     <t t-name="hr_gantt.EmployeeTimelineRenderer" t-inherit="web_gantt.TimelineRenderer" t-inherit-mode="primary">
         <xpath expr="//span[hasclass('o_tl_row_name')]" position="replace">
             <t t-set="employee" t-value="this.employeeOf(row)"/>
-            <span t-if="employee" class="o_hrg_name_area"><span class="o_hrg_identity">
-                <img class="o_hrg_avatar" t-att-src="this.avatarUrl(employee)" t-att-data-tooltip="employee.name" title="" alt="" t-on-click.stop="(ev) => this.onAvatarClick(ev, employee)"/>
-                <span class="o_tl_row_name"><span class="o_tl_row_label" t-att-class="this.nameClass(row)" t-out="row.row.name"/></span>
-            </span></span>
+            <span t-if="employee" class="o_hrg_name_area">
+                <span class="o_hrg_identity">
+                    <img class="o_hrg_avatar" t-att-src="this.avatarUrl(employee)" t-att-data-tooltip="employee.name" title="" alt="" t-on-click.stop="(ev) => this.onAvatarClick(ev, employee)"/>
+                    <span class="o_tl_row_name"><span class="o_tl_row_label" t-att-class="this.nameClass(row)" t-out="row.row.name"/></span>
+                </span>
+            </span>
             <span t-else="" class="o_tl_row_name"><span class="o_tl_row_label" t-att-class="this.nameClass(row)" t-out="row.row.name"/></span>
         </xpath>
     </t>
