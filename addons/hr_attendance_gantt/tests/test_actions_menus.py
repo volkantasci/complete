@@ -189,7 +189,7 @@ class TestActionsMenus(TransactionCase):
         self.assertEqual(action['res_model'], 'hr.attendance')
         self.assertEqual(action['res_id'], first.id)
         self.assertEqual(action['views'], [(form.id, 'form')])
-        self.assertEqual(action['view_mode'], 'form')
+        self.assertEqual(action['view_mode'].split(','), ['form'])
         # not the creation form, which the Gantt dialog uses
         self.assertNotEqual(
             form, self.env.ref('hr_attendance.hr_attendance_create_view_form'))

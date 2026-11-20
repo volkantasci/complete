@@ -86,7 +86,8 @@ class TestActionsProbes(HrProbes):
 
     @classmethod
     def employee(cls, name, contract, attendances):
-        employee = cls.env['hr.employee'].create({
+        staff = cls.env['hr.employee']
+        employee = staff.create({
             'name': name, 'tz': TZ, 'resource_calendar_id': cls.schedule.id,
             'contract_date_start': contract[0] if contract else False,
             'contract_date_end': contract[1] if contract else False,
@@ -313,11 +314,12 @@ class TestMoveProbes(HrProbes):
             ('HRA Abigail', [('2026-11-11 06:00:00', '2026-11-11 09:30:00')]),
             ('HRA Moved', [('2026-11-11 07:00:00', None)]),
         ):
-            cls.env['hr.employee'].create({
+            staff = cls.env['hr.employee']
+            staff.create({
                 'name': name, 'tz': TZ, 'resource_calendar_id': cls.schedule.id,
                 'contract_date_start': '2026-01-01', 'date_version': '2026-01-01',
             })
-            employee = cls.env['hr.employee'].search([('name', '=', name)])
+            employee = staff.search([('name', '=', name)])
             for check_in, check_out in attendances:
                 cls.env['hr.attendance'].with_context(skip_time_rules=True).create({
                     'employee_id': employee.id, 'check_in': _datetime(check_in),

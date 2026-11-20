@@ -25,7 +25,8 @@ class TestOpenMoves(TransactionCase):
         super().setUpClass()
         cls.Attendance = cls.env['hr.attendance']
         cls.users = make_role_users(cls.env)
-        cls.admin = cls.env.ref('base.user_admin')
+        admin_id = cls.env['ir.model.data']._xmlid_to_res_id('base.user_admin')
+        cls.admin = cls.env['res.users'].browse(admin_id)
         cls.admin.write({'group_ids': [
             (4, cls.env.ref('hr_attendance.group_hr_attendance_manager').id)]})
         cls.team = cls.users['gantt_team']
@@ -133,7 +134,7 @@ class TestOpenMoves(TransactionCase):
         attendance = self._open()
         count = self.Attendance.search_count([])
         for user in (self.admin, self.team, self.users['gantt_all']):
-            with self.subTest(user=user.login):
+            with self.subTest(account=user.login):
                 with self.assertRaises(UserError), self.cr.savepoint():
                     attendance.with_user(user).copy()
         self.assertEqual(self.Attendance.search_count([]), count)

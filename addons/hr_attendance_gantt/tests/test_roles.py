@@ -42,7 +42,8 @@ class TestRoles(HrRowsCase, TransactionCase):
         cls.Attendance = cls.env['hr.attendance']
         cls.users = make_role_users(cls.env)
         # the administrator of Attendances, who is not one of the five role users
-        cls.admin = cls.env.ref('base.user_admin')
+        admin_id = cls.env['ir.model.data']._xmlid_to_res_id('base.user_admin')
+        cls.admin = cls.env['res.users'].browse(admin_id)
         cls.admin.write({'group_ids': [
             (4, cls.env.ref('hr_attendance.group_hr_attendance_manager').id),
             (4, cls.env.ref('hr.group_hr_manager').id)]})
@@ -119,7 +120,7 @@ class TestRoles(HrRowsCase, TransactionCase):
         self.assertEqual(self._rows(self.users['gantt_team']), [PEER_NAME, 'Gantt Role Team'])
         everyone = self.env['hr.employee'].search([], order='name, id', limit=20)
         for user in (self.users['gantt_all'], self.users['gantt_allhr'], self.admin):
-            with self.subTest(user=user.login):
+            with self.subTest(account=user.login):
                 result = self.get_data(
                     *DAY, user_domain=[], model=self.Attendance.with_user(user))
                 self.assertEqual(
@@ -249,7 +250,7 @@ class TestRoles(HrRowsCase, TransactionCase):
             return {node.get('name') for node in form.iter('button') if node.get('name')}
 
         for login in ('gantt_none', 'gantt_self'):
-            with self.subTest(login=login):
+            with self.subTest(role=login):
                 form = self._form(self.users[login])
                 self.assertFalse({'action_validate', 'action_refuse'} & buttons(form))
                 employees = form.xpath("//field[@name='employee_id']")

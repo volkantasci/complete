@@ -46,7 +46,8 @@ class TestContractFilters(TransactionCase):
 
     @classmethod
     def make(cls, name, start, end, **values):
-        employee = cls.env['hr.employee'].create({
+        staff = cls.env['hr.employee']
+        employee = staff.create({
             'name': PREFIX + name, 'tz': 'Europe/Brussels',
             'resource_calendar_id': cls.schedule.id,
             'contract_date_start': start, 'contract_date_end': end,

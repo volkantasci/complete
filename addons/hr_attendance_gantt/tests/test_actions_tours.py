@@ -106,13 +106,13 @@ class TestActionsTours(HrToursBase):
     def test_a12_filters_by_role(self):
         self._role_users()
         for login in ('gantt_team', 'gantt_all', 'gantt_allhr'):
-            with self.subTest(login=login):
+            with self.subTest(role=login):
                 self._tour('hr_actions_a12_filters_by_role_shown', login=login)
         with self.subTest(login='admin'):
             self._tour('hr_actions_a12_filters_by_role_shown')
         # both read the management Gantt by its address: the absence is what they see
         for login in ('gantt_none', 'gantt_self'):
-            with self.subTest(login=login):
+            with self.subTest(role=login):
                 self._tour('hr_actions_a12_filters_by_role_hidden', login=login)
 
     def _days(self, zone=TZ):
@@ -621,7 +621,7 @@ class TestActionsTours(HrToursBase):
             ('gantt_none', 'none'), ('gantt_self', 'self'), ('gantt_team', 'team'),
             ('gantt_all', 'all'), ('gantt_allhr', 'allhr'), ('admin', 'admin'),
         ):
-            with self.subTest(login=login):
+            with self.subTest(role=login):
                 self._tour(f'hr_actions_r21_mine_{name}', path=MY_ACTION, login=login)
 
     def test_r21_warning_and_link(self):
@@ -636,7 +636,7 @@ class TestActionsTours(HrToursBase):
             ('gantt_allhr', 'hr_actions_r21_warning_link'),
             ('admin', 'hr_actions_r21_warning_link'),
         ):
-            with self.subTest(login=login):
+            with self.subTest(role=login):
                 self._tour(tour, login=login)
 
     def test_a62_team_officer(self):

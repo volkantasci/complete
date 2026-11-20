@@ -30,7 +30,10 @@ setupAttendanceFixtures();
 const SEARCH = `<search>
     <field name="employee_id"/>
     <group>
-        <filter name="employee" string="Employee" context="{'group_by': 'employee_id'}"/>
+        <filter
+            string="Employee"
+            context="{'group_by': 'employee_id'}"
+            name="employee"/>
         <filter name="groupby_month" string="Date" context="{'group_by': 'check_in:month'}"/>
         <filter name="groupby_week" string="Week of Check In" context="{'group_by': 'check_in:week'}"/>
         <filter name="by_day" string="Day of Check In" context="{'group_by': 'check_in:day'}"/>

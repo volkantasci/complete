@@ -29,7 +29,8 @@ class TestCheckoutDefault(TransactionCase):
 
     @classmethod
     def _employee(cls, name, schedule, date_version='2026-01-01'):
-        return cls.env['hr.employee'].create({
+        staff = cls.env['hr.employee']
+        return staff.create({
             'name': name, 'tz': 'Europe/Brussels', 'resource_calendar_id': schedule.id,
             'contract_date_start': date_version, 'date_version': date_version})
 
