@@ -54,4 +54,5 @@ export const employeeCorrectionLink = {
     component: EmployeeCorrectionLink,
 };
 
-registry.category("fields").add("correct_employee_button", employeeCorrectionLink);
+const WIDGET_KEY = "correct_employee_button";
+registry.category("fields").add(WIDGET_KEY, employeeCorrectionLink);

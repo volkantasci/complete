@@ -134,7 +134,7 @@ class TestOpenMoves(TransactionCase):
         attendance = self._open()
         count = self.Attendance.search_count([])
         for user in (self.admin, self.team, self.users['gantt_all']):
-            with self.subTest(account=user.login):
+            with self.subTest(role=user.login):
                 with self.assertRaises(UserError), self.cr.savepoint():
                     attendance.with_user(user).copy()
         self.assertEqual(self.Attendance.search_count([]), count)

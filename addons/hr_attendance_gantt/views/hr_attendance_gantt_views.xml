@@ -47,9 +47,9 @@
         <field name="priority">32</field>
         <field name="inherit_id" ref="hr_attendance_gantt_view_default_scale_month"/>
         <field name="arch" type="xml">
-            <gantt position="attributes">
+            <xpath expr="//gantt" position="attributes">
                 <attribute name="js_class">monthly_attendance_gantt</attribute>
-            </gantt>
+            </xpath>
         </field>
     </record>
 
@@ -80,7 +80,7 @@
         <field name="model">hr.attendance</field>
         <field name="inherit_id" ref="hr_attendance.hr_attendance_view_filter"/>
         <field name="arch" type="xml">
-            <filter name="check_in_filter" position="after">
+            <xpath expr="//filter[@name='check_in_filter']" position="after">
                 <separator/>
                 <!-- the officer group alone sees either filter -->
                 <filter name="ongoing_contract"
@@ -91,7 +91,7 @@
                         groups="hr_attendance.group_hr_attendance_officer"
                         string="No Active Contract"
                         domain="[('has_active_contract', 'in', [False])]"/>
-            </filter>
+            </xpath>
         </field>
     </record>
 

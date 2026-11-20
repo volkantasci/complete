@@ -120,7 +120,7 @@ class TestRoles(HrRowsCase, TransactionCase):
         self.assertEqual(self._rows(self.users['gantt_team']), [PEER_NAME, 'Gantt Role Team'])
         everyone = self.env['hr.employee'].search([], order='name, id', limit=20)
         for user in (self.users['gantt_all'], self.users['gantt_allhr'], self.admin):
-            with self.subTest(account=user.login):
+            with self.subTest(role=user.login):
                 result = self.get_data(
                     *DAY, user_domain=[], model=self.Attendance.with_user(user))
                 self.assertEqual(
