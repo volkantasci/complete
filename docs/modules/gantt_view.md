@@ -1550,8 +1550,8 @@ A module can register its own variant of the view and choose it with the
 `js_class` attribute of the definition: it builds an object from `timelineView`
 (exported by `@web_gantt/timeline_view`), replaces `Model` or `Renderer` with
 subclasses of `TimelineModel` or `TimelineRenderer`, and adds it to the
-`views` registry. Seven places are meant to be overridden (the first four
-below, the editor slot and the two editor hooks after the table). The employee variant of
+`views` registry. Eight places are meant to be overridden (the four of the table,
+then the editor slot and the three editor hooks after it). The employee variant of
 [Employees Timeline](employee_gantt.md) uses three of the first four and reshapes the
 row name through an inheriting template instead of `rowLeadTemplate`; the plain
 view behaves exactly as before when none is overridden.
@@ -1594,6 +1594,20 @@ change what it sends.
   rescheduling method and the unscheduling are not shaped by them.
 - **Pill clicks.** `onPillClick` and `onPillDoubleClick` are renderer methods, so a
   variant's `Renderer` subclass overrides them; nothing else was added.
+
+| Place | What a variant may do | What the view guarantees |
+|---|---|---|
+| `Editor` on the view definition | Name a subclass of `TimelineEditor`; override its methods and call `super`. | The controller builds it once with `{env, model, archInfo, services}`; every dialog and every write of the view goes through it. A definition with no `Editor` uses `TimelineEditor`. |
+| `creationContextFor({period, row})` | Return the context of a creation, usually the default with keys added (the attendance variant adds `scale`, the id of the displayed scale, so that the creation form can read it). | Called for the create dialog, the create action, the plan dialog and the multi-creation call, with the `period` (`{start, stop}`) and, when the gesture has one, the `row` (otherwise null). Its result is merged over the search defaults of the action where the view uses them (the plan dialog), so a key it returns wins. |
+| `writeValuesFor(change)` | Return the values a move, a resize or a copy writes: drop a key, add one, or return an empty object to write nothing. | Called once for each gesture on a pill, after the framework has worked out `change.values`, and before the write; the answer is what is sent. `change.record.raw` holds the record as it was when the pointer was pressed. |
+| `undoValuesFor(change)` | Return the values Undo sends back (the attendance variant empties the check-out of an open attendance). | Called with the earlier values and `change.writeValues`, the write that was sent; not called for a copy. |
+
+The attendance variant (`AttendanceTimelineEditor`, in
+[Attendances Timeline](attendance_gantt.md)) uses all three hooks: `creationContextFor`
+for the scale that its check-out proposal reads, and the two value hooks for the open
+attendances. The renderer of a variant that opens a dialog of its own on a pill does it
+in `onPillClick`, a renderer method (the attendance variant does it with a lock of
+200 ms of its own).
 
 A variant that overrides `rowLeadTemplate` supplies the template through its
 own XML file, as an ordinary `t-name`; a template that inherits the grid

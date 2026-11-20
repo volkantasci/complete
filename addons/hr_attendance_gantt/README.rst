@@ -8,6 +8,28 @@ attendances of the employees on a timeline, in one row per employee.
 User documentation: ``docs/modules/attendance_gantt.md``. The employee rows come
 from ``hr_gantt`` (``docs/modules/employee_gantt.md``).
 
+What this version adds for users
+================================
+
+The part of the module that lets a user *do* something in the views:
+
+- **My Attendances** has the Gantt view as its second view (Calendar stays the first and the
+  default), with one row for the user's own employee.
+- **The monthly view**: the worked-hours button of an employee opens a Gantt view on the Month
+  range, with the Community's attendance overview above the grid, as the third view of
+  "Attendances This Month". A creation there proposes the employee of the form.
+- **Opening, creating, moving**: a click or tap on a pill opens its record dialog at once; a
+  click on an empty cell, a drag over cells and the New button open the creation dialog, which
+  proposes the check-out as the check-in plus the employee's hours per day on every scale but
+  the day scale; pills and their ends move and resize, an open attendance stays open when it is
+  moved; the Community's rules decide every write.
+- **The contract warning** in every attendance form, with the link "Correct employee" for
+  Employees officers.
+- **The contract filters** Ongoing Contract and No Active Contract for officers, and the
+  Date groupings hidden in the Gantt views of the two actions.
+- What each role may do is the Community's own; the module adds no group, access right or rule
+  (``docs/modules/attendance_gantt.md``, "What each role may do").
+
 Features
 ========
 
@@ -172,6 +194,99 @@ dialog; the view record sets it off (``plan="0"``), and the attendance variant a
 absent ``plan`` as off. ``form_view_id`` is the database identifier of the form view that
 the create and record dialogs use; in an XML file it is written
 ``%(module.xmlid)d``, as the view record does.
+
+Extension points used
+=====================
+
+On the framework side (``docs/modules/gantt_view.md``, "Extension points for view variants"):
+
+- **The ``Editor`` slot.** ``AttendanceTimelineEditor`` (``attendance_timeline_editor.js``)
+  is the editor of the variant; the monthly variant inherits it.
+- **``creationContextFor``.** The editor adds ``scale``, the id of the displayed scale, to the
+  context of every creation: the server reads it to decide whether the check-out is proposed.
+- **``writeValuesFor`` and ``undoValuesFor``.** For an open attendance (no check-out) a move
+  writes the check-in only, dragging the end writes a check-out measured from the "now" of the
+  load, and Undo empties the check-out. Any other change keeps the values of the framework.
+- **The renderer's ``onPillClick``**: the dialog and the lock of 200 ms.
+
+On the Python side, all in ``models/``:
+
+- ``hr.attendance``: ``has_active_contract`` (a search field, officers only, the two contract
+  filters), ``show_contract_warning`` (computed with the rights of the system, drives the warning
+  line) and the change handler of ``check_in`` that proposes the check-out when the context's
+  ``scale`` is ``week``, ``month`` or ``year``; the data call, the unavailability hook and the
+  progress hook of the Gantt view (above).
+- ``hr.employee``: ``action_open_last_month_attendances`` adds the monthly Gantt view to the
+  action it returns.
+- The search view, the attendance form and the actions are changed only by inheriting views and
+  action records in ``views/hr_attendance_gantt_views.xml``: the search view gets the filters
+  (the "Date" grouping of the Gantt views is hidden by the search model of the variant, by the
+  names in ``HIDDEN_GROUPINGS`` of ``attendance_timeline_view.js``), the form gets
+  the warning and the link, the two actions get their view lines.
+
+The migration
+=============
+
+``migrations/20.0.1.1.0/pre-migrate.py`` runs once when a database whose module version is
+older than 20.0.1.1.0 is updated. The Attendances bridge as released with the earlier slice
+(``hr_attendance_view_gantt``) named its view differently from the identifier the specification
+requires (``hr_attendance_gantt_view``). The script calls ``rename_attendance_view`` of
+``hooks.py``: it changes the ``name`` of that view's ``ir_model_data`` row (the module's own row)
+and nothing else, so the view record keeps its database id, and the management action's view
+line (and any customization that inherits it by identifier) still points at it. The update then
+finds the record under its new identifier, and creates no second view. A database with no row
+under the old name, or one that already has the new name, is left alone; the script can run twice.
+It was checked by installing the module as released, then updating it with this code (the view
+had the same id before and after; no row of the old name was left).
+
+Tests
+=====
+
+The tests sit in ``tests/`` (Python, with the tours' browser scripts in ``static/tests/tours/``)
+and ``static/tests/`` (Hoot). Each test is named after its scenario (``test_a26...``) or its
+measured value (``test_m22...``). Run the module's tests on a fresh database, with the Enterprise
+look module for the dark probes and the test host module for the Gantt framework::
+
+    podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml \
+        run --rm odoo odoo -d t_attendance_gantt -i web_enterprise,test_web_gantt,hr_attendance_gantt \
+        --test-tags /hr_attendance_gantt --stop-after-init
+
+What runs: the backend tests (rows, access, roles, filters, warning, check-out proposal, open
+moves, notes), the tours (``test_actions_tours.py``, ``test_hr_rows_tours.py``: what a user
+sees and does, with real pointer events for the gestures), the probes (``*_probes.py``: measured
+values of the specification, in light and dark, desktop and phone) and the Hoot suite
+(``test_hoot.py``; ``-e HR_ATTENDANCE_GANTT_HOOT_FILTER=<text>`` after ``run`` narrows it to the
+tests whose name contains the text). Add ``--test-tags /hr_attendance_gantt:TestActionsTours`` to
+run one class.
+
+The screenshots of the documentation are taken on demand, by tests that carry their own tag and
+are left out of every other run::
+
+    ... run --rm -e HR_ACTIONS_SCREENS=1 -v ./.cache/actions_screens:/mnt/shots odoo odoo \
+        -d <db> -i web_enterprise,test_web_gantt,hr_attendance_gantt \
+        --test-tags hr_attendance_gantt_actions_screens --screenshots /mnt/shots --stop-after-init
+
+``HR_ROWS_SCREENS`` with the tag ``hr_attendance_gantt_screens`` does the same for the earlier
+slice's pictures. The files are named ``actions-NN-<name>[-dark][.mobile].png`` and are copied to
+``docs/assets/attendance_gantt/``.
+
+**Tests that skip**, and when:
+
+- ``test_hr_rows_screens`` (the screenshots of the rows) unless the environment variable
+  ``HR_ROWS_SCREENS`` is set.
+- ``test_actions_screens`` (the screenshots of this slice) unless ``HR_ACTIONS_SCREENS`` is set.
+- ``test_actions_tours.test_a62_demo_marc`` unless the database has the demo user ``demo`` **and**
+  Abigail Peterson's demo attendance lies on 11 November 2026 (a database created at that
+  instant with ``tools/odoo_at_instant.py``, ``docs/modules/attendance_gantt.md``). Its stand-in
+  for CI, ``test_a62_team_officer``, always runs.
+- The dark probes of ``test_hr_rows_probes.py`` and ``test_actions_probes.py`` (their ``schemes``
+  helper keeps the light scheme only) when ``web_enterprise`` is not installed; a probe that
+  measures a dark value alone skips whole, with the message "the dark scheme needs web_enterprise".
+  The probes of the Gantt framework in ``addons/test_web_gantt/tests`` (``test_probes.py``,
+  ``test_drag_probes.py``, ``test_edit_probes.py``, ``test_multi_probes.py``,
+  ``test_note_probes.py``, ``test_dependency_probes.py``, ``timeline_probe.py``) do the same.
+- ``test_web_gantt``'s ``test_demo_install_has_host_records`` (``test_host.py``) on a database
+  without demo data.
 
 Installation
 ============
