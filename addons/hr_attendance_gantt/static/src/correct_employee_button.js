@@ -16,8 +16,8 @@ import { standardFieldProps } from "@web/views/fields/standard_field_props";
  * - On a full-page form the action service leaves the form as it leaves any form: it saves the
  *   form's valid changes first (the Community's rule).
  */
-export class CorrectEmployeeButton extends Component {
-    static template = "hr_attendance_gantt.CorrectEmployeeButton";
+export class EmployeeCorrectionLink extends Component {
+    static template = "hr_attendance_gantt.EmployeeCorrectionLink";
     props = useProps({ ...standardFieldProps });
 
     setup() {
@@ -48,10 +48,10 @@ export class CorrectEmployeeButton extends Component {
     }
 }
 
-export const correctEmployeeButton = {
-    component: CorrectEmployeeButton,
+export const employeeCorrectionLink = {
     displayName: _t("Correct employee"),
     supportedTypes: ["many2one"],
+    component: EmployeeCorrectionLink,
 };
 
-registry.category("fields").add("correct_employee_button", correctEmployeeButton);
+registry.category("fields").add("correct_employee_button", employeeCorrectionLink);
