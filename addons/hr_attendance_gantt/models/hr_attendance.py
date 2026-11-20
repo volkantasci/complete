@@ -15,7 +15,7 @@ class HrAttendance(models.Model):
 
     has_active_contract = fields.Boolean(
         string="Has Active Contract",
-        compute='_compute_has_active_contract', search='_search_has_active_contract',
+        compute='_compute_has_active_contract', search='_search_contract_flag',
         groups='hr_attendance.group_hr_attendance_officer')
 
     @api.depends()
@@ -24,11 +24,11 @@ class HrAttendance(models.Model):
         self.has_active_contract = False
 
     show_contract_warning = fields.Boolean(
-        string="Show Contract Warning", compute='_compute_show_contract_warning',
+        string="Show Contract Warning", compute='_compute_contract_warning_flag',
         compute_sudo=True)
 
     @api.depends('employee_id', 'date')
-    def _compute_show_contract_warning(self):
+    def _compute_contract_warning_flag(self):
         """R7: the employee has no active contract on the attendance's date.
 
         ``date`` is the Community's (the check-in's day in the employee's time zone, today while
@@ -38,15 +38,14 @@ class HrAttendance(models.Model):
         versions = self.env['hr.version'].sudo()
         for attendance in self:
             employee, day = attendance.employee_id, attendance.date
-            if not employee or not day:
-                attendance.show_contract_warning = False
-                continue
-            attendance.show_contract_warning = not versions.search_count([
+            known = bool(employee and day)
+            running = known and versions.search_count([
                 ('employee_id', '=', employee._origin.id or employee.id),
                 ('contract_date_start', '!=', False),
                 ('contract_date_start', '<=', day),
                 '|', ('contract_date_end', '=', False), ('contract_date_end', '>=', day),
             ], limit=1)
+            attendance.show_contract_warning = known and not running
 
     @api.model
     def _hag_today(self):
@@ -96,7 +95,7 @@ class HrAttendance(models.Model):
             field_name, 'in' if True in wanted else 'not in', self._hag_active_contract_employees())
 
     @api.model
-    def _search_has_active_contract(self, operator, value):
+    def _search_contract_flag(self, operator, value):
         return self._hag_contract_condition('employee_id', operator, value)
 
     @api.model
@@ -153,9 +152,17 @@ class HrAttendance(models.Model):
     @api.model
     @api.readonly
     def get_gantt_data(
-        self, domain, groupby, read_specification, limit=None, offset=0,
-        unavailability_fields=None, progress_bar_fields=None,
-        start_date=None, stop_date=None, scale=None,
+        self,
+        domain,
+        groupby,
+        read_specification,
+        limit=None,
+        offset=0,
+        unavailability_fields=None,
+        progress_bar_fields=None,
+        start_date=None,
+        stop_date=None,
+        scale=None,
     ):
         """The Gantt data of the attendance view (rows of R14, no-contract list of R19).
 
