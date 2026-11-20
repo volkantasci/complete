@@ -235,7 +235,8 @@ test("A19: exactly the four split Fridays are shaded diagonally on the month sca
 test("N5: in a right-to-left language the split Fridays are drawn mirrored at 35 degrees", async () => {
     const ids = await makeEmployeeData(["Gantt Hourly"], [["Hourly shift", "Gantt Hourly", [2, "8:00"], [2, "9:00"]]]);
     timelineMock.unavailability = { employee_id: { [ids["Gantt Hourly"]]: hourlyPeriods() } };
-    document.documentElement.setAttribute("dir", "rtl");
+    // the web client marks the body, not the root element, for a right-to-left language
+    document.body.setAttribute("dir", "rtl");
     try {
         await start();
         await mountView({
@@ -253,7 +254,7 @@ test("N5: in a right-to-left language the split Fridays are drawn mirrored at 35
             "linear-gradient(35deg, var(--o-hrg-available-bg, transparent) 49%, var(--o-tl-unavailable-bg) 50%)"
         );
     } finally {
-        document.documentElement.removeAttribute("dir");
+        document.body.removeAttribute("dir");
     }
 });
 
