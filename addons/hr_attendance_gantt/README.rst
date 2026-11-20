@@ -233,7 +233,9 @@ older than 20.0.1.1.0 is updated. The Attendances bridge as released with the ea
 requires (``hr_attendance_gantt_view``). The script calls ``rename_attendance_view`` of
 ``hooks.py``: it changes the ``name`` of that view's ``ir_model_data`` row (the module's own row)
 and nothing else, so the view record keeps its database id, and the management action's view
-line (and any customization that inherits it by identifier) still points at it. The update then
+line and every link of existing records (a customization stored in the database) still hold, since
+they follow the database id. An XML reference in another module must use the new identifier,
+``hr_attendance_gantt.hr_attendance_gantt_view``. The update then
 finds the record under its new identifier, and creates no second view. A database with no row
 under the old name, or one that already has the new name, is left alone; the script can run twice.
 It was checked by installing the module as released, then updating it with this code (the view

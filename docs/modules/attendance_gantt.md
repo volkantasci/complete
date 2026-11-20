@@ -498,14 +498,14 @@ phone variant (suffix `.mobile`) in `docs/assets/attendance_gantt/`.
 
 - **The phone dialog's left line.** On a Complete dialog at 390 x 844, in light
   and in dark, there is no 1 px line along the dialog's left edge: its
-  `border-left` is 0 and its `box-shadow` is `0 8px 16px 0`. The original draws that
+  `border-left` is 0 and its `box-shadow` is `0 8px 16px 0`. The reference look draws that
   line in the border grey. It belongs to the shell and the theme (`web_enterprise`),
-  which draw every dialog, and not to this module (spec IQ1, M97); a later slice
-  of the theme can add it.
+  which draw every dialog, and not to this module; a later change of the theme
+  can add it.
 - **The overview card in the dark look.** The card of the monthly view is the
   Community's component in whatever colour the theme gives its colour class in dark;
-  its dark colour is not compared (decision D6).
-- **Where the original is not copied.** Two clicks on one pill open one dialog;
+  Complete does not set a dark colour of its own for it.
+- **Where Complete differs on purpose.** Two clicks on one pill open one dialog;
   moving an open attendance leaves it open and Undo opens it again; a creation in the
   monthly view proposes the employee of the form; and the available quarters and halves
   of a cell that is partly grey follow the direction of the grid in a right-to-left
@@ -513,16 +513,24 @@ phone variant (suffix `.mobile`) in `docs/assets/attendance_gantt/`.
 
 ## For developers
 
-The module adds one Gantt view record on `hr.attendance`, changes the management
-window action, and registers the view variant `attendance_gantt` in the
-browser; it adds no model and no stored field. The Python side overrides the
-model's data call, the unavailability hook and the progress hook. The
-description of the clicks and of the extension points used is in the
-[README](../../addons/hr_attendance_gantt/README.rst); the extension points
-themselves are in [Gantt View](gantt_view.md#extension-points-for-view-variants).
-The view also adds, with the tour and probe tests, a database migration
-(version 20.0.1.1.0, described in the README) and the Python of the contract
-warning, the contract filters and the check-out proposal.
+The module adds three Gantt views on `hr.attendance` (the base view and the two
+that inherit it for the month scale and for the monthly hours) and two inheriting
+views, the search view (the contract filters) and the attendance form (the
+contract warning). It changes two Community actions (the management window and
+the personal one), and registers two view variants in the browser,
+`attendance_gantt` and `monthly_attendance_gantt`. It overrides
+`action_open_last_month_attendances` of `hr.employee`, and adds two non-stored
+fields on `hr.attendance` (`has_active_contract` and `show_contract_warning`) and
+the field widget of the "Correct employee" link. The Python side also overrides
+the model's data call, the unavailability hook and the progress hook. The variant
+uses the editor hooks of the Gantt view (`creationContextFor`, `writeValuesFor`,
+`undoValuesFor`); the description of the clicks and of the extension points used
+is in the [README](../../addons/hr_attendance_gantt/README.rst); the extension
+points themselves are in
+[Gantt View](gantt_view.md#extension-points-for-view-variants). The module also
+has a database migration (version 20.0.1.1.0, described in the README) that
+renames the view's identifier to `hr_attendance_gantt.hr_attendance_gantt_view`
+and keeps its database id.
 
 ### The demo database at the project's instant
 
