@@ -3,13 +3,14 @@
 import { beforeEach, describe, expect, hover, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { queryAll, queryAllTexts, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
-import { patchWithCleanup, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
+import { onRpc, patchWithCleanup, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
 import { browser } from "@web/core/browser/browser";
 import { localization } from "@web/core/l10n/localization";
 import { timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
 import { RESIZE_DELAY } from "../src/attendance_timeline_renderer";
 
 import {
+    ARCH,
     mountAttendances,
     setupAttendanceFixtures,
 } from "./attendance_test_helpers";
@@ -325,6 +326,26 @@ test("A70: the helper's layer starts 115 px below the content area's top at any 
     const layer = queryRect(".o_hag_helper");
     const help = queryRect(".o_hag_helper .o_nocontent_help");
     expect(Math.abs(help.top + help.height / 2 - (layer.top + layer.height / 2)) < 2).toBe(true);
+});
+
+test("A8: in the monthly variant the helper's layer starts below the overview band", async () => {
+    onRpc("hr.employee", "get_attendance_data_by_employee", () => ({}));
+    await resize({ width: 1600, height: 900 });
+    await mountAttendances({
+        employees: ["Beth Evans"],
+        expand: true,
+        noContentHelp: HELP,
+        arch: ARCH("month").replace("attendance_gantt", "monthly_attendance_gantt"),
+        context: { active_id: 1, active_model: "hr.employee" },
+    });
+    const band = queryRect(".o_hag_overview_band");
+    expect(band.height).toBe(96);
+    expect(".o_hag_helper").toHaveCount(1);
+    // the same 115 px below the content area's top as without the band, plus the band's own
+    // height: the layer does not start inside the band
+    const layer = queryRect(".o_hag_helper");
+    expect(Math.abs(layer.top - (queryRect(".o_content").top + 96 + 115)) < 0.6).toBe(true);
+    expect(layer.top >= band.bottom).toBe(true);
 });
 
 test("A54: no helper with twenty empty rows", async () => {

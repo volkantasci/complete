@@ -183,7 +183,13 @@ export class AttendanceTimelineRenderer extends EmployeeTimelineRenderer {
             top = grid.getBoundingClientRect().top;
         } else {
             const content = grid.closest(".o_content") || grid.closest(".o_timeline_view");
-            top = content.getBoundingClientRect().top + helperOffset(this.layout.rows.length);
+            // the monthly variant lays its overview band between the control bar and the grid:
+            // the grid's header lines begin below it, and so does the helper's layer (A8)
+            const band = content.querySelector(".o_hag_overview_band");
+            top =
+                content.getBoundingClientRect().top +
+                (band ? band.getBoundingClientRect().height : 0) +
+                helperOffset(this.layout.rows.length);
         }
         // `top` is read from the padding box: a border of the box (a panel frame) is not in it
         const frame = parseFloat(getComputedStyle(box).borderTopWidth) || 0;
