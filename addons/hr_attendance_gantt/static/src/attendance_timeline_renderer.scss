@@ -79,6 +79,10 @@
 
     &.o_hag_helper_phone {
         pointer-events: auto;
+        // a block, not a centred layer: its content starts at its top (the heading shows) and
+        // scrolls when it is taller than the block
+        align-items: flex-start;
+        overflow-y: auto;
         background-color: $o-view-background-color;
         // over the sticky headers of the grid: it covers the column headers and the row
         z-index: 100;
