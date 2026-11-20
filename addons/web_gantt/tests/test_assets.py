@@ -38,6 +38,7 @@ class TestWebGanttAssets(TransactionCase):
         self.assertRegex(
             css, rf'\.o_tl_renderer\.o_tl_color_0\{{background-color:{grey}')
         # the dark variables win over the light defaults: no warm opaque fill
-        self.assertNotIn('.o_tl_cell.o_tl_is_today{background-color:#fffaeb', css)
+        self.assertNotRegex(
+            css, r'\.o_tl_cell\.o_tl_is_today\{(--[\w-]+:[^;}]+;)*background-color:#fffaeb')
         self.assertRegex(
             css, r'\.o_tl_cell\.o_tl_is_today\{background-color:rgba\(')
