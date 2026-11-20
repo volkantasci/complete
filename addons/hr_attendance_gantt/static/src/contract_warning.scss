@@ -22,5 +22,9 @@
     .o_field_widget {
         display: inline;
         width: auto;
+        // the gap after the sentence: a margin of the link's field (the link itself keeps the
+        // measured 0 margin, M23), so it does not depend on the translated text. The field is
+        // not drawn for a user without the link, so the text stays centred.
+        margin-inline-start: 0.25rem;
     }
 }
