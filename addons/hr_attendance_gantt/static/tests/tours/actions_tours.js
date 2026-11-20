@@ -225,6 +225,7 @@ async function pressRowAt(x, y, opens) {
 }
 
 const searchButton = () =>
+    $(".o_control_panel_navigation button.active i[data-icon='search']")?.closest("button") ||
     $$(".o_control_panel button").find((button) => $("i[data-icon='search']", button));
 
 // A4: the Gantt view of My Attendances

@@ -336,7 +336,10 @@ test("R26: the layer's offset is the header lines and the rows drawn, 40 px for 
 });
 
 /** The monthly variant of the module's view: no grouping, so no row header (R4, R26). */
-const MONTHLY_ARCH = ARCH("month").replace("attendance_gantt", "monthly_attendance_gantt");
+const MONTHLY_ARCH = ARCH("month")
+    .replace("attendance_gantt", "monthly_attendance_gantt")
+    .replace('default_group_by="employee_id"', "")
+    .replace('progress_bar="employee_id"', "");
 
 /** Answers the overview's call with `count` cards of a work entry type each. */
 function answerWithCards(count) {
@@ -354,7 +357,7 @@ function answerWithCards(count) {
 async function mountMonthly(count, rest = {}) {
     answerWithCards(count);
     await resize({ width: 1600, height: 900 });
-    return mountAttendances({
+    const mounted = await mountAttendances({
         employees: ["Beth Evans"],
         noContentHelp: "",
         arch: MONTHLY_ARCH,
@@ -362,6 +365,10 @@ async function mountMonthly(count, rest = {}) {
         context: { active_id: 1, active_model: "hr.employee" },
         ...rest,
     });
+    // the band is drawn once its cards are in, and the layer is put again by the observer
+    await advanceTime(100);
+    await animationFrame();
+    return mounted;
 }
 
 test("A8, R26: in the monthly variant the layer starts 75 px below the area's top, the band not counted", async () => {
@@ -371,7 +378,7 @@ test("A8, R26: in the monthly variant the layer starts 75 px below the area's to
     const layer = queryRect(".o_hag_helper");
     // the unnamed row is not counted, nor is the band: the two header lines only. Where the
     // band lies against the layer is a matter of the real control bar (the probes M106 to M108)
-    expect(Math.abs(layer.top - (queryRect(".o_content").top + 75)) < 0.6).toBe(true);
+    expect(layer.top - queryRect(".o_content").top).toBeCloseTo(75, { margin: 0.6 });
     // the layer lets the pointer through
     expect(".o_hag_helper").toHaveStyle({ pointerEvents: "none" });
 });
