@@ -74,7 +74,8 @@ Month range. It has a later priority, so the model's default Gantt view stays th
 ``js_class="monthly_attendance_gantt"``. The employee's worked-hours button opens the
 Community action "Attendances This Month" (List, Form), and this module adds that view as its
 third one (``hr.employee.action_open_last_month_attendances``). The monthly variant lays the
-Community attendance overview above the grid (a 96 px band, one card per work entry type of
+Community attendance overview above the grid (a band as tall as its cards: 16 px with none, 96 px with
+one line, which scrolls sideways when the cards do not fit; one card per work entry type of
 the displayed period, read again at every load) and proposes the employee of the form that
 opened the action, the ``active_id`` of its context, in every creation dialog. Its grid has no
 grouping, so it shows one unnamed row.
@@ -121,9 +122,10 @@ It extends the employee variant of ``hr_gantt``:
   does nothing. The folding itself is the Gantt view's, worked out at every load.
 - **The empty-view helper.** With at most one row and no attendance in it, the
   Attendances application's own helper (``AttendanceActionHelper``) shows: a layer
-  over the grid on desktop, from 115 px below the top of the content area with one
-  row (the header lines plus the rows' inner heights), and in the grid's place on
-  a phone.
+  over the grid on desktop, from 115 px below the top of the view's area with one
+  row (the header lines plus the rows' inner heights; the control bar and the
+  overview band are not counted), and on a phone a block at a fixed place that the
+  search bar does not move. The monthly view's generic message is a layer on both.
 
 Access
 ------

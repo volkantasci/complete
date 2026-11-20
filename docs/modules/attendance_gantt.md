@@ -247,10 +247,16 @@ on one employee who has not checked in, an unmatched search, a period with
 nothing in it), the view shows the helper of the Attendances application, in its
 own wording: onboarding for an attendance officer or above who is also an Employees officer, a
 short note for others. It is laid over
-the grid from 115 px below the top of the view, so the row stays visible and can
-still be clicked through it, and it stretches to the bottom of the window. On a
-phone, the helper takes the place of the grid instead. Two or more rows never
-show it, even if none has an attendance.
+the grid from 75 px below the top of the view's area plus 40 px for each employee
+row drawn (115 px with one row; the control bar and the monthly view's overview
+band are not counted), so the row stays visible and can still be clicked through
+it, and it stretches to the bottom of the window. On a phone, the attendance helper
+is a block in the view's background at a fixed place under the control panel,
+which the search bar does not move: with the bar closed the period line, the hour
+line and the row's upper part show above it, with the bar open the row is under
+it, and a press on the covered part creates nothing. The monthly view's generic
+message is a transparent layer on the phone too, and presses go through it. Two or
+more rows never show it, even if none has an attendance.
 
 ![The helper over one empty row, light](../assets/attendance_gantt/10-helper.png)
 
@@ -342,7 +348,10 @@ one dialog, and no click opens a second dialog while one is opening or open. A
 click on the dialog's backdrop does nothing. When the dialog closes, whichever
 way, the view loads its data again and stays on the same range, period and scroll
 position, so the labels, the bars and the folding are worked out again; an
-attendance that does not match the search is saved but not shown.
+attendance that does not match the search is saved but not shown. One Escape
+closes a dialog when no field is being edited; after typing in a field, the first
+Escape is taken by that field and the dialog stays, the second closes it, and
+nothing is saved.
 
 On a phone the dialog fills the screen.
 
@@ -356,7 +365,8 @@ For a user who may create attendances, a click on an empty cell of a row opens
 the creation dialog ("Create") with the row's employee and the cell's period: the
 hour on the Day range, the day on the Week and Month ranges, the month on the
 Year range. A press dragged over empty cells of one row proposes the dragged span
-at the scale's precision. The New button opens the dialog with your own employee
+at the scale's precision; the span starts at the beginning of the sub-column under
+the press (a press at the centre of a day on the Week range starts at 12:00). The New button opens the dialog with your own employee
 and the period of the range (the Day range: today, 0:00 to 0:00 of the next
 day). Nothing happens when you click an empty cell and have no right to create
 (no role), and the pointer resting on a cell shows nothing.
