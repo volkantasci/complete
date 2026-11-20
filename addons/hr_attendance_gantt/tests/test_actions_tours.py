@@ -644,6 +644,16 @@ class TestActionsTours(HrToursBase):
         """A62 on the demo data: Marc Demo (login demo); skipped when the database has none."""
         if not self.env['res.users'].search([('login', '=', 'demo')]):
             self.skipTest('the database has no demo data (the user demo)')
+        # the demo attendances lie around the day of the installation; the tour clicks Abigail
+        # Peterson's pill on 11 November 2026 (the Brussels day, 10 Nov 23:00 to 11 Nov 23:00 UTC)
+        if not self.env['hr.attendance'].with_context(active_test=False).search_count([
+            ('employee_id.name', '=', 'Abigail Peterson'),
+            ('check_in', '>=', datetime(2026, 11, 10, 23, 0)),
+            ('check_in', '<', datetime(2026, 11, 11, 23, 0)),
+        ]):
+            self.skipTest(
+                "Abigail Peterson's demo attendance is not on 11 November 2026: the database was "
+                'not created at that instant (tools/odoo_at_instant.py), the tour needs its pill')
         # the demo's employees are the scenario's: they come back from the other company
         self.env['hr.employee'].with_context(active_test=False).search(
             [('company_id.name', '=', 'HRA Elsewhere')]).write(
