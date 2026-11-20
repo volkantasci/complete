@@ -17,6 +17,7 @@ Counts: M24 the warnings drawn in the dialog of Abigail, M25 the dialogs open af
 link, M26 the breadcrumb's last item after it.
 """
 import json
+import logging
 
 from odoo.addons.test_web_gantt.tests.timeline_probe import compare_value
 from odoo.tests import tagged
@@ -33,6 +34,11 @@ from .test_hr_rows_probes import (
     pills_of,
     row_js,
 )
+
+_logger = logging.getLogger(__name__)
+MY_ACTION = 'hr_attendance.hr_attendance_my_action'
+EDGE_PROPS = ['box-shadow', 'border-left-width', 'border-left-style', 'border-left-color',
+              'outline-width', 'geometry.x', 'geometry.width', 'geometry.height']
 
 SCHEMES = ('light', 'dark')
 VIEWPORTS = ('desktop', 'phone')
@@ -230,10 +236,53 @@ class TestActionsProbes(HrProbes):
                               timeout=30)
                     self.settle(1500)
                     self.check_text(TITLE, 'Open', 'the dialog is titled Open')
-                    self.check('M5', CONTENT, scheme, viewport, 'the dialog')
+                    if viewport == 'desktop':
+                        # M5's phone readings are not compared (IQ1): the phone's 1 px left
+                        # line is every Community dialog's, see test_a88_phone_dialog_edge
+                        self.check('M5', CONTENT, scheme, viewport, 'the dialog')
                     self.check('M8', TITLE, scheme, viewport, 'the title')
                     self.check_count('M6', POPOVERS, scheme, viewport, 'popovers')
                     self.check_count('M7', FOOTER_BUTTONS, scheme, viewport, 'footer buttons')
+
+    def test_a88_phone_dialog_edge(self):
+        """IQ1, A88 (visual), M97: the 1 px line on the left edge of a dialog on the phone is the
+        shell's and the theme's, not this slice's: nothing is asserted about it. What the
+        Community's own dialogs show at that edge on a phone 390 x 844 is measured and logged
+        (``PHONE-EDGE|...``): the attendance view's record dialog (A26) and the creation dialog
+        of the Community calendar of My Attendances. A note for a later slice."""
+        self.env['hr.employee'].create({
+            'name': 'HRA Admin', 'user_id': self.env.ref('base.user_admin').id, 'tz': TZ,
+            'resource_calendar_id': self.schedule.id})
+        self.env.flush_all()
+        for scheme in self.schemes(['M8']):
+            with self.subTest(scheme=scheme, dialog='the record dialog'), \
+                    self.open(scheme, 'phone'):
+                self.loaded('phone')
+                self.js(f"{self.abigail()}.scrollIntoView({{inline: 'center'}})")
+                self.settle(500)
+                self.finger_tap(self.abigail())
+                self.wait(f"!!document.querySelector('{MODAL} .o_form_view .o_form_sheet')",
+                          timeout=30)
+                self.settle(1500)
+                self.log_edge(scheme, 'record dialog of the attendance view')
+            with self.subTest(scheme=scheme, dialog='the calendar dialog'), \
+                    self.page(MY_ACTION, scheme, 'phone', clock=CLOCK, timezone=TZ,
+                              ready='.o_calendar_view .fc-view'):
+                self.settle(1500)
+                self.js("""(() => {
+                    const cells = [...document.querySelectorAll(
+                        '.fc-timegrid-slot-lane, .fc-daygrid-day')];
+                    window.__slot = cells.find((el) => el.getClientRects().length) || null;
+                })()""")
+                self.finger_tap('window.__slot')
+                self.wait(f"!!document.querySelector('{MODAL} .o_form_view')", timeout=30)
+                self.settle(1500)
+                self.log_edge(scheme, 'creation dialog of the calendar of My Attendances')
+
+    def log_edge(self, scheme, label):
+        values = self.read(CONTENT, EDGE_PROPS)
+        _logger.warning('PHONE-EDGE|%s|%s|%s', scheme, label, json.dumps(values))
+        self.assertTrue(values, f'a dialog is open: {label}')
 
     def test_m09_tap_with_touch_on_the_desktop(self):
         for scheme in self.schemes(['M9']):
@@ -515,6 +564,25 @@ class TestMonthlyProbes(HrProbes):
                     self.check('M42', PERIOD_LINE, scheme, viewport, 'the period line')
                     self.check_count('M41', ROW_HEADERS_SHOWN, scheme, viewport, 'row headers')
                     self.check_count('M43', BARS, scheme, viewport, 'progress bars')
+
+    def test_m98_m99_the_monthly_search_menu(self):
+        """A90: the Community's other attendance search view has no contract filter and offers its
+        own "Date" grouping, which the Gantt view does not hide."""
+        menu_items = (
+            "[...document.querySelectorAll('%s .o_menu_item')]"
+            ".filter((el) => el.textContent.trim() === %s).length")
+        for scheme in self.schemes(['M98', 'M99']):
+            with self.subTest(scheme=scheme), action_in_november(), \
+                    self.open_form(scheme, 'desktop'):
+                self.press_worked_hours('desktop')
+                self.choose_gantt('desktop')
+                self.click_js("document.querySelector('.o_searchview_dropdown_toggler')")
+                self.wait("!!document.querySelector('.o_search_bar_menu')")
+                self.settle(600)
+                self.check_count('M98', menu_items % ('.o_filter_menu', "'Ongoing Contract'"),
+                                 scheme, 'desktop', 'Ongoing Contract filters')
+                self.check_count('M99', menu_items % ('.o_group_by_menu', "'Date'"),
+                                 scheme, 'desktop', 'Date groupings')
 
 
 @tagged('post_install', '-at_install')

@@ -3,7 +3,6 @@
 import { serializeDateTime } from "@web/core/l10n/dates";
 import { dragStep, shiftBy } from "@web_gantt/timeline_drag_math";
 import { TimelineEditor } from "@web_gantt/timeline_editor";
-import { attendanceDialogService } from "./attendance_form_dialog";
 
 /**
  * The editor of the attendance variant (the editor slot of the Gantt view). The record dialog
@@ -13,13 +12,8 @@ import { attendanceDialogService } from "./attendance_form_dialog";
  * form's own Delete removes the attendance at once (decision D2).
  */
 export class AttendanceTimelineEditor extends TimelineEditor {
-    constructor({ archInfo, services, ...params }) {
-        super({
-            ...params,
-            archInfo: { ...archInfo, canDelete: false },
-            // its form dialogs carry the class of the attendance views (the phone's edge line)
-            services: { ...services, dialog: attendanceDialogService(services.dialog) },
-        });
+    constructor({ archInfo, ...params }) {
+        super({ ...params, archInfo: { ...archInfo, canDelete: false } });
     }
 
     /**
