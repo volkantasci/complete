@@ -16,25 +16,28 @@ export function isHalfDayPrecision(columnUnit, parts) {
 const UNAVAILABLE = "var(--o-tl-unavailable-bg)";
 const AVAILABLE = "var(--o-hrg-available-bg, transparent)";
 
-/** The angle of the diagonal split of R7. */
+/** The angle of the diagonal split of R7, and its mirror image in a right-to-left language (N5). */
 export const DIAGONAL_ANGLE = 325;
+export const DIAGONAL_ANGLE_RTL = 360 - DIAGONAL_ANGLE;
 
 /**
  * R7: the background of a cell whose two halves differ: a hard-edged gradient at 325 degrees, the
  * colour of the first half's state up to 49 % and that of the second half's state from 50 %.
+ * In a right-to-left language the drawing is mirrored (N5): 35 degrees, the first half lower left.
  * The available half is the view background (a property that is transparent in today's column, so
  * the today shade shows through it). Null when both halves are in the same state (002a R28 draws those).
  * @param {boolean} firstUnavailable
  * @param {boolean} secondUnavailable
+ * @param {boolean} [rtl] the grid runs from right to left
  * @returns {string|null}
  */
-export function diagonalBackground(firstUnavailable, secondUnavailable) {
+export function diagonalBackground(firstUnavailable, secondUnavailable, rtl = false) {
     if (Boolean(firstUnavailable) === Boolean(secondUnavailable)) {
         return null;
     }
     const first = firstUnavailable ? UNAVAILABLE : AVAILABLE;
     const second = secondUnavailable ? UNAVAILABLE : AVAILABLE;
-    return `linear-gradient(${DIAGONAL_ANGLE}deg, ${first} 49%, ${second} 50%)`;
+    return `linear-gradient(${rtl ? DIAGONAL_ANGLE_RTL : DIAGONAL_ANGLE}deg, ${first} 49%, ${second} 50%)`;
 }
 
 /**

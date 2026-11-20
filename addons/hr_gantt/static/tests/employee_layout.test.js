@@ -50,6 +50,16 @@ test("R7: the diagonal is a hard-edged gradient at 325 degrees", () => {
     expect(diagonalBackground(false, false)).toBe(null);
 });
 
+test("N5: in a right-to-left language the diagonal is the mirror image, at 35 degrees", () => {
+    expect(diagonalBackground(false, true, true)).toBe(
+        "linear-gradient(35deg, var(--o-hrg-available-bg, transparent) 49%, var(--o-tl-unavailable-bg) 50%)"
+    );
+    expect(diagonalBackground(true, false, true)).toBe(
+        "linear-gradient(35deg, var(--o-tl-unavailable-bg) 49%, var(--o-hrg-available-bg, transparent) 50%)"
+    );
+    expect(diagonalBackground(true, true, true)).toBe(null);
+});
+
 test("R8: half-day precision means day columns with two parts", () => {
     expect(isHalfDayPrecision("day", 2)).toBe(true);
     expect(isHalfDayPrecision("hour", 2)).toBe(false);

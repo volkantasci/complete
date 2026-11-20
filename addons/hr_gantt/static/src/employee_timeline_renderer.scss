@@ -78,8 +78,8 @@
 
 // R7: the available half of a diagonal cell is painted: in the view background (the day colour),
 // in today's column in today's shade (the property is read by the gradient of
-// `diagonalBackground`). In today's column the cell's own shade lies under the gradient, so a
-// diagonal cell there takes the view background as its base and the gradient paints the shade once.
+// `diagonalBackground`). In today's column the cell's own shade would lie under the gradient, so a
+// diagonal cell there is transparent and the gradient paints the shade once (as 002d3 R23 does).
 .o_tl_cell {
     --o-hrg-available-bg: #{$o-view-background-color};
 
@@ -87,7 +87,7 @@
         --o-hrg-available-bg: #{$o-tl-today-bg};
 
         &.o_hrg_split {
-            background-color: $o-view-background-color;
+            background-color: transparent;
         }
     }
 }

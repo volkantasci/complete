@@ -109,7 +109,9 @@ Renderer (``EmployeeTimelineRenderer``, a ``TimelineRenderer``)
     card.
   - ``partialCellStyle(covered)``: the style of a partly unavailable cell (the
     hook of the Gantt view); a cell with two different halves also gets the class
-    ``o_hrg_split``.
+    ``o_hrg_split``. The diagonal follows the grid's direction: 325 degrees from the
+    lower right in a left-to-right language, its mirror image (35 degrees, from the
+    lower left) in a right-to-left one.
 
 The variant does not use the Gantt view's ``rowLeadTemplate`` (the avatar sits in
 the name's box); that extension point stays in ``web_gantt`` for other variants.
