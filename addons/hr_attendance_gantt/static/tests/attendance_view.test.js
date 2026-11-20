@@ -220,6 +220,21 @@ test("N2 (A70): a whole day worked by a fully flexible employee", async () => {
     expect(barOf("Flexible Worker")).toBe(null);
 });
 
+test("N2 (A70): the whole day of 25 h reads 25h in the warning colour, the day of 23 h 23h muted", async () => {
+    // the maximum is 24 h on both days (the calendar days of the period); 25 h of 24 h is 104 %,
+    // 23 h of 24 h is 96 %
+    await mountLabels({
+        "Long Day": entry(25, 24, false, true),
+        "Short Day": entry(23, 24, false, true),
+    });
+    expect(labelOf("Long Day")).toHaveText("25h");
+    expect(labelOf("Long Day")).toHaveClass(["o_hag_warning", "text-warning"]);
+    expect(labelOf("Short Day")).toHaveText("23h");
+    expect(labelOf("Short Day")).toHaveClass("o_hag_success");
+    expect(labelOf("Long Day")).not.toHaveAttribute("data-tooltip");
+    expect(barOf("Long Day")).toBe(null);
+});
+
 test("A45: a fully flexible employee tracked by attendances has a warning label", async () => {
     await mountLabels({ "Tracked Flexible": entry(0, 0, true, true) });
     const label = labelOf("Tracked Flexible");

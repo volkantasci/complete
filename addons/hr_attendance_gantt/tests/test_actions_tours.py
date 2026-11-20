@@ -5,7 +5,7 @@ drags of the attendance Gantt views). The clock, the zone, the window and the re
 ones of 002d2's tours (``HrToursBase``); every record and user is created here (CI has no demo
 data), the demo's employees are moved out of the views by ``HrToursBase.setUp``. The tours are in
 ``static/tests/tours/actions_tours.js``."""
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from odoo.tests import tagged
@@ -13,10 +13,13 @@ from odoo.tests import tagged
 from .actions_fixtures import (
     PEER_NAME,
     action_in_november,
+    demo_time_rule_state,
     make_gantt_moved,
     make_page_employees,
     make_role_users,
     make_team_officer,
+    rule_counts_work,
+    server_day,
 )
 from .hr_rows_fixtures import TZ
 from .test_hr_rows_tours import HrToursBase
@@ -26,6 +29,8 @@ PHONE = (390, 844)
 EMPLOYEE_FORM = '/odoo/action-hr.open_view_employee_list_my/%d'
 # the form the users without the Employees officer group are given: the public profile
 PUBLIC_FORM = '/odoo/action-hr.hr_employee_public_action/%d'
+# the Employees application's directory, which opens the public profiles
+DIRECTORY = '/odoo/action-hr.hr_employee_public_action'
 
 
 @tagged('post_install', '-at_install')
@@ -254,13 +259,49 @@ class TestActionsTours(HrToursBase):
         self._tour('hr_actions_a32_handle_press_release')
         self.assertEqual(self._abigail_attendance().read(['check_in', 'check_out']), before)
 
+    def _demo_rules(self):
+        """The demo database as created (R12, A33): the one time rule counts no attendance of the
+        test. It is set before ``_demo`` creates the attendances; the company is put back."""
+        self.addCleanup(demo_time_rule_state(self.env))
+        return self._demo()
+
+    def _jennie_restored(self):
+        """Jennie Fletcher's attendance is written back to 07:00 UTC after the scenario, and the
+        attendances a scenario added to her are removed, also when it fails."""
+        def restore():
+            self.env.invalidate_all()
+            attendances = self.env['hr.attendance'].with_context(skip_time_rules=True).search(
+                [('employee_id.name', '=', 'HRA Jennie')], order='check_in asc')
+            attendances[1:].unlink()
+            attendances[:1].write({
+                'check_in': datetime(2026, 11, 10, 19, 0),
+                'check_out': datetime(2026, 11, 11, 7, 0), 'source_stale': False})
+        self.addCleanup(restore)
+
     def test_a33_cut_pills(self):
-        self._demo()
-        # the tour resizes a 24-hour attendance: the Community's time rules would split a longer
-        # than scheduled attendance when its check-out is written, and Undo cannot join the
-        # parts again; that pipeline is not what the scenario is about
-        self.env['hr.time.rule'].search([]).write({'active': False})
+        self._demo_rules()
+        self._jennie_restored()
         self._tour('hr_actions_a33_cut_pills')
+        # nothing was split: Jennie has her one attendance, back at 07:00 UTC after Undo
+        self.env.invalidate_all()
+        jennie = self.env['hr.attendance'].search([('employee_id.name', '=', 'HRA Jennie')])
+        self.assertEqual(jennie.mapped('check_out'), [datetime(2026, 11, 11, 7, 0)])
+
+    def test_a87_time_rule_split_then_undo(self):
+        """A87 (decision D7): the rule counts the company's Work type too, so the write is split
+        and Undo leaves the overtime attendance with the Community's review mark; the server's
+        day is 20 November 2026 around the tour (the rule pipeline's own "today")."""
+        self._demo_rules()
+        self._jennie_restored()
+        self.addCleanup(rule_counts_work(self.env))
+        with server_day(date(2026, 11, 20)):
+            self._tour('hr_actions_a87_time_rule_split_undo')
+        self.env.invalidate_all()
+        jennie = self.env['hr.attendance'].search(
+            [('employee_id.name', '=', 'HRA Jennie')], order='check_in asc')
+        self.assertEqual(len(jennie), 2)
+        self.assertEqual(jennie[0].check_out, datetime(2026, 11, 11, 7, 0))
+        self.assertTrue(jennie[1].time_rule_id and jennie[1].source_stale)
 
     def test_a74_where_user_lands(self):
         self._demo()
@@ -548,6 +589,30 @@ class TestActionsTours(HrToursBase):
         self.assertEqual(
             self.env['hr.attendance'].search_count([('employee_id.name', '=', 'Gantt Role None')]),
             1, 'nothing was created')
+
+    def test_a90_monthly_search(self):
+        like = self._demo()
+        self._monthly('hr_actions_a90_monthly_search', like['HRA Anita'])
+
+    def test_a91_overview_after_save(self):
+        like = self._demo()
+        anita = like['HRA Anita']
+
+        def write_back():
+            # the break is written back to 0 after
+            self.env.invalidate_all()
+            self.env['hr.attendance'].search(
+                [('employee_id', '=', anita.id), ('break_duration', '=', 1)]
+            ).with_context(skip_time_rules=True).write({'break_duration': 0})
+        self.addCleanup(write_back)
+        self._monthly('hr_actions_a91_overview_after_save', anita)
+
+    def test_a92_public_profile(self):
+        """A92: gantt_team (not an Employees officer) opens "Gantt Role Peer" from the Employees
+        application (its directory), whose public profile has the worked-hours button."""
+        self._role_users()
+        with action_in_november():
+            self._tour('hr_actions_a92_public_profile', path=DIRECTORY, login='gantt_team')
 
     # -- the matrix of roles (R21; A57 to A63) ---------------------------------------------------
     # The cell-by-cell list of the matrix, with the test of each cell, is in test_roles.py; the

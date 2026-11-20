@@ -9,10 +9,13 @@ the tasks of the slice that test roles, filters by role or the warning link reus
 demo's Marc Demo) and ``make_page_employees`` the twenty employees of a full page of the
 management view (A60, A61). ``drop_actions_records`` removes everything these made, by name.
 ``action_in_november`` fixes the clock of the employee's monthly action (R4).
+``demo_time_rule_state`` builds the time rule state of the demo database as created (R12, A33),
+``rule_counts_work`` sets the time rule to count the company's Work type too (A87) and
+``server_day`` moves the "today" of the time rule pipeline.
 """
 
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import patch
 
 from freezegun import freeze_time
@@ -60,6 +63,68 @@ def action_in_november():
             return original(self)
 
     with patch.object(HrEmployee, "action_open_last_month_attendances", in_november):
+        yield
+
+
+def demo_time_rule_state(env):
+    """The state of the demo database as created (R12, A33), for a database without demo data:
+    the Community's one time rule (the employee schedule rule, as its data create it) counts
+    the generic attendance type, and the attendances are of another work entry type, the one
+    the company's country gives its "Work", so the rule counts none of them and nothing is split.
+    Call it before the attendances are created (they take the company's type). Returns the
+    function that puts the company back."""
+    rule = env.ref("hr_work_entry.hr_time_rule_employee_schedule")
+    company = env.company
+    previous = company.attendance_work_entry_type_id
+    if previous in rule.condition_work_entry_type_ids:
+        # a "Work" type of its own that no country owns, drawn like the generic one ("A")
+        company.attendance_work_entry_type_id = env["hr.work.entry.type"].create(
+            {
+                "name": "Work",
+                "display_code": "A",
+                "code": "HRA.WORK",
+                "count_as": "working_time",
+                "color": 0,
+            }
+        )
+    assert company.attendance_work_entry_type_id not in rule.condition_work_entry_type_ids
+    env.flush_all()
+
+    def put_back():
+        company.attendance_work_entry_type_id = previous
+        env.flush_all()
+
+    return put_back
+
+
+def rule_counts_work(env):
+    """A87: the time rule counts the company's own "Work" type too. Returns the function that
+    puts the rule's conditions back."""
+    rule = env.ref("hr_work_entry.hr_time_rule_employee_schedule")
+    previous = rule.condition_work_entry_type_ids
+    rule.condition_work_entry_type_ids = previous | env.company.attendance_work_entry_type_id
+    env.flush_all()
+
+    def put_back():
+        rule.condition_work_entry_type_ids = previous
+        env.flush_all()
+
+    return put_back
+
+
+@contextmanager
+def server_day(day):
+    """The time rule pipeline reads "today" from the server's date (``date.today()`` of its
+    mixin): while this is open it reads ``day``, whatever the server's clock reads. Nothing else
+    moves (the tour's timers keep running)."""
+    from odoo.addons.hr_work_entry.models import hr_time_rule_source_mixin as mixin
+
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return day
+
+    with patch.object(mixin, "date", FixedDate):
         yield
 
 

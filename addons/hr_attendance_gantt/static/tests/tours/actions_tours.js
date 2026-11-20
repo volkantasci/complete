@@ -167,6 +167,12 @@ const myGantt = (phone) => async () => {
     // 002d2 R17: the long form from 1400 px, the short form below it ("0h" when nothing is worked)
     const label = phone ? "0h" : "0h / 8h";
     await until(() => labelOf("Mitchell Admin") === label, `the label of the row reads ${label}`);
+    // S2, 002d2 R20: the Community helper of an empty attendance view lies under the one empty row,
+    // over the view's content on desktop and in the grid's place on the phone
+    const helper = await until(() => $(".o_hag_helper"), "the Community attendance helper");
+    assert(helper.getClientRects().length > 0, "the helper is drawn");
+    assertEqual(helper.classList.contains("o_hag_helper_phone"), phone, "the phone's place of the helper");
+    assert($(".o_view_nocontent", helper), "it holds the Community's helper");
     if (!phone) {
         // on the phone the search bar is behind its own button, and its facets are not drawn
         assertEqual(facets(), ["Employee"], "one facet, the Employee grouping");
@@ -742,26 +748,82 @@ scenario("hr_actions_a33_cut_pills", GRID, async () => {
     await closeDialog();
     await dataSettled();
     await settle(400);
-    // its uncut end resizes (one hour column to the left), and Undo gives the whole attendance back,
-    // from its real check-in on the 10th and not from the start of the displayed day
+    // the demo database as created: its one time rule counts no demo attendance (R12), so nothing is
+    // split. Anita's uncut end, one hour column to the right, meets her next attendance (it begins
+    // at 4:00:10): the Community's overlap error shows, and the pill goes back
     const titles = () => pillTitles("HRA Anita");
     assertEqual(titles(), ["A - 24h", "A - 5h"], "Anita's pills before");
-    const cutAgain = pillsOf("HRA Anita")[0];
-    await realHover(cutAgain);
-    const handle = await until(() => $(".o_tl_handle_stop", cutAgain), "the end handle");
-    const edge = rectOf(cutAgain);
-    const from = { x: edge.right - 4, y: edge.top + edge.height / 2 };
+    const anitaBefore = await readAttendances("HRA Anita");
+    const leftBefore = rectOf(pillsOf("HRA Anita")[0]).left;
+    await dragHandle(pillsOf("HRA Anita")[0], "stop", HOUR);
+    await anError("Cannot create new attendance record for HRA Anita");
     assert(
-        rectOf(handle).left <= from.x && from.x <= rectOf(handle).right,
-        "the press is on the handle"
+        /already checked in on .*0?4:00:10/.test(clean($(".modal")?.textContent || "")),
+        "the error names her next attendance, which begins at 4:00:10"
     );
-    await realDrag(from, [{ x: from.x - 20, y: from.y }, { x: from.x - 55.5, y: from.y }]);
-    await until(() => titles()[0] === "A - 23h", "the attendance is one hour shorter", 8000);
+    await closeDialog();
     await dataSettled();
-    assertEqual(titles(), ["A - 23h", "A - 5h"], "Anita's pills after the resize");
+    await settle(500);
+    assertEqual(titles(), ["A - 24h", "A - 5h"], "Anita's pills after the refusal");
+    assertNear(rectOf(pillsOf("HRA Anita")[0]).left, leftBefore, "the pill went back", 1);
+    assertEqual(await readAttendances("HRA Anita"), anitaBefore, "nothing was written");
+    // Jennie Fletcher's "A - 12h", its uncut end one hour column to the right: one attendance, 10
+    // November 20:00 to 11 November 9:00 Brussels time, and Undo gives back the one of 12 h
+    const jennie = () => pillTitles("HRA Jennie");
+    assertEqual(jennie(), ["A - 12h"], "Jennie's pill before");
+    await dragHandle(pillsOf("HRA Jennie")[0], "stop", HOUR);
+    await until(() => jennie()[0] === "A - 13h", "the attendance is one hour longer", 8000);
+    await dataSettled();
+    assertEqual(jennie(), ["A - 13h"], "one attendance of 13 h");
+    assertEqual(
+        await readAttendances("HRA Jennie"),
+        [["2026-11-10 19:00:00", "2026-11-11 08:00:00"]],
+        "10 November 20:00 to 11 November 9:00 Brussels time"
+    );
     await pressUndo();
-    await until(() => titles()[0] === "A - 24h", "Undo gives the 24 hours back", 8000);
-    assertEqual(titles(), ["A - 24h", "A - 5h"], "Anita's pills after Undo");
+    await until(() => jennie()[0] === "A - 12h", "Undo gives the 12 hours back", 8000);
+    assertEqual(
+        await readAttendances("HRA Jennie"),
+        [["2026-11-10 19:00:00", "2026-11-11 07:00:00"]],
+        "the one attendance of 12 h"
+    );
+});
+
+// A87: a time rule that counts the attendances splits the write; Undo leaves the overtime attendance
+// (decision D7, the Community's): tests/test_actions_tours.py sets the rule and the server's day
+scenario("hr_actions_a87_time_rule_split_undo", GRID, async () => {
+    await ready();
+    await settle(500);
+    const jennie = () => pillTitles("HRA Jennie");
+    assertEqual(jennie(), ["A - 12h"], "Jennie's pill before");
+    await dragHandle(pillsOf("HRA Jennie")[0], "stop", HOUR);
+    await until(() => jennie().length === 2, "the write is split in two attendances", 8000);
+    await dataSettled();
+    assertEqual(jennie(), ["A - 12h", "OT - 1h"], "two pills, 12 h and the overtime hour");
+    assertEqual(
+        (await readAttendances("HRA Jennie")).map((row) => row.join(" to ")),
+        [
+            "2026-11-10 19:00:00 to 2026-11-11 07:00:00",
+            "2026-11-11 07:00:00 to 2026-11-11 08:00:00",
+        ],
+        "20:00 to 8:00 and the overtime attendance 8:00 to 9:00 Brussels time"
+    );
+    await pressUndo();
+    await until(
+        () => jennie().length === 2 && jennie().at(-1).startsWith("\u26a0"),
+        "the overtime attendance remains, with the Community's review mark",
+        8000
+    );
+    assertEqual(jennie()[0], "A - 12h", "the first attendance reads A - 12h");
+    assert(jennie()[1].includes("OT - 1h"), `the overtime attendance: ${jennie()[1]}`);
+    assertEqual(
+        (await readAttendances("HRA Jennie")).map((row) => row.join(" to ")),
+        [
+            "2026-11-10 19:00:00 to 2026-11-11 07:00:00",
+            "2026-11-11 07:00:00 to 2026-11-11 08:00:00",
+        ],
+        "the first attendance is back to 20:00 to 8:00 and the overtime one remains"
+    );
 });
 
 // A74: where the user lands
@@ -1284,6 +1346,8 @@ async function anError(text) {
     await until(() => $(".modal .o_error_dialog, .modal.o_technical_modal"), "an error dialog", 8000);
     const body = clean($(".modal")?.textContent || "");
     assert(body.includes(text), `the error dialog says "${text}": ${body.slice(0, 300)}`);
+    // R17, R19 (RL-T8-2): the Community's own error dialog, with the Community's title and message
+    assertEqual(titleOfDialog(), "Validation Error", "the Community's title of the error dialog");
 }
 
 /** Abigail's move by two hour columns, and the readings of it (A49). */
@@ -1797,6 +1861,94 @@ scenario("hr_actions_a85_list_new", EMPLOYEE_FORM, async () => {
     assertEqual(clean(input.value), "Mitchell Admin", "the user's own employee");
 });
 
+// A90: the monthly action's search menu is the Community's other attendance search view: no contract
+// filter, its own Date grouping, in the Gantt view and in the List view alike (R5, R6; M98, M99)
+const MONTHLY_FILTERS = [
+    "My Attendances",
+    "My Team",
+    "To Validate",
+    "Validated",
+    "Refused",
+    "Date",
+    "Active Employees",
+    "Archived Employees",
+];
+async function monthlyMenu(what) {
+    await openSearchMenu();
+    // the menu's own "Custom Filter..." entry is the framework's, not the search view's
+    assertEqual(
+        texts(FILTERS).filter((text) => !text.startsWith("Custom Filter")),
+        MONTHLY_FILTERS,
+        `the filters of ${what}`
+    );
+    assertEqual(texts(GROUPINGS), ["Employee", "Date"], `the groupings of ${what}`);
+    assert($(".o_add_custom_group_menu"), `Custom Group is offered in ${what}`);
+    await closeSearchMenu();
+}
+scenario("hr_actions_a90_monthly_search", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    await monthlyMenu("the Gantt view");
+    // Date is chosen as grouping: a facet shows, the one unnamed row does not change (002a R19)
+    const pills = pillTitles("");
+    await openSearchMenu();
+    const date = $$(GROUPINGS).find((el) => clean(el.textContent) === "Date");
+    date.click();
+    // a grouping on a date offers its intervals: Month is chosen
+    const month = await until(
+        () =>
+            $$(".o_group_by_menu .o_item_option, .o_group_by_menu .dropdown-item").find(
+                (el) => clean(el.textContent) === "Month"
+            ),
+        "the Month interval of the Date grouping",
+        3000
+    ).catch(() => null);
+    month?.click();
+    await until(() => facets().some((facet) => facet.includes("Date")), "the facet of the Date grouping");
+    await settle(1200);
+    await dataSettled();
+    assertEqual(rowNames(), [""], "the one unnamed row is unchanged");
+    assertEqual(pillTitles(""), pills, "with the same pills");
+    await closeSearchMenu();
+    await switchTo("List");
+    await until(() => $(".o_list_view"), "the list view");
+    await settle();
+    await monthlyMenu("the List view");
+});
+
+// A91: the overview is loaded again after a save in a dialog (R4 point 2)
+scenario("hr_actions_a91_overview_after_save", EMPLOYEE_FORM, async () => {
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    await until(() => cards().length, "the card of the month");
+    assertEqual(cards(), ["29h Work"], "the card before");
+    const pill = pillsOf("").find((el) => clean($(".o_tl_pill_title", el).textContent) === "A - 5h");
+    assert(pill, `her pill "A - 5h" in ${pillTitles("")}`);
+    await realClick(pill);
+    await recordDialogShows();
+    await typeInto(".modal [name='break_duration'] input", "1:00");
+    await pressFooter("Save & Close");
+    await until(() => !$(".modal"), "the dialog closes", 8000);
+    await dataSettled();
+    await until(() => cards().join() === "28h Work", `the card reads 28h Work, it reads ${cards()}`, 8000);
+});
+
+// A92: the monthly view from the public profile, opened from the Employees application (R4 point 4)
+scenario("hr_actions_a92_public_profile", ".o_kanban_view .o_kanban_record", async () => {
+    await settle(900);
+    const card = $$(".o_kanban_record").find((el) => clean(el.textContent).includes("Gantt Role Peer"));
+    assert(card, `the card of Gantt Role Peer in ${texts(".o_kanban_record")}`);
+    await realClick(card);
+    await until(() => $(".o_form_view .o_field_widget[name='name']"), "the public profile", 30000);
+    await pressWorkedHours();
+    await showMonthlyGantt();
+    await until(() => cards().length, "the card of the employee");
+    assertEqual(cards(), ["2h Work"], "the overview shows the employee's card");
+    await clickCell("", "2026-11-17");
+    assertEqual(proposal().employee, "Gantt Role Peer", "a click on a cell proposes the employee");
+    await closeDialog();
+});
+
 // -- the matrix of roles (R21; A57 to A63) ------------------------------------------------------------
 // One user per role (tests/actions_fixtures.py). Where a role may not act the control is absent: what
 // is counted here is what the user sees; the server's refusals are in tests/test_roles.py.
@@ -1901,14 +2053,19 @@ scenario("hr_actions_a57_role_none", GRID, async () => {
     assertEqual(await movablePills(), { pills: 1, movable: 0 }, "one pill that cannot be moved (M54)");
     await searchMenuOfRole(false); // M55
     // a drag does nothing: no image of the pill follows the pointer, nothing is written
+    const pillBefore = rectOf(pillsOf("Gantt Role None")[0]);
     const from = centre(pillsOf("Gantt Role None")[0]);
     await pressAndMove(from, 2 * HOUR);
     await settle(400);
+    // A57 (R17): no handles, and the pill stays in its place under the press and drag
+    assertEqual($$(".o_tl_handle").length, 0, "no handles under the press");
+    assertNear(rectOf(pillsOf("Gantt Role None")[0]).left, pillBefore.left, "the pill stays in place", 1);
     // the framework holds a locked pill in place: its ghost does not follow the pointer
     const held = $(".o_tl_pill_moved");
     assert(!held || Math.abs(centre(held).x - from.x) < 5, "the pill did not follow the pointer");
     await releaseAt({ x: from.x + 2 * HOUR, y: from.y });
     await settle(900);
+    assertNear(rectOf(pillsOf("Gantt Role None")[0]).left, pillBefore.left, "the pill is still in place", 1);
     assertEqual(MODALS().length, 0, "nothing opens after the drag");
     assertEqual(
         await readAttendances("Gantt Role None"),
