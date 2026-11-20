@@ -2,15 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { drag, hover, queryAll, queryAllTexts, queryOne, queryRect } from "@odoo/hoot-dom";
-import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import { advanceTime, animationFrame, freezeTime } from "@odoo/hoot-mock";
 import { contains, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
 import { AttendanceTimelineEditor } from "../src/attendance_timeline_editor";
-import { mountAttendances, setupAttendanceFixtures, utc } from "./attendance_test_helpers";
+import {
+    mountAttendances as mountOnClock,
+    setupAttendanceFixtures,
+    utc,
+} from "./attendance_test_helpers";
 
 describe.current.tags("desktop");
 
 setupAttendanceFixtures();
+
+/**
+ * Mounts with the clock frozen (beforeEach): the mount waits for timers, so the clock is moved
+ * by 16 ms steps until it is done (far less than one second, so the load's "now" keeps its
+ * seconds, whatever the speed of the runner).
+ */
+async function mountAttendances(options) {
+    let done = false;
+    const mounted = mountOnClock(options).finally(() => {
+        done = true;
+    });
+    for (let turn = 0; turn < 40 && !done; turn++) {
+        await advanceTime(16);
+    }
+    return mounted;
+}
 
 /** What the server saw: `write` and `gantt_undo_drag_drop` calls, in order. */
 let log;
@@ -21,6 +41,8 @@ let gestures;
 beforeEach(() => {
     mockTimeZone(1);
     mockDate("2026-11-11T10:00:02Z");
+    // the clock stands still until a test advances it, so "now" is exact on a slow runner
+    freezeTime();
     patchWithCleanup(localization, { weekStart: 7 });
     log = [];
     gestures = [];
