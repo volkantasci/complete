@@ -1347,7 +1347,11 @@ async function anError(text) {
     const body = clean($(".modal")?.textContent || "");
     assert(body.includes(text), `the error dialog says "${text}": ${body.slice(0, 300)}`);
     // R17, R19 (RL-T8-2): the Community's own error dialog, with the Community's title and message
-    assertEqual(titleOfDialog(), "Validation Error", "the Community's title of the error dialog");
+    // (its title is the Community's for the kind of error: a validation, an access or an invalid operation)
+    assert(
+        ["Validation Error", "Access Error", "Invalid Operation"].includes(titleOfDialog()),
+        `the Community's title of the error dialog: ${titleOfDialog()}`
+    );
 }
 
 /** Abigail's move by two hour columns, and the readings of it (A49). */

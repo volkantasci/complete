@@ -495,6 +495,9 @@ class TestMonthlyProbes(HrProbes):
                 'check_out': _datetime(check_out)})
         cls.env.flush_all()
 
+    # the schemes this slice's table has values for (002d2's table reuses some ids)
+    schemes = TestActionsProbes.schemes
+
     def check(self, probe, element_js, scheme, viewport, label):
         expected = dict(measured(probe, viewport).get(scheme, {}))
         self.assertTrue(expected, f'no value of {probe} in {scheme}/{viewport}')
