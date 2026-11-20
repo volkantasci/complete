@@ -5,6 +5,7 @@
 ``make_role_users`` builds the five role users of acceptance.md "Users" and their employees;
 the tasks of the slice that test roles, filters by role or the warning link reuse it.
 ``make_gantt_moved`` builds the prepared employee "Gantt Moved" (A54 to A56).
+``make_gantt_cards`` builds the prepared employee "Gantt Cards" of twelve overview cards (A95).
 ``make_team_officer`` builds a created team officer of four employees (A62's stand-in for the
 demo's Marc Demo) and ``make_page_employees`` the twenty employees of a full page of the
 management view (A60, A61). ``drop_actions_records`` removes everything these made, by name.
@@ -29,6 +30,23 @@ from .hr_rows_fixtures import (
 
 PEER_NAME = "Gantt Role Peer"
 MOVED_NAME = "Gantt Moved"
+CARDS_NAME = "Gantt Cards"
+# A95: the days (1 to 9 and 12 to 14 November 2026) and the work entry types of the twelve cards
+CARD_DAYS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14)
+CARD_TYPES = (
+    "Overtime hours non recoverable - 150%",
+    "Out Of Contract",
+    "Overtime (1.5x)",
+    "Double Time (2x)",
+    "Jury Duty",
+    "Bereavement",
+    "FMLA Leave",
+    "Parental Leaves",
+    "Training Time Off",
+    "Generic Time Off",
+    "Compensatory Time Off",
+    "Extra Hours",
+)
 OFFICER_NAME = "Gantt Officer"
 MANAGED_NAMES = [f"Gantt Managed {number}" for number in range(1, 5)]
 PAGE_PREFIX = "Gantt Page "
@@ -218,6 +236,39 @@ def make_gantt_moved(env, schedule=None):
     env["hr.attendance"].with_context(skip_time_rules=True).create(
         {"employee_id": employee.id, "check_in": datetime(2026, 11, 11, 7, 0), "check_out": False}
     )
+    env.flush_all()
+    return employee
+
+
+def make_gantt_cards(env, schedule=None, name=CARDS_NAME):
+    """The prepared "Gantt Cards" (A95): twelve attendances of two hours (08:00 to 10:00 UTC), one
+    on each of 1 to 9 and 12 to 14 November 2026, each of another work entry type (created here).
+
+    Schedule "40 hours/week", contract from 1 January 2026, time zone Europe/Brussels.
+    Returns the employee. The types and the employee are removed by the rollback of the test.
+    """
+    schedule = schedule or _schedule(env)
+    employee = env["hr.employee"].create(
+        {
+            "name": name,
+            "tz": TZ,
+            "resource_calendar_id": schedule.id,
+            "contract_date_start": CONTRACT_START,
+            "date_version": CONTRACT_START,
+        }
+    )
+    for day, type_name in zip(CARD_DAYS, CARD_TYPES, strict=True):
+        kind = env["hr.work.entry.type"].create(
+            {"name": type_name, "code": f"HRA.{type_name}", "count_as": "working_time"}
+        )
+        env["hr.attendance"].with_context(skip_time_rules=True).create(
+            {
+                "employee_id": employee.id,
+                "work_entry_type_id": kind.id,
+                "check_in": datetime(2026, 11, day, 8, 0),
+                "check_out": datetime(2026, 11, day, 10, 0),
+            }
+        )
     env.flush_all()
     return employee
 

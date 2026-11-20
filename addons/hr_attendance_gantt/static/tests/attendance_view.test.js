@@ -1,12 +1,13 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, hover, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { after, beforeEach, describe, expect, hover, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { queryAll, queryAllTexts, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
 import { onRpc, patchWithCleanup, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
 import { browser } from "@web/core/browser/browser";
 import { localization } from "@web/core/l10n/localization";
 import { timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
+import { helperOffset } from "../src/attendance_layout";
 import { RESIZE_DELAY } from "../src/attendance_timeline_renderer";
 
 import {
@@ -328,24 +329,89 @@ test("A70: the helper's layer starts 115 px below the content area's top at any 
     expect(Math.abs(help.top + help.height / 2 - (layer.top + layer.height / 2)) < 2).toBe(true);
 });
 
-test("A8: in the monthly variant the helper's layer starts below the overview band", async () => {
-    onRpc("hr.employee", "get_attendance_data_by_employee", () => ({}));
+test("R26: the layer's offset is the header lines and the rows drawn, 40 px for each", () => {
+    expect(helperOffset(0)).toBe(75);
+    expect(helperOffset(1)).toBe(115);
+    expect(helperOffset(3)).toBe(195);
+});
+
+/** The monthly variant of the module's view: no grouping, so no row header (R4, R26). */
+const MONTHLY_ARCH = ARCH("month").replace("attendance_gantt", "monthly_attendance_gantt");
+
+/** Answers the overview's call with `count` cards of a work entry type each. */
+function answerWithCards(count) {
+    onRpc("hr.employee", "get_attendance_data_by_employee", () => ({
+        1: {
+            entries: Array.from({ length: count }, (_unused, index) => ({
+                name: `Work type ${index + 1}`,
+                worked_hours: 2,
+                color: index,
+            })),
+        },
+    }));
+}
+
+async function mountMonthly(count, rest = {}) {
+    answerWithCards(count);
     await resize({ width: 1600, height: 900 });
-    await mountAttendances({
+    return mountAttendances({
         employees: ["Beth Evans"],
-        expand: true,
-        noContentHelp: HELP,
-        arch: ARCH("month").replace("attendance_gantt", "monthly_attendance_gantt"),
+        noContentHelp: "",
+        arch: MONTHLY_ARCH,
+        groupBy: [],
         context: { active_id: 1, active_model: "hr.employee" },
+        ...rest,
     });
-    const band = queryRect(".o_hag_overview_band");
-    expect(band.height).toBe(96);
+}
+
+test("A8, R26: in the monthly variant the layer starts 75 px below the area's top, the band not counted", async () => {
+    await mountMonthly(0);
+    expect(".o_hag_overview_band").toHaveCount(1);
     expect(".o_hag_helper").toHaveCount(1);
-    // the same 115 px below the content area's top as without the band, plus the band's own
-    // height: the layer does not start inside the band
     const layer = queryRect(".o_hag_helper");
-    expect(Math.abs(layer.top - (queryRect(".o_content").top + 96 + 115)) < 0.6).toBe(true);
-    expect(layer.top >= band.bottom).toBe(true);
+    // the unnamed row is not counted, nor is the band: the two header lines only. Where the
+    // band lies against the layer is a matter of the real control bar (the probes M106 to M108)
+    expect(Math.abs(layer.top - (queryRect(".o_content").top + 75)) < 0.6).toBe(true);
+    // the layer lets the pointer through
+    expect(".o_hag_helper").toHaveStyle({ pointerEvents: "none" });
+});
+
+test("R4 point 2: the band is 16 px tall with no card, and the grid starts under it", async () => {
+    await mountMonthly(0);
+    expect(".o_attendance_entry_card").toHaveCount(0);
+    const band = queryRect(".o_hag_overview_band");
+    expect(band.height).toBe(16);
+    expect(Math.abs(queryRect(".o_tl_renderer").top - band.bottom) < 0.6).toBe(true);
+});
+
+test("R4 point 2: the band is 96 px tall with one line of cards", async () => {
+    await mountMonthly(1);
+    expect(".o_attendance_entry_card").toHaveCount(1);
+    expect(queryRect(".o_hag_overview_band").height).toBe(96);
+    expect(queryRect(".o_attendance_entry_card").height).toBe(80);
+});
+
+test("R4 point 2: more cards than one line holds stay on one line that scrolls", async () => {
+    await mountMonthly(12);
+    // no scrollbar takes room from the band (the capture harness draws none)
+    const style = Object.assign(document.createElement("style"), {
+        textContent: "* { scrollbar-width: none !important; }",
+    });
+    document.head.appendChild(style);
+    after(() => style.remove());
+    await animationFrame();
+    expect(".o_attendance_entry_card").toHaveCount(12);
+    // the band keeps its 96 px, the cards do not wrap
+    expect(queryRect(".o_hag_overview_band").height).toBe(96);
+    const tops = new Set(queryAll(".o_attendance_entry_card").map((card) => card.getBoundingClientRect().top));
+    expect(tops.size).toBe(1);
+    // the line scrolls sideways inside the band: the last card lies beyond its right edge
+    const line = queryAll(".o_hag_overview_band .overflow-x-auto")[0];
+    expect(line.scrollWidth > line.clientWidth).toBe(true);
+    expect(line.scrollLeft).toBe(0);
+    expect(queryRect(".o_attendance_entry_card:last-child").left > queryRect(".o_hag_overview_band").right).toBe(true);
+    line.scrollLeft = line.scrollWidth;
+    expect(queryRect(".o_attendance_entry_card:last-child").right <= queryRect(".o_hag_overview_band").right + 0.6).toBe(true);
 });
 
 test("A54: no helper with twenty empty rows", async () => {

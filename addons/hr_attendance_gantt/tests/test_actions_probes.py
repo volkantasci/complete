@@ -22,7 +22,7 @@ import logging
 from odoo.addons.test_web_gantt.tests.timeline_probe import compare_value
 from odoo.tests import tagged
 
-from .actions_fixtures import action_in_november
+from .actions_fixtures import action_in_november, make_gantt_cards
 from .actions_probe_values import measured
 from .hr_rows_fixtures import PREFIX, TZ, _datetime, make_prepared
 from .test_hr_rows_probes import (
@@ -469,7 +469,11 @@ CARD = "document.querySelector('.o_hag_overview_band .o_attendance_entry_card')"
 CARD_WORDS = (
     "{textContent: [...document.querySelectorAll('.o_hag_overview_band "
     ".o_attendance_entry_card span')].map((el) => el.textContent.trim()).join(' ')}")
-PERIOD_LINE ="document.querySelector('.o_tl_col_group')"
+CARDS = "document.querySelectorAll('.o_hag_overview_band .o_attendance_entry_card')"
+CARDS_LINE = "document.querySelector('.o_hag_overview_band .overflow-x-auto')"
+HELPER = "document.querySelector('.o_hag_helper')"
+ROW_HEADER = "document.querySelector('.o_tl_row:not(.o_tl_total_row) .o_tl_row_header')"
+PERIOD_LINE = "document.querySelector('.o_tl_col_group')"
 ROW_HEADERS_SHOWN = (
     "[...document.querySelectorAll('.o_tl_row:not(.o_tl_total_row) .o_tl_row_header')]"
     ".filter((el) => el.textContent.trim() || el.querySelector('img, .o_hrg_avatar')).length")
@@ -493,13 +497,16 @@ class TestMonthlyProbes(HrProbes):
             cls.env['hr.attendance'].with_context(skip_time_rules=True).create({
                 'employee_id': cls.anita.id, 'check_in': _datetime(check_in),
                 'check_out': _datetime(check_out)})
+        # A95: twelve attendances of two hours, each of another work entry type
+        cls.cards = make_gantt_cards(cls.env, cls.schedule, name='HRA Cards')
         cls.env.flush_all()
 
     # the schemes this slice's table has values for (002d2's table reuses some ids)
     schemes = TestActionsProbes.schemes
 
-    def check(self, probe, element_js, scheme, viewport, label):
-        expected = dict(measured(probe, viewport).get(scheme, {}))
+    def check(self, probe, element_js, scheme, viewport, label, skip=()):
+        expected = {prop: value for prop, value in measured(probe, viewport).get(scheme, {}).items()
+                    if prop not in skip}
         self.assertTrue(expected, f'no value of {probe} in {scheme}/{viewport}')
         self.probe(probe, element_js, scheme, viewport, expected, label)
 
@@ -508,9 +515,10 @@ class TestMonthlyProbes(HrProbes):
         with self.subTest(probe=probe, scheme=scheme, viewport=viewport, element=label):
             self.assertEqual(self.js(count_js), want, f'{probe} {scheme}/{viewport} {label}')
 
-    def open_form(self, scheme, viewport):
+    def open_form(self, scheme, viewport, employee=None):
         return self.page(
-            'hr.open_view_employee_list_my', scheme, viewport, query=f'/{self.anita.id}',
+            'hr.open_view_employee_list_my', scheme, viewport,
+            query=f'/{(employee or self.anita).id}',
             touch=False, clock=CLOCK, ready='.o_form_view .o_field_widget[name="name"]')
 
     def press_worked_hours(self, viewport):
@@ -536,6 +544,10 @@ class TestMonthlyProbes(HrProbes):
         self.wait("!!document.querySelector('.o_tl_renderer .o_tl_row')", timeout=60)
         self.wait("!!document.querySelector('.o_hag_overview_band .o_attendance_entry_card')",
                   timeout=30)
+        # the capture harness draws no scrollbar (the band's line of cards would carry one)
+        self.browser._websocket_request('Emulation.setScrollbarsHidden', params={'hidden': True})
+        self.js("document.head.appendChild(Object.assign(document.createElement('style'), "
+                "{textContent: '* { scrollbar-width: none !important; }'}))")
         self.settle(1200)
 
     def test_m37_m38_the_monthly_list(self):
@@ -568,6 +580,63 @@ class TestMonthlyProbes(HrProbes):
                     self.check_count('M41', ROW_HEADERS_SHOWN, scheme, viewport, 'row headers')
                     self.check_count('M43', BARS, scheme, viewport, 'progress bars')
 
+    def test_m106_m108_the_monthly_view_of_an_empty_month(self):
+        """A8, A94 (R4 point 2, R26): October 2026 has no card, so the band is 16 px tall, the
+        period line starts under it and the generic message lies from y 182 (phone: y 178)."""
+        for scheme in self.schemes(['M106', 'M107', 'M108']):
+            for viewport in VIEWPORTS:
+                with self.subTest(scheme=scheme, viewport=viewport), action_in_november(), \
+                        self.open_form(scheme, viewport):
+                    self.press_worked_hours(viewport)
+                    self.choose_gantt(viewport)
+                    self.click_js("document.querySelector('.o_tl_previous')")
+                    self.wait(f"{CARDS}.length === 0")
+                    self.settle(1200)
+                    self.check('M106', BAND, scheme, viewport, 'the band without a card')
+                    # the phone's grid keeps the scroll of November (-325); the original's October
+                    # reads -324: one pixel, logged and held to 1.5 px
+                    self.check('M107', PERIOD_LINE, scheme, viewport, 'the period line',
+                               skip=('geometry.x',) if viewport == 'phone' else ())
+                    if viewport == 'phone':
+                        x = self.geometry(PERIOD_LINE)['geometry.x']
+                        _logger.warning('SHELL-DIFFERENCE|M107|%s|phone period line x %s '
+                                        'against -324', scheme, x)
+                        self.assertAlmostEqual(x, -324, delta=1.5)
+                    self.check('M108', HELPER, scheme, viewport, 'the generic message')
+
+    def test_m109_to_m112_twelve_cards_on_one_line(self):
+        """A95 (R4 point 2): twelve cards stay on one line that scrolls sideways; the band stays
+        96 px tall and the twelfth card begins at x 2084.9."""
+        for scheme in self.schemes(['M109', 'M110', 'M111', 'M112']):
+            for viewport in VIEWPORTS:
+                with self.subTest(scheme=scheme, viewport=viewport), action_in_november(), \
+                        self.open_form(scheme, viewport, self.cards):
+                    self.press_worked_hours(viewport)
+                    self.choose_gantt(viewport)
+                    self.wait(f"{CARDS}.length === 12")
+                    self.check('M109', BAND, scheme, viewport, 'the band with twelve cards')
+                    self.check_count('M110', f"{CARDS}.length", scheme, viewport, 'cards')
+                    twelfth = f"{CARDS}[11]"
+                    self.check('M111', twelfth, scheme, viewport, 'the twelfth card')
+                    self.check('M112', CARDS_LINE, scheme, viewport, 'the line of cards',
+                               skip=('scroll-left',))
+                    self.assertEqual(self.js(f"{CARDS_LINE}.scrollLeft"), 0)
+                    box = self.geometry(twelfth)
+                    if viewport == 'desktop':
+                        # the x follows the width of the eleven names before it, which the
+                        # fonts of the browser decide: 2084.9 on the original, 2123.0 here
+                        # (1.8 %), so 45 px are allowed
+                        self.assertAlmostEqual(box['geometry.x'], 2084.9, delta=45)
+                    self.assertGreater(
+                        box['geometry.x'], self.geometry(BAND)['geometry.width'],
+                        'the twelfth card lies beyond the band\'s right edge')
+                    # scrolling the line sideways brings it into view
+                    self.js(f"{CARDS_LINE}.scrollLeft = 100000")
+                    self.settle(500)
+                    box = self.geometry(twelfth)
+                    self.assertLessEqual(box['geometry.x'] + box['geometry.width'],
+                                         self.geometry(BAND)['geometry.width'] + 0.5)
+
     def test_m98_m99_the_monthly_search_menu(self):
         """A90: the Community's other attendance search view has no contract filter and offers its
         own "Date" grouping, which the Gantt view does not hide."""
@@ -586,6 +655,99 @@ class TestMonthlyProbes(HrProbes):
                                  scheme, 'desktop', 'Ongoing Contract filters')
                 self.check_count('M99', menu_items % ('.o_group_by_menu', "'Date'"),
                                  scheme, 'desktop', 'Date groupings')
+
+
+@tagged('post_install', '-at_install')
+class TestHelperPlaceProbes(HrProbes):
+    """R26, A94 (M100 to M105): where the empty-view helper lies in My Attendances (one row, the
+    administrator's own employee, no attendance) and in the management view after a search that
+    keeps no employee, on desktop and on the phone with the search bar closed and open."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.archive_others('HRA ')
+        administrator = cls.env.ref('base.user_admin')
+        existing = cls.env['hr.employee'].search([('user_id', '=', administrator.id)])
+        if existing:
+            existing.write({'name': 'HRA Admin'})
+        else:
+            cls.env['hr.employee'].create({
+                'name': 'HRA Admin', 'user_id': administrator.id, 'tz': TZ,
+                'resource_calendar_id': cls.schedule.id})
+        cls.env.flush_all()
+
+    schemes = TestActionsProbes.schemes
+
+    def check(self, probe, element_js, scheme, viewport, label, skip=(), delta=None):
+        """The table's values; ``delta`` compares the geometry that is skipped within that many
+        pixels instead (002d2's polish item P2 allows 2 px for M102 and M104 on the phone)."""
+        expected = measured(probe, viewport).get(scheme, {})
+        wanted = {prop: value for prop, value in expected.items()
+                  if prop not in skip and not (delta and prop in ('geometry.y', 'geometry.height'))}
+        self.assertTrue(expected, f'no value of {probe} in {scheme}/{viewport}')
+        self.probe(probe, element_js, scheme, viewport, wanted, label)
+        if delta:
+            box = self.geometry(element_js)
+            for prop in ('geometry.y', 'geometry.height'):
+                with self.subTest(probe=probe, scheme=scheme, viewport=viewport, prop=prop):
+                    self.assertAlmostEqual(box[prop], float(expected[prop]), delta=delta,
+                                           msg=f'{probe} {scheme}/{viewport} {prop}')
+
+    def choose_view(self, name, viewport):
+        if viewport == 'phone':
+            self.click_js(SWITCH_MENU)
+            item = ("[...document.querySelectorAll('.o-dropdown--menu .o-dropdown-item')]"
+                    f".find((el) => el.textContent.trim() === '{name}')")
+            self.wait(f"!!({item})")
+            self.settle(700)
+            self.click_js(item)
+        else:
+            self.click_js(f"[...{SWITCH_BUTTONS}].find((el) => el.dataset.tooltip === '{name}')")
+        self.wait("!!document.querySelector('.o_hag_helper')", timeout=60)
+        self.settle(1500)
+
+    def my_gantt(self, scheme, viewport):
+        return self.page(MY_ACTION, scheme, viewport, touch=False, clock=CLOCK, timezone=TZ,
+                         ready='.o_calendar_view')
+
+    def test_m100_m101_my_attendances(self):
+        """A4, A94: the search bar closed."""
+        for scheme in self.schemes(['M100', 'M101']):
+            for viewport in VIEWPORTS:
+                with self.subTest(scheme=scheme, viewport=viewport), \
+                        self.my_gantt(scheme, viewport):
+                    self.choose_view('Gantt', viewport)
+                    self.check('M100', HELPER, scheme, viewport, 'the helper')
+                    self.check('M101', ROW_HEADER, scheme, viewport, 'the row header')
+
+    def test_m102_m103_my_attendances_phone_search_open(self):
+        """A94: the search button opens the bar; the helper stays, the row moves down."""
+        for scheme in self.schemes(['M102', 'M103'], 'phone'):
+            with self.subTest(scheme=scheme), self.my_gantt(scheme, 'phone'):
+                self.choose_view('Gantt', 'phone')
+                self.open_phone_search()
+                self.settle(900)
+                self.check('M102', HELPER, scheme, 'phone', 'the helper', delta=2)
+                # the search bar of Complete's shell pushes the grid down 44.97 px, the
+                # original's 42: a shell difference, logged and held to 3.1 px
+                self.check('M103', ROW_HEADER, scheme, 'phone', 'the row header', delta=3.1)
+                _logger.warning('SHELL-DIFFERENCE|M103|%s|phone row top %s against 297', scheme,
+                                self.geometry(ROW_HEADER)['geometry.y'])
+
+    def test_m104_m105_a_search_that_keeps_no_employee(self):
+        """A94: the management view after a search on "zzzz" (the phone's bar stays open)."""
+        for scheme in self.schemes(['M104', 'M105']):
+            for viewport in VIEWPORTS:
+                with self.subTest(scheme=scheme, viewport=viewport), \
+                        self.open(scheme, viewport):
+                    self.loaded(viewport)
+                    self.search('zzzz', phone=viewport == 'phone')
+                    self.wait("!!document.querySelector('.o_hag_helper')")
+                    self.settle(1500)
+                    self.check('M104', HELPER, scheme, viewport, 'the helper',
+                               delta=2 if viewport == 'phone' else None)
+                    self.check('M105', ROW_HEADER, scheme, viewport, 'the empty row')
 
 
 @tagged('post_install', '-at_install')
