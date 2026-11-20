@@ -678,7 +678,8 @@ export class TimelineRenderer extends Component {
      * right-to-left language, so the body's direction is the one to read.
      */
     gridIsRtl() {
-        return getComputedStyle(document.body).direction === "rtl";
+        // the layout build keeps the direction it read for the cells it draws
+        return this._layoutRtl ?? getComputedStyle(document.body).direction === "rtl";
     }
 
     /**
@@ -2553,6 +2554,9 @@ export class TimelineRenderer extends Component {
                 this._openedKey = key;
                 this._opened.clear();
             }
+            // the grid's direction is read once for each layout build, not once per partial
+            // cell: the cells are drawn from the build's closures, after it
+            this._layoutRtl = getComputedStyle(document.body).direction === "rtl";
             this._cache = { data, small, version, layout: this._buildLayout(data) };
         }
         return this._cache.layout;
