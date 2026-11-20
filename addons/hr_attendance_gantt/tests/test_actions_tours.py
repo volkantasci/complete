@@ -664,3 +664,22 @@ class TestActionsTours(HrToursBase):
             {'company_id': self.env.ref('base.main_company').id})
         self.env.flush_all()
         self._tour('hr_actions_a62_demo_marc', login='demo')
+
+    # -- split cells in both directions (R23, N5; decision D8) ----------------------------------
+
+    def _arabic(self):
+        """Arabic active and set as the administrator's language (put back after)."""
+        self.env['res.lang']._activate_and_install_lang('ar_001')
+        self.admin.write({'lang': 'ar_001'})
+        self.addCleanup(self.admin.write, {'lang': 'en_US'})
+
+    def test_a89_split_cells_rtl(self):
+        self._prepared()
+        self._arabic()
+        self._tour('hr_actions_a89_split_cells_rtl')
+
+    def test_a93_diagonals(self):
+        self._prepared(afternoon=True)
+        self._tour('hr_actions_a93_diagonals_ltr')
+        self._arabic()
+        self._tour('hr_actions_a93_diagonals_rtl')

@@ -2054,3 +2054,87 @@ scenario("hr_actions_a71_tooltip_name", GRID, async () => {
     assertEqual($$(".o-tooltip").length, 1, "one tooltip after 2 s on the avatar (M95)");
     assert(clean($(".o-tooltip").textContent).includes("HRA Anita"), "her name in it");
 });
+
+// A89 and A93 (R23, N5; decision D8): split cells in both directions of the language
+
+/** The cell of a row in the column of a day. */
+const cellOfDay = (name, date) => {
+    const column = $(`.o_tl_col[data-date="${date}"]`);
+    return cellsOf(name).find((cell) => Number(cell.dataset.column) === Number(column.dataset.index));
+};
+
+/** A range picked by its menu item (the labels are the language's, the classes are not). */
+async function pickRangeByClass(kind, lastDate) {
+    $(".o_tl_range_button").click();
+    const item = await until(() => $(`.o_tl_range_menu .o_tl_range_${kind}`), `the ${kind} item`);
+    item.click();
+    await until(() => dateColumns().some((col) => col.dataset.date === lastDate), `the days up to ${lastDate}`, 8000);
+    await settle(700);
+}
+
+/** The colours of a cell's stops in order ("grey" or "day") and the gradient's angle. */
+function partsOf(cell) {
+    const image = cell.style.backgroundImage || "";
+    const names = { "var(--o-tl-unavailable-bg)": "grey", "var(--o-tl-available-bg)": "day" };
+    const parts = image.match(/var\(--o-tl-(?:unavailable|available)-bg\) [\d.]+%/g) || [];
+    return {
+        angle: (image.match(/linear-gradient\((\d+)deg/) || [])[1],
+        parts: parts.map((part) => names[part.split(" ")[0]]),
+        direction: getComputedStyle(document.body).direction,
+    };
+}
+
+// A89: the Week range of 8 to 14 November in Arabic (set as the administrator's language)
+scenario("hr_actions_a89_split_cells_rtl", GRID, async () => {
+    await ready();
+    // (Arabic's week starts on another day than English's: the days shown are 7 to 13 or 8 to 14)
+    await pickRangeByClass("week", "2026-11-13");
+    assertEqual(dateColumns().length, 7, "seven days");
+    assertEqual(getComputedStyle(document.body).direction, "rtl", "the page runs right to left");
+    // the columns run from right to left: the first day lies right of the last
+    const days = dateColumns();
+    assert(
+        rectOf(days[0]).left > rectOf(days[days.length - 1]).left,
+        "the first day of the week is the rightmost column"
+    );
+    const friday = partsOf(cellOfDay("Gantt Hourly", "2026-11-13"));
+    // from the right edge: grey up to 24 %, the day colour from 25 % to 49 %, grey from 50 %
+    assertEqual(friday.angle, "270", "Friday's gradient runs from the right edge towards the left");
+    assertEqual(friday.parts, ["grey", "day", "day", "grey", "grey", "grey"], "Friday's stops");
+    // Monday (night / day / day / night) looks as in English
+    const monday = partsOf(cellOfDay("Gantt Hourly", "2026-11-09"));
+    assertEqual(monday.parts, ["grey", "day", "day", "day", "day", "grey"], "Monday's stops");
+});
+
+// A93: the diagonal halves of the Month range, in the language the test has set
+async function diagonals(angle) {
+    await ready();
+    if (angle === "325") {
+        // the search entry's text is the language's: in Arabic the prepared rows are the page's
+        await searchFor("Gantt");
+    }
+    await pickRangeByClass("month", "2026-11-30");
+    const direction = getComputedStyle(document.body).direction;
+    assertEqual(direction, angle === "35" ? "rtl" : "ltr", "the direction of the page");
+    const style = (name) => cellOfDay(name, "2026-11-06").style.backgroundImage;
+    const grey = "var(--o-tl-unavailable-bg)";
+    const day = "var(--o-hrg-available-bg, transparent)";
+    // morning available, afternoon grey: the day colour is the first half's
+    assertEqual(
+        style("Gantt Hourly"),
+        `linear-gradient(${angle}deg, ${day} 49%, ${grey} 50%)`,
+        "Gantt Hourly's Friday 6"
+    );
+    // morning grey, afternoon available
+    assertEqual(
+        style("Gantt Afternoon"),
+        `linear-gradient(${angle}deg, ${grey} 49%, ${day} 50%)`,
+        "Gantt Afternoon's Friday 6"
+    );
+}
+
+// English: grey triangle upper left for "Gantt Hourly" (afternoon grey), lower right for "Gantt Afternoon"
+scenario("hr_actions_a93_diagonals_ltr", GRID, () => diagonals("325"));
+
+// Arabic: the mirror image, upper right and lower left
+scenario("hr_actions_a93_diagonals_rtl", GRID, () => diagonals("35"));

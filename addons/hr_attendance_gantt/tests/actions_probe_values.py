@@ -28,7 +28,9 @@ D6), M41 the row headers of the monthly Gantt view, M42 the grid's period line, 
 bars.
 
 M82 and M83 are the background images of the cell of "Gantt Hourly" on the Week ranges of 1 to 7
-and 8 to 14 November (A67, A68), M84 to M91 the boxes of the title line of a row header (A72: the
+and 8 to 14 November (A67, A68; M83 also its transparent background colour), M96 the cell of
+"Gantt Flexible" in today's column (no gradient, today's shade as background colour), M84 to M91
+the boxes of the title line of a row header (A72: the
 title line, the name area, the avatar-and-name box, the label; M84 to M87 desktop, M88 to M91
 phone), M92 and M93 the name area and the title line in a window 1399 px wide, M94 and M95 the
 tooltips of the page after 2 s on a name and on an avatar.
@@ -910,6 +912,12 @@ ACTIONS_PROBES = [
      'rgba(227, 156, 80, 0.15) 50%, '
      'rgba(227, 156, 80, 0.15) 74%, '
      'rgb(86, 87, 94) 75%)'),
+    ('M83', 'light', 'desktop', 'background-color', 'rgba(0, 0, 0, 0)'),
+    ('M83', 'dark', 'desktop', 'background-color', 'rgba(0, 0, 0, 0)'),
+    ('M96', 'light', 'desktop', 'background-image', 'none'),
+    ('M96', 'light', 'desktop', 'background-color', 'rgba(255, 250, 235, 1)'),
+    ('M96', 'dark', 'desktop', 'background-image', 'none'),
+    ('M96', 'dark', 'desktop', 'background-color', 'rgba(227, 156, 80, 0.15)'),
     ('M84', 'light', 'desktop', 'color', 'rgba(0, 0, 0, 1)'),
     ('M84', 'light', 'desktop', 'background-color', 'rgba(0, 0, 0, 0)'),
     ('M84', 'light', 'desktop', 'border-top-color', 'rgba(0, 0, 0, 1)'),

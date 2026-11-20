@@ -49,6 +49,8 @@ EMPLOYEES = {
     ),
 }
 NIGHT = (NIGHT_NAME, "demo", False, [("2026-11-30 19:00", "2026-12-01 03:00")])
+# 002d3 A93: afternoons only on Fridays (the schedule "Gantt Late" is made with the others)
+AFTERNOON = ("Gantt Afternoon", "late", False, [])
 # A68, M85 to M87: 8:00:00 to 16:00:10 and 8:00:00 to 15:59:50 local on Monday 9 November
 DIFFERENCES = {
     "Gantt Above": ("demo", False, [("2026-11-09 07:00:00", "2026-11-09 15:00:10")]),
@@ -113,6 +115,15 @@ def _schedules(env, demo):
             "attendance_ids": [(5, 0, 0)] + lines,
         }
     )
+    late_lines = lines[:-1]  # Monday to Thursday as above, Friday in the afternoon only
+    late_lines.append((0, 0, {"dayofweek": "4", "hour_from": 13, "hour_to": 17}))
+    late = Calendar.create(
+        {
+            "name": "Gantt Late",
+            "calendar_type": "fixed",
+            "attendance_ids": [(5, 0, 0)] + late_lines,
+        }
+    )
     flex = Calendar.create(
         {
             "name": "Gantt Flex",
@@ -129,7 +140,7 @@ def _schedules(env, demo):
             "hours_per_day": 0,
         }
     )
-    return {"split": split, "flex": flex, "free": free, "demo": demo}
+    return {"split": split, "late": late, "flex": flex, "free": free, "demo": demo}
 
 
 def _employee(env, name, schedule, tracked, attendances):
@@ -155,7 +166,9 @@ def _employee(env, name, schedule, tracked, attendances):
     return employee
 
 
-def make_prepared(env, night=False, holiday=False, demo_schedule=None, differences=False):
+def make_prepared(
+    env, night=False, holiday=False, demo_schedule=None, differences=False, afternoon=False
+):
     """Create the prepared records (after removing any left by an earlier run).
 
     ``demo_schedule`` is the "40 hours/week" schedule to use; by default the demo's,
@@ -169,6 +182,9 @@ def make_prepared(env, night=False, holiday=False, demo_schedule=None, differenc
         made[name] = _employee(env, name, calendars[key], tracked, attendances)
     if night:
         name, key, tracked, attendances = NIGHT
+        made[name] = _employee(env, name, calendars[key], tracked, attendances)
+    if afternoon:
+        name, key, tracked, attendances = AFTERNOON
         made[name] = _employee(env, name, calendars[key], tracked, attendances)
     if differences:
         for name, (key, tracked, attendances) in DIFFERENCES.items():

@@ -535,17 +535,17 @@ class TestActionsPreparedProbes(HrProbes):
         make_prepared(self.env, demo_schedule=self.schedule)
         self.env.flush_all()
 
-    def hovered_cell(self, probe, date, scheme):
-        """The cell of ``date`` of "Gantt Hourly" with the pointer on its row, whose background
-        then differs from the view's: a painted part and a transparent one would not look the
-        same (R23, last sentence)."""
-        name = 'Gantt Hourly'
+    def hovered_cell(self, probe, date, scheme, name='Gantt Hourly', gradient=True):
+        """The cell of ``date`` of a row with the pointer on it, whose background then differs
+        from the view's: a painted part and a transparent one would not look the same (R23, last
+        sentence)."""
         box = self.geometry(in_row(name, '.o_tl_row_header'))
         self.mouse('mouseMoved', box['geometry.x'] + 20, box['geometry.y'] + 12, buttons=0)
         self.settle(700)
         image = self.js(f"getComputedStyle({cell_of_day(name, date)}).backgroundImage")
-        with self.subTest(probe=probe, scheme=scheme, prop='no transparent part'):
-            self.assertNotIn('transparent', image)
+        if gradient:
+            with self.subTest(probe=probe, scheme=scheme, prop='no transparent part'):
+                self.assertNotIn('transparent', image)
         self.check(probe, cell_of_day(name, date), scheme, 'desktop', f'the cell of {date}')
 
     def test_a67_available_quarters(self):
@@ -558,12 +558,16 @@ class TestActionsPreparedProbes(HrProbes):
                 self.hovered_cell('M82', '2026-11-02', scheme)
 
     def test_a68_available_quarters_in_todays_column(self):
-        for scheme in self.schemes(['M83']):
+        for scheme in self.schemes(['M83', 'M96']):
             with self.open(scheme):
                 self.loaded()
                 self.search('Gantt')
                 self.choose_range('week')
+                # transparent cell, the gradient carries today's shade once (M83); a wholly
+                # available cell carries the same shade as background colour (M96)
                 self.hovered_cell('M83', '2026-11-11', scheme)
+                self.hovered_cell(
+                    'M96', '2026-11-11', scheme, name='Gantt Flexible', gradient=False)
 
 
 @tagged('post_install', '-at_install')
