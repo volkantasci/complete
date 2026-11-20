@@ -673,6 +673,15 @@ export class TimelineRenderer extends Component {
     }
 
     /**
+     * Whether the grid runs from right to left. Readable while the cells are drawn (the renderer
+     * is not mounted yet): the web client marks the page's body, not its root element, for a
+     * right-to-left language, so the body's direction is the one to read.
+     */
+    gridIsRtl() {
+        return getComputedStyle(document.body).direction === "rtl";
+    }
+
+    /**
      * A click on the header of a row that is not a group scrolls to its first pill's column (R39);
      * in multi-selection mode it then selects the row over the whole range (R7). A group row's
      * header only opens or closes the group (the row's own click).
@@ -2733,7 +2742,7 @@ export class TimelineRenderer extends Component {
                 stops.push(`${colour} ${((part + 1) * 100) / count - 1}%`);
             }
         });
-        const angle = getComputedStyle(document.documentElement).direction === "rtl" ? 270 : 90;
+        const angle = this.gridIsRtl() ? 270 : 90;
         // the gradient replaces the cell's own today shade: the cell itself is transparent, so the
         // available parts carry the shade once (R23, M83)
         return `background-image: linear-gradient(${angle}deg, ${stops.join(", ")}); background-color: transparent`;

@@ -183,8 +183,9 @@ test("A105: sparse progress only on group rows", async () => {
 // ----------------------------------------------------------------------------
 
 test("R28: a partly unavailable cell mirrors its gradient in a right-to-left language", async () => {
-    // the document direction, as the Community sets it for such a language
-    document.documentElement.setAttribute("dir", "rtl");
+    // the direction of the page's body, as the web client sets it for such a language (the root
+    // element keeps its own)
+    document.body.setAttribute("dir", "rtl");
     try {
         timelineMock.unavailability = {
             x_contact: { 1: [{ start: at(2, "00:00"), stop: at(2, "12:00") }] },
@@ -192,8 +193,10 @@ test("R28: a partly unavailable cell mirrors its gradient in a right-to-left lan
         await mountTimeline();
         const image = css(cellsOf(rowOf("Host Contact 1"))[13], "backgroundImage");
         expect(image).toMatch(/^linear-gradient\(270deg, /);
+        // the first part (the unavailable morning) is at the right edge, the stops are the same
+        expect(image).toInclude(`${GREY} 49%, `);
     } finally {
-        document.documentElement.removeAttribute("dir");
+        document.body.removeAttribute("dir");
     }
 });
 
