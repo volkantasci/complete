@@ -306,7 +306,8 @@ class HrAttendance(models.Model):
         ``start`` and ``stop`` are the bounds the browser sent (naive UTC): the midnights
         that bound the period's own days, which are read in ``zone`` (the user's). The
         schedule at the period's start is the one of the version in effect on the first
-        day: flexible gives the weekly formula (0 for a fully flexible one), any other the
+        day: a fully flexible schedule gives 24 hours a day (N2), another flexible one the weekly
+        formula, any other the
         Community's expected attendances, with only the contract periods that overlap
         those days and the company-wide leaves taken off.
         """
@@ -315,6 +316,9 @@ class HrAttendance(models.Model):
         first_day = date_from.date()
         last_day = (date_to - timedelta(microseconds=1)).date()
         calendar = employee._get_version(first_day).resource_calendar_id
+        if calendar._is_fully_flexible():
+            # N2: a schedule without fixed hours expects 24 hours for each day of the period
+            return 24.0 * round((stop - start).total_seconds() / 86400)
         if calendar._is_flexible():
             days = round((stop - start).total_seconds() / 86400)
             weeks, rest = divmod(days, 7)

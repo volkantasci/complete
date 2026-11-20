@@ -23,8 +23,16 @@ from odoo.tests import tagged
 
 from .actions_fixtures import action_in_november
 from .actions_probe_values import measured
-from .hr_rows_fixtures import TZ, _datetime
-from .test_hr_rows_probes import CLOCK, HrProbes, in_row, pills_of, row_js
+from .hr_rows_fixtures import PREFIX, TZ, _datetime, make_prepared
+from .test_hr_rows_probes import (
+    CLOCK,
+    LABEL,
+    HrProbes,
+    cell_of_day,
+    in_row,
+    pills_of,
+    row_js,
+)
 
 SCHEMES = ('light', 'dark')
 VIEWPORTS = ('desktop', 'phone')
@@ -505,3 +513,158 @@ class TestMonthlyProbes(HrProbes):
                     self.check('M42', PERIOD_LINE, scheme, viewport, 'the period line')
                     self.check_count('M41', ROW_HEADERS_SHOWN, scheme, viewport, 'row headers')
                     self.check_count('M43', BARS, scheme, viewport, 'progress bars')
+
+
+@tagged('post_install', '-at_install')
+class TestActionsPreparedProbes(HrProbes):
+    """The prepared employees of 002d2, found by the search "Gantt" (A67, A68)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.archive_others(PREFIX)
+
+    # the values of this slice's table, not 002d2's
+    schemes = TestActionsProbes.schemes
+    check = TestActionsProbes.check
+
+    def setUp(self):
+        super().setUp()
+        make_prepared(self.env, demo_schedule=self.schedule)
+        self.env.flush_all()
+
+    def hovered_cell(self, probe, date, scheme):
+        """The cell of ``date`` of "Gantt Hourly" with the pointer on its row, whose background
+        then differs from the view's: a painted part and a transparent one would not look the
+        same (R23, last sentence)."""
+        name = 'Gantt Hourly'
+        box = self.geometry(in_row(name, '.o_tl_row_header'))
+        self.mouse('mouseMoved', box['geometry.x'] + 20, box['geometry.y'] + 12, buttons=0)
+        self.settle(700)
+        image = self.js(f"getComputedStyle({cell_of_day(name, date)}).backgroundImage")
+        with self.subTest(probe=probe, scheme=scheme, prop='no transparent part'):
+            self.assertNotIn('transparent', image)
+        self.check(probe, cell_of_day(name, date), scheme, 'desktop', f'the cell of {date}')
+
+    def test_a67_available_quarters(self):
+        for scheme in self.schemes(['M82']):
+            with self.open(scheme):
+                self.loaded()
+                self.search('Gantt')
+                self.choose_range('week')
+                self.step(-1)
+                self.hovered_cell('M82', '2026-11-02', scheme)
+
+    def test_a68_available_quarters_in_todays_column(self):
+        for scheme in self.schemes(['M83']):
+            with self.open(scheme):
+                self.loaded()
+                self.search('Gantt')
+                self.choose_range('week')
+                self.hovered_cell('M83', '2026-11-11', scheme)
+
+
+@tagged('post_install', '-at_install')
+class TestActionsTitleProbes(HrProbes):
+    """A72 (N4): Anita's row header, with the label of one of CI's own employees."""
+
+    # the values of this slice's table, not 002d2's
+    schemes = TestActionsProbes.schemes
+    check = TestActionsProbes.check
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.archive_others('HRA ')
+        TestActionsProbes.employee.__func__(
+            cls, 'HRA Anita', ('2026-01-01', None), [
+                ('2026-11-10 03:00:00', '2026-11-11 03:00:00'),
+                ('2026-11-11 03:00:10', '2026-11-11 08:00:00')])
+        cls.env.flush_all()
+
+    # -- the boxes of the title line (M84 to M93); the tooltip of the name (M94, M95) is a tour --
+
+    def title_probes(self, scheme, viewport, short=False):
+        """The boxes of Anita's row header: the title line, the name area, the avatar-and-name
+        box and the hours label, as measured values where the text does not decide them and as
+        relations where it does (the label's text, hence the widths of M85, M86, M89, M90 and the
+        x of the label, differ in CI's data: the demo's "5h / 8h (3h left)" is not worth the
+        same width as "9h / 8h (+1h)")."""
+        name = 'HRA Anita'
+        title_js = in_row(name, '.o_tl_row_line')
+        area_js = in_row(name, '.o_hrg_name_area')
+        identity_js = in_row(name, '.o_hrg_identity')
+        label_js = in_row(name, LABEL)
+        first = ('M84', 'M85', 'M86', 'M87') if viewport == 'desktop' else (
+            'M88', 'M89', 'M90', 'M91')
+        # the row's place on the page (y) depends on the control bar of the page: it is read as
+        # the title line's offset under its row, below
+        skip_y = ('geometry.y',)
+        if short:
+            # the short label form: the title line and the name area of the narrow header
+            self.check('M93', title_js, scheme, 'desktop', 'the title line, window 1399',
+                       skip=skip_y)
+            self.check('M92', area_js, scheme, 'desktop', 'the name area, window 1399',
+                       skip=('geometry.width', *skip_y))
+        else:
+            self.check(first[0], title_js, scheme, viewport, 'the title line', skip=skip_y)
+            self.check(first[1], area_js, scheme, viewport, 'the name area',
+                       skip=('geometry.width', *skip_y))
+            self.check(first[2], identity_js, scheme, viewport, 'the avatar-and-name box',
+                       skip=('geometry.width', *skip_y))
+            self.check(first[3], label_js, scheme, viewport, 'the label', skip=skip_y)
+        row = self.geometry(row_js(name))
+        title, area = self.geometry(title_js), self.geometry(area_js)
+        identity, label = self.geometry(identity_js), self.geometry(label_js)
+        with self.subTest(probe='N4', scheme=scheme, viewport=viewport, short=short):
+            # the title line is 3.5 px under its row's top; the label is level with the box
+            self.assertAlmostEqual(title['geometry.y'] - row['geometry.y'], 3.5, delta=0.5)
+            self.assertAlmostEqual(label['geometry.y'], identity['geometry.y'], delta=0.5)
+            # the name area ends where the label starts, as tall as the title line
+            self.assertAlmostEqual(area['geometry.x'], title['geometry.x'], delta=0.5)
+            self.assertAlmostEqual(
+                area['geometry.x'] + area['geometry.width'], label['geometry.x'], delta=0.5)
+            self.assertAlmostEqual(area['geometry.height'], title['geometry.height'], delta=0.5)
+            # the avatar-and-name box is 1 px inside it on every side
+            self.assertAlmostEqual(identity['geometry.x'], area['geometry.x'] + 1, delta=0.5)
+            self.assertAlmostEqual(identity['geometry.y'], area['geometry.y'] + 1, delta=0.5)
+            self.assertAlmostEqual(
+                identity['geometry.x'] + identity['geometry.width'],
+                area['geometry.x'] + area['geometry.width'] - 1, delta=0.5)
+            self.assertAlmostEqual(
+                identity['geometry.height'], area['geometry.height'] - 2, delta=0.5)
+            # the label's text ends 8 px before the title line's right edge
+            self.assertAlmostEqual(
+                label['geometry.x'] + label['geometry.width'],
+                title['geometry.x'] + title['geometry.width'] - 8, delta=0.5)
+            self.assertAlmostEqual(
+                label['geometry.height'], identity['geometry.height'], delta=0.5)
+        for js in (title_js, area_js, identity_js):
+            drawn = self.read(js, ['background-color', 'border-top-width', 'border-right-width',
+                                   'border-bottom-width', 'border-left-width'])
+            with self.subTest(probe='N4', scheme=scheme, drawn=js[-40:]):
+                self.assertEqual(drawn['background-color'], 'rgba(0, 0, 0, 0)')
+                self.assertEqual(
+                    [drawn[f'border-{side}-width'] for side in ('top', 'right', 'bottom', 'left')],
+                    ['0px'] * 4)
+
+    def test_a72_the_boxes_of_the_title_line(self):
+        for scheme in self.schemes(['M84', 'M85', 'M86', 'M87']):
+            with self.open(scheme):
+                self.loaded()
+                self.title_probes(scheme, 'desktop')
+
+    def test_a72_the_boxes_of_the_title_line_phone(self):
+        for scheme in self.schemes(['M88', 'M89', 'M90', 'M91'], 'phone'):
+            with self.open(scheme, 'phone'):
+                self.loaded('phone')
+                self.title_probes(scheme, 'phone')
+
+    def test_a72_the_boxes_in_a_window_1399_wide(self):
+        for scheme in self.schemes(['M92', 'M93']):
+            with self.open(scheme):
+                self.browser._websocket_request('Emulation.setDeviceMetricsOverride', params={
+                    'width': 1399, 'height': 900, 'deviceScaleFactor': 1, 'mobile': False})
+                self.loaded()
+                self.settle(1000)
+                self.title_probes(scheme, 'desktop', short=True)

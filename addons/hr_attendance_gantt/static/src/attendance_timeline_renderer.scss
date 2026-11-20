@@ -28,10 +28,18 @@
 .o_tl_grid .o_tl_row_header:has(> .o_hag_bar_space) {
     padding-top: 0;
 
+    .o_tl_row_body {
+        padding-bottom: 0;
+    }
+
     .o_tl_row_line {
         min-height: 25px;
-        margin-bottom: 0;
-        padding: 0 0 0 1px;
+        padding: 0 4px 0 0;
+    }
+
+    // the line has no vertical padding to hold: the name area keeps its 1 px at the sides only
+    .o_hrg_name_area {
+        padding: 0 1px;
     }
 }
 

@@ -15,6 +15,7 @@ from . import (
     test_hr_rows_screens,
     test_hr_rows_tours,
     test_install,
+    test_notes_002d2,
     test_open_moves,
     test_progress,
     test_records,

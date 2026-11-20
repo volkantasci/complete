@@ -221,9 +221,9 @@ class TestProgress(HrRowsCase, TransactionCase):
         # 9 November: the schedule at the start has whole days (8 h); the current one is free
         found = self.entry('HRA Became Free', (utc('2026-11-08 23:00'), utc('2026-11-09 23:00')))
         self.assertEqual((found['max_value'], found['hag_fully_flexible']), (8, True))
-        # 12 November: the schedule at the start is the free one (0 h), as the current one
+        # 12 November: the schedule at the start is the free one (24 h, N2), as the current one
         found = self.entry('HRA Became Free', (utc('2026-11-11 23:00'), utc('2026-11-12 23:00')))
-        self.assertEqual((found['max_value'], found['hag_fully_flexible']), (0, True))
+        self.assertEqual((found['max_value'], found['hag_fully_flexible']), (24, True))
 
     def test_a62_holiday_lowers_to_32(self):
         made = make_prepared(self.env, holiday=True, demo_schedule=self.schedule)
@@ -238,8 +238,8 @@ class TestProgress(HrRowsCase, TransactionCase):
             entry = self.entry(name)
             self.assertEqual(entry['hag_fully_flexible'], name == 'Gantt Free', name)
             self.assertEqual(entry['hag_tracked'], name == 'Gantt Tracked', name)
-        self.assertEqual(self.expected('Gantt Free'), 0)
-        self.assertEqual(self.expected('Gantt Free', MONTH), 0)
+        self.assertEqual(self.expected('Gantt Free'), 24)  # N2
+        self.assertEqual(self.expected('Gantt Free', WEEK), 168)
         self.assertEqual(self.entry('HRA Anita')['hag_fully_flexible'], False)
         self.assertEqual(self.entry('HRA Anita')['hag_tracked'], False)
 
@@ -247,7 +247,7 @@ class TestProgress(HrRowsCase, TransactionCase):
         self.prepared['Gantt Free'].write({'attendance_based': True})
         entry = self.entry('Gantt Free')
         self.assertEqual((entry['hag_fully_flexible'], entry['hag_tracked']), (True, True))
-        self.assertEqual(entry['max_value'], 0)
+        self.assertEqual(entry['max_value'], 24)
 
     def test_r16_keys_are_002a_keys(self):
         self.assertTrue({'value', 'max_value'} <= set(self.entry('HRA Anita')))

@@ -2030,3 +2030,19 @@ scenario("hr_actions_a62_demo_marc", GRID, async () => {
     });
     await creationFor("Keith Byrd", "Keith Byrd", { employeeEditable: true });
 });
+
+// A71 (N3; M94, M95): 2 s on a name shows no tooltip of the page, 2 s on the avatar shows one
+scenario("hr_actions_a71_tooltip_name", GRID, async () => {
+    await ready();
+    const row = rowEl("HRA Anita");
+    await pointerAway();
+    await realHover($(".o_tl_row_label", row));
+    await settle(2000);
+    assertEqual($$(".o-tooltip").length, 0, "no tooltip of the page after 2 s on the name (M94)");
+    await pointerAway();
+    await realHover($(".o_hrg_avatar", row));
+    await until(() => $(".o-tooltip"), "the tooltip of the avatar");
+    await settle(2000);
+    assertEqual($$(".o-tooltip").length, 1, "one tooltip after 2 s on the avatar (M95)");
+    assert(clean($(".o-tooltip").textContent).includes("HRA Anita"), "her name in it");
+});
