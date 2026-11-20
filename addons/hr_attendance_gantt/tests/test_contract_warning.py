@@ -111,7 +111,10 @@ class TestContractWarning(TransactionCase):
             )
 
         forms = [
-            self.env.ref(FORM), self.env.ref('hr_attendance.hr_attendance_create_view_form')]
+            self.env.ref(FORM),
+            self.env.ref('hr_attendance.hr_attendance_create_view_form'),
+            self.env.ref('hr_attendance.hr_attendance_my_form_view'),
+        ]
         for view in forms:
             div, flag, link = lines(view)
             self.assertEqual((len(div), len(flag), len(link)), (1, 1, 1), view.name)
