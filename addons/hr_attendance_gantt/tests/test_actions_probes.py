@@ -707,6 +707,15 @@ class TestHelperPlaceProbes(HrProbes):
         self.wait("!!document.querySelector('.o_hag_helper')", timeout=60)
         self.settle(1500)
 
+    def assert_period_line_clear(self, scheme, probe):
+        """R26 point 2: with the search bar open the period line lies above the phone's helper
+        (it ends where the helper starts, 1 px allowed); the helper covers the hour line."""
+        line = self.geometry(PERIOD_LINE)
+        helper = self.geometry(HELPER)
+        with self.subTest(probe=probe, scheme=scheme, rule='the period line is clear'):
+            self.assertLessEqual(line['geometry.y'] + line['geometry.height'],
+                                 helper['geometry.y'] + 1)
+
     def my_gantt(self, scheme, viewport):
         return self.page(MY_ACTION, scheme, viewport, touch=False, clock=CLOCK, timezone=TZ,
                          ready='.o_calendar_view')
@@ -732,6 +741,7 @@ class TestHelperPlaceProbes(HrProbes):
                 # the search bar of Complete's shell pushes the grid down 44.97 px, the
                 # original's 42: a shell difference, logged and held to 3.1 px
                 self.check('M103', ROW_HEADER, scheme, 'phone', 'the row header', delta=3.1)
+                self.assert_period_line_clear(scheme, 'M103')
                 _logger.warning('SHELL-DIFFERENCE|M103|%s|phone row top %s against 297', scheme,
                                 self.geometry(ROW_HEADER)['geometry.y'])
 
@@ -748,6 +758,17 @@ class TestHelperPlaceProbes(HrProbes):
                     self.check('M104', HELPER, scheme, viewport, 'the helper',
                                delta=2 if viewport == 'phone' else None)
                     self.check('M105', ROW_HEADER, scheme, viewport, 'the empty row')
+                    if viewport == 'phone':
+                        # the phone's header lines are 51 px tall, so the empty row at y 324 (M105)
+                        # puts the period line at 273 to 298: the helper at 274.6 covers it, and
+                        # only My Attendances' row at 297 (M103) leaves the line clear
+                        line = self.geometry(PERIOD_LINE)
+                        helper = self.geometry(HELPER)
+                        with self.subTest(probe='M105', scheme=scheme, rule='the period line'):
+                            self.assertAlmostEqual(
+                                line['geometry.y'] + line['geometry.height'] + 25 + 1,
+                                float(measured('M105', 'phone')[scheme]['geometry.y']), delta=2)
+                            self.assertLess(helper['geometry.y'], line['geometry.y'] + 2)
 
 
 @tagged('post_install', '-at_install')

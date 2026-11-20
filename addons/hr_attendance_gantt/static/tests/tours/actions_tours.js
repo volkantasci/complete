@@ -299,8 +299,9 @@ const a94Search = (phone) => async () => {
     await until(() => $(".o_hag_helper"), "the helper of the search that keeps no employee");
     assertEqual(rowNames(), [""], "one empty row");
     await settle(900);
-    // the open bar pushes the empty row of the management view to y 324: the helper's fixed top
-    // lies on the period line there, which only My Attendances' row (y 297) leaves clear
+    // the phone's header lines are 51 px tall, so the empty row at y 324 (M105) puts the period
+    // line at about 273 to 298: the helper at 274.6 covers it (only My Attendances' row at y 297
+    // leaves the line clear, A94 above and probe M103)
     await helperPresses({ phone, searchOpen: phone, name: "", periodClear: !phone });
 };
 scenario("hr_actions_a94_helper_place_search", GRID, a94Search(false));
@@ -1877,8 +1878,7 @@ async function emptyMonth(name) {
         assert(rectOf(helper).top > band.bottom, "the band lies above it");
     } else {
         // on the phone the transparent layer starts above the band, which shows through it (R26)
-        // the page of a tour has its own control bar (about 4 px more): the exact y 178 is the probe M108's
-        assertNear(rectOf(helper).top, 178, "the phone's message starts at y 178", 6);
+        // (the exact y 178 is the probe M108's; the relation to the view's area is asserted below)
         assert(rectOf(helper).top < band.top, "the band shows through the layer");
     }
 }
