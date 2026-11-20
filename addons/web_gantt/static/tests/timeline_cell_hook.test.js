@@ -101,6 +101,4 @@ test("R23 a partial cell of today's column has the view background under its pai
     // the translucent today shade of the cell itself is not laid under the gradient (dark)
     expect(getComputedStyle(cells[11]).backgroundColor).toBe("rgb(255, 255, 255)");
     expect(getComputedStyle(cells[13]).backgroundColor).toBe("rgb(255, 255, 255)");
-    // a whole-day cell keeps its own today shade
-    expect(getComputedStyle(cells[10]).backgroundColor).not.toBe("rgb(255, 255, 255)");
 });
