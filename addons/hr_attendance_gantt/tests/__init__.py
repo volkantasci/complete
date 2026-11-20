@@ -6,6 +6,7 @@ from . import (
     test_action,
     test_actions_menus,
     test_actions_probes,
+    test_actions_screens,
     test_actions_tours,
     test_checkout_default,
     test_contract_filters,
