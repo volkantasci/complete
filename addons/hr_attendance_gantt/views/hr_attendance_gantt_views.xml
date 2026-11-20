@@ -30,8 +30,9 @@
         <field name="inherit_id" ref="hr_attendance_gantt_view"/>
         <field name="arch" type="xml">
             <gantt position="attributes">
-                <attribute name="default_range">month</attribute>
+                <!-- both the opening range and the opening scale are the month -->
                 <attribute name="default_scale">month</attribute>
+                <attribute name="default_range">month</attribute>
             </gantt>
         </field>
     </record>
@@ -54,8 +55,8 @@
 
     <!-- The management action opens the Gantt view first, grouped by employee. -->
     <record id="hr_attendance.hr_attendance_action" model="ir.actions.act_window">
-        <field name="view_mode">gantt,list,form</field>
         <field name="context">{'search_default_employee': 1}</field>
+        <field name="view_mode">gantt,list,form</field>
     </record>
 
     <record id="hr_attendance_action_view_gantt" model="ir.actions.act_window.view">
@@ -81,12 +82,15 @@
         <field name="arch" type="xml">
             <filter name="check_in_filter" position="after">
                 <separator/>
-                <filter string="Ongoing Contract" name="ongoing_contract"
-                        domain="[('has_active_contract', '=', True)]"
-                        groups="hr_attendance.group_hr_attendance_officer"/>
-                <filter string="No Active Contract" name="no_active_contract"
-                        domain="[('has_active_contract', '=', False)]"
-                        groups="hr_attendance.group_hr_attendance_officer"/>
+                <!-- the officer group alone sees either filter -->
+                <filter name="ongoing_contract"
+                        groups="hr_attendance.group_hr_attendance_officer"
+                        string="Ongoing Contract"
+                        domain="[('has_active_contract', 'in', [True])]"/>
+                <filter name="no_active_contract"
+                        groups="hr_attendance.group_hr_attendance_officer"
+                        string="No Active Contract"
+                        domain="[('has_active_contract', 'in', [False])]"/>
             </filter>
         </field>
     </record>
