@@ -1906,8 +1906,8 @@ scenario("hr_actions_a90_monthly_search", EMPLOYEE_FORM, async () => {
             ),
         "the Month interval of the Date grouping",
         3000
-    ).catch(() => null);
-    month?.click();
+    );
+    month.click();
     await until(() => facets().some((facet) => facet.includes("Date")), "the facet of the Date grouping");
     await settle(1200);
     await dataSettled();
