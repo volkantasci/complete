@@ -16,5 +16,15 @@
         'views/time_off_gantt_views.xml',
         'data/time_off_actions.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'hr_holidays_gantt/static/src/**/*',
+        ],
+        'web.assets_tests': ['hr_holidays_gantt/static/tests/tours/**/*'],
+        'web.assets_unit_tests': [
+            'hr_holidays_gantt/static/tests/**/*.test.js',
+            'hr_holidays_gantt/static/tests/time_off_test_helpers.js',
+        ],
+    },
     'uninstall_hook': 'restore_time_off_records',
 }
