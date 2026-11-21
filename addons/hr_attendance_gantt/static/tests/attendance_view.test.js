@@ -1,15 +1,17 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { beforeEach, describe, expect, hover, mockDate, mockTimeZone, test } from "@odoo/hoot";
+import { after, beforeEach, describe, expect, hover, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { queryAll, queryAllTexts, queryRect, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
-import { patchWithCleanup, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
+import { onRpc, patchWithCleanup, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
 import { browser } from "@web/core/browser/browser";
 import { localization } from "@web/core/l10n/localization";
 import { timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
+import { helperOffset } from "../src/attendance_layout";
 import { RESIZE_DELAY } from "../src/attendance_timeline_renderer";
 
 import {
+    ARCH,
     mountAttendances,
     setupAttendanceFixtures,
 } from "./attendance_test_helpers";
@@ -202,6 +204,39 @@ test("A50: a flexible row with hours worked", async () => {
     expect(barOf("Flexible Worker")).toBe(null);
 });
 
+test("N2: a fully flexible row with hours worked and the maximum of 24 h the server sends", async () => {
+    await mountLabels({ "Tracked Flexible": entry(3.5, 24, true, true) });
+    const label = labelOf("Tracked Flexible");
+    expect(label).toHaveText("3h 30m");
+    expect(label).toHaveClass("o_hag_success");
+    expect(label).not.toHaveAttribute("data-tooltip");
+    expect(barOf("Tracked Flexible")).toBe(null);
+});
+
+test("N2 (A70): a whole day worked by a fully flexible employee", async () => {
+    await mountLabels({ "Flexible Worker": entry(24, 24, false, true) });
+    const label = labelOf("Flexible Worker");
+    expect(label).toHaveText("24h");
+    expect(label).toHaveClass("o_hag_success");
+    expect(label).not.toHaveAttribute("data-tooltip");
+    expect(barOf("Flexible Worker")).toBe(null);
+});
+
+test("N2 (A70): the whole day of 25 h reads 25h in the warning colour, the day of 23 h 23h muted", async () => {
+    // the maximum is 24 h on both days (the calendar days of the period); 25 h of 24 h is 104 %,
+    // 23 h of 24 h is 96 %
+    await mountLabels({
+        "Long Day": entry(25, 24, false, true),
+        "Short Day": entry(23, 24, false, true),
+    });
+    expect(labelOf("Long Day")).toHaveText("25h");
+    expect(labelOf("Long Day")).toHaveClass(["o_hag_warning", "text-warning"]);
+    expect(labelOf("Short Day")).toHaveText("23h");
+    expect(labelOf("Short Day")).toHaveClass("o_hag_success");
+    expect(labelOf("Long Day")).not.toHaveAttribute("data-tooltip");
+    expect(barOf("Long Day")).toBe(null);
+});
+
 test("A45: a fully flexible employee tracked by attendances has a warning label", async () => {
     await mountLabels({ "Tracked Flexible": entry(0, 0, true, true) });
     const label = labelOf("Tracked Flexible");
@@ -292,6 +327,98 @@ test("A70: the helper's layer starts 115 px below the content area's top at any 
     const layer = queryRect(".o_hag_helper");
     const help = queryRect(".o_hag_helper .o_nocontent_help");
     expect(Math.abs(help.top + help.height / 2 - (layer.top + layer.height / 2)) < 2).toBe(true);
+});
+
+test("R26: the layer's offset is the header lines and the rows drawn, 40 px for each", () => {
+    expect(helperOffset(0)).toBe(75);
+    expect(helperOffset(1)).toBe(115);
+    expect(helperOffset(3)).toBe(195);
+});
+
+/** The monthly variant of the module's view: no grouping, so no row header (R4, R26). */
+const MONTHLY_ARCH = ARCH("month")
+    .replace("attendance_gantt", "monthly_attendance_gantt")
+    .replace('default_group_by="employee_id"', "")
+    .replace('progress_bar="employee_id"', "");
+
+/** Answers the overview's call with `count` cards of a work entry type each. */
+function answerWithCards(count) {
+    onRpc("hr.employee", "get_attendance_data_by_employee", () => ({
+        1: {
+            entries: Array.from({ length: count }, (_unused, index) => ({
+                name: `Work type ${index + 1}`,
+                worked_hours: 2,
+                color: index,
+            })),
+        },
+    }));
+}
+
+async function mountMonthly(count, rest = {}) {
+    answerWithCards(count);
+    await resize({ width: 1600, height: 900 });
+    const mounted = await mountAttendances({
+        employees: ["Beth Evans"],
+        noContentHelp: "",
+        arch: MONTHLY_ARCH,
+        groupBy: [],
+        context: { active_id: 1, active_model: "hr.employee" },
+        ...rest,
+    });
+    // the band is drawn once its cards are in, and the layer is put again by the observer
+    await advanceTime(100);
+    await animationFrame();
+    return mounted;
+}
+
+test("A8, R26: in the monthly variant the layer starts 75 px below the area's top, the band not counted", async () => {
+    await mountMonthly(0);
+    expect(".o_hag_overview_band").toHaveCount(1);
+    expect(".o_hag_helper").toHaveCount(1);
+    const layer = queryRect(".o_hag_helper");
+    // the unnamed row is not counted, nor is the band: the two header lines only. Where the
+    // band lies against the layer is a matter of the real control bar (the probes M106 to M108)
+    expect(layer.top - queryRect(".o_content").top).toBeCloseTo(75, { margin: 0.6 });
+    // the layer lets the pointer through
+    expect(".o_hag_helper").toHaveStyle({ pointerEvents: "none" });
+});
+
+test("R4 point 2: the band is 16 px tall with no card, and the grid starts under it", async () => {
+    await mountMonthly(0);
+    expect(".o_attendance_entry_card").toHaveCount(0);
+    const band = queryRect(".o_hag_overview_band");
+    expect(band.height).toBe(16);
+    expect(Math.abs(queryRect(".o_tl_renderer").top - band.bottom) < 0.6).toBe(true);
+});
+
+test("R4 point 2: the band is 96 px tall with one line of cards", async () => {
+    await mountMonthly(1);
+    expect(".o_attendance_entry_card").toHaveCount(1);
+    expect(queryRect(".o_hag_overview_band").height).toBe(96);
+    expect(queryRect(".o_attendance_entry_card").height).toBe(80);
+});
+
+test("R4 point 2: more cards than one line holds stay on one line that scrolls", async () => {
+    await mountMonthly(12);
+    // no scrollbar takes room from the band (the capture harness draws none)
+    const style = Object.assign(document.createElement("style"), {
+        textContent: "* { scrollbar-width: none !important; }",
+    });
+    document.head.appendChild(style);
+    after(() => style.remove());
+    await animationFrame();
+    expect(".o_attendance_entry_card").toHaveCount(12);
+    // the band keeps its 96 px, the cards do not wrap
+    expect(queryRect(".o_hag_overview_band").height).toBe(96);
+    const tops = new Set(queryAll(".o_attendance_entry_card").map((card) => card.getBoundingClientRect().top));
+    expect(tops.size).toBe(1);
+    // the line scrolls sideways inside the band: the last card lies beyond its right edge
+    const line = queryAll(".o_hag_overview_band .overflow-x-auto")[0];
+    expect(line.scrollWidth > line.clientWidth).toBe(true);
+    expect(line.scrollLeft).toBe(0);
+    expect(queryRect(".o_attendance_entry_card:last-child").left > queryRect(".o_hag_overview_band").right).toBe(true);
+    line.scrollLeft = line.scrollWidth;
+    expect(queryRect(".o_attendance_entry_card:last-child").right <= queryRect(".o_hag_overview_band").right + 0.6).toBe(true);
 });
 
 test("A54: no helper with twenty empty rows", async () => {

@@ -1,0 +1,30 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R7, M22: the contract warning line of the attendance forms, in the warning theme roles, as wide
+// as the sheet (the form's own side padding), 0 px under the status bar and 8 px above the sheet.
+// Its height follows its text; the link of R8 (M23, correct_employee_button.scss) sits at the end
+// of the text, on the same line when it fits.
+.o_hag_contract_warning {
+    // 0 border everywhere but the left one
+    border-style: solid;
+    margin: 0 0 8px;
+    padding: 8px 16px;
+    border-width: 0;
+    border-color: var(--warning-border-subtle);
+    border-left-width: 3px;
+    border-radius: 6px;
+    background-color: var(--warning-bg-subtle);
+    color: var(--warning-text-emphasis);
+    font-size: 14px;
+    text-align: center;
+
+    .o_field_widget {
+        display: inline;
+        width: auto;
+        // the gap after the sentence: a margin of the link's field (the link itself keeps the
+        // measured 0 margin, M23), so it does not depend on the translated text. The field is
+        // not drawn for a user without the link, so the text stays centred.
+        margin-inline-start: 0.25rem;
+    }
+}

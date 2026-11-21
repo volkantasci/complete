@@ -109,7 +109,9 @@ Renderer (``EmployeeTimelineRenderer``, a ``TimelineRenderer``)
     card.
   - ``partialCellStyle(covered)``: the style of a partly unavailable cell (the
     hook of the Gantt view); a cell with two different halves also gets the class
-    ``o_hrg_split``.
+    ``o_hrg_split``. The diagonal follows the grid's direction: 325 degrees from the
+    lower right in a left-to-right language, its mirror image (35 degrees, from the
+    lower left) in a right-to-left one.
 
 The variant does not use the Gantt view's ``rowLeadTemplate`` (the avatar sits in
 the name's box); that extension point stays in ``web_gantt`` for other variants.
@@ -117,8 +119,9 @@ the name's box); that extension point stays in ``web_gantt`` for other variants.
 Pure helpers in ``employee_layout.js`` (``lunchRoundedParts``,
 ``diagonalBackground``, ``isHalfDayPrecision``) carry the rules and can be tested
 alone. The template ``hr_gantt.EmployeeTimelineRenderer`` inherits the Gantt
-grid and puts the avatar and the name in one box, ``o_hrg_identity``, in an
-employee row's title line.
+grid and puts the avatar and the name in one box, ``o_hrg_identity``, inside the
+name area, ``o_hrg_name_area``, of an employee row's title line; the hours label
+follows the name area.
 
 Installation
 ============

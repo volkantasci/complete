@@ -327,7 +327,16 @@ such as the employee, attendance, event track and time off applications of later
   group rows show the bars.
 - **Unavailable periods.** With the option on, the periods in which the
   resource of a row is unavailable are greyed in its cells; a cell that is
-  partly covered is grey only where it is covered.
+  partly covered is grey only where it is covered; its available parts are
+  painted in the colour of an ordinary cell (the view background, and today's
+  shade in today's column), not left transparent, so they look the same on a
+  row whose own background differs, such as a hovered row. In today's column
+  the cell's own background colour is transparent and the gradient carries the
+  shade once (it would show twice in the dark look otherwise); a wholly
+  available cell of that column has the same shade as its background colour.
+  The parts follow the direction of the grid: in a right-to-left language the
+  first part lies at the cell's right edge and the gradient runs towards the
+  left with the same stops.
 - **Folded columns.** When every row is unavailable for a whole column and no
   pill touches it, runs of such columns fold into one narrow column whose
   header shows two arrows pointing at each other. Click the folded header or a
@@ -1541,8 +1550,9 @@ A module can register its own variant of the view and choose it with the
 `js_class` attribute of the definition: it builds an object from `timelineView`
 (exported by `@web_gantt/timeline_view`), replaces `Model` or `Renderer` with
 subclasses of `TimelineModel` or `TimelineRenderer`, and adds it to the
-`views` registry. Four places are meant to be overridden. The employee variant of
-[Employees Timeline](employee_gantt.md) uses the other three and reshapes the
+`views` registry. Eight places are meant to be overridden (the four of the table,
+then the editor slot and the three editor hooks after it). The employee variant of
+[Employees Timeline](employee_gantt.md) uses three of the first four and reshapes the
 row name through an inheriting template instead of `rowLeadTemplate`; the plain
 view behaves exactly as before when none is overridden.
 
@@ -1551,7 +1561,53 @@ view behaves exactly as before when none is overridden.
 | `rowLeadTemplate` | renderer, a getter | Return the name of its own template to draw what comes before the name in a row header. | The template is called with `row` (the row's descriptor) in scope, once for every row that has a header, group rows included; it sits after the group caret and before the row's body (name, label, bar). The default, `web_gantt.TimelineRowLead`, draws the thumbnail of the row's value when it has one, which is what the view always did. |
 | `_focusForKind(kind)` | model | Return a `DateTime` that the named range `kind` is built around. | It is asked only when a named range is chosen from the range menu and the caller gives no date; the view sets the date to the start of its day, and builds the range of that kind around it. Custom ranges, previous, next and Today never ask. The default is the middle of the visible part (`visibleMiddleDate()`). |
 | `_spanOf(record)` | model | Return the sub-columns a record covers, `{from, to, ...}` (`to` is not included), or null to leave the record out. | It is called for every record that has both dates, with the start and the stop as `DateTime`s in the record's fields, and the result is the pill's place. A null result drops the record from the drawing; the record's own data is never changed by it. The default places the record by the rules of the view (a pill over every sub-column it touches). |
-| `partialCellStyle(covered)` | renderer | Return the style declarations of a cell that is partly unavailable. | `covered[part]` is true for a grey part, in the order of the cell's parts; the hook is called only when some parts are grey and some are not (a fully grey cell takes the unavailable class and no style). The returned text becomes the cell's `style`. The default is the hard-edged gradient of grey and transparent parts that follows the language's direction. |
+| `partialCellStyle(covered)` | renderer | Return the style declarations of a cell that is partly unavailable. | `covered[part]` is true for a grey part, in the order of the cell's parts; the hook is called only when some parts are grey and some are not (a fully grey cell takes the unavailable class and no style). The returned text becomes the cell's `style`. The default is the hard-edged gradient of grey parts and available parts (painted in the view background, in today's column in today's shade, on a transparent cell) that follows the language's direction. |
+
+#### The editor slot and the editor hooks
+
+The dialogs and the writes of the view belong to an editor object
+(`TimelineEditor`, `@web_gantt/timeline_editor`). A variant can replace it and
+change what it sends.
+
+- **Editor slot.** The view definition may carry `Editor`, a subclass of
+  `TimelineEditor` (`{...timelineView, Editor: MyEditor}`). The view passes it to
+  the controller, which builds `new Editor({env, model, archInfo, services})`; the
+  default is `TimelineEditor`, so a definition that names none behaves as before.
+  A variant overrides the editor's methods (for instance `openRecord`) in the
+  subclass.
+- **Creation context.** `creationContextFor({period, row})` returns the context of
+  every creation (the create dialog, the create action, the plan dialog and
+  the multi-creation call). A subclass adds its own keys:
+  `return {...super.creationContextFor(params), scale: "month"}`. The default is the
+  context the view always built. No other hook is needed.
+- **Value hooks.** `writeValuesFor(change)` returns the values a move, a resize or a
+  copy writes (the defaults of the duplicate for a copy), and `undoValuesFor(change)`
+  the values Undo sends back to `gantt_undo_drag_drop` (not called for a copy). Both
+  default to returning `change.values` unchanged. `change` holds `kind` (`"move"`,
+  `"copy"`, `"resize-start"` or `"resize-stop"`), `record` (the parsed record read at
+  the press, with its `raw` values and whatever the variant's model added),
+  `values` (the computed values), `steps` (the number of sub-columns of the gesture),
+  and `bounds` (`{start, stop}`, moves and copies) or `bound` (the new `DateTime` of
+  the moved edge, resizes); `undoValuesFor` also gets `writeValues`, the write
+  that Undo takes back. A result with no value writes nothing, as for any change.
+  The hooks run for the gestures on a pill only; the side panel, the automatic
+  rescheduling method and the unscheduling are not shaped by them.
+- **Pill clicks.** `onPillClick` and `onPillDoubleClick` are renderer methods, so a
+  variant's `Renderer` subclass overrides them; nothing else was added.
+
+| Place | What a variant may do | What the view guarantees |
+|---|---|---|
+| `Editor` on the view definition | Name a subclass of `TimelineEditor`; override its methods and call `super`. | The controller builds it once with `{env, model, archInfo, services}`; the record, create and plan dialogs and every pill write go through it (the Custom-range date dialog is opened by the controller, and the side panel, rescheduling and unscheduling are not shaped by it). A definition with no `Editor` uses `TimelineEditor`. |
+| `creationContextFor({period, row})` | Return the context of a creation, usually the default with keys added (the attendance variant adds `scale`, the id of the displayed scale, so that the creation form can read it). | Called for the create dialog, the create action, the plan dialog and the multi-creation call, with the `period` (`{start, stop}`) and, when the gesture has one, the `row` (otherwise null). Its result is merged over the search defaults of the action where the view uses them (the plan dialog), so a key it returns wins. |
+| `writeValuesFor(change)` | Return the values a move, a resize or a copy writes: drop a key, add one, or return an empty object to write nothing. | Called once for each gesture on a pill, after the framework has worked out `change.values`, and before the write; the answer is what is sent. `change.record.raw` holds the record as it was when the pointer was pressed. |
+| `undoValuesFor(change)` | Return the values Undo sends back (the attendance variant empties the check-out of an open attendance). | Called with the earlier values and `change.writeValues`, the write that was sent; not called for a copy. |
+
+The attendance variant (`AttendanceTimelineEditor`, in
+[Attendances Timeline](attendance_gantt.md)) uses all three hooks: `creationContextFor`
+for the scale that its check-out proposal reads, and the two value hooks for the open
+attendances. The renderer of a variant that opens a dialog of its own on a pill does it
+in `onPillClick`, a renderer method (the attendance variant does it with a lock of
+200 ms of its own).
 
 A variant that overrides `rowLeadTemplate` supplies the template through its
 own XML file, as an ordinary `t-name`; a template that inherits the grid

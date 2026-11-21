@@ -145,7 +145,9 @@ much they should have worked.
   period's own days, less the company-wide leaves (a public holiday on a working
   day lowers the week from 40 to 32 hours). A flexible schedule with hours per
   week is reckoned by whole weeks plus the remaining days, capped by the weekly
-  hours. An employee whose schedule is fully flexible has no expectation.
+  hours. An employee whose schedule is fully flexible is expected 24 hours for each day
+  of the period; nothing a user sees depends on it (the label shows the hours
+  worked alone).
 
 ### What the label says
 
@@ -245,10 +247,16 @@ on one employee who has not checked in, an unmatched search, a period with
 nothing in it), the view shows the helper of the Attendances application, in its
 own wording: onboarding for an attendance officer or above who is also an Employees officer, a
 short note for others. It is laid over
-the grid from 115 px below the top of the view, so the row stays visible and can
-still be clicked through it, and it stretches to the bottom of the window. On a
-phone, the helper takes the place of the grid instead. Two or more rows never
-show it, even if none has an attendance.
+the grid from 75 px below the top of the view's area plus 40 px for each employee
+row drawn (115 px with one row; the control bar and the monthly view's overview
+band are not counted), so the row stays visible and can still be clicked through
+it, and it stretches to the bottom of the window. On a phone, the attendance helper
+is a block in the view's background at a fixed place under the control panel,
+which the search bar does not move: with the bar closed the period line, the hour
+line and the row's upper part show above it, with the bar open the row is under
+it, and a press on the covered part creates nothing. The monthly view's generic
+message is a transparent layer on the phone too, and presses go through it. Two or
+more rows never show it, even if none has an attendance.
 
 ![The helper over one empty row, light](../assets/attendance_gantt/10-helper.png)
 
@@ -290,25 +298,249 @@ The bridge adds no group, access right or record rule.
   may read.
 - **The menu.** The Management menu is shown to officers and administrators. The
   action itself belongs to every user of the attendance groups, and its address
-  opens it for them too.
+  opens it for them too. What each role may do in the view is in "What each role
+  may do" below.
 
-## What a click does for now
+## Where the view is reached
 
-In this release, a click on a pill opens its popover and a double click opens the
-record in a dialog, as in any Gantt view; a click on an empty cell and the New
-button open the create dialog with the attendance model's default form (the
-view does not offer the Gantt view's plan dialog). Where
-the pointer is over an empty cell, nothing lights up and no button appears. A
-later release changes these actions to suit attendances.
+The Gantt view shows in three places of the Attendances application and the
+Employees application.
+
+- **Attendances > Management > Dashboard**, as described above (officers and
+  administrators).
+- **Attendances > My Attendances.** The Community calendar of your own
+  attendances stays the first view and the default. The view switcher then offers
+  Calendar, Gantt, List, Pivot and Graph, in that order; on a phone the switcher is
+  the Community's one-button menu with the same five entries. The Gantt view is the
+  attendance view of this page, with one row: your own employee, which gets a row
+  also when you have no attendance in the period. No facet shows in the calendar,
+  list, pivot or graph, and the Gantt view shows the "Employee" facet. A user with
+  no employee gets the Community's notice that they have no employee in the current
+  company, and the Gantt view shows one unnamed empty row and the helper.
+- **The worked-hours button of an employee.** It opens the Community list
+  "Attendances This Month", and the view switcher then offers List (the default) and
+  Gantt. See "The monthly view" below.
+
+![My Attendances, its calendar](../assets/attendance_gantt/actions-01-my-calendar.png)
+
+![My Attendances, its Gantt view](../assets/attendance_gantt/actions-02-my-gantt.png)
+
+The management action opens with one search default, the **Employee**
+grouping. In the Gantt views of the management action and of My Attendances the
+search menu does not offer the Community's "Date" grouping (the one by month of
+check-in); the list, calendar, pivot and graph views still do. "Custom Group"
+still lists the date fields, and choosing one of them changes nothing in the
+rows (the facet shows).
+
+![The search menu](../assets/attendance_gantt/actions-09-search.png)
+
+## What you do in the views
+
+### Opening an attendance
+
+A click or a tap on a pill, or a press and release on one of its ends without
+moving, opens the attendance in a dialog at once, with the Community's form for
+creating an attendance and its own footer: **Save & Close** (when you may edit
+the attendance), **Discard** and, at the right end, **Delete** (for a manager of
+the attendance; it deletes without asking). There is no popover. The first click
+on an attendance locks it for 200 ms, so a double click or two quick taps open
+one dialog, and no click opens a second dialog while one is opening or open. A
+click on the dialog's backdrop does nothing. When the dialog closes, whichever
+way, the view loads its data again and stays on the same range, period and scroll
+position, so the labels, the bars and the folding are worked out again; an
+attendance that does not match the search is saved but not shown. One Escape
+closes a dialog when no field is being edited; after typing in a field, the first
+Escape is taken by that field and the dialog stays, the second closes it, and
+nothing is saved.
+
+On a phone the dialog fills the screen.
+
+![The record dialog](../assets/attendance_gantt/actions-03-open.png)
+
+![One dialog after two quick clicks](../assets/attendance_gantt/actions-04-one-dialog.png)
+
+### Creating an attendance
+
+For a user who may create attendances, a click on an empty cell of a row opens
+the creation dialog ("Create") with the row's employee and the cell's period: the
+hour on the Day range, the day on the Week and Month ranges, the month on the
+Year range. A press dragged over empty cells of one row proposes the dragged span
+at the scale's precision; the span starts at the beginning of the sub-column under
+the press (a press at the centre of a day on the Week range starts at 12:00). The New button opens the dialog with your own employee
+and the period of the range (the Day range: today, 0:00 to 0:00 of the next
+day). Nothing happens when you click an empty cell and have no right to create
+(no role), and the pointer resting on a cell shows nothing.
+
+**The check-out proposal.** On every range but the Day range, the dialog proposes
+the check-out as the check-in plus the employee's hours per day (8 hours on the
+demo schedule), also for a span dragged over several days, and again every time
+you change the check-in; it never does so when you empty the check-in. The hours
+are those of the working schedule in effect on the check-in's UTC date, read with
+the rights of the system. An employee with no hours per day (a fully flexible
+schedule) or none at all gets a check-out equal to the check-in. A
+Custom range takes the rule of its length (three days: the Day scale, no
+proposal; ten days: the Week scale, the proposal). An attendance opened from a
+pill never gets the proposal.
+
+![Creating on the Week range](../assets/attendance_gantt/actions-08-create-week.png)
+
+### The contract warning and its link
+
+When the employee has no contract on the attendance's day, a line under the
+status bar of the form says so, in the dialog, in the full-page form of an
+attendance and in the form of My Attendances. It is worked out again as you change
+the employee or the check-in. The day is the calendar day of the check-in in the
+employee's time zone (a check-in with no value counts as today), and an employee
+who is not set shows no warning. For an Employees officer the line ends with the
+link **Correct employee**, which opens the employee's form in the main window as a
+next step of the breadcrumb.
+
+In a dialog the link saves nothing: the dialog closes and its record is not
+created, or its changes are dropped. On a full-page form the link leaves the form
+as any navigation does, which first saves the valid changes. The breadcrumb's earlier
+step brings the view back on its range, with its data loaded again.
+
+![The warning and its link](../assets/attendance_gantt/actions-05-warning.png)
+
+![The same dialog for an employee with a contract](../assets/attendance_gantt/actions-06-plain.png)
+
+![The employee form after the link](../assets/attendance_gantt/actions-07-link.png)
+
+### Moving, resizing and copying
+
+Dragging a pill moves it and dragging one of its ends resizes it, as in every
+Gantt view: the notification with Undo shows, a pill cut by the period's edge cannot
+be moved, and its uncut end can be resized. The Community's rules decide the write:
+an attendance may not overlap another of the employee, nor end before it starts, a
+move to another employee's row is allowed only to that employee, an administrator
+or the attendance manager, and a validated attendance may be refused. A refusal
+shows the Community's own error dialog, and the pill goes back. Holding Ctrl while
+dragging asks for a copy, which the Community refuses (an error dialog; nothing
+is created or moved). A user who may not edit the attendance sees no handle,
+and a drag leaves the pill in place.
+
+The Community's time rules (Attendances configuration) can split an attendance
+after a write; Undo then writes the first part back and keeps the part the
+Community created, marked for review. The demo data never meet a rule.
+
+**An open attendance.** Moving it writes the check-in only, so it stays open (it
+is drawn from the new check-in to now, and not at all while the new check-in is after
+now). Dragging its start writes the check-in. Dragging its end writes a check-out
+of the instant now plus the sub-columns of the drag, with the seconds of now (so the
+attendance is closed, and the check-out may lie in the future). Undo after a move
+or an end drag gives the earlier check-in back and empties the check-out: the
+attendance is open again.
+
+![A pill being dragged](../assets/attendance_gantt/actions-13-dragging.png)
+
+![After the move](../assets/attendance_gantt/actions-14-dragged.png)
+
+![An open attendance after a move](../assets/attendance_gantt/actions-15-open-moved.png)
+
+### The contract filters
+
+For officers (Team, All and Administrator) the search menu of the management
+action and of My Attendances has a section of its own after the Date filter, with
+**Ongoing Contract** and **No Active Contract**. They keep the attendances of
+the employees who have, or have not, an active contract today: a version whose
+contract started before tomorrow and whose end is empty or on or after today. Today
+is the date in the time zone of the user's preferences, read from the server's
+clock when you search, and the displayed period plays no part. Choosing both keeps
+everything. With the Employee grouping every matching employee gets a row, also
+without attendances (the seven demo employees with no contract for No Active
+Contract).
+
+The monthly action uses another Community search view and has no contract filter.
+
+![The filter No Active Contract](../assets/attendance_gantt/actions-10-no-contract.png)
+
+### The monthly view
+
+On the form of an employee (and on the public profile that users without the
+Employees group see) the worked-hours button opens "Attendances This Month". Its
+Gantt view opens on the Month range with the Community's attendance overview
+above the grid: one card for each work entry type, with the sum of the
+hours of closed attendances that overlap the displayed period (for example "29h
+Work"), loaded again at every change of the period and after every reload. The grid
+has one unnamed row without header text, avatar, label or bar. Every way of creating
+there (a click on a cell, a drag, the New button) proposes the employee of the form
+the button was clicked on, not your own, and the check-out proposal and the contract
+warning follow that employee. Who reaches another employee's monthly view follows the
+Community's rule for the button: All and Administrator for every employee, Team for the
+employees they manage, everyone else for themselves.
+
+![The monthly action's list](../assets/attendance_gantt/actions-11-monthly-list.png)
+
+![The monthly Gantt view](../assets/attendance_gantt/actions-12-monthly.png)
+
+![The monthly Gantt view on a phone](../assets/attendance_gantt/actions-12-monthly.mobile.png)
+
+## What each role may do
+
+The module adds no group, access right or record rule; the Community's
+groups decide. A control that a role may not use is absent, not disabled.
+
+| | No role | Self | Team | All | Administrator |
+|---|---|---|---|---|---|
+| Attendances in the home menu | no | yes | yes | yes | yes |
+| Menus of Attendances | none | My Attendances | none | My Attendances, Management, Kiosk Mode, Reporting | those and Configuration |
+| My Attendances by its address | own row | own row | own row | yes | yes |
+| Management action by its address | own row | own row | the employees they manage | every employee, 20 to a page | every employee |
+| The contract filters | no | no | yes | yes | yes |
+| The Date grouping | hidden | hidden | hidden | hidden | hidden |
+| New button, creating from a cell | no | for their own employee | for their employees | yes | yes |
+| Moving and resizing | no | their own, while not validated (when the company validates) | their employees' | all | all |
+| Footer of the record dialog | Discard only, read-only form | Save & Close, Discard | with Delete | with Delete | with Delete |
+| Validate and Refuse in the status bar | no | no | yes | yes | yes |
+| The warning | yes | yes | yes | yes | yes |
+| The link "Correct employee" | only with the Employees "Officer" group | the same | the same | the same | yes |
+
+A user with no attendance role who clicks an empty cell sees nothing happen. A
+write that the Community's rules refuse (a user moving an attendance that is
+validated) shows the Community's access error and the pill goes back.
+
+![A user with no attendance role](../assets/attendance_gantt/actions-16-role-none.png)
+
+Every image above also exists in a dark variant (suffix `-dark`) and, for most, a
+phone variant (suffix `.mobile`) in `docs/assets/attendance_gantt/`.
+
+## Known differences
+
+- **The phone dialog's left line.** On a Complete dialog at 390 x 844, in light
+  and in dark, there is no 1 px line along the dialog's left edge: its
+  `border-left` is 0 and its `box-shadow` is `0 8px 16px 0`. The reference look draws that
+  line in the border grey. It belongs to the shell and the theme (`web_enterprise`),
+  which draw every dialog, and not to this module; a later change of the theme
+  can add it.
+- **The overview card in the dark look.** The card of the monthly view is the
+  Community's component in whatever colour the theme gives its colour class in dark;
+  Complete does not set a dark colour of its own for it.
+- **Where Complete differs on purpose.** Two clicks on one pill open one dialog;
+  moving an open attendance leaves it open and Undo opens it again; a creation in the
+  monthly view proposes the employee of the form; and the available quarters and halves
+  of a cell that is partly grey follow the direction of the grid in a right-to-left
+  language.
 
 ## For developers
 
-The module adds one Gantt view record on `hr.attendance`, changes the management
-window action, and registers the view variant `attendance_gantt` in the
-browser; it adds no model and no stored field. The Python side overrides the
-model's data call, the unavailability hook and the progress hook. The
-description of the extension points for the next part is in the
-[README](../../addons/hr_attendance_gantt/README.rst).
+The module adds three Gantt views on `hr.attendance` (the base view and the two
+that inherit it for the month scale and for the monthly hours) and two inheriting
+views, the search view (the contract filters) and the attendance form (the
+contract warning). It changes two Community actions (the management window and
+the personal one), and registers two view variants in the browser,
+`attendance_gantt` and `monthly_attendance_gantt`. It overrides
+`action_open_last_month_attendances` of `hr.employee`, and adds two non-stored
+fields on `hr.attendance` (`has_active_contract` and `show_contract_warning`) and
+the field widget of the "Correct employee" link. The Python side also overrides
+the model's data call, the unavailability hook and the progress hook. The variant
+uses the editor hooks of the Gantt view (`creationContextFor`, `writeValuesFor`,
+`undoValuesFor`); the description of the clicks and of the extension points used
+is in the [README](../../addons/hr_attendance_gantt/README.rst); the extension
+points themselves are in
+[Gantt View](gantt_view.md#extension-points-for-view-variants). The module also
+has a database migration (version 20.0.1.1.0, described in the README) that
+renames the view's identifier to `hr_attendance_gantt.hr_attendance_gantt_view`
+and keeps its database id.
 
 ### The demo database at the project's instant
 
@@ -327,13 +559,13 @@ of this. Mount `tools` read-only into the container, as the commands below do.
 Every command is one plain `podman compose` command from the root of the
 repository, after `docker/.env` has been created as the
 [module authoring guide](../module-authoring.md#start-from-the-scaffold)
-describes. Replace `DB` with the name of the database.
+describes. Replace `DB` with the name of the database (the verifier of slice 002d3 uses `demo002d3`).
 
 Create a database with demo data while the clock reads 11 November 2026,
 10:00 UTC (the time is UTC unless it carries a zone):
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB -i web_enterprise,test_web_gantt,hr_attendance_gantt --with-demo --stop-after-init
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB -i web_enterprise,test_web_gantt,hr_gantt,hr_attendance_gantt --with-demo --stop-after-init
 ```
 
 Everything after `--` is the Odoo command line. The module list is the one the
@@ -400,3 +632,40 @@ the clock of the XML data evaluator, which would otherwise keep the real day, so
 that contracts which end "today" end on the instant's day; it relies on how this
 Odoo release lays that evaluator out, and fails at start with an import error,
 not silently, if a later release moves it.
+
+### Records of the slice's scenarios
+
+The prepared records of the earlier slice come from `prepare` as above (add
+`--night`, `--holiday` and `--differences` as the scenario asks). `prepare` makes
+the working schedule "Gantt Late" with the others, and does not create anything
+else of this slice: it has no role users, no "Gantt Moved" and no
+"Gantt Afternoon". The administrator creates them in the user interface of the
+database, and removes them after the scenario (by name, archived ones too, with
+their attendances):
+
+| Record | How it is made |
+|---|---|
+| Role users `gantt_none`, `gantt_self`, `gantt_team`, `gantt_all`, `gantt_allhr` (password equal to the login) | Settings > Users, one user for each; the groups are set explicitly and replace what a new user gets by default: only the internal user role for `gantt_none`; the Attendances "Self Attendance Edit" for `gantt_self`; "Officer: Manage attendances" for `gantt_team`; "Officer: Manage all attendances" for `gantt_all`; the same and the Employees "Officer: Manage all employees" for `gantt_allhr`. Time zone Europe/Brussels. |
+| Their employees | One employee of the same name for each, linked to the user: schedule "40 hours/week", contract from 1 January 2026 with no end, time zone Europe/Brussels. A sixth employee, "Gantt Role Peer", has no user. For `gantt_team` only, set the user as the attendance manager of both employees (which gives the user the Team group; do it for no other role). |
+| Their attendances | One attendance of each of the two employees on 11 November 2026, 07:00 to 09:00 UTC. |
+| "Gantt Moved" | An employee with the schedule "40 hours/week", contract from 1 January 2026, Europe/Brussels, and one **open** attendance checked in on 11 November 2026 at 07:00 UTC. |
+| "Gantt Afternoon" | An employee with the schedule "Gantt Late" (made by `prepare`), a contract from 1 January 2026, Europe/Brussels, and no attendance. |
+
+The tests make the same records with their fixtures, `make_role_users`,
+`make_gantt_moved` and `drop_actions_records` in
+`addons/hr_attendance_gantt/tests/actions_fixtures.py` and `make_prepared(...,
+afternoon=True)` in `hr_rows_fixtures.py`, which is how CI works (no demo data).
+
+### Values that depend on the server's clock
+
+While the server runs under the instant's clock, two things read the server's
+"today" and no other: the contract filters (the date of today in the user's
+time zone) and the monthly action (its domain asks for the check-ins of the current
+month of the employee). Run the scenarios of the filters (No Active Contract and
+Ongoing Contract, also with another time zone in the user's preferences) while the
+clock reads between 11 November 2026 10:00 UTC and 12 hours later, and the monthly
+view while it reads November 2026. The browser's clock decides the rest (the
+"now" of open attendances, the lit hour and column), and the verifier's browser reads
+Wednesday 11 November 2026, 11:00, Europe/Brussels. The tests fix both: the Python
+tests freeze the server's clock (`freeze_time`, and `action_in_november` of the fixtures
+for the monthly action), and the tours and probes fix the browser's clock and time zone.

@@ -47,7 +47,7 @@ async function mountWithHalfDayGrey(arch) {
 
 test("cell hook: the plain view draws a half grey cell with 002a's vertical halves", async () => {
     const cell = await mountWithHalfDayGrey(ARCH());
-    expect(getComputedStyle(cell).backgroundImage).toMatch(/^linear-gradient\(to right, /);
+    expect(getComputedStyle(cell).backgroundImage).toMatch(/^linear-gradient\(90deg, /);
 });
 
 test("cell hook: a variant draws the style of a partly unavailable cell", async () => {
@@ -60,4 +60,45 @@ test("cell hook: a variant draws the style of a partly unavailable cell", async 
     registry.category("views").add("test_cell_gantt", { ...timelineView, Renderer: DiagonalRenderer });
     const cell = await mountWithHalfDayGrey(ARCH(`js_class="test_cell_gantt"`));
     expect(getComputedStyle(cell).backgroundImage).toMatch(/^linear-gradient\(325deg, /);
+});
+
+async function mountWithNightGrey(days) {
+    // quarters night / day / day / night on each of the given days (R23)
+    const periods = days.flatMap((day) => [
+        { start: at(day, "00:00"), stop: at(day, "06:00") },
+        { start: at(day, "18:00"), stop: at(day + 1, "00:00") },
+    ]);
+    timelineMock.unavailability = { x_contact: { 1: periods } };
+    await mountView({
+        type: "gantt",
+        resModel: "pill",
+        arch: ARCH(`precision="{'week': 'day:quarter'}"`),
+        groupBy: ["x_contact"],
+        domain: [["id", "in", [4, 5, 6, 9]]],
+    });
+    await animationFrame();
+    const row = queryAll(".o_tl_row").find(
+        (el) => el.querySelector(".o_tl_row_name")?.textContent.trim() === "Host Contact 1"
+    );
+    return [...row.querySelectorAll(".o_tl_cell")];
+}
+
+test("R23 available quarters painted", async () => {
+    const cells = await mountWithNightGrey([0, 2]);
+    const grey = "rgb(233, 236, 239)";
+    const stops = (day) =>
+        `linear-gradient(90deg, ${grey} 24%, ${day} 25%, ${day} 49%, ${day} 50%, ${day} 74%, ${grey} 75%)`;
+    // an ordinary day (M82): the available quarters take the view background, not transparent
+    expect(getComputedStyle(cells[13]).backgroundImage).toBe(stops("rgb(255, 255, 255)"));
+    // today's column (M83): they take today's shade
+    expect(cells[11]).toHaveClass("o_tl_is_today");
+    expect(getComputedStyle(cells[11]).backgroundImage).toBe(stops("rgb(255, 250, 235)"));
+});
+
+test("R23 a partial cell is transparent, also in today's column (M83)", async () => {
+    const cells = await mountWithNightGrey([0, 2]);
+    expect(cells[11]).toHaveClass("o_tl_is_today");
+    // the cell's own today shade is not laid under the gradient: it would double in dark
+    expect(getComputedStyle(cells[11]).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(cells[13]).backgroundColor).toBe("rgba(0, 0, 0, 0)");
 });

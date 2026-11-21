@@ -737,22 +737,18 @@ class TestHrRowsProbes(HrProbes):
                 self.search('HRA Beth', phone=True)
                 self.wait("!!document.querySelector('.o_hag_helper')")
                 self.settle(1500)
-                # RL27: the R20 phone rule is asserted: the helper's top is the grid's top and its
-                # bottom the window's bottom. The package's y 274.625 (height 569.375) is the
-                # original's grid top with the search bar open; Complete's shell puts the grid at
-                # y 272.97 there, a known shell difference that is logged, not compared.
+                # 002d3 R26 point 2: the phone's helper is a block at the fixed y 274.625 (the
+                # original's grid top with the search bar open, which 002d2 R20 states); Complete's
+                # shell puts the bar's grid 1.66 px higher, 002d2's polish item P2, so 2 px are
+                # allowed here as for M102 and M104 of 002d3
                 self.check('M55', "document.querySelector('.o_hag_helper')", scheme, 'phone',
                            'the helper on the phone',
                            skip=('geometry.y', 'geometry.height'))
                 box = self.geometry("document.querySelector('.o_hag_helper')")
-                grid = self.geometry("document.querySelector('.o_tl_renderer')")
-                with self.subTest(probe='M55', scheme=scheme, rule='R20 phone'):
-                    self.assertAlmostEqual(box['geometry.y'], grid['geometry.y'], delta=0.6)
+                with self.subTest(probe='M55', scheme=scheme, rule='R26 phone'):
+                    self.assertAlmostEqual(box['geometry.y'], 274.625, delta=2)
                     self.assertAlmostEqual(box['geometry.y'] + box['geometry.height'], 844,
                                            delta=0.6)
-                _logger.warning(
-                    'SHELL-DIFFERENCE|M55|%s|phone grid top %s against the package\'s 274.625',
-                    scheme, box['geometry.y'])
                 # the page is no taller than the window
                 self.assertLessEqual(self.js("document.documentElement.scrollHeight"), 844)
 

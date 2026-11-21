@@ -1,0 +1,13 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <!-- The controller of the Gantt view with the Community attendance overview in a band of its
+         own between the control bar and the grid (R4 point 2). -->
+    <t t-name="hr_attendance_gantt.MonthlyAttendanceController" t-inherit="web_gantt.TimelineController" t-inherit-mode="primary">
+        <t t-component="this.props.Renderer" position="before">
+            <div class="o_hag_overview_band">
+                <AttendanceCalendarOverview dateRange="this.overviewRange"/>
+            </div>
+        </t>
+    </t>
+</templates>

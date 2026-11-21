@@ -26,7 +26,7 @@ class TestAction(TransactionCase):
         self.assertEqual(views[0].view_mode, 'gantt')
         self.assertEqual(views[0].sequence, 0)
         self.assertEqual(
-            views[0].view_id, self.env.ref('hr_attendance_gantt.hr_attendance_view_gantt'))
+            views[0].view_id, self.env.ref('hr_attendance_gantt.hr_attendance_gantt_view'))
         self.assertEqual([mode for _id, mode in self.action.views], ['gantt', 'list', 'form'])
         # only the grouping by Employee is a search default
         self.assertEqual(safe_eval(self.action.context), {'search_default_employee': 1})
@@ -40,7 +40,7 @@ class TestAction(TransactionCase):
         self.assertEqual(self.action.res_model, 'hr.attendance')
 
     def test_a5_view_definition(self):
-        view = self.env.ref('hr_attendance_gantt.hr_attendance_view_gantt')
+        view = self.env.ref('hr_attendance_gantt.hr_attendance_gantt_view')
         self.assertEqual(view.type, 'gantt')
         self.assertEqual(view.model, 'hr.attendance')
         root = etree.fromstring(view.arch)
@@ -56,6 +56,8 @@ class TestAction(TransactionCase):
             'groups_limit': '20',
             'default_range': 'day',
             'default_scale': 'day',
+            'form_view_id': str(self.env.ref('hr_attendance.hr_attendance_create_view_form').id),
+            'plan': '0',
             'precision': (
                 "{'day': 'hour:quarter', 'week': 'day:quarter', "
                 "'month': 'day:half', '2weeks': 'day:half'}"),
@@ -64,10 +66,11 @@ class TestAction(TransactionCase):
         })
         # the definition passes the validation of the view type
         view._check_xml()
-        # the only Gantt view of the model in this part
+        # the only Gantt view of the model that is not a copy of it
         self.assertEqual(
             self.env['ir.ui.view'].search_count(
-                [('model', '=', 'hr.attendance'), ('type', '=', 'gantt')]), 1)
+                [('model', '=', 'hr.attendance'), ('type', '=', 'gantt'),
+                 ('mode', '=', 'primary'), ('inherit_id', '=', False)]), 1)
 
     def test_a3_uninstall_restores_action(self):
         community = _community_action_values()

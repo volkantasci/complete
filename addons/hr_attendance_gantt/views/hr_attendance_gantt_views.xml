@@ -2,10 +2,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <odoo>
     <!-- The Gantt view of the attendances: one row per employee, the day as default range.
-         Only the options below are set; a later module adds the form view or the plan
-         option by inheriting this view. The two-week precision entry names a scale the
-         view does not know and is ignored. -->
-    <record id="hr_attendance_view_gantt" model="ir.ui.view">
+         The creation form of the Community is the form of the record and creation dialogs, and
+         a click on an empty cell creates (no plan dialog). The two-week precision entry names a
+         scale the view does not know and is ignored. The record keeps the database id of the
+         earlier identifier (migrations/20.0.1.1.0). -->
+    <record id="hr_attendance_gantt_view" model="ir.ui.view">
         <field name="name">attendance timeline by employee</field>
         <field name="model">hr.attendance</field>
         <field name="arch" type="xml">
@@ -13,21 +14,106 @@
                    date_start="check_in" date_stop="check_out" color="wet_color"
                    default_group_by="employee_id" groups_limit="20"
                    default_range="day" default_scale="day"
+                   form_view_id="%(hr_attendance.hr_attendance_create_view_form)d" plan="0"
                    precision="{'day': 'hour:quarter', 'week': 'day:quarter', 'month': 'day:half', '2weeks': 'day:half'}"
                    display_unavailability="1" progress_bar="employee_id"/>
         </field>
     </record>
 
+    <!-- The same view opening on the Month range. A primary copy with a later priority, so that
+         the model's default Gantt view stays the one above. No action of this module uses it. -->
+    <record id="hr_attendance_gantt_view_default_scale_month" model="ir.ui.view">
+        <field name="name">attendance timeline by employee, month</field>
+        <field name="model">hr.attendance</field>
+        <field name="mode">primary</field>
+        <field name="priority">32</field>
+        <field name="inherit_id" ref="hr_attendance_gantt_view"/>
+        <field name="arch" type="xml">
+            <gantt position="attributes">
+                <!-- both the opening range and the opening scale are the month -->
+                <attribute name="default_scale">month</attribute>
+                <attribute name="default_range">month</attribute>
+            </gantt>
+        </field>
+    </record>
+
+    <!-- The monthly view of the employee's worked-hours button (R4): the Month copy with the
+         monthly variant (the Community overview above the grid, the form's employee for every
+         creation). Only the employee's monthly action names it. -->
+    <record id="hr_attendance_gantt_view_employee_monthly_hours" model="ir.ui.view">
+        <field name="name">attendance timeline, monthly hours of an employee</field>
+        <field name="model">hr.attendance</field>
+        <field name="mode">primary</field>
+        <field name="priority">32</field>
+        <field name="inherit_id" ref="hr_attendance_gantt_view_default_scale_month"/>
+        <field name="arch" type="xml">
+            <xpath expr="//gantt" position="attributes">
+                <attribute name="js_class">monthly_attendance_gantt</attribute>
+            </xpath>
+        </field>
+    </record>
+
     <!-- The management action opens the Gantt view first, grouped by employee. -->
     <record id="hr_attendance.hr_attendance_action" model="ir.actions.act_window">
-        <field name="view_mode">gantt,list,form</field>
         <field name="context">{'search_default_employee': 1}</field>
+        <field name="view_mode">gantt,list,form</field>
     </record>
 
     <record id="hr_attendance_action_view_gantt" model="ir.actions.act_window.view">
         <field name="sequence" eval="0"/>
         <field name="view_mode">gantt</field>
-        <field name="view_id" ref="hr_attendance_view_gantt"/>
+        <field name="view_id" ref="hr_attendance_gantt_view"/>
         <field name="act_window_id" ref="hr_attendance.hr_attendance_action"/>
+    </record>
+
+    <!-- My Attendances gets the Gantt view as its second view mode. The calendar stays the
+         first (the action's own view) and its context and condition are kept. The Gantt mode
+         has no view of its own: the model's default Gantt view is used. -->
+    <record id="hr_attendance.hr_attendance_my_action" model="ir.actions.act_window">
+        <field name="view_mode">calendar,gantt,list,pivot,graph</field>
+    </record>
+
+    <!-- The two contract filters, in a section of their own after the Date filter, for the
+         officer group and above (R6). They answer for every view of the attendance actions. -->
+    <record id="hr_attendance_view_filter_contract" model="ir.ui.view">
+        <field name="name">attendance search, contract filters</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='check_in_filter']" position="after">
+                <separator/>
+                <!-- the officer group alone sees either filter -->
+                <filter name="ongoing_contract"
+                        groups="hr_attendance.group_hr_attendance_officer"
+                        string="Ongoing Contract"
+                        domain="[('has_active_contract', 'in', [True])]"/>
+                <filter name="no_active_contract"
+                        groups="hr_attendance.group_hr_attendance_officer"
+                        string="No Active Contract"
+                        domain="[('has_active_contract', 'in', [False])]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- The contract warning (R7) between the status bar and the sheet of the Community form.
+         The creation form and the My Attendances form inherit from this form, so the line
+         reaches them too. Its link (R8) is a field widget on the employee, for Employees
+         officers only. -->
+    <record id="hr_attendance_view_form_contract_warning" model="ir.ui.view">
+        <field name="name">attendance form, contract warning</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
+        <field name="arch" type="xml">
+            <sheet position="before">
+                <field name="show_contract_warning" invisible="1"/>
+                <div class="o_hag_contract_warning" role="alert"
+                     invisible="not show_contract_warning">
+                    <span>This employee has no contract on this day.</span>
+                    <field id="employee_correct_link" name="employee_id" nolabel="1"
+                           widget="correct_employee_button" readonly="1"
+                           groups="hr.group_hr_user"/>
+                </div>
+            </sheet>
+        </field>
     </record>
 </odoo>

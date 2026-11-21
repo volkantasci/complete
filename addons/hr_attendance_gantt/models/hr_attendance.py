@@ -4,7 +4,8 @@ from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
+from odoo.fields import Domain
 from odoo.tools.date_utils import sum_intervals
 from odoo.tools.intervals import Intervals
 
@@ -12,12 +13,156 @@ from odoo.tools.intervals import Intervals
 class HrAttendance(models.Model):
     _inherit = 'hr.attendance'
 
+    has_active_contract = fields.Boolean(
+        string="Has Active Contract",
+        compute='_compute_has_active_contract', search='_search_contract_flag',
+        groups='hr_attendance.group_hr_attendance_officer')
+
+    @api.depends()
+    def _compute_has_active_contract(self):
+        # a search field: it has no value of its own to read
+        self.has_active_contract = False
+
+    show_contract_warning = fields.Boolean(
+        string="Show Contract Warning", compute='_compute_contract_warning_flag',
+        compute_sudo=True)
+
+    @api.depends('employee_id', 'date')
+    def _compute_contract_warning_flag(self):
+        """R7: the employee has no active contract on the attendance's date.
+
+        ``date`` is the Community's (the check-in's day in the employee's time zone, today while
+        the check-in is empty). The versions are read with the rights of the system, so a user
+        who may not read contracts gets the value too.
+        """
+        versions = self.env['hr.version'].sudo()
+        for attendance in self:
+            employee, day = attendance.employee_id, attendance.date
+            known = bool(employee and day)
+            running = known and versions.search_count([
+                ('employee_id', '=', employee._origin.id or employee.id),
+                ('contract_date_start', '!=', False),
+                ('contract_date_start', '<=', day),
+                '|', ('contract_date_end', '=', False), ('contract_date_end', '>=', day),
+            ], limit=1)
+            attendance.show_contract_warning = known and not running
+
+    @api.model
+    def _hag_today(self):
+        """The calendar date now, in the time zone sent with the call (else the user's)."""
+        zone = ZoneInfo(self.env.context.get('tz') or self.env.user.tz or 'UTC')
+        return fields.Datetime.now().replace(tzinfo=UTC).astimezone(zone).date()
+
+    @api.model
+    def _hag_active_contract_employees(self):
+        """The ids of the employees with an active contract today (R6 point 2).
+
+        An active, not archived version whose contract starts before tomorrow and ends on or
+        after today, or never. The versions are read with the rights of the system (R6 point 3).
+        """
+        today = self._hag_today()
+        versions = self.env['hr.version'].sudo().search([
+            ('employee_id', '!=', False),
+            ('contract_date_start', '!=', False),
+            ('contract_date_start', '<', today + timedelta(days=1)),
+            '|', ('contract_date_end', '=', False), ('contract_date_end', '>=', today),
+        ])
+        return versions.employee_id.ids
+
+    @api.model
+    def _hag_contract_wanted(self, operator, value):
+        """The set of values (with a contract: True, without: False) a search keeps."""
+        if operator in ('=', '!='):
+            wanted = {bool(value)} if operator == '=' else {not value}
+        elif operator in ('in', 'not in'):
+            wanted = {bool(item) for item in value}
+            if operator == 'not in':
+                wanted = {True, False} - wanted
+        else:
+            raise UserError(self.env._("This search is not supported for the contract filter."))
+        return wanted
+
+    @api.model
+    def _hag_contract_condition(self, field_name, operator, value):
+        """The condition on ``field_name`` (``id`` or ``employee_id``) that a search on the
+        contract field stands for."""
+        wanted = self._hag_contract_wanted(operator, value)
+        if wanted == {True, False}:
+            return Domain.TRUE
+        if not wanted:
+            return Domain.FALSE
+        return Domain(
+            field_name, 'in' if True in wanted else 'not in', self._hag_active_contract_employees())
+
+    @api.model
+    def _search_contract_flag(self, operator, value):
+        return self._hag_contract_condition('employee_id', operator, value)
+
+    @api.model
+    def _hrg_relation_leaf(self, condition, field_name):
+        """The contract condition is a condition on the employee (R6 point 4)."""
+        if field_name == 'employee_id' and condition.field_expr == 'has_active_contract':
+            if not self.env.user.has_group('hr_attendance.group_hr_attendance_officer'):
+                raise AccessError(self.env._("You are not allowed to search by contract."))
+            return self._hag_contract_condition('id', condition.operator, condition.value)
+        return super()._hrg_relation_leaf(condition, field_name)
+
+    @api.onchange('check_in')
+    def _onchange_check_in_default_check_out(self):
+        """R15: the creation dialog of a Gantt view (the context's ``scale`` is week, month or
+        year) sets the check-out to the check-in plus the employee's hours per day, each time the
+        check-in changes, and when the dialog opens with one. A check-in emptied leaves the
+        check-out as it is. No employee, or a schedule of 0 hours per day, gives a check-out
+        equal to the check-in (E6, E7). The form of a record opened from the view and any other
+        form carry no ``scale`` and are left alone.
+        """
+        if self.env.context.get('scale') not in ('week', 'month', 'year'):
+            return
+        for attendance in self:
+            if attendance.check_in:
+                attendance.check_out = attendance.check_in + timedelta(
+                    hours=attendance._hag_hours_per_day())
+
+    def _hag_hours_per_day(self):
+        """The hours per day of the schedule of the employee's version in effect on the UTC date
+        of the check-in (R15 point 2), read with the rights of the system; 0 with no employee."""
+        self.ensure_one()
+        employee = self.employee_id.sudo()
+        if not employee or not self.check_in:
+            return 0.0
+        version = employee._get_version(self.check_in.date())
+        return version.resource_calendar_id.hours_per_day or 0.0
+
+    def action_open_details(self):
+        """The window action that opens this attendance in the Community form.
+
+        Kept for modules that call it on one attendance; no screen of this module uses it.
+        """
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': self.env._("Attendance"),
+            'res_model': 'hr.attendance',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'views': [(self.env.ref('hr_attendance.hr_attendance_view_form').id, 'form')],
+            'target': 'current',
+        }
+
     @api.model
     @api.readonly
     def get_gantt_data(
-        self, domain, groupby, read_specification, limit=None, offset=0,
-        unavailability_fields=None, progress_bar_fields=None,
-        start_date=None, stop_date=None, scale=None,
+        self,
+        domain,
+        groupby,
+        read_specification,
+        limit=None,
+        offset=0,
+        unavailability_fields=None,
+        progress_bar_fields=None,
+        start_date=None,
+        stop_date=None,
+        scale=None,
     ):
         """The Gantt data of the attendance view (rows of R14, no-contract list of R19).
 
@@ -168,7 +313,8 @@ class HrAttendance(models.Model):
         ``start`` and ``stop`` are the bounds the browser sent (naive UTC): the midnights
         that bound the period's own days, which are read in ``zone`` (the user's). The
         schedule at the period's start is the one of the version in effect on the first
-        day: flexible gives the weekly formula (0 for a fully flexible one), any other the
+        day: a fully flexible schedule gives 24 hours a day (N2), another flexible one the weekly
+        formula, any other the
         Community's expected attendances, with only the contract periods that overlap
         those days and the company-wide leaves taken off.
         """
@@ -177,6 +323,9 @@ class HrAttendance(models.Model):
         first_day = date_from.date()
         last_day = (date_to - timedelta(microseconds=1)).date()
         calendar = employee._get_version(first_day).resource_calendar_id
+        if calendar._is_fully_flexible():
+            # N2: a schedule without fixed hours expects 24 hours for each day of the period
+            return 24.0 * round((stop - start).total_seconds() / 86400)
         if calendar._is_flexible():
             days = round((stop - start).total_seconds() / 86400)
             weeks, rest = divmod(days, 7)

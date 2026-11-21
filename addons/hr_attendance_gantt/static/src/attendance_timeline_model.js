@@ -79,6 +79,11 @@ export class AttendanceTimelineModel extends EmployeeTimelineModel {
         );
     }
 
+    /** The browser's instant the displayed data was loaded at (R18's "now"), seconds kept. */
+    get loadNow() {
+        return this._now || DateTime.now();
+    }
+
     _commit(request, result) {
         this._now = request.now;
         super._commit(request, result);

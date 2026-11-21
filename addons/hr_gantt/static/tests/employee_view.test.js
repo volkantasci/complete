@@ -232,6 +232,32 @@ test("A19: exactly the four split Fridays are shaded diagonally on the month sca
     );
 });
 
+test("N5: in a right-to-left language the split Fridays are drawn mirrored at 35 degrees", async () => {
+    const ids = await makeEmployeeData(["Gantt Hourly"], [["Hourly shift", "Gantt Hourly", [2, "8:00"], [2, "9:00"]]]);
+    timelineMock.unavailability = { employee_id: { [ids["Gantt Hourly"]]: hourlyPeriods() } };
+    // the web client marks the body, not the root element, for a right-to-left language
+    document.body.setAttribute("dir", "rtl");
+    try {
+        await start();
+        await mountView({
+            type: "gantt",
+            resModel: "hrg.shift",
+            arch: ARCH(`default_range="month" display_unavailability="1"`),
+            groupBy: ["employee_id"],
+        });
+        await animationFrame();
+        const diagonal = cellsOf("Gantt Hourly").filter((cell) =>
+            (cell.getAttribute("style") || "").includes("35deg")
+        );
+        expect(diagonal).toHaveCount(4);
+        expect(diagonal[0].getAttribute("style")).toInclude(
+            "linear-gradient(35deg, var(--o-hrg-available-bg, transparent) 49%, var(--o-tl-unavailable-bg) 50%)"
+        );
+    } finally {
+        document.body.removeAttribute("dir");
+    }
+});
+
 test("R7: in today's column the available half is painted in today's shade", async () => {
     const ids = await makeEmployeeData(["Gantt Hourly"], [["Hourly shift", "Gantt Hourly", [2, "8:00"], [2, "9:00"]]]);
     // today is Wednesday 11 November: its afternoon is unavailable
@@ -251,10 +277,10 @@ test("R7: in today's column the available half is painted in today's shade", asy
     expect(split[0]).toHaveClass("o_tl_is_today");
     const style = getComputedStyle(split[0]);
     // the available half is today's shade (#FFFAEB), the other the unavailable grey; the cell's own
-    // base is the view background, so the shade is drawn once
+    // colour is transparent, so the shade is drawn once
     expect(style.backgroundImage).toInclude("rgb(255, 250, 235) 49%");
     expect(style.backgroundImage).toInclude("rgb(233, 236, 239) 50%");
-    expect(style.backgroundColor).toBe("rgb(255, 255, 255)");
+    expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
 });
 
 test("A20: quarter precision keeps 002a's vertical quarters", async () => {
@@ -277,7 +303,7 @@ test("A20: quarter precision keeps 002a's vertical quarters", async () => {
     await animationFrame();
     const styles = cellsOf("Gantt Hourly").map((cell) => cell.getAttribute("style") || "");
     expect(styles.filter((style) => style.includes("325deg")).length).toBe(0);
-    expect(styles.filter((style) => style.includes("linear-gradient(to right")).length).toBe(1);
+    expect(styles.filter((style) => style.includes("linear-gradient(90deg")).length).toBe(1);
 });
 
 test("R7: half-hour parts of an hour column are shaded diagonally (any column with two parts)", async () => {
@@ -296,5 +322,5 @@ test("R7: half-hour parts of an hour column are shaded diagonally (any column wi
     await animationFrame();
     const styles = cellsOf("Gantt Hourly").map((cell) => cell.getAttribute("style") || "");
     expect(styles.filter((style) => style.includes("325deg")).length).toBe(1);
-    expect(styles.filter((style) => style.includes("linear-gradient(to right")).length).toBe(0);
+    expect(styles.filter((style) => style.includes("linear-gradient(90deg")).length).toBe(0);
 });

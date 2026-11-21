@@ -65,6 +65,28 @@ export class TimelineEditor {
     }
 
     /**
+     * The value hooks of a gesture (a place for a view variant to reshape what a move, a resize
+     * or a copy writes, and what Undo gives back). The plain view returns `values` unchanged.
+     * `change` is `{kind, record, values, steps, bounds?, bound?, writeValues?}`:
+     * - `kind`: `"move"`, `"copy"`, `"resize-start"` or `"resize-stop"`;
+     * - `record`: the parsed record read at the press (its `raw` and anything the variant's
+     *   model added to it);
+     * - `values`: the computed values (the write for `writeValuesFor`, the earlier values for
+     *   `undoValuesFor`, where `writeValues` holds the computed write);
+     * - `steps`: the number of sub-columns of the gesture; `bounds` (`{start, stop}`, moves and
+     *   copies) or `bound` (the new `DateTime` of the moved edge, resizes).
+     * A copy has no Undo values: `undoValuesFor` is not called for it. An empty result writes
+     * nothing, as for any change.
+     */
+    writeValuesFor({ values }) {
+        return values;
+    }
+
+    undoValuesFor({ values }) {
+        return values;
+    }
+
+    /**
      * R3: run the create action of the view, or open the create dialog, with the defaults of
      * R6. Resolves after the action or dialog has closed and the view has reloaded.
      * @param {{period: {start, stop}, row?: Object|null}} params

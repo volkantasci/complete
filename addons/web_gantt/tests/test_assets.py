@@ -27,7 +27,8 @@ class TestWebGanttAssets(TransactionCase):
         self.assertRegex(css, r'\.o_tl_color_0\{background-color:#c7c7c7')
         # the dark-only rules stay out of the light stylesheet
         self.assertNotIn('.o_tl_renderer.o_tl_color_0{', css)
-        self.assertRegex(css, r'\.o_tl_cell\.o_tl_is_today\{background-color:#fffaeb')
+        self.assertRegex(
+            css, r'\.o_tl_cell\.o_tl_is_today\{(--[\w-]+:[^;}]+;)*background-color:#fffaeb')
 
     def test_dark_bundle(self):
         css = self._css('web.assets_web_dark')
@@ -37,6 +38,7 @@ class TestWebGanttAssets(TransactionCase):
         self.assertRegex(
             css, rf'\.o_tl_renderer\.o_tl_color_0\{{background-color:{grey}')
         # the dark variables win over the light defaults: no warm opaque fill
-        self.assertNotIn('.o_tl_cell.o_tl_is_today{background-color:#fffaeb', css)
+        self.assertNotRegex(
+            css, r'\.o_tl_cell\.o_tl_is_today\{(--[\w-]+:[^;}]+;)*background-color:#fffaeb')
         self.assertRegex(
             css, r'\.o_tl_cell\.o_tl_is_today\{background-color:rgba\(')

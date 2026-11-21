@@ -113,15 +113,13 @@ async function realClick(target, { keys = [], at = null, count = 1 } = {}) {
 }
 
 /** A real finger tap at the centre of an element. */
-async function realTap(el) {
+async function realTap(el, { count = 1 } = {}) {
     const { x, y } = centre(el);
-    await send({
-        touch: true,
-        events: [
-            { type: "touchStart", touchPoints: [{ x, y }] },
-            { type: "touchEnd", touchPoints: [] },
-        ],
-    });
+    const events = [];
+    for (let tap = 0; tap < count; tap++) {
+        events.push({ type: "touchStart", touchPoints: [{ x, y }] }, { type: "touchEnd", touchPoints: [] });
+    }
+    await send({ touch: true, events });
 }
 
 /** A real press, a drag through the points and a release. */
@@ -778,7 +776,7 @@ scenario("hag_a19_diagonals", async () => {
     assertNear(rectOf(diagonal[0]).width, 52, "its width", 1);
 });
 
-// A20: quarters keep 002a's shading
+// A20: quarters keep 002a's shading (the available quarters are painted since 002d3 R23)
 scenario("hag_a20_quarters", async () => {
     await searchFor("Gantt");
     await pickRange("week");
@@ -791,10 +789,11 @@ scenario("hag_a20_quarters", async () => {
     const background = gradientOf(cell);
     assert(!background.includes("325deg"), `no diagonal: ${background}`);
     const grey = "var(--o-tl-unavailable-bg)";
-    const parts = background.match(/(var\(--o-tl-unavailable-bg\)|transparent) [\d.]+% [\d.]+%/g) || [];
+    const day = "var(--o-tl-available-bg)";
+    const parts = background.match(/(var\(--o-tl-unavailable-bg\)|var\(--o-tl-available-bg\)) [\d.]+%/g) || [];
     assertEqual(
         parts.map((part) => part.split(" ")[0]),
-        [grey, "transparent", "transparent", grey],
+        [grey, day, day, day, day, grey],
         `the four quarters: ${background}`
     );
 });
@@ -1362,7 +1361,7 @@ scenario("hag_a58_features_off", async () => {
     }
 });
 
-// A59: the inputs left to 002d3
+// A59: the inputs of the empty cells and the drag of a pill (the clicks on a pill are 002d3's, A26 to A33)
 /** A real click that is repeated until `condition` holds (a click lock may swallow the first). */
 async function clickUntil(target, condition, what, options = {}) {
     const limit = Date.now() + 12000;
@@ -1378,26 +1377,7 @@ async function clickUntil(target, condition, what, options = {}) {
     }
 }
 
-const pressEscape = () =>
-    document.activeElement.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
-    );
-
 scenario("hag_a59_framework_inputs", async () => {
-    // a click on a pill: 002a's popover
-    await clickUntil(() => pillsOf("HRA Abigail")[0], () => $(".o_tl_popover_button"), "002a's popover");
-    pressEscape();
-    await until(() => !$(".o_tl_popover_button"), "Escape closes the popover");
-    // a double click: 002b's record dialog
-    const dialog = await clickUntil(
-        () => pillsOf("HRA Abigail")[0],
-        () => $(".modal .o_form_view"),
-        "002b's record dialog",
-        { count: 2 }
-    );
-    const shown = $$("input", dialog).map((el) => el.value).join("|") + clean(dialog.textContent);
-    assert(shown.includes("HRA Abigail"), `the dialog shows her attendance: ${shown}`);
-    await closeDialog();
     // a click on an empty cell: 002b's create dialog with the attendance form (R25, A59)
     const cell = () => $$(".o_tl_cell", rowEl("HRA Jennie")).at(14);
     await clickUntil(cell, () => $(".modal"), "the dialog of an empty cell");
@@ -1521,3 +1501,53 @@ scenario("hag_a64_night", async () => {
     assertEqual([dates[0], dates.at(-1)], ["2026-11-30", "2026-12-04"], "the week of 29 November");
     await expectLabel("Gantt Night", "8h / 40h (32h left)", "the week");
 });
+
+// The helpers that the tours of the following slices reuse (tours/actions_tours.js).
+export {
+    $,
+    $$,
+    assert,
+    assertEqual,
+    assertNear,
+    barOf,
+    cellsOf,
+    centre,
+    clean,
+    clearRemembered,
+    closeDialog,
+    closeSearchMenu,
+    countDataCalls,
+    dataSettled,
+    dateColumns,
+    facets,
+    foldedHeaders,
+    labelOf,
+    menuItem,
+    openSearchMenu,
+    pager,
+    pickRange,
+    pillsOf,
+    pillTitles,
+    pointerAway,
+    popoverOfView,
+    rangeName,
+    ready,
+    realClick,
+    realDrag,
+    realHover,
+    realTap,
+    rectOf,
+    removeFacet,
+    resizeTo,
+    searchFor,
+    send,
+    mouse,
+    renderer,
+    rowEl,
+    rowNames,
+    settle,
+    sleep,
+    step,
+    texts,
+    until,
+};

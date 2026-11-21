@@ -36,7 +36,12 @@ Technical reference:
   loaded span counts as the period on screen.
 - **Diagonal shading.** Where a column has two parts (the half days of the
   Month range) and one half is unavailable, the cell is split by a diagonal
-  instead of a vertical line, the grey half in the upper-left corner.
+  instead of a vertical line. In a left-to-right language the first half of the
+  day (the morning) is the lower-right triangle and the second half the
+  upper-left one, so the grey half is in the upper-left corner when the
+  afternoon is unavailable. In a right-to-left language the diagonal is
+  mirrored: the first half is the lower-left triangle and the second half the
+  upper-right one.
 - **Lunch rounding of pills.** On a scale with half-day precision, a pill that
   covers both halves of one day is drawn on one half when it clearly lies
   there: one that ends by 14:00 on the morning half, one that begins at 11:00

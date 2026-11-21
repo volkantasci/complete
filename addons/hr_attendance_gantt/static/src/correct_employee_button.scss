@@ -1,0 +1,8 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R8, M23: the link has no padding and an invisible zero shadow (the measured value). The line
+// it sits in is styled in contract_warning.scss.
+.o_hag_correct_employee {
+    box-shadow: 0 0 0 0 rgb(0, 0, 0);
+}

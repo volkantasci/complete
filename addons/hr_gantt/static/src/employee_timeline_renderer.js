@@ -81,7 +81,7 @@ export class EmployeeTimelineRenderer extends TimelineRenderer {
      */
     partialCellStyle(covered) {
         if (covered.length === 2) {
-            const background = diagonalBackground(covered[0], covered[1]);
+            const background = diagonalBackground(covered[0], covered[1], this.gridIsRtl());
             if (background) {
                 return `background-image: ${background}`;
             }

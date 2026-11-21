@@ -673,6 +673,16 @@ export class TimelineRenderer extends Component {
     }
 
     /**
+     * Whether the grid runs from right to left. Readable while the cells are drawn (the renderer
+     * is not mounted yet): the web client marks the page's body, not its root element, for a
+     * right-to-left language, so the body's direction is the one to read.
+     */
+    gridIsRtl() {
+        // the layout build keeps the direction it read for the cells it draws
+        return this._layoutRtl ?? getComputedStyle(document.body).direction === "rtl";
+    }
+
+    /**
      * A click on the header of a row that is not a group scrolls to its first pill's column (R39);
      * in multi-selection mode it then selects the row over the whole range (R7). A group row's
      * header only opens or closes the group (the row's own click).
@@ -2544,6 +2554,9 @@ export class TimelineRenderer extends Component {
                 this._openedKey = key;
                 this._opened.clear();
             }
+            // the grid's direction is read once for each layout build, not once per partial
+            // cell: the cells are drawn from the build's closures, after it
+            this._layoutRtl = getComputedStyle(document.body).direction === "rtl";
             this._cache = { data, small, version, layout: this._buildLayout(data) };
         }
         return this._cache.layout;
@@ -2716,15 +2729,27 @@ export class TimelineRenderer extends Component {
 
     /**
      * The style of a cell whose parts are partly unavailable (`covered[part]` is true for a grey
-     * part): hard edges, each part either grey or transparent. A variant may draw it otherwise.
+     * part): hard edges, each part either grey or painted in the cell's available colour (the
+     * view background, today's shade in today's column; R23). A variant may draw it otherwise.
      */
     partialCellStyle(covered) {
-        const stops = covered.map((grey, part) => {
-            const colour = grey ? "var(--o-tl-unavailable-bg)" : "transparent";
-            return `${colour} ${(part / covered.length) * 100}% ${((part + 1) / covered.length) * 100}%`;
+        // part i spans i*100/n to (i+1)*100/n: its colour is set at the start (but the first) and
+        // up to one point before the end (but the last), as the measured gradient does (M82)
+        const count = covered.length;
+        const stops = [];
+        covered.forEach((grey, part) => {
+            const colour = grey ? "var(--o-tl-unavailable-bg)" : "var(--o-tl-available-bg)";
+            if (part > 0) {
+                stops.push(`${colour} ${(part * 100) / count}%`);
+            }
+            if (part < count - 1) {
+                stops.push(`${colour} ${((part + 1) * 100) / count - 1}%`);
+            }
         });
-        const side = getComputedStyle(document.documentElement).direction === "rtl" ? "left" : "right";
-        return `background-image: linear-gradient(to ${side}, ${stops.join(", ")})`;
+        const angle = this.gridIsRtl() ? 270 : 90;
+        // the gradient replaces the cell's own today shade: the cell itself is transparent, so the
+        // available parts carry the shade once (R23, M83)
+        return `background-image: linear-gradient(${angle}deg, ${stops.join(", ")}); background-color: transparent`;
     }
 
     _columnView(header) {

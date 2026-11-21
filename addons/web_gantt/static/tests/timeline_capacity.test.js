@@ -183,17 +183,20 @@ test("A105: sparse progress only on group rows", async () => {
 // ----------------------------------------------------------------------------
 
 test("R28: a partly unavailable cell mirrors its gradient in a right-to-left language", async () => {
-    // the document direction, as the Community sets it for such a language
-    document.documentElement.setAttribute("dir", "rtl");
+    // the direction of the page's body, as the web client sets it for such a language (the root
+    // element keeps its own)
+    document.body.setAttribute("dir", "rtl");
     try {
         timelineMock.unavailability = {
             x_contact: { 1: [{ start: at(2, "00:00"), stop: at(2, "12:00") }] },
         };
         await mountTimeline();
         const image = css(cellsOf(rowOf("Host Contact 1"))[13], "backgroundImage");
-        expect(image).toMatch(/^linear-gradient\(to left, /);
+        expect(image).toMatch(/^linear-gradient\(270deg, /);
+        // the first part (the unavailable morning) is at the right edge, the stops are the same
+        expect(image).toInclude(`${GREY} 49%, `);
     } finally {
-        document.documentElement.removeAttribute("dir");
+        document.body.removeAttribute("dir");
     }
 });
 
@@ -214,15 +217,22 @@ test("A74: unavailable cells and today fill kept", async () => {
     expect(css(cells[10], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
     // D+1 is grey, D+2 on its first half only (hard edge at 50 %)
     expect(css(cells[12], "backgroundColor")).toBe(GREY);
+    // (a partly unavailable cell is transparent: the gradient paints its available parts, R23)
     expect(css(cells[13], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
     const image = css(cells[13], "backgroundImage");
-    expect(image).toMatch(/^linear-gradient\(to right, /);
-    expect(image).toInclude(`${GREY} 0%, ${GREY} 50%`);
-    expect(image).toInclude("50%, rgba(0, 0, 0, 0) 100%");
-    // today (D0): the second half is grey, the available half keeps the today fill
+    expect(image).toMatch(/^linear-gradient\(90deg, /);
+    expect(image).toInclude(`${GREY} 49%, `);
+    // R23: the available half is painted in the view background, no longer transparent
+    expect(image).toInclude("rgb(255, 255, 255) 50%)");
+    // today (D0): the second half is grey, the available half is painted in the today fill
     expect(cells[11]).toHaveClass("o_tl_is_today");
-    expect(css(cells[11], "backgroundColor")).toBe(TODAY_FILL);
-    expect(css(cells[11], "backgroundImage")).toInclude(`rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 50%, ${GREY} 50%`);
+    // the cell's own today fill is not laid under the painted parts (translucent in dark, M83)
+    expect(css(cells[11], "backgroundColor")).toBe("rgba(0, 0, 0, 0)");
+    expect(css(cells[11], "backgroundImage")).toInclude(`${TODAY_FILL} 49%, ${GREY} 50%)`);
+    // a wholly available cell of today's column keeps the today fill, with no gradient (M96)
+    const otherToday = cellsOf(rowOf("Host Contact 2"))[11];
+    expect(css(otherToday, "backgroundImage")).toBe("none");
+    expect(css(otherToday, "backgroundColor")).toBe(TODAY_FILL);
     // another contact and the row without a value get nothing
     for (const name of ["Host Contact 2", "Undefined Contact"]) {
         for (const cell of cellsOf(rowOf(name))) {
