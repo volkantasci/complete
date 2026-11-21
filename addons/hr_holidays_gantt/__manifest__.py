@@ -12,4 +12,9 @@
     'auto_install': True,
     'application': False,
     'installable': True,
+    'data': [
+        'views/time_off_gantt_views.xml',
+        'data/time_off_actions.xml',
+    ],
+    'uninstall_hook': 'restore_time_off_records',
 }
