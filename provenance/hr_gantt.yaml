@@ -1,15 +1,15 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: hr_gantt
-slice: 002d2-gantt-hr-rows
-spec_sha256: 531f2a1a433e63c90527b3fe8f107686cbec87bb2a7c29f74faebe8c96d9dad8
+slice: 002d3-gantt-hr-attendance-actions
+spec_sha256: b269b6a589b9e074eba44516a9db4ae2b51ecbb701a615a3549f8897c5286171
 ee_build: "20261106"
 implementer_sessions:
-  - fbc3ec68-523e-47b0-b762-5c3b59290154
-verifier_session: abfbad46-0435-47d4-995a-099e15be464e
-analyst_session: 8411299d-5158-4d5e-949c-85d54cb37991
+  - 2a441ce1-9d29-48ea-9827-3d117faddc6c
+verifier_session: b5d0d105-fefe-4615-a7fb-e4731fb016ac
+analyst_session: 339967e2-0eae-4256-b46e-bbe3cf6661e9
 overlap:
-  ratio: 0.0035
+  ratio: 0.0034
   longest_run: 1
   reviewed_matches:
     - file: addons/hr_gantt/__manifest__.py
@@ -21,17 +21,54 @@ overlap:
     - file: addons/hr_gantt/models/gantt_with_empty.py
       line: 86
       reason: "interface: the keyword arguments of 002a's data call (002a R35), passed by name by the browser; the same line is a reviewed match of web_gantt"
-audit_log_sha256: ec4b4da85ca4af07154114159351fca3e1cd3500f42733d5806d3e45f5e6e272
+audit_log_sha256: 9c8675c23681b897d74e4b168d7adbb103dc756ff7ea4600ab181f1c1ab5498f
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-18"
-  implemented: "2026-11-19"
-  verified: "2026-11-19"
+  spec_approved: "2026-11-19"
+  implemented: "2026-11-20"
+  verified: "2026-11-20"
 approvals:
   - "owner: split the Gantt view into five parts at CP-scope (2026-11-11)"
   - "owner: at the analyst's scope check, split the fourth part, the bridges, into two (2026-11-16)"
-  - "owner: at the analyst's scope check of the second of those two, split it into two again, of which this is the first: the employee rows and the attendance display (2026-11-18)"
-  - "owner: spec approved at CP-spec with decisions D1-D3, and with the two original module names that the spec requires for database compatibility, hr_gantt and hr_attendance_gantt (2026-11-18)"
-  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-18)"
-  - "owner: decided D4-D6 on the questions that the analyst's answers raised (2026-11-18)"
-  - "owner: verification round 1 passed with every scenario, 72 of 72, and no rework; release approved at CP-release, the overlap matches accepted, with the nine of the two new modules among them; the polish item P1 (the available quarters of a quarter-shaded cell on the week range are not painted) moved into the next slice, which extends the same module; the polish item P2 (1.66 px at the top of the phone's empty-view helper, from the shell's phone control panel) left for a later batch; the polish item P3 (a box of the row header that draws nothing) accepted as a known difference (2026-11-19)"
+  - "owner: at the analyst's scope check of the second of those two, split it into two again, of which this is the second: what a user does in the attendance views (2026-11-18)"
+  - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-19)"
+  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-20)"
+  - "owner: decided D7-D8 on the questions that the analyst's answers raised (2026-11-20)"
+  - "owner: after verification round 1, which passed 91 of 93 scenarios and found one rework item (on the phone, the empty-view helper of My Attendances hid the user's row), decided at CP-release that the analyst corrects the package, the implementer reworks, and the slice is released if round 2 passes with no new difference and no new overlap match; accepted the overlap matches of round 1 (2026-11-20)"
+  - "verification round 2 passed with every scenario of the corrected package, 95 of 95, and no rework; it reported one new polish item, P-R2-1 (on the phone, with the search bar open, the row of My Attendances lies 3 px lower than the original's, because the shell's open search field is 3 px taller), and one new overlap match, a one-line framework idiom in a test (2026-11-20)"
+  - "owner: approved the release at CP-release after round 2: the polish item P-R2-1 is left for a later batch on the shell, and the new overlap match is accepted (2026-11-20)"
+earlier_slices:
+  - slice: 002d2-gantt-hr-rows
+    spec_sha256: 531f2a1a433e63c90527b3fe8f107686cbec87bb2a7c29f74faebe8c96d9dad8
+    ee_build: "20261106"
+    implementer_sessions:
+      - fbc3ec68-523e-47b0-b762-5c3b59290154
+    verifier_session: abfbad46-0435-47d4-995a-099e15be464e
+    analyst_session: 8411299d-5158-4d5e-949c-85d54cb37991
+    overlap:
+      ratio: 0.0035
+      longest_run: 1
+      reviewed_matches:
+        - file: addons/hr_gantt/__manifest__.py
+          line: 11
+          reason: "interface: the dependencies model.md requires"
+        - file: addons/hr_gantt/models/gantt_with_empty.py
+          line: 83
+          reason: "interface: the helper's name model.md requires"
+        - file: addons/hr_gantt/models/gantt_with_empty.py
+          line: 86
+          reason: "interface: the keyword arguments of 002a's data call (002a R35), passed by name by the browser; the same line is a reviewed match of web_gantt"
+    audit_log_sha256: ec4b4da85ca4af07154114159351fca3e1cd3500f42733d5806d3e45f5e6e272
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-18"
+      implemented: "2026-11-19"
+      verified: "2026-11-19"
+    approvals:
+      - "owner: split the Gantt view into five parts at CP-scope (2026-11-11)"
+      - "owner: at the analyst's scope check, split the fourth part, the bridges, into two (2026-11-16)"
+      - "owner: at the analyst's scope check of the second of those two, split it into two again, of which this is the first: the employee rows and the attendance display (2026-11-18)"
+      - "owner: spec approved at CP-spec with decisions D1-D3, and with the two original module names that the spec requires for database compatibility, hr_gantt and hr_attendance_gantt (2026-11-18)"
+      - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-18)"
+      - "owner: decided D4-D6 on the questions that the analyst's answers raised (2026-11-18)"
+      - "owner: verification round 1 passed with every scenario, 72 of 72, and no rework; release approved at CP-release, the overlap matches accepted, with the nine of the two new modules among them; the polish item P1 (the available quarters of a quarter-shaded cell on the week range are not painted) moved into the next slice, which extends the same module; the polish item P2 (1.66 px at the top of the phone's empty-view helper, from the shell's phone control panel) left for a later batch; the polish item P3 (a box of the row header that draws nothing) accepted as a known difference (2026-11-19)"
