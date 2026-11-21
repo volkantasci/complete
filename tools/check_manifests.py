@@ -27,6 +27,7 @@ COMPATIBILITY_NAMES = frozenset({
     "website_event_track_gantt",  # slice 002d
     "hr_gantt",  # slice 002d2-gantt-hr-rows
     "hr_attendance_gantt",  # slice 002d2-gantt-hr-rows
+    "hr_holidays_gantt",  # slice 002e-gantt-time-off-views
 })
 LICENSES = {"AGPL-3", "LGPL-3"}
 
