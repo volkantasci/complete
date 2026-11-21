@@ -1,3 +1,3 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-from . import hr_leave_overview
+from . import gantt_rows, hr_leave, hr_leave_overview, hr_leave_report_calendar

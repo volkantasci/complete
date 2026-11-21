@@ -1,0 +1,434 @@
+# Copyright 2026 Complete contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+"""Records of slice 002e's acceptance scenarios, as plain functions of ``env``.
+
+Everything works with and without the Community demo data: leave types, schedules and
+employees are found by name and created when absent. The prepared records are named
+"Toff ..." and ``drop_time_off_records`` removes them (and the role users) by name.
+
+The requests are created and approved as the administrator (``base.user_admin``), who holds
+the Time Off administrator group here (made so when the database lacks it).
+"""
+
+from datetime import date, datetime
+
+TZ = "Europe/Brussels"
+PREFIX = "Toff "
+CONTRACT_START = "2026-01-01"
+DEMO_SCHEDULE = "40 hours/week"
+SCHEDULE_NAME = "Toff 40 hours/week"
+PEER_NAME = "Toff Peer"
+HOURS_TYPE = "Toff Hours"
+SICK_NAME = "Guaranteed monthly wage illness"
+UNPAID_NAME = "Leave without pay"
+
+# login -> (name, Time Off group xml id or None)
+ROLES = {
+    "toff_none": ("Toff Role None", None),
+    "toff_emp": ("Toff Role Emp", "hr_holidays.group_hr_holidays_employee"),
+    "toff_approver": ("Toff Role Approver", "hr_holidays.group_hr_holidays_employee"),
+    "toff_manager": ("Toff Role Manager", "hr_holidays.group_hr_holidays_employee"),
+    "toff_officer": ("Toff Role Officer", "hr_holidays.group_hr_holidays_user"),
+    "toff_admin": ("Toff Role Admin", "hr_holidays.group_hr_holidays_manager"),
+}
+
+# generic leave types the demo leaves carry: key -> (name, code, display code, colour, extra)
+_GENERIC = {
+    "PTO": ("Legal leave employee", "016.00", "PTO", 11),
+    "CTO": ("Compensatory Time Off", "LEAVE105", "CTO", 4),
+    "STO": (SICK_NAME, "013.00", "STO", 3),
+    "UN": (UNPAID_NAME, "158.00", "UN", 5),
+}
+
+# the demo leaves of acceptance.md: employee -> [(type key, first day, last day)], November 2026
+DEMO_LEAVES = {
+    "Anita Oliver": [
+        ("PTO", date(2026, 11, 2), date(2026, 11, 5)),
+        ("PTO", date(2026, 11, 18), date(2026, 11, 18)),
+        ("PTO", date(2026, 11, 23), date(2026, 11, 30)),
+    ],
+    "Mitchell Admin": [
+        ("CTO", date(2026, 11, 2), date(2026, 11, 4)),
+        ("STO", date(2026, 11, 16), date(2026, 11, 18)),
+    ],
+    "Marc Demo": [
+        ("STO", date(2026, 11, 3), date(2026, 11, 3)),
+        ("STO", date(2026, 11, 4), date(2026, 11, 5)),
+    ],
+    "Ronnie Hart": [
+        ("STO", date(2026, 11, 6), date(2026, 11, 6)),
+        ("PTO", date(2026, 11, 18), date(2026, 11, 20)),
+    ],
+    "Sharlene Rhodes": [
+        ("PTO", date(2026, 10, 26), date(2026, 10, 31)),
+        ("STO", date(2026, 11, 2), date(2026, 11, 2)),
+    ],
+    "Paul Williams": [
+        ("STO", date(2026, 11, 23), date(2026, 11, 23)),
+        ("STO", date(2026, 11, 25), date(2026, 11, 25)),
+    ],
+}
+
+
+def find_admin(env):
+    """The administrator (Mitchell Admin, login admin), a Time Off administrator."""
+    admin = env.ref("base.user_admin")
+    group = env.ref("hr_holidays.group_hr_holidays_manager")
+    if group not in admin.group_ids:
+        admin.sudo().write({"group_ids": [(4, group.id)]})
+    return admin
+
+
+def find_schedule(env):
+    """The "40 hours/week" schedule: the demo's when it exists, else one made here."""
+    found = env["resource.calendar"].search([("name", "=", DEMO_SCHEDULE)], limit=1)
+    found = found or env["resource.calendar"].search([("name", "=", SCHEDULE_NAME)], limit=1)
+    return found or env["resource.calendar"].create(
+        {"name": SCHEDULE_NAME, "full_time_required_hours": 40})
+
+
+def find_type(env, key):
+    """A generic leave type (no country) of the demo leaves, found by its code, else made.
+
+    The Community's data carry the four of them with the display code and colour of the
+    spec; a database without them gets types made with the same properties.
+    """
+    name, code, display_code, color = _GENERIC[key]
+    types = env["hr.work.entry.type"].with_context(active_test=False)
+    found = types.search([("code", "=", code), ("country_id", "=", False)], limit=1)
+    if found:
+        return found
+    values = {
+        "name": name, "code": code, "display_code": display_code, "color": color,
+        "count_as": "absence", "country_id": False, "request_unit": "day",
+        "unit_of_measure": "day", "requires_allocation": key in ("PTO", "CTO"),
+        "leave_validation_type": "both" if key in ("PTO", "UN") else "hr",
+    }
+    return env["hr.work.entry.type"].create(values)
+
+
+def make_hours_type(env):
+    """"Toff Hours": hours, no allocation, validated by the officer, code "TH", colour 7."""
+    found = env["hr.work.entry.type"].search([("name", "=", HOURS_TYPE)], limit=1)
+    return found or env["hr.work.entry.type"].create({
+        "name": HOURS_TYPE, "code": "TOFF.H", "display_code": "TH", "color": 7,
+        "count_as": "absence", "country_id": False, "request_unit": "hour",
+        "unit_of_measure": "hour", "requires_allocation": False,
+        "leave_validation_type": "hr",
+    })
+
+
+def _employee(env, name, schedule, tz=TZ, user=None, **extra):
+    values = {
+        "name": name,
+        "tz": tz,
+        "resource_calendar_id": schedule.id,
+        "contract_date_start": CONTRACT_START,
+        # the version is dated at the contract's start, never on the day the test runs
+        "date_version": CONTRACT_START,
+    }
+    if user:
+        values["user_id"] = user.id
+    values.update(extra)
+    return env["hr.employee"].create(values)
+
+
+def make_leave(
+    env, employee, leave_type, first, last=None, *, duration="full", hours=None,
+    approve=True, state=None,
+):
+    """A request of ``employee`` from ``first`` to ``last`` (dates), made by the administrator.
+
+    ``duration`` is ``full``, ``am`` or ``pm`` (a half day: both periods) or ``specific`` with
+    ``hours=(from, to)`` as clock hours. A request of a type validated twice is approved
+    twice; ``approve=False`` leaves it To Approve. Returns the request.
+    """
+    admin = find_admin(env)
+    values = {
+        "employee_id": employee.id,
+        "work_entry_type_id": leave_type.id,
+        "request_date_from": first,
+        "request_date_to": last or first,
+        "request_duration": duration,
+    }
+    if duration in ("am", "pm"):
+        values["request_date_from_period"] = duration
+        values["request_date_to_period"] = duration
+    if duration == "specific":
+        values["request_hour_from"], values["request_hour_to"] = hours
+    leave = env["hr.leave"].with_user(admin).create(values)
+    if approve:
+        approve_leave(env, leave)
+    return leave
+
+
+def approve_leave(env, leave, once=False):
+    """Approve ``leave`` as the administrator until it is Approved (or once)."""
+    leave = leave.with_user(find_admin(env))
+    if once:
+        # the first approval of a type validated twice, whoever the approver is
+        leave.action_approve(check_state=False)
+        return leave
+    for _step in range(2):
+        if leave.state in ("validate", "refuse", "cancel"):
+            break
+        leave.action_approve()
+    return leave
+
+
+def drop_time_off_records(env):
+    """Delete the prepared records by name (acceptance.md, "Prepared records").
+
+    Every request and allocation of an employee named "Toff ...", those employees (archived
+    too), the users whose login begins with "toff_", the schedules and leave types named
+    "Toff ...".
+    """
+    admin = find_admin(env)
+    employees = env["hr.employee"].with_context(active_test=False).search(
+        [("name", "=like", PREFIX + "%")])
+    leaves = env["hr.leave"].with_context(active_test=False).with_user(admin).search(
+        [("employee_id", "in", employees.ids)])
+    leaves.unlink()
+    allocations = env["hr.leave.allocation"].with_context(
+        active_test=False, allocation_skip_state_check=True).with_user(admin).search(
+        [("employee_id", "in", employees.ids)])
+    allocations.unlink()
+    users = env["res.users"].with_context(active_test=False).search(
+        [("login", "=like", "toff\\_%")])
+    employees.unlink()
+    users.unlink()
+    env["resource.calendar"].with_context(active_test=False).search(
+        [("name", "=like", PREFIX + "%")]).unlink()
+    env["hr.work.entry.type"].with_context(active_test=False).search(
+        [("name", "=like", PREFIX + "%")]).unlink()
+    env.flush_all()
+
+
+def make_role_users(env, schedule=None):
+    """The six role users with their employees, and "Toff Peer"; ``{login: user}``.
+
+    Groups are replaced: the internal user group and the role's one Time Off group, so a role
+    never holds a group a new user gets by default. Each user has the time zone Europe/Brussels
+    and an employee of the same name (schedule "40 hours/week", contract from 1 January 2026);
+    "Toff Peer" has the same values and no user. toff_approver is named time off approver of
+    Toff Peer (the Community adds "Time Off Responsible"), toff_manager its manager, with the
+    approver left to toff_approver, so toff_manager does not hold that group. The password of a
+    user is its login. Earlier records are removed first.
+    """
+    drop_time_off_records(env)
+    schedule = schedule or find_schedule(env)
+    internal = env.ref("base.group_user")
+    users = {}
+    for login, (name, xmlid) in ROLES.items():
+        groups = internal | (env.ref(xmlid) if xmlid else env["res.groups"])
+        users[login] = env["res.users"].with_context(no_reset_password=True).create({
+            "name": name,
+            "login": login,
+            "password": login,
+            "tz": TZ,
+            "lang": "en_US",
+            "email": f"{login}@example.com",
+            "group_ids": [(6, 0, groups.ids)],
+        })
+    for user in users.values():
+        _employee(env, user.name, schedule, user=user)
+    manager = users["toff_manager"].employee_id
+    # the manager becomes the approver by default (and holds the group), then the approver is
+    # named: the Community takes the group back from the manager, who approves nobody
+    peer = _employee(env, PEER_NAME, schedule, parent_id=manager.id)
+    peer.leave_manager_id = users["toff_approver"]
+    env.flush_all()
+    return users
+
+
+def make_flexible(env, schedule=None):
+    """The *flexible* records: "Toff Flex", "Toff Hours", "Toff Flexible" and "Toff Fixed".
+
+    Per employee: the sick type on Monday 16 November (a whole day), on Tuesday 17 November
+    (morning only), and Toff Hours on Wednesday 18 November, 9:00 to 13:00; all Approved.
+    Returns the records by name.
+    """
+    schedule = schedule or find_schedule(env)
+    flex = env["resource.calendar"].search([("name", "=", "Toff Flex")], limit=1)
+    flex = flex or env["resource.calendar"].create({
+        "name": "Toff Flex", "calendar_type": "undefined",
+        "hours_per_week": 40, "hours_per_day": 8,
+    })
+    hours = make_hours_type(env)
+    sick = find_type(env, "STO")
+    made = {"Toff Flex": flex, HOURS_TYPE: hours}
+    for name, calendar in (("Toff Flexible", flex), ("Toff Fixed", schedule)):
+        employee = _employee(env, name, calendar)
+        made[name] = employee
+        make_leave(env, employee, sick, date(2026, 11, 16))
+        make_leave(env, employee, sick, date(2026, 11, 17), duration="am")
+        make_leave(env, employee, hours, date(2026, 11, 18), duration="specific", hours=(9, 13))
+    env.flush_all()
+    return made
+
+
+def make_states(env, schedule=None):
+    """The *states* records: Toff States with one request per state; returns the employee.
+
+    16 November: the sick type set back To Approve; 17 November: Leave without pay (validated
+    twice) set back to approval then approved once (Second Approval); 18 November: the sick
+    type Approved; 19 November: the sick type Refused.
+    """
+    schedule = schedule or find_schedule(env)
+    employee = _employee(env, "Toff States", schedule)
+    admin = find_admin(env)
+    sick, unpaid = find_type(env, "STO"), find_type(env, "UN")
+    waiting = make_leave(env, employee, sick, date(2026, 11, 16))
+    waiting.with_user(admin).action_back_to_approval()
+    second = make_leave(env, employee, unpaid, date(2026, 11, 17))
+    second.with_user(admin).action_back_to_approval()
+    approve_leave(env, second, once=True)
+    make_leave(env, employee, sick, date(2026, 11, 18))
+    refused = make_leave(env, employee, sick, date(2026, 11, 19))
+    refused.with_user(admin).action_refuse()
+    env.flush_all()
+    return employee
+
+
+def make_bulk(env, schedule=None):
+    """The *bulk* records: 30 employees "Toff Bulk 00" to "Toff Bulk 29"."""
+    schedule = schedule or find_schedule(env)
+    made = env["hr.employee"]
+    for number in range(30):
+        made |= _employee(env, f"Toff Bulk {number:02d}", schedule)
+    env.flush_all()
+    return made
+
+
+def make_tokyo(env):
+    """The *tokyo* records: "Toff Split" (Monday to Friday 8:00-12:00 and 13:00-17:00) and
+    "Toff Tokyo" (that schedule, Asia/Tokyo); returns the employee."""
+    lines = [
+        (0, 0, {"dayofweek": str(day), "hour_from": start, "hour_to": stop})
+        for day in range(5) for start, stop in ((8, 12), (13, 17))
+    ]
+    split = env["resource.calendar"].create({
+        "name": "Toff Split", "calendar_type": "fixed",
+        "attendance_ids": [(5, 0, 0)] + lines,
+    })
+    employee = _employee(env, "Toff Tokyo", split, tz="Asia/Tokyo")
+    env.flush_all()
+    return employee
+
+
+def make_demo_like(env, schedule=None):
+    """The demo employees with their leaves of acceptance.md, each only when absent.
+
+    Types: the generic "Legal leave employee" (PTO, 11), "Compensatory Time Off" (CTO, 4) and
+    "Guaranteed monthly wage illness" (STO, 3), found or made. An employee that does not
+    exist is created on the demo schedule; one that exists (the demo's) and already holds the
+    table's leaves keeps them, else its requests are replaced by the table's (8:00 to 16:00
+    Brussels, Approved), with an allocation for the types that need one when it has none.
+    Mitchell Admin is the administrator's own employee. Returns them by name.
+    """
+    schedule = schedule or find_schedule(env)
+    admin = find_admin(env)
+    made = {}
+    for name, entries in DEMO_LEAVES.items():
+        if name == "Mitchell Admin":
+            employee = env["hr.employee"].search([("user_id", "=", admin.id)], limit=1)
+        else:
+            employee = env["hr.employee"].search([("name", "=", name)], limit=1)
+        employee = employee or _employee(
+            env, name, schedule, user=admin if name == "Mitchell Admin" else None)
+        made[name] = employee
+        Leave = env["hr.leave"].with_context(active_test=False)
+        if all(_has_leave(env, employee, key, first) for key, first, _last in entries):
+            continue
+        # the demo's leaves lie around the day the database was made, not on the days of the
+        # table: the employee's own requests go, so the table's do not overlap them (the
+        # allocations stay)
+        Leave.with_user(admin).search([("employee_id", "=", employee.id)]).unlink()
+        for key, first, last in entries:
+            leave_type = find_type(env, key)
+            if leave_type.requires_allocation:
+                _allocate(env, employee, leave_type, 20 if key == "PTO" else 10)
+            make_leave(env, employee, leave_type, first, last)
+    env.flush_all()
+    return made
+
+
+def _has_leave(env, employee, key, first):
+    """Whether ``employee`` holds an Approved request of the type ``key`` starting on ``first``."""
+    return env["hr.leave"].with_context(active_test=False).search_count([
+        ("employee_id", "=", employee.id), ("request_date_from", "=", first),
+        ("work_entry_type_id", "=", find_type(env, key).id), ("state", "=", "validate")])
+
+
+def _allocate(env, employee, leave_type, days):
+    """An approved allocation of ``days`` for 2026, unless the employee has one of the type."""
+    allocations = env["hr.leave.allocation"].with_context(active_test=False)
+    if allocations.search_count([
+            ("employee_id", "=", employee.id), ("work_entry_type_id", "=", leave_type.id)]):
+        return
+    allocation = env["hr.leave.allocation"].with_user(find_admin(env)).create({
+        "name": f"{leave_type.name} for {employee.name}",
+        "employee_id": employee.id,
+        "work_entry_type_id": leave_type.id,
+        "number_of_days": days,
+        "date_from": date(2026, 1, 1),
+        "date_to": date(2026, 12, 31),
+    })
+    allocation.action_approve()
+
+
+def utc(text):
+    """A naive UTC datetime from ``YYYY-MM-DD HH:MM``."""
+    return datetime.strptime(text, "%Y-%m-%d %H:%M")
+
+
+SPEC = {
+    "display_name": {},
+    "employee_id": {"fields": {"display_name": {}}},
+    "state": {},
+}
+LEAVE_SPEC = {**SPEC, "color": {}}
+# 2026-11-11 is a Wednesday; the periods are the browser's, in Europe/Brussels (UTC+1)
+MONTH = ("2026-10-31 23:00:00", "2026-11-30 23:00:00")
+WEEK = ("2026-11-14 23:00:00", "2026-11-21 23:00:00")  # Sunday 15 to Saturday 21 November
+QUARTER = ("2026-09-30 22:00:00", "2026-12-31 23:00:00")
+
+
+class TimeOffGanttMixin:
+    """A way to make the data call of a view as the browser does."""
+
+    def call_gantt(
+        self, model="hr.leave", *, user=None, period=MONTH, scale="month",
+        user_domain=(), extra=(), groupby=("employee_id",), hide_name=True, specification=None,
+        **kwargs,
+    ):
+        """The view's data call: the period's two conditions, the action's domain and the
+        user's search in ``domain``, the search again in ``context.user_domain``."""
+        user_domain = list(user_domain)
+        env = self.env(user=user) if user else self.env
+        env.invalidate_all()
+        records = env[model].with_context(
+            tz=TZ, user_domain=user_domain, group_by=list(groupby),
+            **({"hide_employee_name": 1} if hide_name else {}))
+        start_field, stop_field = (
+            ("date_from", "date_to") if model == "hr.leave"
+            else ("request_date_hour_from", "request_date_hour_to"))
+        domain = [
+            (start_field, "<", period[1]), (stop_field, ">", period[0]),
+            *user_domain, *extra,
+        ]
+        kwargs.setdefault("limit", 20)
+        kwargs.setdefault("start_date", period[0])
+        kwargs.setdefault("stop_date", period[1])
+        default_spec = LEAVE_SPEC if model == "hr.leave" else SPEC
+        return records.get_gantt_data(
+            domain, list(groupby), specification or default_spec, scale=scale, **kwargs)
+
+    @staticmethod
+    def row_names(result):
+        return [group["employee_id"][1] for group in result["groups"] if group.get("employee_id")]
+
+    @staticmethod
+    def texts(result):
+        """The display names of the returned records, by sorted text."""
+        return sorted(record["display_name"] for record in result["records"])
