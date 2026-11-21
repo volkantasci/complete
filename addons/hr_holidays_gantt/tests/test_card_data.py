@@ -118,6 +118,18 @@ class TestCardData(TransactionCase):
         other = self.env['hr.employee.public'].with_user(officer).browse(self.anita.id)
         self.assertFalse(other.action_time_off_dashboard(scale='week'))
 
+    def test_a18_dashboard_for_any_user(self):
+        for login in ('toff_emp', 'toff_officer', 'toff_none'):
+            public = self.env['hr.employee.public'].with_user(self.users[login]).browse(
+                self.anita.id)
+            for scale, xmlid in DASHBOARDS.items():
+                action = public.hhg_open_leave_dashboard(scale=scale)
+                self.assertEqual(action['views'][0], [self.env.ref(xmlid).id, 'calendar'])
+                self.assertEqual(action['domain'], [('employee_id', 'in', self.anita.ids)])
+            self.assertEqual(
+                public.hhg_open_leave_dashboard()['views'][0][0],
+                self.env.ref(DASHBOARDS['year']).id)
+
     def test_a19_new_employee_record(self):
         officer = self.users['toff_officer']
         version = self.anita.with_user(officer).create_version({'date_version': '2026-12-01'})

@@ -50,3 +50,12 @@ class HrEmployeePublic(models.Model):
             # sorted() is stable: equal amounts keep the Community's order
             entries.sort(key=lambda entry: entry['left'])
             self.browse(employee.id).avatar_leave_summary = entries
+
+    def hhg_open_leave_dashboard(self, scale=None):
+        """The Community time-off dashboard of this employee, for any user (R18 point 3).
+
+        The Community method only builds an action from the ids, so the private employee is
+        not read; the public record's own method answers for the user's employee alone.
+        """
+        self.ensure_one()
+        return self.env['hr.employee'].browse(self.id).action_time_off_dashboard(scale=scale)
