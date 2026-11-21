@@ -512,6 +512,11 @@ phone variant (suffix `.mobile`) in `docs/assets/attendance_gantt/`.
   line in the border grey. It belongs to the shell and the theme (`web_enterprise`),
   which draw every dialog, and not to this module; a later change of the theme
   can add it.
+- **The phone's open search field.** On the phone, with the search bar open, the
+  search field is 37 px tall on Complete and 34 px in the reference look, so the rows
+  of the Gantt view lie 3 px lower. The empty-view helper is at the same place on
+  both. The field belongs to the shell (`web_enterprise`) and shows in every view on
+  the phone; a later change of the shell can correct it.
 - **The overview card in the dark look.** The card of the monthly view is the
   Community's component in whatever colour the theme gives its colour class in dark;
   Complete does not set a dark colour of its own for it.

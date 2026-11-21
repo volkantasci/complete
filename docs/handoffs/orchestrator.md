@@ -38,7 +38,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
   - A module that is already installed in a database runs no tests when `-i` names it again. Run its tests on a fresh database, or update it with `-u`.
   - A run that writes files through a container, such as screenshots or browser logs, leaves them owned by the container's user. Write them under `.cache/` at the repository's root, which `.gitignore` ignores, through a bind mount of the run, and copy what you keep. If you cannot remove that directory afterwards, name it in your report: the owner's next command removes it.
   - Never add a line to the repository's local exclude file. It hides a stray file from `git status`, and so from the tree check.
-  - Keep the scratch files of a run in one directory under `.cache/` too, and remove that directory before your final message.
+  - Keep the scratch files of a run in one directory under `.cache/` too, and remove that directory before your final message. Remove only directories that this slice created, each by its full path, and never a parent directory or a pattern: `.cache/` also holds the folders of earlier slices.
 - **Long runs.** A subagent waits for its own long runs, such as screenshot batches and test suites, inside its turn, with a foreground command or a monitor. It never ends its turn while one is still running, because the harness may not wake it again. Before it ends its turn, it stops every monitor and wait loop it started. Put this rule into every dispatch that starts a long run.
 - **Names.** Use technical names only where `model.md` requires them. Give every other identifier a name of your own ([module-authoring.md](../module-authoring.md#naming)).
 - **Wording.** The spec's screenshots show the original's wording. Write every user-facing text in your own words, with the meaning the spec gives, except the texts the spec prescribes.
@@ -63,7 +63,9 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - Browser unit tests assert structure, such as heights, paddings and truncation. Exact widths that depend on the text belong in the browser probes, because the unit-test bundle's fonts change when every module is installed.
    - A unit test of a delay or a deadline freezes the test clock and advances it itself. A check that relies on real time, such as 99 ms of a 100 ms delay, fails on a loaded CI runner.
    - A unit test finds every element in the page, including those a stylesheet hides. Assert what a user sees, such as a dialog's visible buttons, in a tour.
+   - An element can be in the page and still lie under a layer, such as the helper of an empty view. A tour that checks that a row or a line is visible reads its box against the layer's, or the element at a point inside it. A count of the elements does not show it.
    - Tests create the records they need, so that they pass with and without demo data. CI installs every module without it.
+   - When the slice renames an identifier of a released module, such as a view's, add a migration script, and check an update from the released version: install `main`'s code on a scratch database, update it with the branch, and report what the log and the records show.
    - A tour or a probe that counts or places the rows of an application's view first moves the records it did not create out of that view, for example to another company. Run the module tests with demo data once as soon as the first tour exists, not only in the final runs: an application's demo records enter a view that a test built for its own records.
    - When your module depends on a Community application that no module under `addons/` needed before, run CI's configuration once as soon as the module's manifest exists. A new application can change pages and test bundles that earlier tests rely on. Correct an earlier test in a commit of its own, and report the cause.
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
@@ -80,6 +82,7 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - `.venv/bin/pytest -q`;
    - `.venv/bin/pre-commit run --all-files`;
    - the module tests with the podman command and demo data, with and without each module that your code adapts to. Add `--with-demo`: Odoo 20 installs no demo data without it;
+   - where the package fixes the server's clock, the run under that clock takes the test tags of the slice's own modules only, and a run with the real clock takes the tags of every module: the tours of an earlier slice's test module are written for the real clock;
    - the module tests as CI runs them: every module under `addons/` installed together on a fresh database without demo data, with CI's test tags (the step "Install and test modules" in `.github/workflows/ci.yml`);
    - then the final review, with one fix wave;
    - then the module tests and CI's configuration again at the final head, each on a fresh database. Run one test container at a time: a browser test can fail when two run together.
