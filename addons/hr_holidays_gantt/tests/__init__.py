@@ -3,6 +3,7 @@
 from . import (
     test_actions,
     test_attendance_with_time_off,
+    test_card_data,
     test_fixtures,
     test_hours_label,
     test_install,
