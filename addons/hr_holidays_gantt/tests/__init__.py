@@ -4,6 +4,7 @@ from . import (
     test_actions,
     test_attendance_with_time_off,
     test_fixtures,
+    test_hours_label,
     test_install,
     test_pill_text,
     test_rows,

@@ -58,3 +58,15 @@ class TestAttendanceWithTimeOff(TransactionCase):
         # the fixed schedule's Tuesday morning is the Community's: its afternoon stays available
         fixed = self.unavailable(self.made['Toff Fixed'])
         self.assertFalse(touches(fixed, day_at(17, 14), day_at(17, 15)))
+
+    def test_a36_attendance_expected(self):
+        """R25 point 2: the attendance view's hours expected, with Time Off installed."""
+        names = ('Toff Fixed', 'Toff Flexible')
+        staff = self.env['hr.employee'].browse(
+            [self.made[name].id for name in names]
+            + [self.world[name].id for name in ('Mitchell Admin', 'Anita Oliver')])
+        found = self.env['hr.attendance'].with_context(tz=fx.TZ)._gantt_progress_bar(
+            'employee_id', staff.ids, *fx.WEEK)
+        self.assertEqual(
+            {employee.name: found[employee.id]['max_value'] for employee in staff},
+            {'Toff Fixed': 24, 'Toff Flexible': 40, 'Mitchell Admin': 16, 'Anita Oliver': 32})
