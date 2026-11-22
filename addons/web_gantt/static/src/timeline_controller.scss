@@ -33,7 +33,10 @@
             // separator, and 2.3 px on the outer side; the bar keeps its height (M42).
             .o_tl_separator {
                 margin: 0;
-                border-top: 1px solid $o-border-color;
+                // 002e R23 point 1, M91, M95: the body text colour at a quarter opacity over the
+                // transparent bar, a faint grey (the attendance and time-off views draw this line)
+                border-top: 1px solid $o-main-text-color;
+                opacity: 0.25;
             }
 
             .o_tl_line:first-child {

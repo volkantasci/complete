@@ -274,6 +274,15 @@ test("F3: previous, next, range, Today and the gear take the touch size on a tou
     expect(queryRect(".o_tl_today").top - separator.bottom).toBeWithin(1.5, 2.5);
 });
 
+test("F2: the separator is the body text colour at a quarter opacity (002e M91, M95)", async () => {
+    await mountPhone();
+    const style = getComputedStyle(queryOne(".o_tl_separator"));
+    expect(style.borderTopWidth).toBe("1px");
+    expect(style.borderTopStyle).toBe("solid");
+    expect(style.opacity).toBe("0.25");
+    expect(style.borderTopColor).toBe(getComputedStyle(document.body).color);
+});
+
 test("F3: without touch the buttons keep the measured size (M41, M42, M69)", async () => {
     await mountPhone({ groupBy: ["parent_id"] });
     for (const selector of [".o_tl_previous", ".o_tl_next", ".o_tl_range_button", ".o_tl_today", ".o_tl_gear"]) {
