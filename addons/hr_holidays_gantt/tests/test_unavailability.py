@@ -144,3 +144,49 @@ class TestUnavailability(TransactionCase):
         self.assertEqual(
             self.unavailable(self.tokyo, user=user, tz='Asia/Kolkata'),
             self.unavailable(self.tokyo, tz='Asia/Kolkata'))
+
+    def test_r15_half_day_request_in_the_afternoon(self):
+        # an afternoon request starts at noon and ends with its day
+        employee = fx._employee(self.env, 'Toff Flexible Pm', self.made['Toff Flex'])
+        fx.make_leave(
+            self.env, employee, fx.find_type(self.env, 'STO'), date(2026, 11, 19),
+            duration='pm')
+        self.assertEqual(self.local_pairs(self.unavailable(employee)), [
+            (day_at(19, 12), day_at(19, 23, 59, 59, 999999))])
+
+    def test_r15_half_day_request_in_the_morning_ends_at_noon(self):
+        employee = fx._employee(self.env, 'Toff Flexible Am', self.made['Toff Flex'])
+        fx.make_leave(
+            self.env, employee, fx.find_type(self.env, 'STO'), date(2026, 11, 19),
+            duration='am')
+        self.assertEqual(self.local_pairs(self.unavailable(employee)), [
+            (day_at(19, 0), day_at(19, 11, 59, 59, 999999))])
+
+    def test_r15_hour_unit_reads_the_leaves_own_calendar(self):
+        # the schedule of the resource gives the hours of a day, whatever ``self`` is
+        employee = fx._employee(self.env, 'Toff Flexible Own', self.made['Toff Flex'])
+        leave = fx.make_leave(
+            self.env, employee, self.made[fx.HOURS_TYPE], date(2026, 11, 19),
+            duration='specific', hours=(9, 17))
+        calendar_leave = self.env['resource.calendar.leaves'].search(
+            [('holiday_id', '=', leave.id)])
+        self.assertTrue(calendar_leave)
+        empty = self.env['resource.calendar']
+        dt0 = datetime(2026, 11, 19, 9, tzinfo=BRUSSELS)
+        dt1 = datetime(2026, 11, 19, 17, tzinfo=BRUSSELS)
+        start, stop = empty._handle_flexible_leave_interval(dt0, dt1, calendar_leave)
+        self.assertEqual(
+            (start.replace(tzinfo=None), stop.replace(tzinfo=None)),
+            (day_at(19, 0), day_at(19, 23, 59, 59, 999999)))
+
+    def test_r15_day_unit_on_a_flexible_schedule_keeps_the_community_interval(self):
+        employee = fx._employee(self.env, 'Toff Flexible Day', self.made['Toff Flex'])
+        day_type = self.env['hr.work.entry.type'].create({
+            'name': 'Toff Day Unit', 'code': 'TOFF.D', 'display_code': 'TD', 'color': 2,
+            'count_as': 'absence', 'country_id': False, 'request_unit': 'day',
+            'unit_of_measure': 'day', 'requires_allocation': False,
+            'leave_validation_type': 'hr'})
+        fx.make_leave(self.env, employee, day_type, date(2026, 11, 19), date(2026, 11, 20))
+        # the Community's whole days
+        self.assertEqual(self.local_pairs(self.unavailable(employee)), [
+            (day_at(19, 0), day_at(20, 23, 59, 59, 999999))])

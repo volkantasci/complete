@@ -34,7 +34,10 @@ class ResourceCalendar(models.Model):
             end = morning_end if request.request_date_to_period == 'am' else day_end
             return start, end
         hours = (dt1 - dt0).total_seconds() / 3600
-        per_day = self.hours_per_day
+        # the leave's own resource schedule: ``self`` may be an empty calendar (the batch
+        # reads leaves without a calendar)
+        own = leave.resource_id.calendar_id or self
+        per_day = own.hours_per_day
         if float_compare(hours, per_day, precision_digits=2) == 0:
             return day_start, day_end
         if float_compare(hours, per_day / 2, precision_digits=2) == 0:

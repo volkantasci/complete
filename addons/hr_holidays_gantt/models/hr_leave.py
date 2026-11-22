@@ -65,7 +65,10 @@ class HrLeave(models.Model):
             own_zone = ZoneInfo(employee.tz) if employee.tz else UTC
             date_from = datetime.combine(first_day, time.min, own_zone)
             date_to = datetime.combine(last_day + timedelta(days=1), time.min, own_zone)
-            if employee._get_version(today).resource_calendar_id._is_flexible():
+            version = employee._get_version(today)
+            # an employee without a version reads his own schedule
+            schedule = version.resource_calendar_id if version else employee.resource_calendar_id
+            if schedule._is_flexible():
                 hours = self._hhg_leave_hours(employee.id, date_from, date_to)
             else:
                 hours = self._hhg_working_hours(employee, first_day, last_day, date_from, date_to)
@@ -91,8 +94,10 @@ class HrLeave(models.Model):
         of Odoo Community (LGPL-3.0, Copyright Odoo S.A.), kept with its notice: each version in
         contract over the window reads its own schedule, the company-wide leaves and the
         employee's validated leaves are taken off. Only the versions that overlap the window's
-        days are counted. The schedules and leaves are read with the user's rights; the
-        versions with the system's.
+        days are counted: the Community's method also takes a contract that starts the day
+        after the period, whose hours then lean into the window when the zones differ.
+        The schedules and leaves are read with the user's rights; the versions with the
+        system's.
         """
         calendars = self.env['resource.calendar']
         resource = self.env['resource.resource'].browse(employee.resource_id.id)
