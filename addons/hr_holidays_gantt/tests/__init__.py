@@ -10,6 +10,7 @@ from . import (
     test_install,
     test_pill_text,
     test_rows,
+    test_tours,
     test_unavailability,
     test_views,
 )
