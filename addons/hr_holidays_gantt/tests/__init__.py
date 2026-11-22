@@ -9,6 +9,8 @@ from . import (
     test_hours_label,
     test_install,
     test_pill_text,
+    test_report_tours,
+    test_roles,
     test_rows,
     test_tours,
     test_unavailability,

@@ -1067,9 +1067,12 @@ scenario("hhg_a55_grouping_removed", async () => {
 });
 
 // A64 to A69, A73: the inputs of a pill and of the empty cells do nothing
-const ANITA_FOUR = () => pillByTitle("Anita Oliver", "PTO 4 days");
+// The titles of Anita Oliver's pills these tours look for: the leave view reads the type code, the
+// report view of an Employee the duration alone (the report tours of 13b run the same bodies).
+const titles = { four: "PTO 4 days", six: "PTO 6 days" };
+const ANITA_FOUR = () => pillByTitle("Anita Oliver", titles.four);
 
-scenario("hhg_a64_click_on_a_pill", async () => {
+const clickOnAPill = async () => {
     const mark = noteMark();
     const before = snapshot();
     for (let run = 0; run < 2; run++) {
@@ -1081,9 +1084,9 @@ scenario("hhg_a64_click_on_a_pill", async () => {
         assertNothing(`click ${run + 1}`, mark);
         assertEqual(snapshot(), before, `click ${run + 1}: the view is unchanged`);
     }
-});
+};
 
-scenario("hhg_a65_double_click_on_a_pill", async () => {
+const doubleClickOnAPill = async () => {
     const mark = noteMark();
     const before = snapshot();
     for (let run = 0; run < 2; run++) {
@@ -1094,11 +1097,11 @@ scenario("hhg_a65_double_click_on_a_pill", async () => {
         assertNothing(`double click ${run + 1}`, mark);
         assertEqual(snapshot(), before, `double click ${run + 1}: the view is unchanged`);
     }
-});
+};
 
-scenario("hhg_a66_pointer_over_a_pill", async () => {
+const pointerOverAPill = async () => {
     const mark = noteMark();
-    const pill = pillByTitle("Anita Oliver", "PTO 6 days");
+    const pill = pillByTitle("Anita Oliver", titles.six);
     await bringIntoView(pill);
     const count = () => $$("*", $(".o_tl_grid")).length;
     const before = count();
@@ -1110,9 +1113,9 @@ scenario("hhg_a66_pointer_over_a_pill", async () => {
         assertEqual(count(), before, `rest ${run + 1}: no element appears in the grid`);
     }
     await pointerAway();
-});
+};
 
-scenario("hhg_a67_drag_on_a_pill", async () => {
+const dragOnAPill = async () => {
     const mark = noteMark();
     const before = snapshot();
     for (const [where, offset] of [["centre", null], ["right end", 4]]) {
@@ -1136,7 +1139,7 @@ scenario("hhg_a67_drag_on_a_pill", async () => {
             assertEqual(snapshot(), before, `${where} ${run + 1}: the pill stays in place`);
         }
     }
-});
+};
 
 const CELL_12 = "2026-11-12";
 const CELL_13 = "2026-11-13";
@@ -1145,7 +1148,7 @@ const insideLeft = (cell) => {
     return { x: rect.left + 10, y: rect.top + rect.height / 2 };
 };
 
-scenario("hhg_a68_click_on_an_empty_cell", async () => {
+const clickOnAnEmptyCell = async () => {
     const mark = noteMark();
     const before = snapshot();
     for (let run = 0; run < 2; run++) {
@@ -1160,9 +1163,9 @@ scenario("hhg_a68_click_on_an_empty_cell", async () => {
         assertNothing(`double click ${run + 1}`, mark);
         assertEqual(snapshot(), before, `run ${run + 1}: the view is unchanged`);
     }
-});
+};
 
-scenario("hhg_a69_drag_across_empty_cells", async () => {
+const dragAcrossEmptyCells = async () => {
     const mark = noteMark();
     const before = snapshot();
     for (let run = 0; run < 2; run++) {
@@ -1183,7 +1186,29 @@ scenario("hhg_a69_drag_across_empty_cells", async () => {
         assertNothing(`ctrl-click ${run + 1}`, mark);
         assertEqual(snapshot(), before, `run ${run + 1}: the view is unchanged`);
     }
-});
+};
+
+scenario("hhg_a64_click_on_a_pill", clickOnAPill);
+scenario("hhg_a65_double_click_on_a_pill", doubleClickOnAPill);
+scenario("hhg_a66_pointer_over_a_pill", pointerOverAPill);
+scenario("hhg_a67_drag_on_a_pill", dragOnAPill);
+scenario("hhg_a68_click_on_an_empty_cell", clickOnAnEmptyCell);
+scenario("hhg_a69_drag_across_empty_cells", dragAcrossEmptyCells);
+
+// The same inputs in the report view, as an Employee reads it (A64 to A69): the pills read the
+// duration alone
+const reportScenario = (name, body) =>
+    scenario(name, async () => {
+        titles.four = "4 days";
+        titles.six = "6 days";
+        await body();
+    });
+reportScenario("hhg_a64_report_click_on_a_pill", clickOnAPill);
+reportScenario("hhg_a65_report_double_click_on_a_pill", doubleClickOnAPill);
+reportScenario("hhg_a66_report_pointer_over_a_pill", pointerOverAPill);
+reportScenario("hhg_a67_report_drag_on_a_pill", dragOnAPill);
+reportScenario("hhg_a68_report_click_on_an_empty_cell", clickOnAnEmptyCell);
+reportScenario("hhg_a69_report_drag_across_empty_cells", dragAcrossEmptyCells);
 
 // A70: a tap on a pill on the phone
 scenario("hhg_a70_tap_on_a_pill", async () => {
@@ -1326,4 +1351,53 @@ tours.add("hhg_a87_management", {
         },
     ],
 });
+
+// What the tours of the report view and of the roles (`time_off_report_tours.js`) use of this file.
+export {
+    $,
+    $$,
+    assert,
+    assertEqual,
+    assertUncovered,
+    breadcrumb,
+    centre,
+    clean,
+    clickCardButton,
+    colByDate,
+    dataSettled,
+    dateColumns,
+    datesWithin,
+    expectLabel,
+    facets,
+    gantt,
+    labelEl,
+    labelOf,
+    leaveReady,
+    menuItem,
+    noteMark,
+    openCardOf,
+    pager,
+    pickRange,
+    pillsOf,
+    pillTitles,
+    pointerAway,
+    popoverOfView,
+    allPillTitles,
+    pressKey,
+    realClick,
+    realHover,
+    realTap,
+    rectOf,
+    removeFacet,
+    rowEl,
+    rowNames,
+    scenario,
+    searchFor,
+    settle,
+    sleep,
+    step,
+    texts,
+    until,
+    writesSince,
+};
 

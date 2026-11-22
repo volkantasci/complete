@@ -70,6 +70,16 @@ DEMO_LEAVES = {
 }
 
 
+# the 22 employees of the Community demo data (Mitchell Admin is the administrator's own)
+DEMO_EMPLOYEES = (
+    "Abigail Peterson", "Anita Oliver", "Audrey Peterson", "Barty McBly", "Beth Evans",
+    "Doris Cole", "Eli Lambert", "Ernest Reed", "Jeffrey Kelly", "Jennie Fletcher",
+    "Keith Byrd", "Marc Demo", "Mitchell Admin", "Monica Light", "Paul Williams",
+    "Rachel Perry", "Randall Lewis", "Ronnie Hart", "Sharlene Rhodes", "Tina Williamson",
+    "Toni Jimenez", "Walter Horton",
+)
+
+
 def find_admin(env):
     """The administrator (Mitchell Admin, login admin), a Time Off administrator."""
     admin = env.ref("base.user_admin")
@@ -349,6 +359,23 @@ def make_demo_like(env, schedule=None):
             if leave_type.requires_allocation:
                 _allocate(env, employee, leave_type, 20 if key == "PTO" else 10)
             make_leave(env, employee, leave_type, first, last)
+    env.flush_all()
+    return made
+
+
+def make_demo_world(env, schedule=None):
+    """The 22 demo employees, each only when absent, the six of them with their leaves.
+
+    ``make_demo_like`` gives the leaves; an employee of the Community demo that this database
+    lacks (no demo data) is created on the demo schedule. Returns the employees by name.
+    """
+    schedule = schedule or find_schedule(env)
+    made = make_demo_like(env, schedule)
+    for name in DEMO_EMPLOYEES:
+        if name in made:
+            continue
+        found = env["hr.employee"].search([("name", "=", name)], limit=1)
+        made[name] = found or _employee(env, name, schedule)
     env.flush_all()
     return made
 
