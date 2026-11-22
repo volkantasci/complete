@@ -293,6 +293,19 @@ test("A74: unavailable parts", () => {
     expect(late.get(12)).toEqual([false, true]);
 });
 
+test("A74: a period that ends one second short still covers the last part", () => {
+    // the server's 23:59:59.999999 reaches the browser as 23:59:59 (datetimes travel by seconds)
+    const short = unavailableParts(
+        [{ start: at(1, "00:00"), stop: at(1, "23:59").plus({ seconds: 59 }) }],
+        columns,
+        4
+    );
+    expect(short.get(12)).toEqual([true, true, true, true]);
+    // a gap of a minute is a gap
+    const gap = unavailableParts([{ start: at(1, "00:00"), stop: at(1, "23:58") }], columns, 4);
+    expect(gap.get(12)).toEqual([true, true, true, false]);
+});
+
 test("A75/A76: foldable runs", () => {
     const both = new Map([
         [15, [true, true]],

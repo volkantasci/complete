@@ -213,7 +213,9 @@ export function unavailableParts(periods, columns, parts) {
         const covered = Array.from({ length: parts }, (_unused, part) => {
             const from = begin + Math.round((length * part) / parts);
             const to = begin + Math.round((length * (part + 1)) / parts);
-            return merged.some(([start, stop]) => start <= from && stop >= to);
+            // a second of tolerance at the end: a period that ends at 23:59:59.999999 on the
+            // server arrives as 23:59:59 (datetimes travel by whole seconds)
+            return merged.some(([start, stop]) => start <= from && stop + 1000 >= to);
         });
         if (covered.some(Boolean)) {
             result.set(index, covered);
