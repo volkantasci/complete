@@ -269,7 +269,10 @@ offers two entries. They are not there in the report view, and not on a phone.
   action's filters included), without grouping, the latest start first, with one
   header line and five columns in this order: the request's external identifier
   (made by the export for a request that has none), the employee's name, the
-  type's external identifier, the start date and the end date. The export group
+  type's external identifier, the start date and the end date. The header line
+  reads "External ID (update only)", "Employee", "Time Type/External ID",
+  "Request Start Date" and "Request End Date" (translatable, in the user's
+  language). The export group
   is not implied by any Time Off group: an Officer or Administrator who is not in
   it sees Import alone.
 

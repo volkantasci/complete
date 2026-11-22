@@ -29,18 +29,23 @@ function hhgArchFlag(env, name) {
 
 /**
  * The five columns of the export (R19): the request's external identifier, the employee, the
- * time type's external identifier, the start date and the end date. The export runs in the
- * import-compatible mode, which creates the external identifier of a request that has none and
- * names its columns by the fields; the requests come in the model's own order (latest start
- * first).
+ * time type's external identifier, the start date and the end date, each under its own title,
+ * which follows the user's language (the header line of the file reads these labels). The
+ * identifier columns come out as identifiers whatever the mode, and the export creates the
+ * identifier of a request that has none.
  */
-function hhgExportFields() {
+export function hhgExportFields() {
     return [
-        { name: "id", label: _t("External ID") },
+        { name: "id", label: _t("External ID (update only)") },
         { name: "employee_id", label: _t("Employee"), store: true, type: "many2one" },
-        { name: "work_entry_type_id/id", label: _t("Type"), store: true, type: "many2one" },
-        { name: "request_date_from", label: _t("Start"), store: true, type: "date" },
-        { name: "request_date_to", label: _t("End"), store: true, type: "date" },
+        {
+            name: "work_entry_type_id/id",
+            label: _t("Time Type/External ID"),
+            store: true,
+            type: "many2one",
+        },
+        { name: "request_date_from", label: _t("Request Start Date"), store: true, type: "date" },
+        { name: "request_date_to", label: _t("Request End Date"), store: true, type: "date" },
     ];
 }
 
@@ -55,7 +60,8 @@ export class HhgExportLeaves extends Component {
             url: "/web/export/xlsx",
             data: {
                 data: JSON.stringify({
-                    import_compat: true,
+                    // the plain mode of the export: its header line holds the labels below
+                    import_compat: false,
                     context,
                     domain,
                     fields: hhgExportFields(),

@@ -804,7 +804,18 @@ scenario("hhg_a22_import_export", async () => {
             "five fields"
         );
         assertEqual(payload.groupby, [], "ungrouped");
-        assertEqual(payload.import_compat, true, "the import-compatible mode");
+        assertEqual(
+            payload.fields.map((field) => field.label),
+            [
+                "External ID (update only)",
+                "Employee",
+                "Time Type/External ID",
+                "Request Start Date",
+                "Request End Date",
+            ],
+            "the five titles of the header line"
+        );
+        assertEqual(payload.import_compat, false, "the mode that titles the columns");
         await downloads[0].done;
         await settle(800);
         assert(!$(".modal"), "no dialog");

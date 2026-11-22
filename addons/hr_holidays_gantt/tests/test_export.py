@@ -12,11 +12,12 @@ from . import time_off_fixtures as fx
 
 # the fields the gear's Export item sends (static/src/time_off_cog_items.js, R19)
 EXPORT_FIELDS = [
-    {'name': 'id', 'label': 'External ID'},
+    {'name': 'id', 'label': 'External ID (update only)'},
     {'name': 'employee_id', 'label': 'Employee', 'store': True, 'type': 'many2one'},
-    {'name': 'work_entry_type_id/id', 'label': 'Type', 'store': True, 'type': 'many2one'},
-    {'name': 'request_date_from', 'label': 'Start', 'store': True, 'type': 'date'},
-    {'name': 'request_date_to', 'label': 'End', 'store': True, 'type': 'date'},
+    {'name': 'work_entry_type_id/id', 'label': 'Time Type/External ID', 'store': True,
+     'type': 'many2one'},
+    {'name': 'request_date_from', 'label': 'Request Start Date', 'store': True, 'type': 'date'},
+    {'name': 'request_date_to', 'label': 'Request End Date', 'store': True, 'type': 'date'},
 ]
 
 
@@ -36,7 +37,7 @@ class TestTimeOffExport(HttpCase):
             ('model', '=', 'hr.leave'), ('res_id', 'in', (early | late).ids)]))
         self.authenticate('admin', 'admin')
         payload = {
-            'import_compat': True,
+            'import_compat': False,
             'context': {},
             'domain': [('employee_id', '=', peer.id)],
             'fields': EXPORT_FIELDS,
@@ -51,7 +52,8 @@ class TestTimeOffExport(HttpCase):
         rows = list(csv.reader(io.StringIO(response.content.decode())))
         self.assertEqual(
             rows[0],
-            ['id', 'employee_id', 'work_entry_type_id/id', 'request_date_from', 'request_date_to'])
+            ['External ID (update only)', 'Employee', 'Time Type/External ID',
+             'Request Start Date', 'Request End Date'])
         self.assertEqual(len(rows), 3, 'one header line and the two requests')
         self.assertEqual(
             [(row[1], row[3], row[4]) for row in rows[1:]],

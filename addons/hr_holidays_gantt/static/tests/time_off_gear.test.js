@@ -119,7 +119,15 @@ describe("desktop", () => {
             "request_date_from",
             "request_date_to",
         ]);
-        expect(payload.import_compat).toBe(true);
+        expect(payload.fields.map((field) => field.label)).toEqual([
+            "External ID (update only)",
+            "Employee",
+            "Time Type/External ID",
+            "Request Start Date",
+            "Request End Date",
+        ]);
+        // the plain mode: its header line holds these labels
+        expect(payload.import_compat).toBe(false);
         expect(payload.domain).toEqual([["state", "=", "validate"]]);
         expect(payload.groupby).toEqual([]);
         expect(payload.ids).toBe(false);
