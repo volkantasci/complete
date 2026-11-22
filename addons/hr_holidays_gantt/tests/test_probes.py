@@ -69,12 +69,18 @@ ANITA_COLOUR = 3
 # * desktop: the original's search field is 34 px tall there (no view switcher in the row) where
 #   the shell's field is 37 px high at least (``.o_cp_searchview`` of web_enterprise's control
 #   panel, a rule of every page), so the original's bar and grid lie 3 px *higher* than
-#   Complete's: the desktop readings of the leave view M1 to M20, M26 to M32, M39 to M50, M60 to
-#   M67, M75 to M80 are compared 3 px lower (the table's M81 is not compared);
+#   Complete's: the desktop probes that get the offset are M1 to M20, M26 to M32, M40 and M76 to
+#   M80, compared 3 px lower (the table's M81 is not compared; the other probes read no height
+#   that the offset moves);
 # * phone (decision D3, R23 point 1): the leave view's control bar grows to its two lines as the
 #   report view's does, so the grid starts 43 px lower than on the original (y 205, not 162): the
 #   phone readings of the leave view below the bar (M1, M2, M4 to M7, M11, M15 to M17, M19, M40,
 #   M44, M45) are compared 43 px lower; M14 is compared with the report view's range button (M90).
+# * both viewports: a geometry value is compared within half a pixel (the framework's
+#   ``GEOMETRY_TOLERANCE``), because Chrome places boxes on a grid of half pixels and the table's
+#   values are those of another layout; the label, the avatar, the card and its parts lie half a
+#   pixel less low than the rows' other boxes, so those probes add the half pixel to the offset
+#   (``dy + .5``) and the allowance is not spent on the offset itself.
 SHELL = {'desktop': -3, 'phone': -43}
 
 INSTALL_COUNTER = """(() => {

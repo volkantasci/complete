@@ -337,6 +337,24 @@ Community view modes (calendar for the first; list, kanban, form, calendar and
 activity for the second). Uninstalling the Employees timeline module uninstalls
 this one too.
 
+**Checking an uninstall.** The container's start-up script adds the database
+connection to the command line, which the `module` command does not take, so give
+the connection through the `PG*` variables of the shell the verifier runs. With
+`docker/.env` created, in a shell that has its `POSTGRES_USER` and
+`POSTGRES_PASSWORD` as `USER` and `PASSWORD`, on a database `DB` where the module is installed:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -e PGHOST=db -e PGUSER=USER -e PGPASSWORD=PASSWORD odoo odoo module uninstall -d DB hr_holidays_gantt
+```
+
+Then check, as the administrator, that:
+
+- Time Off > Overview opens the Community's dashboard action
+  (`hr_holidays.action_hr_holidays_dashboard`) and the menu works;
+- that dashboard action has the view mode `calendar` alone;
+- Management > Time Off (`hr_holidays.hr_leave_action_action_approve_department`)
+  has the view modes `list,kanban,form,calendar,activity`, with no Gantt view.
+
 ## Who sees what
 
 The module adds no group, access right or record rule. The Community's Time Off
@@ -419,15 +437,36 @@ It answers at `http://127.0.0.1:8069`. `podman ps` lists the run container (a
 name such as `docker-odoo-run-c38678dc7f23`); `podman stop CONTAINER` stops it and
 `--rm` removes it.
 
-**Which values depend on the server's clock.** Only one, while the server runs:
-the "flexible today" check of the hours label, which decides whether an employee's
-schedule in effect **today** is flexible. The module's models have no other reading
-of a clock (`git grep -n "Datetime.now\|context_today\|fields.Date.today" addons/hr_holidays_gantt/models`
-finds that one). It takes the server's instant and reads it as a day in the zone
-the **browser** sends in `tz`, so the answer follows the browser's zone, and the
-server must run under the clock above for it to be 11 November. The clock also
-matters when the database is created, because of the demo data and the dates it
-computes from it.
+**Which values depend on the server's clock.** None, while the server runs: no
+value reads the server's clock at run time. The "flexible today" check of the
+hours label, which decides whether an employee's schedule in effect **today** is
+flexible, takes today from the **browser**: the view sends the browser's day in
+the context of each data call (the key `hhg_today`), and the server uses it. Only
+a call that carries no such day (a script, an old client) falls back to the
+server's instant read in the zone the browser sends in `tz`; the views of this
+part always send it, so the browser's clock (11 November, set as told below)
+decides and the server needs no particular clock to show the same values. The
+clock still matters when the database is created, because of the demo data and
+the dates it computes from it.
+
+**Values of 002d2 and 002d3 in this database (A81).** The earlier parts' probes
+and tours hold in a database that also has Time Off installed. In the database
+`DB` of this section (it has the attendance and Time Off modules), run their
+probes and tours with their own test tags as their guides tell, for instance
+`--test-tags /hr_attendance_gantt` under the clock above; they must pass as in a
+database without Time Off. The slice's CI configuration runs their suites with
+Time Off installed.
+
+**From a visual scenario to its probes.** The probes of the table run as classes
+of `tests/test_probes.py`:
+
+| Scenario | Probe class |
+|---|---|
+| A6, A9, A10, A11 (the Overview, a search on the request, the Week and Quarter ranges) | `TestTimeOffProbesDemo` |
+| A21 (Import and Export), A23 (the empty leave view) | `TestTimeOffProbesDemo` |
+| A44 (the leave view on the phone) | `TestTimeOffProbesDemo` (phone) |
+| A12 (the report view), A25 (the empty report view) | `TestTimeOffProbesRoles` |
+| A47 (the report view on the phone) | `TestTimeOffProbesRoles` (phone) |
 
 ### The role users and the prepared records
 

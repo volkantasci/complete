@@ -52,6 +52,23 @@ leaves to later releases in the ``hhgInputs`` getter. The server side is in
 ``_gantt_progress_bar`` are overridden on ``hr.leave``, and
 ``get_gantt_data`` on ``hr.leave.report.calendar``.
 
+Reads with system rights
+========================
+
+Two values are read with the rights of the system, because the user may lack a
+right on the record behind them:
+
+- the request unit of a flexible leave, in ``resource_calendar.py``: the
+  schedule's intervals are computed for every employee in a batch, and the
+  request behind a leave may not be readable by the user who looks at it;
+- the hours per week of the schedule on the employee card, in
+  ``hr_employee_public.py``: the card reads the public record of the employee,
+  and the schedule button is for everyone, so the number comes from the
+  employee's schedule, which the public record does not hold.
+
+Nothing else is returned from them: a number, or a unit that decides an
+interval.
+
 Uninstall
 =========
 
