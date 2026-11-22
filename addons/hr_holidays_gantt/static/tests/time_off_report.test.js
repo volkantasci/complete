@@ -10,6 +10,7 @@ import {
     toggleSearchBarMenu,
 } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
+import { user } from "@web/core/user";
 
 import { TimeOffReportModel } from "../src/time_off_view";
 import { mountTimeOff, REPORT_ARCH, setupTimeOffFixtures } from "./time_off_test_helpers";
@@ -70,7 +71,7 @@ test("a28 49 employees: only the Employee facet", async () => {
 test("a26 50 employees, nobody under the user: My Department and Employee", async () => {
     const asked = await open({ employees: 50, subordinates: 0 });
     expect(asked.length).toBe(2);
-    expect(asked[1][0][0]).toBe("parent_id");
+    expect(asked[1]).toEqual([["parent_id", "any", [["user_id", "=", user.userId]]]]);
     expect(facets()).toEqual(["My Department", "Employee"]);
 });
 

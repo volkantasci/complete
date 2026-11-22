@@ -17,7 +17,10 @@ class TestRows(fx.TimeOffGanttMixin, TransactionCase):
         cls.users = fx.make_role_users(cls.env)
         cls.admin = fx.find_admin(cls.env)
         cls.world = fx.make_demo_like(cls.env)
-        cls.employees = cls.env['hr.employee'].browse()
+
+    def _login_users(self, logins):
+        """The (login, user) pairs of the given role logins, in order."""
+        return [(login, self.users[login]) for login in logins]
 
     def groups_with_records(self, result):
         return [bool(group['__record_ids']) for group in result['groups']]
@@ -77,7 +80,7 @@ class TestRows(fx.TimeOffGanttMixin, TransactionCase):
         names = self.row_names(result)
         self.assertNotIn('Marc Demo', names)
         self.assertIn(fx.PEER_NAME, names)
-        expected = self.employees.search_count([('name', 'not ilike', 'Marc Demo')])
+        expected = self.env['hr.employee'].search_count([('name', 'not ilike', 'Marc Demo')])
         self.assertEqual(result['length'], expected)
         self.assertEqual(len(names), expected)
         paged = self.call_gantt(user=self.admin, user_domain=about_employee)
@@ -102,10 +105,9 @@ class TestRows(fx.TimeOffGanttMixin, TransactionCase):
                         model, user=self.admin, groupby=groupby, start_date=False, stop_date=False)
 
     def test_a63_rows_every_role(self):
-        roles = ('toff_emp', 'toff_approver', 'toff_manager', 'toff_officer', 'toff_admin')
-        for role in roles:
-            user = self.users[role]
-            with self.subTest(role=role):
+        every_role = ('toff_emp', 'toff_approver', 'toff_manager', 'toff_officer', 'toff_admin')
+        for login, user in self._login_users(every_role):
+            with self.subTest(role=login):
                 expected = self.env['hr.employee'].with_user(user).search_count([])
                 result = self.call_gantt('hr.leave.report.calendar', user=user)
                 self.assertEqual(result['length'], expected)
@@ -139,7 +141,7 @@ class TestRows(fx.TimeOffGanttMixin, TransactionCase):
 
     def test_a84_approver_rows(self):
         approver = self.users['toff_approver']
-        peer = self.employees.search([('name', '=', fx.PEER_NAME)])
+        peer = self.env['hr.employee'].search([('name', '=', fx.PEER_NAME)])
         fx.make_leave(self.env, peer, fx.find_type(self.env, 'STO'), fx.date(2026, 11, 12))
         fx.make_leave(self.env, approver.employee_id, fx.find_type(self.env, 'STO'),
                       fx.date(2026, 11, 13))

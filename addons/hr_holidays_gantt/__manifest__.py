@@ -18,9 +18,9 @@
     ],
     'assets': {
         'web.assets_backend': [
-            'hr_holidays_gantt/static/src/*.js',
-            'hr_holidays_gantt/static/src/*.xml',
-            'hr_holidays_gantt/static/src/*.scss',
+            'hr_holidays_gantt/static/src/**/*.js',
+            'hr_holidays_gantt/static/src/**/*.xml',
+            'hr_holidays_gantt/static/src/**/*.scss',
         ],
         'web.assets_tests': ['hr_holidays_gantt/static/tests/tours/**/*'],
         'web.assets_unit_tests': [

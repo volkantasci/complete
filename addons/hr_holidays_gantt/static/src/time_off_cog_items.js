@@ -18,9 +18,8 @@ function hhgIsLeaveGantt(env) {
     const ui = useService("ui");
     const { actionType, viewType } = env.config;
     const fromWindowAction = actionType === "ir.actions.act_window";
-    return (
-        !ui.isSmall && fromWindowAction && viewType === "gantt" && env.searchModel.resModel === "hr.leave"
-    );
+    const onLeaves = env.searchModel.resModel === "hr.leave";
+    return !ui.isSmall && fromWindowAction && viewType === "gantt" && onLeaves;
 }
 
 /** The view's boolean attribute `name`, true when the arch leaves it out. */

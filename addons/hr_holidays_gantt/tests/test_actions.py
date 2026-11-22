@@ -53,19 +53,25 @@ class TestActions(TransactionCase):
             'hr_holidays_gantt', module.downstream_dependencies().mapped('name'))
 
     def _check_officer_action(self, action):
-        self.assertEqual(action['id'], self.management.id)
-        self.assertEqual(action['path'], self.management.path)
-        self.assertEqual(action.get('res_model'), 'hr.leave')
-        self.assertEqual(action['view_mode'], 'gantt')
+        self.assertEqual(
+            {key: action.get(key) for key in ('id', 'path', 'res_model', 'view_mode')},
+            {
+                'id': self.management.id,
+                'path': self.management.path,
+                'res_model': 'hr.leave',
+                'view_mode': 'gantt',
+            },
+        )
         self.assertEqual(
             [tuple(view) for view in action['views']], [(self.leave_view.id, 'gantt')])
         self.assertEqual(action['name'], self.dashboard.read(['name'])[0]['name'])
-        expected = Domain([
-            ('employee_id.company_id', 'in', self.env.companies.ids),
-            ('employee_id.active', 'in', [True]),
-            ('state', 'not in', ['refuse', 'cancel']),
+        expected = Domain.AND([
+            Domain('employee_id.company_id', 'in', self.env.companies.ids),
+            Domain('employee_id.active', '=', True),
+            Domain('state', 'not in', ['refuse', 'cancel']),
         ])
-        self.assertEqual(Domain(action['domain']), expected)
+        self.assertEqual(Domain(action['domain']).optimize(self.env['hr.leave']),
+                         expected.optimize(self.env['hr.leave']))
         self.assertEqual(action['context'], {'hide_employee_name': 1})
 
     def test_a07_server_action_by_role(self):
