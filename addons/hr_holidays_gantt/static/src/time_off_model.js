@@ -51,20 +51,3 @@ export class TimeOffLeaveModel extends EmployeeTimelineModel {
         return "reloaded";
     }
 }
-
-/**
- * The model of the report view: as the leave view's, with one difference (R7, R21). The data call
- * answers employee rows even when the report holds nothing, so the framework's first-load rule
- * (no record, so sample data) would show the sample on any empty month. Here the sample shows
- * only when the server says the report holds no record at all (`hhg_report_empty`), and only on
- * the first load.
- */
-export class TimeOffReportModel extends TimeOffLeaveModel {
-    _commit(request, result) {
-        if (!this._hasLoaded && !result.hhg_report_empty) {
-            // the first load is counted as made: the framework then keeps the real rows
-            this._hasLoaded = true;
-        }
-        return super._commit(request, result);
-    }
-}

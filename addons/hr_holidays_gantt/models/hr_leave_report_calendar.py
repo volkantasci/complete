@@ -28,14 +28,11 @@ class HrLeaveReportCalendar(models.Model):
         arguments = (
             domain, groupby, read_specification, limit, offset,
             unavailability_fields, progress_bar_fields, start_date, stop_date, scale)
+        # R7, R21: the sample mode is 002a's own (the view's first load, with no request on the
+        # first page in the opening period under the search): the answer carries no flag of it
         if scaled._hhg_every_employee(groupby):
-            result = scaled._get_gantt_data_with_empty(*arguments)
-        else:
-            result = super(HrLeaveReportCalendar, scaled).get_gantt_data(*arguments)
-        # R7, R21: the sample data show only when the user can see no report record at all, the
-        # period and the search ignored (the user's own rights apply, the action's domain does not)
-        result['hhg_report_empty'] = not scaled.search_count([], limit=1)
-        return result
+            return scaled._get_gantt_data_with_empty(*arguments)
+        return super(HrLeaveReportCalendar, scaled).get_gantt_data(*arguments)
 
     @api.model
     def _hrg_relation_leaf(self, condition, field_name):

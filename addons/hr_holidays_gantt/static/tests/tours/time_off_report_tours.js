@@ -498,8 +498,42 @@ scenario("hhg_a83_one_request", async () => {
     assertEqual(viewTitle(), "Time Off", "the report view");
     assert(!$(".o_tl_box_sample") && !$(".o_tl_sample"), "no sample data once a request exists");
     assert(!$(".o_view_nocontent"), "and no notice");
+    assert(rowNames().includes("Anita Oliver"), `the real rows: ${rowNames()}`);
+    assertEqual(pillTitles("Anita Oliver"), ["1d"], "the real request");
+});
+
+// A95: the sample mode depends on the first load alone ---------------------------------------------
+
+const noSample = (what) => {
+    assert(!$(".o_tl_box_sample") && !$(".o_tl_sample"), `${what}: no sample data`);
+    assert(!$(".o_view_nocontent"), `${what}: no helper`);
+};
+
+scenario("hhg_a95_request_in_december", async () => {
+    assertEqual(viewTitle(), "Time Off", "the report view");
+    assert($(".o_tl_box_sample"), "November holds no request on the first page: the sample shows");
+    await step(1);
+    await until(() => !$(".o_tl_box_sample"), "the real rows after Next", 10000);
+    noSample("December");
+    await until(() => pillTitles("Anita Oliver").length, "her request", 10000);
+    assertEqual(pillTitles("Anita Oliver"), ["1d"], "her request on 10 December");
+    await step(-1);
+    noSample("November again");
+    await searchFor("Toff");
+    await until(
+        () => rowNames().length && rowNames().every((name) => name.startsWith("Toff")),
+        `the rows of the search: ${rowNames()}`,
+        10000
+    );
+    noSample("the search 'Toff'");
     assert(rowNames().includes("Toff Role Emp"), `the real rows: ${rowNames()}`);
-    assertEqual(pillTitles("Toff Role Emp"), ["1d"], "the real request");
+});
+
+scenario("hhg_a95_request_on_the_second_page", async () => {
+    assertEqual(viewTitle(), "Time Off", "the report view");
+    assert(!rowNames().includes("Toff Role Emp"), "the employee of the request has no row here");
+    assert($(".o_tl_box_sample"), "the first page holds no request: the sample shows");
+    assert($(".o_view_nocontent"), "with its sample notice");
 });
 
 // A84: an Approver in Management > Time Off -------------------------------------------------------------

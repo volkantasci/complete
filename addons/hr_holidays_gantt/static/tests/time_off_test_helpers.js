@@ -18,7 +18,7 @@ import {
 import { parseXML } from "@web/core/utils/xml";
 import { parseTimelineArch } from "@web_gantt/timeline_arch_parser";
 import { setupTimelineFixtures, timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
-import { TimeOffLeaveModel, TimeOffReportModel } from "../src/time_off_view";
+import { TimeOffLeaveModel } from "../src/time_off_view";
 
 // Re-exported so that the tests of the slice take their framework helpers from one place.
 export { getService, onRpc, patchWithCleanup };
@@ -147,8 +147,7 @@ export async function makeTimeOffModel({
     const orm = getService("orm");
     const modelFields = await orm.call(resModel, "fields_get", []);
     const config = parseTimelineArch(parseXML(arch), modelFields);
-    const Model = report ? TimeOffReportModel : TimeOffLeaveModel;
-    const model = new Model(
+    const model = new TimeOffLeaveModel(
         getMockEnv(),
         { resModel, fields: modelFields, config, viewId: 1 },
         { orm }

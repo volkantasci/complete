@@ -12,7 +12,7 @@ import {
 import { localization } from "@web/core/l10n/localization";
 import { user } from "@web/core/user";
 
-import { TimeOffReportModel } from "../src/time_off_view";
+import { TimeOffLeaveModel } from "../src/time_off_view";
 import { mountTimeOff, REPORT_ARCH, setupTimeOffFixtures } from "./time_off_test_helpers";
 
 describe.current.tags("desktop");
@@ -89,23 +89,29 @@ test("a26 the count is made once per opening, not on a reload", async () => {
     expect(asked.length).toBe(2);
 });
 
-for (const empty of [true, false, undefined]) {
-    test(`a83 the sample shows only when the server says the report is empty (${empty})`, async () => {
+// R7, R21 (A83, A95): 002a's sample mode: only the view's first load, and only when it holds no
+// request on its first page in the opening period; the cases of other pages and months are the
+// server tests' (a request elsewhere changes no answer of the first page)
+for (const [title, records, sample] of [
+    ["no request in the opening period", [], true],
+    ["a request in the opening period", [["Anita Oliver", [12, "9:00"], [12, "17:00"]]], false],
+]) {
+    test(`a83 the report view with ${title}: sample ${sample}`, async () => {
         let shown = null;
-        patchWithCleanup(TimeOffReportModel.prototype, {
+        patchWithCleanup(TimeOffLeaveModel.prototype, {
             _commit(request, result) {
-                result.hhg_report_empty = empty;
                 super._commit(request, result);
-                shown = this.isSample;
+                shown ??= this.isSample;
             },
         });
         answerCounts({ employees: 3 });
         await mountTimeOff({
             employees: ["Anita Oliver"],
+            records,
             report: true,
             expand: true,
             arch: REPORT_ARCH(`sample="1"`),
         });
-        expect(shown).toBe(empty === true);
+        expect(shown).toBe(sample);
     });
 }

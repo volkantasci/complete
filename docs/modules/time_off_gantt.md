@@ -288,7 +288,12 @@ When no employee matches the search, both views show **one empty row with no
 name** and the total row, without helper text and without a layer, on a phone
 too. A row of an employee who has no leave is a normal row. With requests
 elsewhere but none in the period, the rows are drawn as usual. The report's
-sample data appears only when the report holds no record at all.
+sample data is the Gantt view's own sample mode: it shows only at the view's
+first load, when none of the employees of the first page has a request in the
+opening period under the search (a request of an employee on a later page, or
+outside the period, does not prevent it), for every role. The view leaves it at
+the first later load that holds a request, and never comes back to it: a later
+load without a request shows the real rows, empty, with no sample and no helper.
 
 ![An empty leave view, light](../assets/time_off_gantt/08-empty.png)
 

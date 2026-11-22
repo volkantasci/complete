@@ -1049,12 +1049,10 @@ class TestTimeOffProbesAttendance(TimeOffProbeCase):
                 self.settle(1500)
                 self.check('M72', "document.querySelector('.o_hag_helper')", scheme, 'phone',
                            'the helper')
-                # The table's box (M73) is the period line's title: as wide as the grid's visible
-                # part (260 px from x 129), over a line of 24 hour columns of 40 px, none folded.
-                # Complete's period line is that line itself (24 x 40 px = 960 px from x 130) with a
-                # sticky label, so the visible part of the line is read: y and height as the
-                # table's, width 260; the left edge lies at x 130, 1 px right of the table's 129
-                # (logged).
+                # The table's box (M73) is the period line's title box, which Complete's line does
+                # not have (its label is sticky inside the line): on a system without it the table
+                # says to read the visible part of the period line, from the row header column's
+                # right edge (x 130) to the screen's right edge, with the line's y and height.
                 self.check('M73', "document.querySelector('.o_tl_col_group')", scheme, 'phone',
                            'the period line', skip=('geometry.x', 'geometry.width'))
                 visible = self.js("""(() => {
@@ -1068,13 +1066,12 @@ class TestTimeOffProbesAttendance(TimeOffProbeCase):
                             span: line.width};
                 })()""")
                 want = measured('M73', 'phone')[scheme]
-                with self.subTest(probe='M73', scheme=scheme, element='the visible title box'):
+                with self.subTest(probe='M73', scheme=scheme, element='the visible part'):
+                    self.assertAlmostEqual(visible['x'], 130, delta=.5)
                     self.assertAlmostEqual(
                         visible['width'], float(want['geometry.width']), delta=.5)
                     self.assertEqual((visible['columns'], visible['folded'], visible['span']),
                                      (24, 0, 960))
-                _logger.warning('SHELL-DIFFERENCE|M73|%s|phone|geometry.x|Complete %s, table %s',
-                                scheme, visible['x'], want['geometry.x'])
                 self.check('M74', f"{ROW_EL}[0].querySelector('.o_tl_row_header')", scheme,
                            'phone', 'the empty row header')
 

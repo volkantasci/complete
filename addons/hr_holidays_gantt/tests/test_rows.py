@@ -151,22 +151,3 @@ class TestRows(fx.TimeOffGanttMixin, TransactionCase):
             sorted(self.row_names(result)), sorted([fx.PEER_NAME, approver.employee_id.name]))
         self.assertEqual(result['length'], 2)
         self.assertTrue(all(self.groups_with_records(result)))
-
-    def test_a83_report_empty_flag(self):
-        """R7, R21: the report answers whether the user sees no report record at all."""
-        self.env['hr.leave'].with_context(active_test=False).sudo().search([]).unlink()
-        self.env.flush_all()
-        user = self.users['toff_emp']
-        result = self.call_gantt('hr.leave.report.calendar', user=user)
-        self.assertIs(result['hhg_report_empty'], True)
-        # the rows are still those of R13: an employee without a request is a row
-        self.assertTrue(result['groups'])
-        fx.make_leave(
-            self.env, user.employee_id, fx.find_type(self.env, 'STO'), fx.date(2026, 12, 14))
-        # one request, in a month the view does not show: the report is not empty
-        result = self.call_gantt('hr.leave.report.calendar', user=user)
-        self.assertIs(result['hhg_report_empty'], False)
-        # the search and the period are ignored: a search that matches nothing changes nothing
-        result = self.call_gantt(
-            'hr.leave.report.calendar', user=user, user_domain=[('employee_id.name', '=', 'zzz')])
-        self.assertIs(result['hhg_report_empty'], False)

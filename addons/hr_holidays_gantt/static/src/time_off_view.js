@@ -3,7 +3,7 @@
 import { registry } from "@web/core/registry";
 import { employeeTimelineView } from "@hr_gantt/employee_timeline_view";
 import { TimeOffController } from "./time_off_controller";
-import { TimeOffLeaveModel, TimeOffReportModel } from "./time_off_model";
+import { TimeOffLeaveModel } from "./time_off_model";
 import { TimeOffLeaveRenderer, TimeOffReportRenderer } from "./time_off_renderer";
 import { TimeOffLeaveSearchModel, TimeOffReportSearchModel } from "./time_off_search_model";
 
@@ -12,7 +12,6 @@ export {
     TimeOffLeaveModel,
     TimeOffLeaveRenderer,
     TimeOffLeaveSearchModel,
-    TimeOffReportModel,
     TimeOffReportRenderer,
     TimeOffReportSearchModel,
 };
@@ -48,7 +47,9 @@ export const timeOffReportView = {
     },
     Controller: TimeOffController,
     SearchModel: TimeOffReportSearchModel,
-    Model: TimeOffReportModel,
+    // 002a's sample mode, as it is: the first load of the view, with no request on the first page
+    // under the search (R7, R21)
+    Model: TimeOffLeaveModel,
     Renderer: TimeOffReportRenderer,
 };
 

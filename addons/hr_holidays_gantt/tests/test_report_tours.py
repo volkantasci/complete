@@ -179,20 +179,54 @@ class TestTimeOffReportTours(ReportToursBase):
     # -- sample data, department (A83, A85) --------------------------------------------------
 
     def test_a83_sample_data(self):
-        """A database with no request at all: every request goes (the test's transaction rolls
-        back), the report shows the sample data; with one request the real rows show."""
-        self._world(demo=False, peer=False)
+        """A database with no request at all: the report shows the sample data, for an employee
+        and for an Officer (on the dashboard action's address); with one Approved request of
+        Anita Oliver on 12 November the real rows show at once for both."""
+        self._world(only=False, peer=False)
         admin = fx.find_admin(self.env)
         self.env['hr.leave'].with_context(active_test=False).with_user(admin).search([]).unlink()
         self.env.flush_all()
         report = self.env['hr.leave.report.calendar'].with_user(self.users['toff_emp'])
         self.assertEqual(report.search_count([]), 0)
+        self._only('toff_emp', peer=False)
         self._tour('hhg_a83_sample_data', login='toff_emp')
+        self._only('toff_officer', peer=False)
+        self._tour('hhg_a83_sample_data', login='toff_officer', path=DASHBOARD)
+        fx.make_leave(
+            self.env, self.demo['Anita Oliver'], fx.find_type(self.env, 'STO'), date(2026, 11, 12))
+        self.env.flush_all()
+        self._only('toff_emp', peer=False)
+        self._tour('hhg_a83_one_request', login='toff_emp')
+        self._only('toff_officer', peer=False)
+        self._tour('hhg_a83_one_request', login='toff_officer', path=DASHBOARD)
+
+    def test_a95_sample_mode_first_load(self):
+        """One request only, of Anita Oliver on 10 December: the sample shows in November (the
+        first page holds no request there), Next shows the real rows, and a later load in
+        November shows real rows, without sample and without helper."""
+        self._world(only=False, peer=False)
+        admin = fx.find_admin(self.env)
+        self.env['hr.leave'].with_context(active_test=False).with_user(admin).search([]).unlink()
+        fx.make_leave(
+            self.env, self.demo['Anita Oliver'], fx.find_type(self.env, 'STO'), date(2026, 12, 10))
+        self.env.flush_all()
+        self._only('toff_emp', peer=False)
+        self._tour('hhg_a95_request_in_december', login='toff_emp')
+
+    def test_a95_request_on_the_second_page(self):
+        """A request only of Toff Role Emp (whose row is on the second page) on 12 November: the
+        Overview still opens in the sample mode, for an employee and for an Officer."""
+        self._world(only=False, peer=False)
+        admin = fx.find_admin(self.env)
+        self.env['hr.leave'].with_context(active_test=False).with_user(admin).search([]).unlink()
         fx.make_leave(
             self.env, self.role_employees['toff_emp'], fx.find_type(self.env, 'STO'),
-            date(2026, 11, 16))
+            date(2026, 11, 12))
         self.env.flush_all()
-        self._tour('hhg_a83_one_request', login='toff_emp')
+        self._only(None, peer=False)
+        self.assertGreater(self._counted('toff_emp'), 20, 'the rows need a second page')
+        self._tour('hhg_a95_request_on_the_second_page', login='toff_emp')
+        self._tour('hhg_a95_request_on_the_second_page', login='toff_officer', path=DASHBOARD)
 
     def test_a85_department_search(self):
         self._world()
