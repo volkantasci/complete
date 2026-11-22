@@ -394,7 +394,7 @@ def make_demo_world(env, schedule=None):
 def _set_contract(employee, start, end):
     """The contract dates of all versions of ``employee`` (False: none); the cells of the
     days outside the contract are grey in the view."""
-    employee.with_context(active_test=False).version_ids.write({
+    employee.with_context(active_test=False, sync_contract_dates=True).version_ids.write({
         "contract_date_start": start, "contract_date_end": end})
 
 
