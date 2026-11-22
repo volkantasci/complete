@@ -14,9 +14,10 @@ import {
     queryRect,
     resize,
 } from "@odoo/hoot-dom";
-import { advanceTime, animationFrame } from "@odoo/hoot-mock";
+import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 import { onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
 import { localization } from "@web/core/l10n/localization";
+import { at, timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
 
 import { LEAVE_ARCH, mountTimeOff, REPORT_ARCH, setupTimeOffFixtures } from "./time_off_test_helpers";
 
@@ -97,26 +98,32 @@ async function settle() {
 
 for (const [name, mount] of Object.entries(VARIANTS)) {
     describe(name, () => {
-        test("A64: click and double click on a pill do nothing", async () => {
+        test("A64: a click on a pill does nothing", async () => {
             await mount();
             const before = leftOf();
             await click(pillEl());
             await settle();
             expectNothing();
+            expect(leftOf()).toBe(before);
+        });
+
+        test("A65: a double click on a pill does nothing", async () => {
+            await mount();
+            const before = leftOf();
             await dblclick(pillEl());
             await settle();
             expectNothing();
             expect(leftOf()).toBe(before);
         });
 
-        test("A65: the pointer over a pill shows nothing", async () => {
+        test("A66: the pointer over a pill shows nothing", async () => {
             await mount();
             await hover(pillEl());
             await settle();
             expectNothing();
         });
 
-        test("A66: a press and a drag of 120 px does not move the pill, writes nothing", async () => {
+        test("A67: a press at the centre and a drag of 120 px does not move the pill, writes nothing", async () => {
             await mount();
             const before = leftOf();
             const rect = pillRect();
@@ -148,7 +155,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             expect(Math.round(pillRect().right)).toBe(before);
         });
 
-        test("A68: a Ctrl-drag does not copy", async () => {
+        test("A67: a Ctrl-drag does not copy", async () => {
             await mount();
             const before = leftOf();
             const rect = pillRect();
@@ -166,7 +173,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             expect(leftOf()).toBe(before);
         });
 
-        test("A69: a click and a double click on an empty cell do nothing", async () => {
+        test("A68: a click and a double click on an empty cell do nothing", async () => {
             await mount();
             const point = cellPoint("2026-11-20");
             await click(cellOf("2026-11-20"), { position: point });
@@ -177,7 +184,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             expectNothing();
         });
 
-        test("A70: a drag across the cells of 12 to 13 November selects nothing", async () => {
+        test("A69: a drag across the cells of 12 to 13 November selects nothing", async () => {
             await mount();
             const from = cellPoint("2026-11-23");
             const to = cellPoint("2026-11-24");
@@ -190,7 +197,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             expectNothing();
         });
 
-        test("A71: Ctrl-click on cells selects nothing", async () => {
+        test("A69: Ctrl-click on cells selects nothing", async () => {
             await mount();
             await keyDown("ctrl");
             await click(cellOf("2026-11-20"), { position: cellPoint("2026-11-20") });
@@ -200,7 +207,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             expectNothing();
         });
 
-        test("A72: a click on a column header or a row header selects nothing", async () => {
+        test("A69: a click on a column header or a row header selects nothing", async () => {
             await mount();
             await click(".o_tl_col[data-date='2026-11-20']");
             await settle();
@@ -226,24 +233,79 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
     });
 }
 
-describe("what stays", () => {
-    test("a click on a row header scrolls and selects nothing; folding still works", async () => {
+describe("phone", () => {
+    test("A70: a tap on a pill on the phone opens nothing", async () => {
+        mockTouch(true);
+        await resize({ width: 390, height: 844 });
         await mountTimeOff({ employees: ["Anita Oliver"], records: [LEAVE] });
-        await click(".o_tl_row_header");
+        pillEl().scrollIntoView();
+        await animationFrame();
+        const before = leftOf();
+        // with `mockTouch(true)` a click is a touch tap
+        await click(pillEl());
         await settle();
-        expect(".o_tl_cell_picked").toHaveCount(0);
+        expectNothing();
         expect(".o_tl_pill").toHaveCount(1);
-        // folding a run by its header (002a R29) is not a selection input
-        const foldable = queryAll(".o_tl_col.o_tl_foldable");
-        if (foldable.length) {
-            await click(foldable[0]);
-            await settle();
-            expect(".o_tl_col.o_tl_folded").toHaveCount(1);
-            expect(".o_tl_cell_picked").toHaveCount(0);
-            await click(".o_tl_col.o_tl_folded");
-            await settle();
-            expect(".o_tl_col.o_tl_folded").toHaveCount(0);
-        }
+        expect(leftOf()).toBe(before);
+    });
+});
+
+describe("what stays", () => {
+    const quarter = () => LEAVE_ARCH().replace('default_range="month"', 'default_range="quarter"');
+    const LATE = ["Anita Oliver", [26, "9:00"], [30, "18:00"]];
+    const rowHeader = () =>
+        queryAll(".o_tl_row_header").find((header) => header.textContent.includes("Anita Oliver"));
+
+    test("A71: a click on the name scrolls to the first pill, a click on the avatar does not", async () => {
+        await mountTimeOff({ employees: ["Anita Oliver"], records: [LATE], arch: quarter() });
+        const before = leftOf();
+        await click(rowHeader().querySelector(".o_tl_row_label"));
+        await settle();
+        const scrolled = leftOf();
+        expect(scrolled).not.toBe(before);
+        expect(".o_tl_cell_picked").toHaveCount(0);
+        // the pill's column now starts at the grid's start edge of the scrolling part
+        await click(rowHeader().querySelector(".o_hrg_avatar"));
+        await settle();
+        expect(leftOf()).toBe(scrolled);
+        expect(".o_avatar_card").toHaveCount(1);
+    });
+
+    test("A72: the avatar shows the name as a tooltip, the name shows none", async () => {
+        await mountTimeOff({ employees: ["Anita Oliver"], records: [LEAVE] });
+        const avatar = rowHeader().querySelector(".o_hrg_avatar");
+        expect(avatar).toHaveAttribute("data-tooltip", "Anita Oliver");
+        await hover(avatar);
+        await advanceTime(1000);
+        await animationFrame();
+        expect(".o-tooltip").toHaveCount(1);
+        await hover(rowHeader().querySelector(".o_tl_row_label"));
+        await advanceTime(1000);
+        await animationFrame();
+        expect(".o-tooltip").toHaveCount(0);
+        expect(rowHeader().querySelector(".o_tl_row_label")).not.toHaveAttribute("data-tooltip");
+    });
+
+    test("002a R29: a click on a folded header unfolds, on a foldable one folds, selecting nothing", async () => {
+        timelineMock.unavailability = {
+            employee_id: Object.fromEntries(
+                [1, 2, 3].map((id) => [id, [{ start: at(3, "00:00"), stop: at(8, "00:00") }]])
+            ),
+        };
+        await mountTimeOff({
+            employees: ["Anita Oliver"],
+            records: [LEAVE],
+            arch: LEAVE_ARCH(`display_unavailability="1"`),
+        });
+        expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+        await click(".o_tl_col.o_tl_folded");
+        await settle();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(0);
+        expect(".o_tl_col.o_tl_foldable").not.toHaveCount(0);
+        await click(".o_tl_col.o_tl_foldable");
+        await settle();
+        expect(".o_tl_col.o_tl_folded").toHaveCount(1);
+        expectNothing();
     });
 });
 
@@ -287,6 +349,43 @@ describe("control: a plain Gantt view of the same data keeps every input", () =>
         await settle();
         expect(writes).toInclude("write");
         expect(leftOf()).not.toBe(before);
+    });
+
+    test("a Ctrl-drag copies", async () => {
+        await mountPlain();
+        const rect = pillRect();
+        const start = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        await keyDown("ctrl");
+        const helpers = await drag(pillEl(), { position: start });
+        await helpers.moveTo(document.elementFromPoint(start.x + 120, start.y), {
+            position: { x: start.x + 120, y: start.y },
+        });
+        await helpers.drop();
+        await keyUp("ctrl");
+        await settle();
+        expect(writes).toInclude("copy");
+    });
+
+    test("a drag from 4 px inside the right end resizes", async () => {
+        await mountPlain();
+        const before = Math.round(pillRect().right);
+        const rect = pillRect();
+        const start = { x: rect.right - 4, y: rect.top + rect.height / 2 };
+        const helpers = await drag(pillEl(), { position: start });
+        await helpers.moveTo(document.elementFromPoint(start.x + 120, start.y), {
+            position: { x: start.x + 120, y: start.y },
+        });
+        await helpers.drop();
+        await settle();
+        expect(writes).toInclude("write");
+        expect(Math.round(pillRect().right)).not.toBe(before);
+    });
+
+    test("a double click on an empty cell opens the creation dialog", async () => {
+        await mountPlain();
+        await dblclick(cellOf("2026-11-20"), { position: cellPoint("2026-11-20") });
+        await settle();
+        expect(".modal").toHaveCount(1);
     });
 
     test("a click on an empty cell opens the creation dialog", async () => {

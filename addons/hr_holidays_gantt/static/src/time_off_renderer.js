@@ -11,6 +11,9 @@ import { hoursLabel } from "./time_off_layout";
  * framework (`super`). Folding by a header click (002a R29), the scroll of a row header to the
  * row's first pill (002a R39), the avatar card and the view's controls are not listed: they stay.
  *
+ * A subclass flips entries by spreading the parent's, so that an entry it does not name keeps its
+ * value: `get hhgInputs() { return { ...super.hhgInputs, pillClick: true }; }`.
+ *
  * Contract for the later parts:
  * - 002e2 (leave popover, dialog, moves, resizes, split tool): after `super.setup()` it assigns
  *   its own popover (`this.popover = usePopover(...)`), then overrides `hhgInputs` with
