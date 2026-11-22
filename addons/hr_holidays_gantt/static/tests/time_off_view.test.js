@@ -45,6 +45,18 @@ test("A53: no New button in either variant", async () => {
     expect(".o_tl_grid").toHaveCount(1);
 });
 
+test("the leave variant's root carries the class of its control bar spacing", async () => {
+    await mountTimeOff({ employees: ["Anita Oliver"] });
+    expect(".o_timeline_view.o_hhg_leave_view").toHaveCount(1);
+});
+
+test("the report variant's root carries its own class, not the leave variant's", async () => {
+    await mountTimeOff({ employees: ["Anita Oliver"], report: true });
+    expect(".o_timeline_view").toHaveCount(1);
+    expect(".o_timeline_view.o_hhg_leave_view").toHaveCount(0);
+    expect(".o_timeline_view.o_hhg_report_view").toHaveCount(1);
+});
+
 test("A53: no New button in the report variant", async () => {
     await mountTimeOff({ employees: ["Anita Oliver"], report: true });
     expect(".o_tl_button_add").toHaveCount(0);

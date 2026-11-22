@@ -48,3 +48,26 @@
         font-weight: 500;
     }
 }
+
+// The control bar of the leave views lies lower than that of the attendance views and of the
+// report, which share the shell and the framework: 21 px between the search field and the bar and
+// 20 px between the bar and the grid, where those keep 16 px and 16 px (the spec's vertical values
+// of the leave views, S1 and S12). The phone's bar keeps the framework's own spacing.
+.o_timeline_view.o_hhg_leave_view .o_tl_controls:not(.o_tl_controls_phone) {
+    padding-top: 5px;
+    padding-bottom: 20px;
+}
+
+// The text of a pill is centred in the pill (S1 to S4); the other Gantt views keep it at the start.
+.o_hhg_time_off .o_tl_pill_title {
+    text-align: center;
+}
+
+// The report has no hours label: the name may use the room the label would take (the name's own
+// 4 px and the line's 4 px on its right), so that a long name is cut where the original cuts it.
+.o_timeline_view.o_hhg_report_view .o_tl_row_header:has(.o_hrg_identity) {
+    .o_tl_row_line,
+    .o_tl_row_name {
+        padding-right: 0;
+    }
+}
