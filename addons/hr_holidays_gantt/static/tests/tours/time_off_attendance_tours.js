@@ -7,7 +7,6 @@ import {
     assert,
     assertEqual,
     cellOfDate,
-    colByDate,
     foldedHeaders,
     clean,
     dataSettled,
@@ -109,28 +108,19 @@ async function flexibleWeek() {
     await settle(500);
 }
 
-/**
- * Monday is greyed for both rows (the fixed one has the Community's working hours and the leave),
- * so the column folds: it is opened by a real click on its folded header, to read its cells.
- */
-async function openMonday() {
-    if (!colByDate("2026-11-16")) {
-        const folded = foldedHeaders();
-        assertEqual(folded.length, 1, "Monday is the one folded column");
-        await realClick(folded[0]);
-        await until(() => colByDate("2026-11-16"), "Monday opens");
-        await settle(500);
-    }
+/** Monday is greyed whole for both rows yet stays open (screen S11): seven day columns. */
+function assertWeekOpen() {
+    assertEqual(foldedHeaders().length, 0, "no folded column");
     assertEqual(
         dateColumns().map((el) => el.dataset.date),
         WEEK_DAYS,
-        "the seven days"
+        "the seven days are open"
     );
 }
 
 scenario("hhg_a35_attendance_flexible", async () => {
     await flexibleWeek();
-    await openMonday();
+    assertWeekOpen();
     // Monday is greyed whole, Tuesday's two morning quarters and not its afternoon, Wednesday's
     // 9:00 to 13:00 covers no whole quarter
     assertEqual(partsOf(cellOfDate("Toff Flexible", "2026-11-16")), "all", describe("Toff Flexible", "2026-11-16"));
