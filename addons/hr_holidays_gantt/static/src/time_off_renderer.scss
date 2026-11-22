@@ -16,8 +16,8 @@
 // R18, M27 to M32: the leave band of the employee card, under the body of the card.
 .o_hhg_card_band {
     padding: 0 16px 8px;
-    border-bottom-left-radius: inherit;
-    border-bottom-right-radius: inherit;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
     font-size: $o-font-size-base-small;
 
     .o_hhg_card_head {
@@ -32,8 +32,16 @@
         border-radius: 6px;
     }
 
+    // the pencil is a plain control: the body's colour and the base size, 24 x 23 px (M29)
     .o_hhg_card_version {
         padding: 0 4px;
+        font-size: $font-size-base;
+        color: inherit;
+
+        &:hover,
+        &:focus-visible {
+            color: inherit;
+        }
     }
 
     .o_hhg_card_taken {

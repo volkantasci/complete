@@ -11,6 +11,7 @@ from . import (
     test_install,
     test_pill_text,
     test_prepared_tours,
+    test_probes,
     test_report_tours,
     test_roles,
     test_rows,
