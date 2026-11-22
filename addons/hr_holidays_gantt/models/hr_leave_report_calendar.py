@@ -29,8 +29,13 @@ class HrLeaveReportCalendar(models.Model):
             domain, groupby, read_specification, limit, offset,
             unavailability_fields, progress_bar_fields, start_date, stop_date, scale)
         if scaled._hhg_every_employee(groupby):
-            return scaled._get_gantt_data_with_empty(*arguments)
-        return super(HrLeaveReportCalendar, scaled).get_gantt_data(*arguments)
+            result = scaled._get_gantt_data_with_empty(*arguments)
+        else:
+            result = super(HrLeaveReportCalendar, scaled).get_gantt_data(*arguments)
+        # R7, R21: the sample data show only when the user can see no report record at all, the
+        # period and the search ignored (the user's own rights apply, the action's domain does not)
+        result['hhg_report_empty'] = not scaled.search_count([], limit=1)
+        return result
 
     @api.model
     def _hrg_relation_leaf(self, condition, field_name):

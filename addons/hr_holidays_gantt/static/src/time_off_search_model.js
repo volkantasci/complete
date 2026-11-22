@@ -1,5 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { user } from "@web/core/user";
 import { TimelineSearchModel } from "@web_gantt/timeline_view";
 
 /** R8: the grouping by Date, by the name the Community's search view gives it. */
@@ -23,5 +24,25 @@ export class TimeOffLeaveSearchModel extends TimelineSearchModel {
     }
 }
 
-/** The search model of the report view. */
-export class TimeOffReportSearchModel extends TimelineSearchModel {}
+/** R9: from this many readable employees on, the report opens on a narrower search. */
+export const HHG_MANY_EMPLOYEES = 50;
+
+/**
+ * The search model of the report view (R9). When the view opens, the public employees the user
+ * may read are counted: from 50 on, the search starts on My Team (the user's own employee has
+ * people under them) or My Department. The count is made once per opening, by `load`; a
+ * `reload` keeps what the user's search has become.
+ */
+export class TimeOffReportSearchModel extends TimelineSearchModel {
+    async load(config) {
+        const employees = await this.orm.searchCount("hr.employee.public", []);
+        if (employees >= HHG_MANY_EMPLOYEES) {
+            const subordinates = await this.orm.searchCount("hr.employee.public", [
+                ["parent_id.user_id", "=", user.userId],
+            ]);
+            const name = subordinates > 0 ? "search_default_my_team" : "search_default_department";
+            config = { ...config, context: { [name]: 1, ...config.context } };
+        }
+        return super.load(config);
+    }
+}
