@@ -228,8 +228,19 @@ tours.add("timeline_002b2_a64_scroll_moves_focus", {
                     Math.abs(moved - expected) < 0.05,
                     `the middle moved by ${moved} columns, expected about ${expected}`
                 );
-                const read = DateTime.fromISO(after.iso)
-                    .plus({ days: after.share * DateTime.fromISO(after.iso).daysInMonth })
+                // the view's own reading (002a R18: the focus is a linear share of the whole
+                // displayed period): the month columns are equally wide, so the share inside the
+                // column (`after.share`) stands for another day than the linear share does
+                const columns = $$(".o_tl_col[data-date]");
+                const left = columns[0].getBoundingClientRect().left;
+                const right = columns.at(-1).getBoundingClientRect().right;
+                const periodStart = DateTime.fromISO(columns[0].dataset.date);
+                const periodStop = DateTime.fromISO(columns.at(-1).dataset.date).plus({ months: 1 });
+                const read = periodStart
+                    .plus({
+                        milliseconds:
+                            ((visibleMiddle() + 1 - left) / (right - left)) * (periodStop - periodStart),
+                    })
                     .startOf("day");
                 await switchRange("week");
                 const now = middleOfScreen();

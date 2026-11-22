@@ -85,8 +85,7 @@ class TestTimelineDragTours(RealPointerMixin, HttpCase):
 
     def test_a64_tour_scroll_moves_focus(self):
         count = self.env[PILL].search_count([])
-        # the browser's clock is fixed: with the real day the tour's last reading (the day in the
-        # middle of the week range against the year range's) differs by one day on some days
+        # the browser's clock starts at D0 so that the tour runs from the same day every time
         self._tour('h1', 'timeline_002b2_a64_scroll_moves_focus', now=D0)
         self.assertEqual(self.env[PILL].search_count([]), count)
 
