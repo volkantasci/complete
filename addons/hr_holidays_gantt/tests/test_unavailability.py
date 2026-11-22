@@ -38,12 +38,12 @@ def touches(found, begin, end):
         local(item['start']) < end and local(item['stop']) > begin for item in found)
 
 
-@tagged('post_install', '-at_install')
 def _calendar_of_nobody(env):
     """A calendar model with no record: what a leave without a schedule is computed on."""
     return env['resource.calendar'].browse()
 
 
+@tagged('post_install', '-at_install')
 class TestUnavailability(TransactionCase):
     """R14, R15: unavailable periods of the time-off views, flexible schedules' leave intervals."""
 

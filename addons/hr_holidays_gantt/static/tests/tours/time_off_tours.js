@@ -608,6 +608,12 @@ tours.add("hhg_a08_reload", {
                 assertEqual($$(".o_cp_switch_buttons .o_switch_view").length, 0, "no view switcher");
                 assertEqual($$(".o_list_view, .o_kanban_view, .o_calendar_view").length, 0, "Gantt alone");
                 await until(() => rowEls().length === 20, `20 rows, there are ${rowEls().length}`, 10000);
+                // the domain came back too: Anita Oliver's Refused request of 9 November has no pill
+                assertEqual(
+                    pillTitles("Anita Oliver").length,
+                    3,
+                    `no pill for the Refused request: ${JSON.stringify(pillTitles("Anita Oliver"))}`
+                );
             },
         },
     ],

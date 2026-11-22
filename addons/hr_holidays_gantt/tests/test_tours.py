@@ -165,7 +165,12 @@ class TestTimeOffLeaveTours(TimeOffToursBase):
 
     def test_a08_reload(self):
         # the 22 employees of the demo: the first page of the reduced view holds 20 rows
-        fx.make_demo_world(self.env, self.schedule)
+        made = fx.make_demo_world(self.env, self.schedule)
+        # a Refused request of Anita Oliver: the Overview's domain leaves it out, before and
+        # after the reload
+        refused = fx.make_leave(
+            self.env, made['Anita Oliver'], fx.find_type(self.env, 'STO'), date(2026, 11, 9))
+        refused.with_user(self.admin).action_refuse()
         self._isolate(keep=set(fx.DEMO_EMPLOYEES))
         self.env.flush_all()
         self._tour('hhg_a08_reload')

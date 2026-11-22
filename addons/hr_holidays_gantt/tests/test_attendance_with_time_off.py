@@ -125,4 +125,4 @@ class TestAttendanceWithTimeOff(TransactionCase):
             thursday = [pair for pair in found[employee.id] if pair[0].startswith('2026-11-19')]
             self.assertTrue(thursday, employee.name)
             self.assertEqual(thursday[0][0], '2026-11-19 00:00:00', employee.name)
-            self.assertIn(thursday[-1][1], ('2026-11-19 23:59:59', '2026-11-20 00:00:00'))
+            self.assertEqual(thursday[-1][1], '2026-11-19 23:59:59', employee.name)
