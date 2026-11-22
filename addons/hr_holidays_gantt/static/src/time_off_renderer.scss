@@ -44,8 +44,11 @@
         }
     }
 
+    // M31: the time taken is the theme's dark text role at weight 500 (`#212529` in light,
+    // `#B3B4B8` in dark), not the card's own text colour, which is brighter in dark
     .o_hhg_card_taken {
         font-weight: 500;
+        color: $dark;
     }
 }
 

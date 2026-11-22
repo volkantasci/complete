@@ -640,13 +640,8 @@ class TestTimeOffProbesDemo(TimeOffProbeCase):
                 self.check('M30', line, scheme, 'desktop', 'the summary line',
                            dy=SHELL['desktop'] + .5)
                 self.check_text(line, 'Legal leave employee: 11 days /9 days', 'the line')
-                # the spec's known difference: in dark the Community card's text colour is the
-                # shell's own, not the original's (M31 dark reads 179, 180, 184); logged
-                colours = ('color', 'outline-color', 'border-top-color', 'border-right-color',
-                           'border-bottom-color', 'border-left-color')
                 self.check('M31', "document.querySelector('.o_hhg_card_taken')", scheme,
-                           'desktop', 'the time taken',
-                           skip=colours if scheme == 'dark' else ())
+                           'desktop', 'the time taken')
                 self.check('M32', "document.querySelector('.o_hhg_card_left')", scheme, 'desktop',
                            'the time left')
 
