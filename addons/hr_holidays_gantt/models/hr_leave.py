@@ -43,9 +43,10 @@ class HrLeave(models.Model):
         Internal users only; another field than the employee gets the base answer. The window
         is the period's days read in the browser's zone (``tz`` of the context, else the
         user's), then the same wall-clock times in each employee's own zone. An employee whose
-        schedule in effect today is flexible gets the hours of the Approved requests that
-        overlap the window; any other the working hours of the window less the leaves. The
-        hours are computed with the user's own rights, the versions are read with the system's.
+        schedule in effect today (``hhg_today`` of the context, the browser's day) is flexible
+        gets the hours of the Approved requests that overlap the window; any other the working
+        hours of the window less the leaves. The hours are computed with the user's own rights,
+        the versions are read with the system's.
         """
         if not self.env.user._is_internal():
             return {}
@@ -58,7 +59,12 @@ class HrLeave(models.Model):
         stop = fields.Datetime.to_datetime(period_stop).replace(tzinfo=UTC).astimezone(zone)
         first_day = start.date()
         last_day = (stop - timedelta(microseconds=1)).date()
-        today = fields.Date.context_today(self.with_context(tz=zone.key))
+        # today is the browser's (the client sends it); the server's clock is read only when the
+        # client sent nothing, and then in the browser's zone
+        sent_today = self.env.context.get('hhg_today')
+        today = (
+            fields.Date.to_date(sent_today) if sent_today
+            else fields.Date.context_today(self.with_context(tz=zone.key)))
         employees = self.env['hr.employee'].sudo().with_context(active_test=False)
         result = {}
         for employee in employees.browse(record_ids):

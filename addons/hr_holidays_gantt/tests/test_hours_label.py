@@ -99,7 +99,17 @@ class TestHoursLabel(fx.TimeOffGanttMixin, TransactionCase):
         flexible = self.made['Toff Flexible']
         flexible.create_version({
             'date_version': '2026-11-20', 'resource_calendar_id': fx.find_schedule(self.env).id})
-        self.assertEqual(self.labels(flexible, fx.WEEK, 'week'), {'Toff Flexible': 16})
+        # the day is the browser's: the server's clock stands on a later day (the version of the
+        # 20th is the schedule in effect there), and the context says the browser's day is the 11th
+        def week_label(**context):
+            with freeze_time('2026-11-22 10:00:00'):
+                found = self.env(user=self.admin)['hr.leave'].with_context(
+                    tz=fx.TZ, **context)._gantt_progress_bar('employee_id', flexible.ids, *fx.WEEK)
+            return found[flexible.id]['value']
+
+        self.assertEqual(week_label(hhg_today='2026-11-11'), 16)
+        # without the key the day is the server's, read in the context's zone
+        self.assertNotEqual(week_label(), 16)
 
     def test_employee_without_a_version_reads_his_resource_schedule(self):
         """The flexible-today guard of an employee that has no version falls back to the resource's

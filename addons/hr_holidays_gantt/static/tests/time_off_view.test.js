@@ -71,6 +71,8 @@ for (const report of [false, true]) {
         expect(context.group_by).toEqual(["employee_id"]);
         // the zone the test sets with mockTimeZone(1): UTC+1
         expect(context.tz).toBe("UTC+1");
+        // today is the browser's (A86): the test clock stands on 11 November 2026
+        expect(context.hhg_today).toBe("2026-11-11");
         expect(context.user_domain).toEqual([]);
     });
 
@@ -83,6 +85,7 @@ for (const report of [false, true]) {
         const context = timelineMock.calls.at(-1).context;
         expect(context.group_by).toEqual(["employee_id"]);
         expect(context.tz).toBe("UTC+1");
+        expect(context.hhg_today).toBe("2026-11-11");
         expect(context.user_domain).toEqual([]);
     });
 }

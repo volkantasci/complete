@@ -17,6 +17,8 @@ export class TimeOffLeaveModel extends EmployeeTimelineModel {
             ...request.kwargs.context,
             group_by: [...this.groupBy],
             tz: Settings.defaultZone.name,
+            // today is the browser's: no value reads the server's clock at run time
+            hhg_today: DateTime.now().toISODate(),
         };
         return request;
     }
