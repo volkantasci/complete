@@ -777,6 +777,8 @@ class TestTimeOffProbesRoles(TimeOffProbeCase):
                                viewport, 'the range button')
                     self.check('M91', "document.querySelector('.o_tl_separator')", scheme,
                                viewport, 'the separator')
+                    self.check('M94', "document.querySelector('.o_tl_controls')", scheme,
+                               viewport, 'the control bar under the separator')
                     self.check('M92', "document.querySelector('.o_tl_today')", scheme, viewport,
                                'Today')
                     self.check('M93', "document.querySelector('.o_tl_gear')", scheme, viewport,
@@ -980,6 +982,13 @@ class TestTimeOffProbesAttendance(TimeOffProbeCase):
                            'the control bar')
                 self.check('M87', "document.querySelector('.o_tl_today')", scheme, 'phone',
                            'Today')
+                # the attendance view draws 002a's own separator: the border colour at full
+                # opacity, not the quarter-opacity body colour of the table (reported; the time-off
+                # views draw the table's line themselves); its place and size are compared
+                self.check('M95', "document.querySelector('.o_tl_separator')", scheme, 'phone',
+                           'the separator', skip=('border-top-color', 'opacity'))
+                self.check('M96', "document.querySelector('.o_tl_controls')", scheme, 'phone',
+                           'the control bar')
                 self.check('M88', "document.querySelector('.o_tl_col_group')", scheme, 'phone',
                            'the period line')
 
@@ -1087,7 +1096,7 @@ class TestTimeOffProbesZCoverage(TimeOffProbeCase):
         if not self.env['ir.module.module'].sudo().search_count(
                 [('name', '=', 'hr_attendance_gantt'), ('state', '=', 'installed')]):
             in_attendance_view = {
-                f'M{number}' for number in (*range(51, 60), *range(68, 75), 86, 87, 88)}
+                f'M{number}' for number in (*range(51, 60), *range(68, 75), 86, 87, 88, 95, 96)}
             wanted = {key for key in wanted if key[0] not in in_attendance_view}
         _logger.info('PROBE-COVERAGE|%s compared|%s left out whole', len(COMPARED), len(SKIPPED))
         self.assertEqual(COMPARED, wanted - SKIPPED, 'the probes compared are the table\'s')

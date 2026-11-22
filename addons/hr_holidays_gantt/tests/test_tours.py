@@ -302,6 +302,13 @@ class TestTimeOffLeaveTours(TimeOffToursBase):
         # the table's values were taken on a phone page without touch emulation
         self._demo_like()
         self._tour('hhg_a92_bar_on_the_phone', mobile=PHONE, touch=False)
+        # the same page in dark: the separator as drawn reads the dark grey (needs the theme)
+        if self.env['ir.module.module'].sudo().search_count(
+                [('name', '=', 'web_enterprise'), ('state', '=', 'installed')]):
+            self.env['res.users.settings']._find_or_create_for_user(
+                self.admin).color_scheme = 'dark'
+            self.env.flush_all()
+            self._tour('hhg_a92_bar_on_the_phone', mobile=PHONE, touch=False)
 
     def test_a93_phone_opening_positions(self):
         self._demo_like()

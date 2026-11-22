@@ -1390,6 +1390,55 @@ scenario("hhg_a93_phone_opening_positions", async () => {
     assertNear(renderer().scrollLeft, 312, "Next keeps the scroll (M83)", 1);
     assertNear(rectOf(colByDate("2026-11-18")).left, 238, "Wednesday 18's left edge", 0.5);
     // The table's y 297 is that of the probe's world, which has other rows above Anita Oliver's (the
+/** A computed colour text as [r, g, b, a]. */
+const channelsOf = (text) => {
+    const [r, g, b, a = 1] = text.match(/[\d.]+/g).map(Number);
+    return [r, g, b, a];
+};
+
+/**
+ * The colour a user sees on a line of `el`: the line's colour at its own opacity over what lies
+ * under it (the element's background, then its ancestors', until one is opaque).
+ */
+function drawnLine(el) {
+    const style = getComputedStyle(el);
+    const [r, g, b, a] = channelsOf(style.borderTopColor);
+    const layers = [];
+    for (let node = el; node; node = node.parentElement) {
+        const [lr, lg, lb, la] = channelsOf(getComputedStyle(node).backgroundColor);
+        if (la > 0) {
+            layers.push([lr, lg, lb, la]);
+            if (la === 1) {
+                break;
+            }
+        }
+    }
+    let under = [255, 255, 255];
+    for (const [lr, lg, lb, la] of layers.reverse()) {
+        under = [lr, lg, lb].map((value, index) => value * la + under[index] * (1 - la));
+    }
+    const alpha = a * Number(style.opacity);
+    return [r, g, b].map((value, index) => Math.round(value * alpha + under[index] * (1 - alpha)));
+}
+
+// The separator as a user sees it (F2, M91, M94): a faint grey, not the text colour.
+const separatorLooksFaint = () => {
+    const scheme = getComputedStyle(document.documentElement).getPropertyValue("--o-cws-scheme").trim();
+    const [wanted, name] = scheme === "dark" ? [[82, 82, 85], "dark"] : [[194, 195, 197], "light"];
+    const style = getComputedStyle($(".o_tl_separator"));
+    assertEqual(style.opacity, "0.25", "the separator is drawn at a quarter opacity");
+    assertEqual(style.borderTopStyle, "solid", "a solid line");
+    assertEqual(
+        getComputedStyle($(".o_tl_controls")).backgroundColor,
+        "rgba(0, 0, 0, 0)",
+        "over a transparent bar (M94)"
+    );
+    const drawn = drawnLine($(".o_tl_separator"));
+    drawn.forEach((value, index) =>
+        assertNear(value, wanted[index], `the line as drawn in ${name}: channel ${index} of ${drawn}`, 3)
+    );
+};
+
     // probe checks it); here the pill lies 1 px under its 41 px row, as in the table
     const pill = pillByTitle("Anita Oliver", "PTO 1d");
     assertBox(pill, [239, null, 190, 23], "Anita Oliver's pill (M16)");
@@ -1400,6 +1449,7 @@ scenario("hhg_a93_phone_opening_positions", async () => {
 
 // A94: nothing covers the grid on the phone (R23 point 1, D3) -------------------------------------------
 
+    separatorLooksFaint();
 scenario("hhg_a94_nothing_covers_the_grid", async () => {
     assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
     assertEqual(rangeName(), "Month", "the range");

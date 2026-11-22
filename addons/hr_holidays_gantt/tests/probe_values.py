@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # ruff: noqa: E501
 """Measured values of the original for the time-off views (002e spec.md, "Measured values", M1 to
-M93), transcribed from the package's table by a script: the values Complete is compared with.
+M96), transcribed from the package's table by a script: the values Complete is compared with.
 
 ``TIME_OFF_PROBES`` is a list of rows ``(probe, scheme, viewport, prop, value)``; ``measured``
 turns the rows of one probe in one viewport into the ``{scheme: {prop: value}}`` mapping the
@@ -1867,18 +1867,6 @@ TIME_OFF_PROBES = [
     ('M90', 'dark', 'phone', 'geometry.y', '109.328'),
     ('M90', 'dark', 'phone', 'geometry.width', '79.922'),
     ('M90', 'dark', 'phone', 'geometry.height', '33'),
-    ('M91', 'light', 'phone', 'geometry.x', '0'),
-    ('M91', 'light', 'phone', 'geometry.y', '147'),
-    ('M91', 'light', 'phone', 'geometry.width', '390'),
-    ('M91', 'light', 'phone', 'geometry.height', '1'),
-    ('M91', 'light', 'phone', 'border-top-width', '1'),
-    ('M91', 'light', 'phone', 'border-top-color', 'rgba(33, 37, 41, 1)'),
-    ('M91', 'dark', 'phone', 'geometry.x', '0'),
-    ('M91', 'dark', 'phone', 'geometry.y', '147'),
-    ('M91', 'dark', 'phone', 'geometry.width', '390'),
-    ('M91', 'dark', 'phone', 'geometry.height', '1'),
-    ('M91', 'dark', 'phone', 'border-top-width', '1'),
-    ('M91', 'dark', 'phone', 'border-top-color', 'rgba(235, 235, 235, 1)'),
     ('M92', 'light', 'phone', 'geometry.x', '16'),
     ('M92', 'light', 'phone', 'geometry.y', '152.656'),
     ('M92', 'light', 'phone', 'geometry.width', '59.359'),
@@ -1895,6 +1883,42 @@ TIME_OFF_PROBES = [
     ('M93', 'dark', 'phone', 'geometry.y', '152.656'),
     ('M93', 'dark', 'phone', 'geometry.width', '36.016'),
     ('M93', 'dark', 'phone', 'geometry.height', '33'),
+    ('M91', 'light', 'phone', 'geometry.x', '0'),
+    ('M91', 'light', 'phone', 'geometry.y', '147'),
+    ('M91', 'light', 'phone', 'geometry.width', '390'),
+    ('M91', 'light', 'phone', 'geometry.height', '1'),
+    ('M91', 'light', 'phone', 'border-top-width', '1'),
+    ('M91', 'light', 'phone', 'border-top-style', 'solid'),
+    ('M91', 'light', 'phone', 'border-top-color', 'rgba(33, 37, 41, 1)'),
+    ('M91', 'light', 'phone', 'opacity', '0.25'),
+    ('M91', 'dark', 'phone', 'geometry.x', '0'),
+    ('M91', 'dark', 'phone', 'geometry.y', '147'),
+    ('M91', 'dark', 'phone', 'geometry.width', '390'),
+    ('M91', 'dark', 'phone', 'geometry.height', '1'),
+    ('M91', 'dark', 'phone', 'border-top-width', '1'),
+    ('M91', 'dark', 'phone', 'border-top-style', 'solid'),
+    ('M91', 'dark', 'phone', 'border-top-color', 'rgba(235, 235, 235, 1)'),
+    ('M91', 'dark', 'phone', 'opacity', '0.25'),
+    ('M94', 'light', 'phone', 'background-color', 'rgba(0, 0, 0, 0)'),
+    ('M94', 'dark', 'phone', 'background-color', 'rgba(0, 0, 0, 0)'),
+    ('M95', 'light', 'phone', 'geometry.x', '0'),
+    ('M95', 'light', 'phone', 'geometry.y', '147'),
+    ('M95', 'light', 'phone', 'geometry.width', '390'),
+    ('M95', 'light', 'phone', 'geometry.height', '1'),
+    ('M95', 'light', 'phone', 'border-top-width', '1'),
+    ('M95', 'light', 'phone', 'border-top-style', 'solid'),
+    ('M95', 'light', 'phone', 'border-top-color', 'rgba(33, 37, 41, 1)'),
+    ('M95', 'light', 'phone', 'opacity', '0.25'),
+    ('M95', 'dark', 'phone', 'geometry.x', '0'),
+    ('M95', 'dark', 'phone', 'geometry.y', '147'),
+    ('M95', 'dark', 'phone', 'geometry.width', '390'),
+    ('M95', 'dark', 'phone', 'geometry.height', '1'),
+    ('M95', 'dark', 'phone', 'border-top-width', '1'),
+    ('M95', 'dark', 'phone', 'border-top-style', 'solid'),
+    ('M95', 'dark', 'phone', 'border-top-color', 'rgba(235, 235, 235, 1)'),
+    ('M95', 'dark', 'phone', 'opacity', '0.25'),
+    ('M96', 'light', 'phone', 'background-color', 'rgba(0, 0, 0, 0)'),
+    ('M96', 'dark', 'phone', 'background-color', 'rgba(0, 0, 0, 0)'),
 ]
 
 
