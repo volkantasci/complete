@@ -12,7 +12,6 @@ make move to another company, so that they never enter a view the tour counts. T
 """
 import json
 import time
-import unittest
 from datetime import date, datetime
 from unittest.mock import patch
 
@@ -145,12 +144,6 @@ class TestTimeOffLeaveTours(TimeOffToursBase):
         self._isolate()
         self._tour('hhg_a05_management_action', path=MANAGEMENT)
 
-    # A8 states that a reload of the Overview opens the management action natively (its own
-    # facets, the view switcher). The web client restores the action it stored in the session
-    # (the reduced one) when the address names the same action, so the reload keeps the
-    # Overview's reduced action: the tour fails on its facets. Marked as a known deviation until
-    # the orchestrator decides how the Overview should leave the session (see the report).
-    @unittest.skip('A8: the reload restores the Overview\'s reduced action (known deviation)')
     def test_a08_reload(self):
         self._demo_like()
         self._tour('hhg_a08_reload')
