@@ -23,6 +23,10 @@ class TestFixtures(TransactionCase):
         self.assertTrue(users['toff_officer'].has_group('hr_holidays.group_hr_holidays_user'))
         self.assertFalse(users['toff_officer'].has_group('hr_holidays.group_hr_holidays_manager'))
         self.assertTrue(users['toff_admin'].has_group('hr_holidays.group_hr_holidays_manager'))
+        export = 'base.group_allow_export'
+        self.assertEqual(
+            {login for login, user in users.items() if user.has_group(export)},
+            {'toff_officer', 'toff_admin'})
         peer = self.env['hr.employee'].search([('name', '=', fx.PEER_NAME)])
         self.assertEqual(peer.leave_manager_id, users['toff_approver'])
         self.assertEqual(peer.parent_id, users['toff_manager'].employee_id)

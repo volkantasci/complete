@@ -113,12 +113,13 @@ describe("desktop", () => {
         const payload = JSON.parse(calls[0].data.data);
         expect(payload.model).toBe("hr.leave");
         expect(payload.fields.map((field) => field.name)).toEqual([
-            ".id",
+            "id",
             "employee_id",
-            "work_entry_type_id",
-            "date_from",
-            "date_to",
+            "work_entry_type_id/id",
+            "request_date_from",
+            "request_date_to",
         ]);
+        expect(payload.import_compat).toBe(true);
         expect(payload.domain).toEqual([["state", "=", "validate"]]);
         expect(payload.groupby).toEqual([]);
         expect(payload.ids).toBe(false);

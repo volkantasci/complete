@@ -1,6 +1,8 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { rpc } from "@web/core/network/rpc";
 import { registry } from "@web/core/registry";
+import { user } from "@web/core/user";
 import {
     $,
     $$,
@@ -8,8 +10,10 @@ import {
     assert,
     assertEqual,
     assertUncovered,
+    breadcrumb,
     centre,
     clean,
+    clickCardButton,
     colByDate,
     dataSettled,
     dateColumns,
@@ -25,6 +29,7 @@ import {
     pillsOf,
     pillTitles,
     popoverOfView,
+    rangeName,
     realClick,
     realTap,
     rectOf,
@@ -416,6 +421,60 @@ fromHome("hhg_a61_officer", () =>
 fromHome("hhg_a62_admin", () =>
     officerOverview(["My Time", "Overview", "Management", "Reporting", "Configuration"])
 );
+
+// A89: the schedule button by role ---------------------------------------------------------------------
+
+/** The user's own login and name, read from the server. */
+async function ownIdentity() {
+    const [me] = await rpc("/web/dataset/call_kw/res.users/read", {
+        model: "res.users",
+        method: "read",
+        args: [[user.userId], ["login", "name"]],
+        kwargs: {},
+    });
+    return me;
+}
+
+/** The dashboard the schedule button of ``name``'s card opens: its requests, by the browser. */
+async function dashboardOf(name) {
+    await openCardOf(name);
+    await clickCardButton(".o_hhg_card_schedule");
+    await until(() => $(".o_calendar_container .o_calendar_header h5"), `the dashboard of ${name}`, 20000);
+    await settle(1200);
+    assert(breadcrumb().includes("Time Off Dashboard"), `the dashboard of ${name}: ${breadcrumb()}`);
+    const requests = $$(".o_calendar_container .fc-event").length;
+    await realClick($(".o_breadcrumb .breadcrumb-item:not(.active)"));
+    await until(() => $(".o_tl_renderer .o_tl_row_header"), "the view again", 20000);
+    await dataSettled();
+    await settle(500);
+    return requests;
+}
+
+scenario("hhg_a89_schedule_button_by_role", async () => {
+    const me = await ownIdentity();
+    await searchFor("Toff");
+    await until(() => rowEl("Toff Peer"), "Toff Peer's row", 10000);
+    if (rangeName() !== "Month") {
+        await pickRange("month");
+    }
+    // Toff Peer's two requests of November, none for an Employee (an empty calendar)
+    const wanted = me.login === "toff_emp" ? 0 : 2;
+    assertEqual(await dashboardOf("Toff Peer"), wanted, `${me.login}: the requests of Toff Peer`);
+    // the user's own card opens the user's own dashboard, which holds no request
+    assertEqual(await dashboardOf(me.name), 0, `${me.login}: the user's own dashboard`);
+});
+
+// A90: Export needs the export group ---------------------------------------------------------------
+
+/** The gear of the Overview's leave view holds ``entries`` (the server sets the group). */
+const gearOfOverview = (entries) => async () => {
+    await enterTimeOff();
+    await openOverview();
+    assertEqual(viewTitle(), "Days", "the Overview opens the leave view");
+    assertEqual(await gearEntries(), entries, "the gear's entries");
+};
+fromHome("hhg_a90_without_group", gearOfOverview(["Import"]));
+fromHome("hhg_a90_with_group", gearOfOverview(["Import", "Export"]));
 
 // A63: the matrix of rows ---------------------------------------------------------------------------
 

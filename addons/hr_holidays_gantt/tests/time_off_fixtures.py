@@ -33,6 +33,9 @@ ROLES = {
     "toff_admin": ("Toff Role Admin", "hr_holidays.group_hr_holidays_manager"),
 }
 
+# the roles that hold the Community's export group "Export / Allowed" (R19; A90 takes it away)
+EXPORTERS = ("toff_officer", "toff_admin")
+
 # generic leave types the demo leaves carry: key -> (name, code, display code, colour, extra)
 _GENERIC = {
     "PTO": ("Legal leave employee", "016.00", "PTO", 11),
@@ -233,12 +236,13 @@ def make_role_users(env, schedule=None):
     """The six role users with their employees, and "Toff Peer"; ``{login: user}``.
 
     Groups are replaced: the internal user group and the role's one Time Off group, so a role
-    never holds a group a new user gets by default. Each user has the time zone Europe/Brussels
-    and an employee of the same name (schedule "40 hours/week", contract from 1 January 2026);
-    "Toff Peer" has the same values and no user. toff_approver is named time off approver of
-    Toff Peer (the Community adds "Time Off Responsible"), toff_manager its manager, with the
-    approver left to toff_approver, so toff_manager does not hold that group. The password of a
-    user is its login. Earlier records are removed first.
+    never holds a group a new user gets by default; toff_officer and toff_admin also hold the
+    Community's export group (``EXPORTERS``), which no Time Off group implies. Each user has
+    the time zone Europe/Brussels and an employee of the same name (schedule "40 hours/week",
+    contract from 1 January 2026); "Toff Peer" has the same values and no user. toff_approver
+    is named time off approver of Toff Peer (the Community adds "Time Off Responsible"),
+    toff_manager its manager, with the approver left to toff_approver, so toff_manager does not
+    hold that group. The password of a user is its login. Earlier records are removed first.
     """
     drop_time_off_records(env)
     schedule = schedule or find_schedule(env)
@@ -246,6 +250,8 @@ def make_role_users(env, schedule=None):
     users = {}
     for login, (name, xmlid) in ROLES.items():
         groups = internal | (env.ref(xmlid) if xmlid else env["res.groups"])
+        if login in EXPORTERS:
+            groups |= env.ref("base.group_allow_export")
         users[login] = env["res.users"].with_context(no_reset_password=True).create({
             "name": name,
             "login": login,
@@ -264,6 +270,20 @@ def make_role_users(env, schedule=None):
     peer.leave_manager_id = users["toff_approver"]
     env.flush_all()
     return users
+
+
+def make_peer_band_records(env):
+    """A88's records of "Toff Peer": 10 days of Legal leave employee allocated, an Approved
+    request of 16 and 17 November and a request To Approve on 19 November."""
+    peer = env["hr.employee"].search([("name", "=", PEER_NAME)], limit=1)
+    legal = find_type(env, "PTO")
+    _allocate(env, peer, legal, 10)
+    make_leave(env, peer, legal, date(2026, 11, 16), date(2026, 11, 17))
+    waiting = make_leave(env, peer, legal, date(2026, 11, 19))
+    # set back by hand: the Community refuses to reset a request whose day has passed
+    waiting.sudo().write({"state": "confirm"})
+    env.flush_all()
+    return peer
 
 
 def make_flexible(env, schedule=None):

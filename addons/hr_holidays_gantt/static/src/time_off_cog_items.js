@@ -28,14 +28,20 @@ function hhgArchFlag(env, name) {
     return exprToBoolean(env.config.viewArch.getAttribute(name), true);
 }
 
-/** The five columns of the export: the request's number, employee, type, start and end. */
+/**
+ * The five columns of the export (R19): the request's external identifier, the employee, the
+ * time type's external identifier, the start date and the end date. The export runs in the
+ * import-compatible mode, which creates the external identifier of a request that has none and
+ * names its columns by the fields; the requests come in the model's own order (latest start
+ * first).
+ */
 function hhgExportFields() {
     return [
-        { name: ".id", label: _t("Request"), store: true, type: "integer" },
+        { name: "id", label: _t("External ID") },
         { name: "employee_id", label: _t("Employee"), store: true, type: "many2one" },
-        { name: "work_entry_type_id", label: _t("Type"), store: true, type: "many2one" },
-        { name: "date_from", label: _t("Start"), store: true, type: "datetime" },
-        { name: "date_to", label: _t("End"), store: true, type: "datetime" },
+        { name: "work_entry_type_id/id", label: _t("Type"), store: true, type: "many2one" },
+        { name: "request_date_from", label: _t("Start"), store: true, type: "date" },
+        { name: "request_date_to", label: _t("End"), store: true, type: "date" },
     ];
 }
 
@@ -50,7 +56,7 @@ export class HhgExportLeaves extends Component {
             url: "/web/export/xlsx",
             data: {
                 data: JSON.stringify({
-                    import_compat: false,
+                    import_compat: true,
                     context,
                     domain,
                     fields: hhgExportFields(),

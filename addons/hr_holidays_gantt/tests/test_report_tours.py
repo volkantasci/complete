@@ -42,11 +42,6 @@ class ReportToursBase(test_tours.TimeOffToursBase):
         """
         self.demo = fx.make_demo_world(self.env, self.schedule) if demo else {}
         self.users = fx.make_role_users(self.env, self.schedule)
-        # Export needs the export group (R19, R20: "Export with the export group"): the Officer
-        # and the Admin hold it, the Approver of A84 does not
-        export = self.env.ref('base.group_allow_export')
-        privileged = self.users['toff_officer'] | self.users['toff_admin']
-        privileged.write({'group_ids': [(4, export.id)]})
         self.role_employees = {name: user.employee_id for name, user in self.users.items()}
         self.peer = self.env['hr.employee'].search([('name', '=', fx.PEER_NAME)])
         self._isolate(keep=set(fx.DEMO_EMPLOYEES) if demo else set())
@@ -84,6 +79,9 @@ class ReportToursBase(test_tours.TimeOffToursBase):
         self.assertTrue(users['toff_admin'].has_group(ADMIN_GROUP))
         for login in ('toff_none', 'toff_emp', 'toff_manager'):
             self.assertFalse(users[login].has_group(RESPONSIBLE), login)
+        for login, user in users.items():
+            self.assertEqual(
+                user.has_group('base.group_allow_export'), login in fx.EXPORTERS, login)
 
 
 @tagged('post_install', '-at_install')
@@ -250,6 +248,25 @@ class TestTimeOffRoleTours(ReportToursBase):
     def test_a62_admin(self):
         self._world('toff_admin')
         self._tour('hhg_a62_admin', login='toff_admin', path=HOME)
+
+    def test_a90_export_needs_the_export_group(self):
+        export = self.env.ref('base.group_allow_export')
+        self._world(None)
+        for login in ('toff_officer', 'toff_admin'):
+            self._only(login)
+            user = self.users[login]
+            user.write({'group_ids': [(3, export.id)]})
+            self.assertFalse(user.has_group('base.group_allow_export'), login)
+            self._tour('hhg_a90_without_group', login=login, path=HOME)
+            user.write({'group_ids': [(4, export.id)]})
+            self.assertTrue(user.has_group('base.group_allow_export'), login)
+            self._tour('hhg_a90_with_group', login=login, path=HOME)
+
+    def test_a89_schedule_button_by_role(self):
+        self._world(None, demo=False)
+        fx.make_peer_band_records(self.env)
+        for login in ('toff_emp', 'toff_approver', 'toff_officer', 'toff_admin'):
+            self._tour('hhg_a89_schedule_button_by_role', login=login, path=test_tours.OVERVIEW)
 
     def test_a63_matrix_of_rows(self):
         self._world(None)

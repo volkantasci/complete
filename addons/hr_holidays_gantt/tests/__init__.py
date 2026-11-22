@@ -5,6 +5,7 @@ from . import (
     test_attendance_tours,
     test_attendance_with_time_off,
     test_card_data,
+    test_export,
     test_fixtures,
     test_hoot,
     test_hours_label,
