@@ -4,12 +4,6 @@ from odoo.tests.common import TransactionCase
 
 
 class TestInstall(TransactionCase):
-    def test_bridge_is_installed(self):
-        module = self.env['ir.module.module'].search([('name', '=', 'hr_holidays_gantt')])
-        self.assertEqual(module.state, 'installed')
-        self.assertTrue(module.auto_install)
-        self.assertFalse(module.application)
-
     def test_a01_bridge_installs_by_itself(self):
         module = self.env['ir.module.module'].search([('name', '=', 'hr_holidays_gantt')])
         self.assertEqual(module.state, 'installed')

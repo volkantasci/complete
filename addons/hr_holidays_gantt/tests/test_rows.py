@@ -54,6 +54,14 @@ class TestRows(fx.TimeOffGanttMixin, TransactionCase):
             user_domain=[('job_id', 'ilike', 'Toff Consultant'),
                          ('company_id', 'in', self.env.company.ids)])
         self.assertEqual(result['length'], 7)
+        # a company the employees do not belong to: no row (a dropped condition would show 7)
+        other = self.env['res.company'].create({'name': 'Toff Other Company'})
+        result = self.call_gantt(
+            'hr.leave.report.calendar', user=self.users['toff_emp'],
+            user_domain=[('job_id', 'ilike', 'Toff Consultant'),
+                         ('company_id', 'in', other.ids)])
+        self.assertEqual(result['length'], 0)
+        self.assertEqual(result['groups'], [])
 
     def test_a77_negated_search(self):
         mixed = ['!', '&', ('employee_id.name', 'ilike', 'Marc Demo'), ('state', '=', 'validate')]

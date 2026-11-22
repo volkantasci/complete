@@ -111,6 +111,22 @@ describe("the leave view", () => {
         expect(".o_hhg_card_schedule").toHaveText("37.5 h / Week");
     });
 
+    test("A16: a value with decimals is not rounded", async () => {
+        await openCard({ card: { hours: 38.4167 } });
+        expect(".o_hhg_card_schedule").toHaveText("38.4167 h / Week");
+    });
+
+    test("A16: a whole value shows no decimals", async () => {
+        await openCard({ card: { hours: 40 } });
+        expect(".o_hhg_card_schedule").toHaveText("40 h / Week");
+    });
+
+    test("R18 point 4: the pencil is named New Employee Record", async () => {
+        await openCard();
+        expect(".o_hhg_card_version").toHaveAttribute("title", "New Employee Record");
+        expect(".o_hhg_card_version").toHaveAttribute("aria-label", "New Employee Record");
+    });
+
     test("A16: a schedule of 0 hours reads Time Off", async () => {
         await openCard({ card: { hours: 0 } });
         expect(".o_hhg_card_schedule").toHaveText("Time Off");
@@ -191,12 +207,16 @@ describe("the leave view", () => {
         await click(".o_hhg_card_version");
         await animationFrame();
         expect(".o_datetime_picker").toHaveCount(1);
-        await click(".o_datetime_picker .o_date_item_cell:not(.o_out_of_range)");
+        const cell = queryAll(".o_datetime_picker .o_date_item_cell:not(.o_out_of_range)").find(
+            (item) => item.textContent.trim() === "20"
+        );
+        await click(cell);
         await animationFrame();
         await advanceTime(300);
         expect(calls).toHaveLength(1);
         expect(calls[0][0]).toBe("create_version");
-        expect(calls[0][2].date_version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        // the picker opens on the test clock's month (November 2026): the clicked day is sent
+        expect(calls[0][2].date_version).toBe("2026-11-20");
         expect(actions).toHaveLength(1);
         expect(actions[0].res_model).toBe("hr.employee");
         expect(actions[0].views).toEqual([[false, "form"]]);

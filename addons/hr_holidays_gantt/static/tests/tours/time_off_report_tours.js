@@ -347,7 +347,7 @@ tours.add("hhg_a56_no_role", {
                 const text = clean($(".modal").textContent);
                 console.info(`hhg-finding: the Overview's address shows "${text.slice(0, 300)}"`);
                 assert(/not allowed to access/i.test(text), `the Community's access error: ${text}`);
-                assert(/hr\.leave\.report\.calendar|Time Off/.test(text), `on the report: ${text}`);
+                assert(/hr\.leave\.report\.calendar/.test(text), `on the report model: ${text}`);
                 assert(!$(".o_tl_renderer"), "no Gantt view behind it");
             },
         },

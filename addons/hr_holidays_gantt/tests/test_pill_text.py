@@ -68,7 +68,7 @@ class TestPillText(fx.TimeOffGanttMixin, TransactionCase):
                     model, user=self.admin, user_domain=approved, extra=self.anita)
                 self.assertEqual(
                     self.texts(result), ['1d', 'PTO 4 days', 'PTO 6 days'])
-        # the helper path with a condition on the request: the first group has records only
+        # the plain path again (a condition on the request), at the week scale: one record
         result = self.call_gantt(
             user=self.admin, user_domain=approved, extra=self.anita, period=fx.WEEK, scale='week')
         self.assertEqual(self.texts(result), ['PTO 1d'])

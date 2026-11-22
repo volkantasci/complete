@@ -15,7 +15,7 @@ import {
     setupTimeOffFixtures,
 } from "./time_off_test_helpers";
 
-const { DateTime, Settings } = luxon;
+const { DateTime } = luxon;
 
 describe.current.tags("desktop");
 
@@ -58,10 +58,37 @@ for (const report of [false, true]) {
         await mountTimeOff({ employees: ["Anita Oliver"], report });
         const context = timelineMock.calls.at(-1).context;
         expect(context.group_by).toEqual(["employee_id"]);
-        expect(context.tz).toBe(Settings.defaultZone.name);
+        // the zone the test sets with mockTimeZone(1): UTC+1
+        expect(context.tz).toBe("UTC+1");
+        expect(context.user_domain).toEqual([]);
+    });
+
+    test(`the same keys are sent again on a reload (${report ? "report" : "leave"})`, async () => {
+        await makeTimeOffData(["Anita Oliver"]);
+        const model = await makeTimeOffModel({ report });
+        const loads = timelineMock.calls.length;
+        await stepBy(model, 1);
+        expect(timelineMock.calls.length).toBeGreaterThan(loads);
+        const context = timelineMock.calls.at(-1).context;
+        expect(context.group_by).toEqual(["employee_id"]);
+        expect(context.tz).toBe("UTC+1");
         expect(context.user_domain).toEqual([]);
     });
 }
+
+test("A53: the base Gantt view shows the New button the time-off variant hides", async () => {
+    const plain = `<gantt string="Days" date_start="start" date_stop="stop"
+        default_group_by="employee_id" default_range="month" scales="week,month,quarter"
+        precision="{'week': 'day:full', 'month': 'day:full'}" plan="0"/>`;
+    await mountTimeOff({ employees: ["Anita Oliver"], arch: plain });
+    expect(".o_tl_button_add").toHaveCount(1);
+});
+
+test("A54: the report variant still offers the Date grouping", async () => {
+    await mountTimeOff({ employees: ["Anita Oliver"], report: true });
+    await toggleSearchBarMenu();
+    expect(queryAllTexts(".o_search_bar_menu .o_menu_item")).toInclude("Date");
+});
 
 test("A54: the Date grouping is not offered", async () => {
     await mountTimeOff({ employees: ["Anita Oliver"] });
@@ -81,7 +108,7 @@ test("A48: a named range is one period", async () => {
     expect([first(model), last(model)]).toEqual(["2026-12-01", "2026-12-31"]);
     await model.setKind("week");
     await stepBy(model, -1);
-    // the week of December 6 to 12 around the visible middle... today is not displayed
+    // a week is seven columns
     expect(model.columns.length).toBe(7);
     await model.setKind("quarter");
     expect(model.scaleId).toBe("month");
@@ -111,7 +138,7 @@ test("A49: a range chosen around today, or around the middle of the visible part
     expect([first(model), last(model)]).toEqual(["2026-12-13", "2026-12-19"]);
 });
 
-test("A50: Today builds one period, a custom range keeps its length", async () => {
+test("A50: Today reloads on another period, then only scrolls", async () => {
     await makeTimeOffData(["Anita Oliver"]);
     const model = await makeTimeOffModel();
     await model.setKind("week");
@@ -123,7 +150,7 @@ test("A50: Today builds one period, a custom range keeps its length", async () =
     expect(await model.goToday()).toBe("scrolled");
 });
 
-test("A50: Custom keeps a ten day range around today", async () => {
+test("A50: Today on a custom range keeps its kind and its ten days", async () => {
     await makeTimeOffData(["Anita Oliver"]);
     const model = await makeTimeOffModel();
     await model.applyCustom(DateTime.fromISO("2026-12-01"), DateTime.fromISO("2026-12-10"), {
