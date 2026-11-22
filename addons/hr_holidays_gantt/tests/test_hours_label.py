@@ -117,3 +117,12 @@ class TestHoursLabel(fx.TimeOffGanttMixin, TransactionCase):
         self.assertEqual(self.labels(self.peer, fx.QUARTER, 'quarter'), {fx.PEER_NAME: 528})
         self.assertEqual(
             self.labels(self.world['Mitchell Admin'], fx.WEEK, 'week'), {'Mitchell Admin': 16})
+
+    def test_hours_without_a_contract_count_the_schedule(self):
+        """R16: the days out of contract, or an employee with no contract, count as well."""
+        schedule = fx.find_schedule(self.env)
+        ended = fx._employee(
+            self.env, 'Toff Ended', schedule, contract_date_end=date(2026, 11, 11))
+        bare = fx._employee(self.env, 'Toff Bare', schedule, contract_date_start=False)
+        self.assertEqual(
+            self.labels(ended | bare), {'Toff Ended': 168, 'Toff Bare': 168})

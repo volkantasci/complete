@@ -1,6 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from odoo import api, fields, models
@@ -88,14 +88,12 @@ class HrLeave(models.Model):
 
     @api.model
     def _hhg_working_hours(self, employee, first_day, last_day, date_from, date_to):
-        """The Community's working hours of the window, the leaves counted, for a (sudo) employee.
+        """The hours the schedule counts in the window, the leaves taken off, for a (sudo) employee.
 
-        The method follows ``_get_expected_attendances`` in odoo/addons/hr/models/hr_employee.py
-        of Odoo Community (LGPL-3.0, Copyright Odoo S.A.), kept with its notice: each version in
-        contract over the window reads its own schedule, the company-wide leaves and the
-        employee's validated leaves are taken off. Only the versions that overlap the window's
-        days are counted: the Community's method also takes a contract that starts the day
-        after the period, whose hours then lean into the window when the zones differ.
+        The version in effect on each day is read by its own dates (the first one also before
+        its date), the contract dates are ignored: an employee out of contract reads the hours
+        of his schedule as well. An employee without a version reads the schedule of his
+        resource. The company-wide leaves and the employee's validated leaves are taken off.
         The schedules and leaves are read with the user's rights; the versions with the
         system's.
         """
@@ -103,25 +101,28 @@ class HrLeave(models.Model):
         resource = self.env['resource.resource'].browse(employee.resource_id.id)
         leave_domain = [
             ('company_id', 'in', [False, employee.company_id.id]), ('count_as', '=', 'absence')]
-        versions = employee._get_versions_with_contract_overlap_with_period(first_day, last_day)
+        versions = employee.version_ids.filtered('active') or employee.version_ids
+        versions = versions.sorted('date_version')
         if not versions:
-            # no contract on the window's days: the current schedule over the whole window
-            intervals = calendars.browse(employee.resource_calendar_id.id)._work_intervals_batch(
+            intervals = calendars.browse(employee.resource_id.calendar_id.id)._work_intervals_batch(
                 date_from, date_to,
                 resources_per_tz={ZoneInfo(employee._get_tz(date=date_from)): resource},
                 compute_leaves=True, domain=leave_domain,
             )[resource.id]
             return sum_intervals(intervals)
-        employee_tz = ZoneInfo(employee.tz) if employee.tz else None
+        zone = date_from.tzinfo
         intervals = Intervals()
-        previous = datetime.combine(versions[0].date_start, time.min, employee_tz)
-        for version in versions:
-            version_start = datetime.combine(version.date_start, time.min, employee_tz)
-            contract_start = datetime.combine(version.contract_date_start, time.min, employee_tz)
-            version_end = datetime.combine(version.date_end or date.max, time.max, employee_tz)
-            begin = version_start if previous < version_start else contract_start
+        for index, version in enumerate(versions):
+            begin = date_from if index == 0 else max(
+                date_from, datetime.combine(version.date_version, time.min, zone))
+            end = date_to
+            if index + 1 < len(versions):
+                end = min(date_to, datetime.combine(
+                    versions[index + 1].date_version, time.min, zone))
+            if begin >= end:
+                continue
             intervals |= calendars.browse(version.resource_calendar_id.id)._work_intervals_batch(
-                max(date_from, begin), min(date_to, version_end),
+                begin, end,
                 resources_per_tz={ZoneInfo(version._get_tz()): resource},
                 compute_leaves=True, domain=leave_domain,
             )[resource.id]

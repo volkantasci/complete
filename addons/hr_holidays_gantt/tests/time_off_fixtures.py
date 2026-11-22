@@ -80,6 +80,14 @@ DEMO_EMPLOYEES = (
 )
 
 
+# Keith Byrd's contract ends before the day of the scenarios; these have none over November
+KEITH_CONTRACT_END = "2026-11-11"
+NO_CONTRACT = (
+    "Audrey Peterson", "Beth Evans", "Doris Cole", "Eli Lambert", "Ernest Reed",
+    "Rachel Perry", "Tina Williamson",
+)
+
+
 def find_admin(env):
     """The administrator (Mitchell Admin, login admin), a Time Off administrator."""
     admin = env.ref("base.user_admin")
@@ -376,8 +384,18 @@ def make_demo_world(env, schedule=None):
             continue
         found = env["hr.employee"].search([("name", "=", name)], limit=1)
         made[name] = found or _employee(env, name, schedule)
+    for name in NO_CONTRACT:
+        _set_contract(made[name], False, False)
+    _set_contract(made["Keith Byrd"], CONTRACT_START, KEITH_CONTRACT_END)
     env.flush_all()
     return made
+
+
+def _set_contract(employee, start, end):
+    """The contract dates of all versions of ``employee`` (False: none); the cells of the
+    days outside the contract are grey in the view."""
+    employee.with_context(active_test=False).version_ids.write({
+        "contract_date_start": start, "contract_date_end": end})
 
 
 def _has_leave(env, employee, key, first):
