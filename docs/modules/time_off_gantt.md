@@ -75,7 +75,7 @@ The report view and the leave view differ in a few more ways.
 | Marks on pills | striped with an info mark for requests waiting for approval; a danger mark for Refused; a secondary mark for Cancelled | none |
 | Hours label | yes, for internal users | none |
 | Gear: Import and Export | yes, on a wide screen | none |
-| Sample data | none | when the report holds nothing at all |
+| Sample data | none | at the view's first load, when no request lies on the first page in the opening period |
 
 The report view's Week range works by half days, so a leave of half a day is
 drawn on half of its day there, and the lunch rounding of the attendance views
@@ -401,11 +401,22 @@ told in
 Every command below is one plain `podman compose` command from the root of the
 repository, after `docker/.env` has been created. Replace `DB` with `demo002e`.
 
+**Scheduled jobs off.** Every command that starts the server carries Odoo's option
+`--max-cron-threads=0`, which runs no scheduled job. The Time Off application's job
+that generates public holidays would add the company country's holidays of the year
+as company-wide days off (in this database 11 and 26 November 2026): those days turn
+grey for every employee and a demo leave that crosses them is recounted (Anita
+Oliver's 23 to 30 November becomes 5 days instead of 6, and her November label
+"72h" instead of "80h"). The other jobs (accruals, time rules, cancelling invalid
+requests) may change allocations and requests too. The values of the demo table hold
+only without them. The three commands below that only read or change prepared records
+(`check-demo`, `prepare`, `unprepare`) open the database without starting the server.
+
 Create the database with the modules of this part and the demo data (the skills
 module fills the employee card):
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB -i web_enterprise,test_web_gantt,hr_gantt,hr_attendance_gantt,hr_holidays_gantt,hr_skills --with-demo --stop-after-init
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB -i web_enterprise,test_web_gantt,hr_gantt,hr_attendance_gantt,hr_holidays_gantt,hr_skills --with-demo --max-cron-threads=0 --stop-after-init
 ```
 
 Check the attendance demo data of the earlier part, then the leaves of this one:
@@ -415,7 +426,7 @@ podman compose --env-file docker/versions.env --env-file docker/.env -f docker/c
 ```
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB --test-tags hr_holidays_gantt_demo_check --stop-after-init
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB --max-cron-threads=0 --test-tags hr_holidays_gantt_demo_check --stop-after-init
 ```
 
 The second command runs one test class that no normal run picks up. It writes one
@@ -443,7 +454,7 @@ podman compose --env-file docker/versions.env --env-file docker/.env -f docker/c
 the machine's own address only, in the background or in its own terminal:
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 127.0.0.1:8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 127.0.0.1:8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB --max-cron-threads=0
 ```
 
 It answers at `http://127.0.0.1:8069`. `podman ps` lists the run container (a
@@ -581,6 +592,12 @@ the selection of cells adds its form option to the view and sets `cellPress` and
 `multiSelect`. Clicks on avatars and row headers, folding and the controls are
 not listed: they stay.
 
+The pointer shape follows the same entries: the grid's frame carries
+`o_hhg_no_pill_cursor` while `pillClick` and `pillPress` are both `false` and
+`o_hhg_no_cell_cursor` while `cellPress` and `multiSelect` are both `false`, and
+the stylesheet keeps the default pointer on pills, their ends and empty cells under
+them; the part that turns an input on gets the framework's pointers back.
+
 **Server.** A model holds the part both data calls share (`hhg.gantt.rows`, an
 abstract model mixed into `hr.leave` and `hr.leave.report.calendar`):
 
@@ -597,12 +614,6 @@ abstract model mixed into `hr.leave` and `hr.leave.report.calendar`):
   and `avatar_hours_per_week`, and a method that opens an employee's time-off
   dashboard for any user.
 - `resource.calendar._handle_flexible_leave_interval` is overridden for the leave
-The pointer shape follows the same entries: the grid's frame carries
-`o_hhg_no_pill_cursor` while `pillClick` and `pillPress` are both `false` and
-`o_hhg_no_cell_cursor` while `cellPress` and `multiSelect` are both `false`, and
-the stylesheet keeps the default pointer on pills, their ends and empty cells under
-them; the part that turns an input on gets the framework's pointers back.
-
   intervals of flexible schedules (all views of employees).
 - A method of `hr.leave` returns the action that the server action
   `hr_holidays_gantt.action_hr_holidays_overview` runs for the Overview menu;
