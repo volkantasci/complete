@@ -312,8 +312,7 @@ report view's does: two lines with a separator between them, and the grid
 **below** the bar, so no control lies over the grid. The separator is the text
 colour at a quarter opacity over the transparent bar, a faint grey line (about
 `rgb(194, 195, 197)` in light and `rgb(82, 82, 85)` in dark on the page's
-background); the Gantt view's own phone layout draws it in the border colour at
-full opacity, so the two time-off views set the quarter-opacity line themselves.
+background). It is the Gantt view's own phone line, the same as the attendance views'.
 
 The phone's grid opens scrolled sideways so that today lies at the middle of the
 visible part of the grid (the part right of the row header column). On the Month

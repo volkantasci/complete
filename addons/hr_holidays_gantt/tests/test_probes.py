@@ -982,11 +982,8 @@ class TestTimeOffProbesAttendance(TimeOffProbeCase):
                            'the control bar')
                 self.check('M87', "document.querySelector('.o_tl_today')", scheme, 'phone',
                            'Today')
-                # the attendance view draws 002a's own separator: the border colour at full
-                # opacity, not the quarter-opacity body colour of the table (reported; the time-off
-                # views draw the table's line themselves); its place and size are compared
                 self.check('M95', "document.querySelector('.o_tl_separator')", scheme, 'phone',
-                           'the separator', skip=('border-top-color', 'opacity'))
+                           'the separator')
                 self.check('M96', "document.querySelector('.o_tl_controls')", scheme, 'phone',
                            'the control bar')
                 self.check('M88', "document.querySelector('.o_tl_col_group')", scheme, 'phone',

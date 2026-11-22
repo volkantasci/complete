@@ -72,17 +72,6 @@
     vertical-align: top;
 }
 
-// M91, R23 point 1: on the phone the separator between the two lines of the bar is the body text
-// colour at a quarter opacity over the transparent bar: a faint grey (about `rgb(194, 195, 197)` in
-// light, `rgb(82, 82, 85)` in dark). 002a's phone layout draws that line in the border colour at
-// full opacity (`#DEE2E6` / `#3E3F47` on screen), which is not the quarter-opacity line the
-// package names for the report, the attendance and the leave views; the time-off views draw the
-// package's line until 002a does (the attendance views still show 002a's).
-.o_timeline_view:is(.o_hhg_leave_view, .o_hhg_report_view) .o_tl_controls_phone .o_tl_separator {
-    border-top-color: $o-main-text-color;
-    opacity: 0.25;
-}
-
 // D4, R22: until the later parts ship, the pointer keeps its default shape over a pill, its ends
 // and an empty cell (the frame's classes follow `hhgInputs`: they are gone once an input is on). A
 // group row and a folded cell keep their hand: their click works (002a R29).
