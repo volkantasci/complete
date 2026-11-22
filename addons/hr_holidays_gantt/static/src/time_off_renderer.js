@@ -1,6 +1,8 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { usePopover } from "@web/core/popover/popover_hook";
 import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
+import { TimeOffAvatarCard } from "./time_off_avatar_card";
 import { hoursLabel } from "./time_off_layout";
 
 /**
@@ -27,6 +29,24 @@ import { hoursLabel } from "./time_off_layout";
  */
 export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
     static template = "hr_holidays_gantt.TimeOffRenderer";
+
+    setup() {
+        super.setup();
+        // R18: the card of the time-off views, the same in the leave and the report views
+        this.avatarCard = usePopover(TimeOffAvatarCard);
+    }
+
+    /** R18: as the framework's (nothing on the phone), with the kind of the range for the card. */
+    onAvatarClick(ev, employee) {
+        if (this.ui.isSmall || this.avatarCard.isOpen) {
+            return;
+        }
+        this.avatarCard.open(ev.currentTarget, {
+            id: employee.id,
+            model: "hr.employee.public",
+            rangeKind: this.data?.range?.kind,
+        });
+    }
 
     get hhgInputs() {
         return {

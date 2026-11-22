@@ -1,0 +1,23 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <!-- The Community card, its footer replaced by the leave band (R18). -->
+    <t t-name="hr_holidays_gantt.TimeOffAvatarCard" t-inherit="mail.AvatarCard" t-inherit-mode="primary">
+        <xpath expr="//div[hasclass('o_avatar_card_details')]" position="replace">
+            <div class="o_hhg_card_band bg-100">
+                <div class="o_hhg_card_head d-flex align-items-center justify-content-between">
+                    <button type="button" class="o_hhg_card_schedule btn btn-link" t-ref="this.scheduleRef" t-on-click="this.onScheduleClick">
+                        <i class="oi oi-fw oi-filled me-1" data-icon="calendar_today" aria-hidden="true"/><t t-out="this.scheduleLabel"/>
+                    </button>
+                    <button t-if="this.hhgIsOfficer" type="button" class="o_hhg_card_version btn btn-link" title="New version of the employee" aria-label="New version of the employee" t-ref="this.versionRef" t-on-click="this.onPencilClick">
+                        <i class="oi oi-fw" data-icon="edit" aria-hidden="true"/>
+                    </button>
+                </div>
+                <div t-foreach="this.summaryLines" t-as="line" t-key="line_index" class="o_hhg_card_line">
+                    <span t-out="line.name"/>: <span class="o_hhg_card_taken" t-out="line.taken"/>
+                    <span t-if="line.left !== null" class="o_hhg_card_left text-muted"> /<t t-out="line.left"/></span>
+                </div>
+            </div>
+        </xpath>
+    </t>
+</templates>

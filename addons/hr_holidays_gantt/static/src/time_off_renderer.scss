@@ -10,3 +10,31 @@
     font-size: 13px;
     color: $o-main-color-muted;
 }
+
+// R18, M27 to M32: the leave band of the employee card, under the body of the card.
+.o_hhg_card_band {
+    padding: 0 16px 8px;
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+    font-size: $o-font-size-base-small;
+
+    .o_hhg_card_head {
+        margin-top: 8px;
+    }
+
+    .o_hhg_card_schedule,
+    .o_hhg_card_version {
+        padding: 0;
+        font-size: $h5-font-size;
+        font-weight: 500;
+        border-radius: 6px;
+    }
+
+    .o_hhg_card_version {
+        padding: 0 4px;
+    }
+
+    .o_hhg_card_taken {
+        font-weight: 500;
+    }
+}
