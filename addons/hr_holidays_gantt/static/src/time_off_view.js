@@ -18,8 +18,8 @@ export {
 };
 
 /**
- * The class of the leave variant's root: the stylesheet gives the control bar of the leave views
- * the original's spacing, which the report variant does not have.
+ * The class of the leave variant's root: the stylesheet gives the control bar of the leave view its
+ * fixed height on the desktop (R6), which the report variant does not have.
  */
 export const HHG_LEAVE_CLASS = "o_hhg_leave_view";
 

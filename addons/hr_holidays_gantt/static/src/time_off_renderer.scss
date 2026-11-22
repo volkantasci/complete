@@ -49,13 +49,30 @@
     }
 }
 
-// The control bar of the leave views lies lower than that of the attendance views and of the
-// report, which share the shell and the framework: 21 px between the search field and the bar and
-// 20 px between the bar and the grid, where those keep 16 px and 16 px (the spec's vertical values
-// of the leave views, S1 and S12). The phone's bar keeps the framework's own spacing.
+// R6: on the desktop the control bar of the leave view is 58 px tall whatever it holds (it keeps
+// room for the selection buttons of a later part), where the bar of the report and of the
+// attendance views follows its controls. The controls start 4.5 px below the bar's top. The
+// phone's bar keeps the framework's two lines (R23 point 1).
 .o_timeline_view.o_hhg_leave_view .o_tl_controls:not(.o_tl_controls_phone) {
-    padding-top: 5px;
-    padding-bottom: 20px;
+    box-sizing: border-box;
+    height: 58px;
+    padding-top: 4.5px;
+    padding-bottom: 20.5px;
+}
+
+// M76: the text of a day header is a 21 px tall box (the height of its line), centred in the 25 px
+// cell, 1 px under the cell's inner top; the other Gantt views keep the height of the glyphs.
+.o_hhg_time_off .o_tl_col:not(.o_tl_run_hover) .o_tl_col_title {
+    display: inline-block;
+    margin-top: 1px;
+    line-height: 21px;
+    vertical-align: top;
+}
+
+// M91: on the phone the separator between the two lines of the bar has the text colour of the
+// page, in the leave and the report view (the framework's own colour is the border's grey).
+.o_timeline_view:is(.o_hhg_leave_view, .o_hhg_report_view) .o_tl_controls_phone .o_tl_separator {
+    border-top-color: $o-main-text-color;
 }
 
 // The text of a pill is centred in the pill (S1 to S4); the other Gantt views keep it at the start.
