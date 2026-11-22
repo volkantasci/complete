@@ -1,7 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 from odoo import api, models
-from odoo.fields import Domain
 
 
 class HrLeave(models.Model):
@@ -9,12 +8,14 @@ class HrLeave(models.Model):
 
     @api.model
     def _hhg_overview_domain(self):
-        """What the Overview lists: the requests of the active employees of the companies in use
-        that are neither refused nor cancelled (R3)."""
-        in_companies = Domain('employee_id.company_id', 'in', self.env.companies.ids)
-        of_active_employee = Domain('employee_id', 'any', [('active', '=', True)])
-        not_dropped = Domain('state', 'not in', ['refuse', 'cancel'])
-        return in_companies & of_active_employee & not_dropped
+        """What the Overview lists (R3), as text the client evaluates: the requests of the active
+        employees of the companies in use that are neither refused nor cancelled. The companies
+        are named by ``allowed_company_ids``, so a stored action follows a change of companies."""
+        return (
+            "[('employee_id.company_id', 'in', allowed_company_ids),"
+            " ('employee_id.active', '=', True),"
+            " ('state', 'not in', ['refuse', 'cancel'])]"
+        )
 
     @api.model
     def _hhg_overview_action(self):
@@ -33,7 +34,7 @@ class HrLeave(models.Model):
             'name': dashboard['name'],
             'view_mode': 'gantt',
             'views': gantt_views[:1],
-            'domain': list(self._hhg_overview_domain()),
+            'domain': self._hhg_overview_domain(),
             'context': {'hide_employee_name': 1},
         })
         return management

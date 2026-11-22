@@ -3,6 +3,7 @@
 from odoo.addons.hr_holidays_gantt.hooks import restore_time_off_records
 from odoo.fields import Domain
 from odoo.tests.common import TransactionCase
+from odoo.tools.safe_eval import safe_eval
 
 
 class TestActions(TransactionCase):
@@ -70,7 +71,12 @@ class TestActions(TransactionCase):
             Domain('employee_id.active', '=', True),
             Domain('state', 'not in', ['refuse', 'cancel']),
         ])
-        self.assertEqual(Domain(action['domain']).optimize(self.env['hr.leave']),
+        # the company part stays a name the client evaluates, not the ids at the time of the call
+        self.assertIsInstance(action['domain'], str)
+        self.assertIn('allowed_company_ids', action['domain'])
+        evaluated = safe_eval(
+            action['domain'], {'allowed_company_ids': self.env.companies.ids})
+        self.assertEqual(Domain(evaluated).optimize(self.env['hr.leave']),
                          expected.optimize(self.env['hr.leave']))
         self.assertEqual(action['context'], {'hide_employee_name': 1})
 
