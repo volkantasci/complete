@@ -234,14 +234,14 @@ tours.add("hhg_a80_helper_phone", {
                 const period = rectOf($(".o_tl_col_group"));
                 const row = rectOf($(".o_tl_row"));
                 const seen = `helper ${box.top}, period line ${period.top} (${period.height} tall), row ${row.top}`;
-                // the helper's top is fixed (M72); on Complete the shell's open search field is
-                // 3 to 4 px taller (spec "Known differences"), so the period line (M73) and the
-                // empty row (M74) lie that much lower than the measured 274 and 324
+                // the helper's top is the table's (M72: 274.6). The period line (M73) and the empty
+                // row (M74) are pinned to Complete's accepted values (ruling R-O10): the table's
+                // 274 and 324 plus the shell's open search field, 3 px taller, plus 1 px that is a
+                // question for the spec: 278 and 328
                 assert(Math.abs(box.top - 274.6) <= 0.5, `the helper's top is 274.6: ${seen}`);
                 assert(Math.abs(period.height - 25) <= 0.5, `the period line is 25 tall: ${seen}`);
-                const shift = period.top - 274;
-                assert(shift >= 0 && shift <= 4.5, `the period line lies at most 4.5 px under 274: ${seen}`);
-                assert(Math.abs(row.top - period.top - 50) <= 0.5, `the empty row is 50 px under the period line: ${seen}`);
+                assert(Math.abs(period.top - 278) <= 0.5, `the period line's top is 278: ${seen}`);
+                assert(Math.abs(row.top - 328) <= 0.5, `the empty row's top is 328: ${seen}`);
                 // nothing of the grid shows above the helper's top but the period line's top
                 // part (none here: it starts under the helper's top), read by points
                 const x = window.innerWidth / 2;
