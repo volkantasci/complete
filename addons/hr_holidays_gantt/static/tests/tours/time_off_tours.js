@@ -543,6 +543,7 @@ tours.add("hhg_a05_management_action", {
             async run() {
                 await settle(800);
                 assertEqual(facets(), ["Waiting For Me"], "the list opens with its facet");
+                const listFacets = facets();
                 const types = $$(".o_cp_switch_buttons .o_switch_view").map((el) =>
                     [...el.classList].find((name) => /^o_(list|kanban|calendar|activity|gantt)$/.test(name))
                 );
@@ -555,8 +556,14 @@ tours.add("hhg_a05_management_action", {
                 await until(() => $(".o_tl_renderer .o_tl_row"), "the leave view", 20000);
                 await dataSettled();
                 await settle(500);
-                console.info(`hhg-finding: the Gantt view of the management action shows the facets ${JSON.stringify(facets())}`);
-                assert(facets().includes("Waiting For Me"), `the Gantt view keeps the facet: ${facets()}`);
+                // grouped by Employee, with the list's own filter facets
+                const ganttFacets = facets();
+                assert(ganttFacets.includes("Employee"), `grouped by Employee: ${JSON.stringify(ganttFacets)}`);
+                assertEqual(
+                    ganttFacets.filter((facet) => facet !== "Employee"),
+                    listFacets,
+                    "the Gantt view has the same filter facets as the list"
+                );
                 // with the facet no employee has a request waiting: one empty row
                 assertEqual(rowEls().length, 1, `one empty row, facets ${JSON.stringify(facets())}`);
                 assertEqual(rowNames(), [""], "the row has no name");
@@ -575,10 +582,10 @@ tours.add("hhg_a08_reload", {
             expectUnloadPage: true,
             async run() {
                 await leaveReady();
-                const address = window.location.pathname + window.location.search;
-                assert(
-                    /time-off-approval|hr_leave_action_action_approve_department|action-\d+/.test(address),
-                    `the address names the management action: ${address}`
+                assertEqual(
+                    window.location.pathname,
+                    "/odoo/time-off-approval",
+                    "the address names the management action"
                 );
                 assertEqual(facets().includes("Employee"), true, `the Employee grouping shows: ${facets()}`);
                 window.location.reload();
@@ -591,11 +598,11 @@ tours.add("hhg_a08_reload", {
                 await dataSettled();
                 await settle(800);
                 const address = window.location.pathname + window.location.search;
-                assert(
-                    /time-off-approval|hr_leave_action_action_approve_department|action-\d+/.test(address),
-                    `the address still names the management action: ${address}`
+                assertEqual(
+                    window.location.pathname,
+                    "/odoo/time-off-approval",
+                    "the address still names the management action"
                 );
-                console.info(`hhg-finding: after the reload ${address} shows the facets ${JSON.stringify(facets())}`);
                 assert(
                     facets().includes("Waiting For Me"),
                     `the facet Waiting For Me: ${JSON.stringify(facets())} at ${address}, switcher ${texts(".o_cp_switch_buttons button")}`
@@ -755,6 +762,8 @@ scenario("hhg_a19_new_version", async () => {
 
 // A22: Import and Export
 scenario("hhg_a22_import_export", async () => {
+    // a search, so that the export proves it carries the current search
+    await searchFor("Marc");
     assertEqual(await openGear(), ["Import", "Export"], "the gear holds Import then Export");
     // Export: a download of the requests, without a dialog
     const downloads = [];
@@ -770,6 +779,15 @@ scenario("hhg_a22_import_export", async () => {
         assertEqual(downloads[0].options.url, "/web/export/xlsx", "the export address");
         const payload = JSON.parse(downloads[0].options.data.data);
         assertEqual(payload.model, "hr.leave", "the requests are exported");
+        const domain = JSON.stringify(payload.domain);
+        assert(domain.includes("Marc"), `the export carries the search: ${domain}`);
+        assert(domain.includes("employee_id.company_id"), `and the action's domain: ${domain}`);
+        assertEqual(
+            payload.fields.map((field) => field.name),
+            [".id", "employee_id", "work_entry_type_id", "date_from", "date_to"],
+            "five fields"
+        );
+        assertEqual(payload.groupby, [], "ungrouped");
         await downloads[0].done;
         await settle(800);
         assert(!$(".modal"), "no dialog");
@@ -848,9 +866,7 @@ scenario("hhg_a43_label_alone", async () => {
     await realHover(label);
     await settle(2000);
     assert(!$(".o-tooltip"), "no tooltip shows after 2 s on the label");
-    const header = $(".o_tl_row_header", rowEl("Anita Oliver"));
-    // the native title of the row header (002a) is a browser tooltip no tour can see: its value
-    console.info(`hhg-finding: the row header's title attribute reads "${header.getAttribute("title")}"`);
+    // (the row header's native title, 002a, is the browser's own tooltip: no tour can see it)
     await pointerAway();
 });
 
@@ -867,8 +883,6 @@ scenario("hhg_a72_avatar_tooltip", async () => {
     await realHover(name);
     await settle(2000);
     assert(!$(".o-tooltip"), "no framework tooltip shows on the name");
-    const header = $(".o_tl_row_header", rowEl("Anita Oliver"));
-    console.info(`hhg-finding: the row header's title attribute reads "${header.getAttribute("title")}"`);
     await pointerAway();
 });
 
@@ -1005,6 +1019,9 @@ scenario("hhg_a52_total_row", async () => {
             byDay[column.dataset.date] = [clean($(".o_tl_total_count", under[0]).textContent)];
         }
     }
+    // The leaves of the week of 15 November (demo-like records): Mitchell Admin 16-18 (STO), Anita
+    // Oliver 18 (PTO), Ronnie Hart 18-20 (PTO). Per day: 16 -> 1, 17 -> 1, 18 -> 3, 19 -> 1,
+    // 20 -> 1; Sunday 15 and Saturday 21 have none.
     assertEqual(
         byDay,
         {
@@ -1042,14 +1059,18 @@ scenario("hhg_a54_date_grouping", async () => {
     select.dispatchEvent(new Event("change", { bubbles: true }));
     await settle(2000);
     await dataSettled();
-    // the view drops a grouping on its own date: no row is a period, the pills still show
-    // (the grouping is dropped like the removed Employee grouping of A55: no row headers)
-    const looksLikeDate = (name) => /\d{4}|\d{1,2}\/\d{1,2}|^[A-Z][a-z]+ \d/.test(name);
+    // the custom grouping replaces the Employee grouping (one grouping facet); the view drops a
+    // grouping on its own date (002a R19), so no grouping is left: one line of pills, no rows
+    // named by a period
+    const state = `facets ${JSON.stringify(facets())}, rows ${JSON.stringify(rowNames())}`;
+    assert(facets().includes("Start Date: Month"), `the custom grouping is the facet: ${state}`);
+    assert(!facets().includes("Employee"), `it replaced the Employee grouping: ${state}`);
+    assertEqual($$(".o_tl_row_header").length, 0, `the date grouping is dropped, no row header: ${state}`);
+    assert($$(".o_tl_pill").length > 0, `the pills show: ${state}`);
     assert(
-        !rowNames().some(looksLikeDate),
-        `the view drops the date grouping: ${JSON.stringify(rowNames())} ${JSON.stringify(facets())}`
+        allPillTitles().some((title) => title.includes("Anita Oliver")),
+        `the pills read their long text: ${JSON.stringify(allPillTitles())}`
     );
-    assert($$(".o_tl_pill").length > 0, `the pills show: ${JSON.stringify(facets())}`);
 });
 
 // A55: the grouping removed
@@ -1064,6 +1085,12 @@ scenario("hhg_a55_grouping_removed", async () => {
             `each pill reads the Community's long text with the employee's name: "${title}"`
         );
     }
+    // Anita Oliver's 2 to 5 November: her name, the type and the dates
+    const anita = titles.find((title) => title.includes("Anita Oliver") && /11\/0?2\/(20)?26/.test(title));
+    assert(anita, `a pill of Anita Oliver's 2 to 5 November reads her long text: ${JSON.stringify(titles)}`);
+    // the Community's text names the type by its display code
+    assert(anita.includes(" on PTO"), `with the type: "${anita}"`);
+    assert(/11\/0?5\/(20)?26/.test(anita), `and the end date: "${anita}"`);
 });
 
 // A64 to A69, A73: the inputs of a pill and of the empty cells do nothing
@@ -1234,9 +1261,11 @@ scenario("hhg_a71_row_header", async () => {
     await settle(500);
     const box = renderer();
     const mark = noteMark();
-    const first = pillByTitle("Sharlene Rhodes", "PTO 5 days") || pillsOf("Sharlene Rhodes")[0];
-    assert(first, "her first pill");
+    // her leave of 26 to 31 October
+    const first = pillByTitle("Sharlene Rhodes", "PTO 5 days");
+    assert(first, `her PTO 5 days pill: ${JSON.stringify(pillTitles("Sharlene Rhodes"))}`);
     const start = box.scrollLeft;
+    assert(start > 0, "the Quarter range opens scrolled to today");
     await realClick($(".o_tl_row_label", rowEl("Sharlene Rhodes")));
     await until(
         () => {
@@ -1247,7 +1276,7 @@ scenario("hhg_a71_row_header", async () => {
         "the grid scrolls to her first pill",
         6000
     );
-    assert(box.scrollLeft !== start || start === 0, "the scroll position moved to the pill");
+    assert(box.scrollLeft < start, `the grid scrolled back to the pill: ${start} -> ${box.scrollLeft}`);
     assert(!$(".o_avatar_card"), "no card opens by the name");
     // the avatar opens the card and the grid does not scroll
     const rest = box.scrollLeft;
