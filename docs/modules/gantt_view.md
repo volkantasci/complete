@@ -347,6 +347,12 @@ such as the employee, attendance, event track and time off applications of later
   or period, a search, a filter, a grouping, the pager, the reload after a
   write); a run you opened stays open until the next load.
 
+An unavailable period that ends one second before the end of a part (a day
+that the server ends at 23:59:59.999999 arrives with whole seconds, as
+23:59:59) still greys that last part when it is drawn. Folding stays strict: a
+column is folded only when every row is unavailable to the exact end of it, so a
+day that ends one second short is greyed whole and stays open.
+
 ![Capacity bars and unavailable periods, light](../assets/gantt_view/18-progress-unavailability.png)
 
 ![Capacity bars and unavailable periods, dark](../assets/gantt_view/18-progress-unavailability-dark.png)
@@ -1675,7 +1681,8 @@ or the gestures.
 taller than with a mouse in Complete, where the original differs by 14 px; this
 is left to a later batch.
 
-The Gantt view of time off is delivered in a later slice (the event tracks view
+The Gantt views of time off are described in [Time Off Timeline](time_off_gantt.md);
+opening, changing and creating leaves in them comes in a later release (the event tracks view
 is described in [Event Tracks Timeline](event_track_gantt.md), the attendances
 in [Attendances Timeline](attendance_gantt.md), the employee rows in
 [Employees Timeline](employee_gantt.md)), as are the parts that project tasks and work orders
