@@ -66,8 +66,8 @@ class HrLeave(models.Model):
             date_from = datetime.combine(first_day, time.min, own_zone)
             date_to = datetime.combine(last_day + timedelta(days=1), time.min, own_zone)
             version = employee._get_version(today)
-            # an employee without a version reads his own schedule
-            schedule = version.resource_calendar_id if version else employee.resource_calendar_id
+            # an employee without a version reads the schedule of his resource
+            schedule = version.resource_calendar_id if version else employee.resource_id.calendar_id
             if schedule._is_flexible():
                 hours = self._hhg_leave_hours(employee.id, date_from, date_to)
             else:

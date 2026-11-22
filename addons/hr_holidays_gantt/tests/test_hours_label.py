@@ -1,6 +1,7 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 from datetime import UTC, date, datetime
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from freezegun import freeze_time
@@ -99,6 +100,16 @@ class TestHoursLabel(fx.TimeOffGanttMixin, TransactionCase):
         flexible.create_version({
             'date_version': '2026-11-20', 'resource_calendar_id': fx.find_schedule(self.env).id})
         self.assertEqual(self.labels(flexible, fx.WEEK, 'week'), {'Toff Flexible': 16})
+
+    def test_employee_without_a_version_reads_his_resource_schedule(self):
+        """The flexible-today guard of an employee that has no version falls back to the resource's
+        schedule, and gives a label instead of an error."""
+        anita = self.world['Anita Oliver']
+        expected = self.labels(anita)
+        employee_model = type(self.env['hr.employee'])
+        with patch.object(employee_model, '_get_version',
+                          lambda self, *args, **kwargs: self.env['hr.version']):
+            self.assertEqual(self.labels(anita), expected)
 
     def test_hours_of_the_demo_like_employees(self):
         employees = self.world['Anita Oliver'] | self.peer
