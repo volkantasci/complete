@@ -587,7 +587,8 @@ tours.add("hhg_a08_reload", {
                     "/odoo/time-off-approval",
                     "the address names the management action"
                 );
-                assertEqual(facets().includes("Employee"), true, `the Employee grouping shows: ${facets()}`);
+                assertEqual(facets(), ["Employee"], "the Employee grouping shows alone");
+                sessionStorage.setItem("hhg_a08_address", window.location.pathname + window.location.search);
                 window.location.reload();
             },
         },
@@ -597,26 +598,16 @@ tours.add("hhg_a08_reload", {
             async run() {
                 await dataSettled();
                 await settle(800);
-                const address = window.location.pathname + window.location.search;
                 assertEqual(
-                    window.location.pathname,
-                    "/odoo/time-off-approval",
-                    "the address still names the management action"
+                    window.location.pathname + window.location.search,
+                    sessionStorage.getItem("hhg_a08_address"),
+                    "the address is the same after the reload"
                 );
-                assert(
-                    facets().includes("Waiting For Me"),
-                    `the facet Waiting For Me: ${JSON.stringify(facets())} at ${address}, switcher ${texts(".o_cp_switch_buttons button")}`
-                );
-                assert(facets().includes("Employee"), `the facet Employee: ${facets()}`);
-                const types = $$(".o_cp_switch_buttons .o_switch_view").map((el) =>
-                    [...el.classList].find((name) => /^o_(list|kanban|calendar|activity|gantt)$/.test(name))
-                );
-                assertEqual(
-                    types,
-                    ["o_list", "o_kanban", "o_calendar", "o_activity", "o_gantt"],
-                    "the view switcher is back"
-                );
-                assert($(".o_switch_view.o_gantt.active"), "Gantt is the active view");
+                assertEqual(breadcrumb(), "All Time Off", "the title of the reduced view");
+                assertEqual(facets(), ["Employee"], "the Employee facet alone, no Waiting For Me");
+                assertEqual($$(".o_cp_switch_buttons .o_switch_view").length, 0, "no view switcher");
+                assertEqual($$(".o_list_view, .o_kanban_view, .o_calendar_view").length, 0, "Gantt alone");
+                await until(() => rowEls().length === 20, `20 rows, there are ${rowEls().length}`, 10000);
             },
         },
     ],
@@ -707,11 +698,30 @@ scenario("hhg_a18_schedule_button", async () => {
             breadcrumb().includes("Time Off Dashboard"),
             `the dashboard of Anita Oliver: ${breadcrumb()}`
         );
+        // her requests are listed: November holds three of them, the week of 8 to 14 none
+        const events = $$(".o_calendar_container .fc-event").length;
+        assert(
+            kind === "week" ? events === 0 : events > 0,
+            `${events} requests listed on the ${scale} scale`
+        );
         await realClick($(".o_breadcrumb .breadcrumb-item:not(.active)"));
         await until(() => $(".o_tl_renderer .o_tl_row_header"), "the leave view again", 20000);
         await dataSettled();
         await settle(500);
     }
+});
+
+// A88: the band's amounts with a waiting request
+scenario("hhg_a88_band_amounts", async () => {
+    await searchFor("Toff");
+    await until(() => rowEl("Toff Peer"), "Toff Peer's row", 10000);
+    await openCardOf("Toff Peer");
+    const lines = $$(".o_hhg_card_line").map((el) => clean(el.textContent));
+    assertEqual(
+        lines.filter((line) => line.startsWith("Legal leave employee")),
+        ["Legal leave employee: 2 days /8 days"],
+        "the waiting request is not counted"
+    );
 });
 
 // A19: the pencil, a date, a new version
@@ -784,10 +794,11 @@ scenario("hhg_a22_import_export", async () => {
         assert(domain.includes("employee_id.company_id"), `and the action's domain: ${domain}`);
         assertEqual(
             payload.fields.map((field) => field.name),
-            [".id", "employee_id", "work_entry_type_id", "date_from", "date_to"],
+            ["id", "employee_id", "work_entry_type_id/id", "request_date_from", "request_date_to"],
             "five fields"
         );
         assertEqual(payload.groupby, [], "ungrouped");
+        assertEqual(payload.import_compat, true, "the import-compatible mode");
         await downloads[0].done;
         await settle(800);
         assert(!$(".modal"), "no dialog");

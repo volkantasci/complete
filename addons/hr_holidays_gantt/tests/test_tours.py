@@ -164,7 +164,10 @@ class TestTimeOffLeaveTours(TimeOffToursBase):
         self._tour('hhg_a05_management_action', path=MANAGEMENT)
 
     def test_a08_reload(self):
-        self._demo_like()
+        # the 22 employees of the demo: the first page of the reduced view holds 20 rows
+        fx.make_demo_world(self.env, self.schedule)
+        self._isolate(keep=set(fx.DEMO_EMPLOYEES))
+        self.env.flush_all()
         self._tour('hhg_a08_reload')
 
     # -- the card and the gear ------------------------------------------------------------------
@@ -176,6 +179,12 @@ class TestTimeOffLeaveTours(TimeOffToursBase):
     def test_a18_schedule_button(self):
         self._demo_like()
         self._tour('hhg_a18_schedule_button')
+
+    def test_a88_band_amounts(self):
+        self._demo_like()
+        fx.make_role_users(self.env, self.schedule)
+        fx.make_peer_band_records(self.env)
+        self._tour('hhg_a88_band_amounts')
 
     def test_a19_new_version(self):
         self._demo_like()
