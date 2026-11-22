@@ -38,7 +38,7 @@ export class TimeOffReportSearchModel extends TimelineSearchModel {
         const employees = await this.orm.searchCount("hr.employee.public", []);
         if (employees >= HHG_MANY_EMPLOYEES) {
             const subordinates = await this.orm.searchCount("hr.employee.public", [
-                ["parent_id.user_id", "=", user.userId],
+                ["parent_id", "any", [["user_id", "=", user.userId]]],
             ]);
             const name = subordinates > 0 ? "search_default_my_team" : "search_default_department";
             config = { ...config, context: { [name]: 1, ...config.context } };

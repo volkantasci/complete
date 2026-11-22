@@ -171,10 +171,10 @@ class TestUnavailability(TransactionCase):
         calendar_leave = self.env['resource.calendar.leaves'].search(
             [('holiday_id', '=', leave.id)])
         self.assertTrue(calendar_leave)
-        empty = self.env['resource.calendar']
+        no_schedule = self.env['resource.calendar'].browse()
         dt0 = datetime(2026, 11, 19, 9, tzinfo=BRUSSELS)
         dt1 = datetime(2026, 11, 19, 17, tzinfo=BRUSSELS)
-        start, stop = empty._handle_flexible_leave_interval(dt0, dt1, calendar_leave)
+        start, stop = no_schedule._handle_flexible_leave_interval(dt0, dt1, calendar_leave)
         self.assertEqual(
             (start.replace(tzinfo=None), stop.replace(tzinfo=None)),
             (day_at(19, 0), day_at(19, 23, 59, 59, 999999)))

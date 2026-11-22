@@ -16,12 +16,16 @@ const cogMenuRegistry = registry.category("cogMenu");
 /** True for the Gantt view of the time-off requests, opened by a window action, on a desktop. */
 function hhgIsLeaveGantt(env) {
     const ui = useService("ui");
+    const { actionType, viewType } = env.config;
+    const fromWindowAction = actionType === "ir.actions.act_window";
     return (
-        !ui.isSmall &&
-        env.config.actionType === "ir.actions.act_window" &&
-        env.config.viewType === "gantt" &&
-        env.searchModel.resModel === "hr.leave"
+        !ui.isSmall && fromWindowAction && viewType === "gantt" && env.searchModel.resModel === "hr.leave"
     );
+}
+
+/** The view's boolean attribute `name`, true when the arch leaves it out. */
+function hhgArchFlag(env, name) {
+    return exprToBoolean(env.config.viewArch.getAttribute(name), true);
 }
 
 /** The five columns of the export: the request's number, employee, type, start and end. */
@@ -63,9 +67,7 @@ export const hhgImportItem = {
     Component: ImportRecords,
     groupNumber: STATIC_ACTIONS_GROUP_NUMBER,
     isDisplayed: (env) =>
-        hhgIsLeaveGantt(env) &&
-        exprToBoolean(env.config.viewArch.getAttribute("import"), true) &&
-        exprToBoolean(env.config.viewArch.getAttribute("create"), true),
+        hhgIsLeaveGantt(env) && ["import", "create"].every((name) => hhgArchFlag(env, name)),
 };
 
 export const hhgExportItem = {

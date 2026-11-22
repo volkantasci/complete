@@ -12,11 +12,16 @@ import {
     makeTestApp,
     models,
     mountView,
+    onRpc,
+    patchWithCleanup,
 } from "@web/../tests/web_test_helpers";
 import { parseXML } from "@web/core/utils/xml";
 import { parseTimelineArch } from "@web_gantt/timeline_arch_parser";
 import { setupTimelineFixtures, timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
 import { TimeOffLeaveModel, TimeOffReportModel } from "../src/time_off_view";
+
+// Re-exported so that the tests of the slice take their framework helpers from one place.
+export { getService, onRpc, patchWithCleanup };
 
 const { DateTime } = luxon;
 

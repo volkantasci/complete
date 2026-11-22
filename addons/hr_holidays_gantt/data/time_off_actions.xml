@@ -3,32 +3,37 @@
 <odoo>
     <!-- The dashboard action (the report): Gantt first, the Community calendar after it. The
          calendar has no action view of its own, as in the Community. -->
-    <record id="hr_holidays.action_hr_holidays_dashboard" model="ir.actions.act_window">
-        <field name="view_mode">gantt,calendar</field>
+    <record
+        model="ir.actions.act_window"
+        id="hr_holidays.action_hr_holidays_dashboard">
+        <field name="view_mode" eval="'gantt,calendar'"/>
     </record>
 
     <record id="hhg_dashboard_action_view_gantt" model="ir.actions.act_window.view">
         <field name="sequence" eval="0"/>
-        <field name="view_mode">gantt</field>
+        <field name="view_mode" eval="'gantt'"/>
         <field name="view_id" ref="hhg_report_gantt_view"/>
         <field name="act_window_id" ref="hr_holidays.action_hr_holidays_dashboard"/>
     </record>
 
     <!-- The management action: the Gantt mode comes after the Community's five. -->
-    <record id="hr_holidays.hr_leave_action_action_approve_department"
-            model="ir.actions.act_window">
+    <record
+        model="ir.actions.act_window"
+        id="hr_holidays.hr_leave_action_action_approve_department">
         <field name="view_mode">list,kanban,form,calendar,activity,gantt</field>
     </record>
 
     <record id="hhg_management_action_view_gantt" model="ir.actions.act_window.view">
         <field name="sequence" eval="6"/>
-        <field name="view_mode">gantt</field>
+        <field name="view_mode" eval="'gantt'"/>
         <field name="view_id" ref="hr_leave_gantt_view"/>
         <field name="act_window_id" ref="hr_holidays.hr_leave_action_action_approve_department"/>
     </record>
 
     <!-- The Overview entry: the answer depends on the role of the user who opens it. -->
-    <record id="action_hr_holidays_overview" model="ir.actions.server">
+    <record
+        model="ir.actions.server"
+        id="action_hr_holidays_overview">
         <field name="name">Overview</field>
         <field name="model_id" ref="hr_holidays.model_hr_leave"/>
         <field name="state">code</field>
@@ -39,7 +44,9 @@
         <field name="code">action = model._hhg_overview_action()</field>
     </record>
 
-    <record id="hr_holidays.menu_hr_holidays_dashboard" model="ir.ui.menu">
+    <record
+        model="ir.ui.menu"
+        id="hr_holidays.menu_hr_holidays_dashboard">
         <field name="action" eval="'ir.actions.server,%d' % ref('action_hr_holidays_overview')"/>
     </record>
 </odoo>

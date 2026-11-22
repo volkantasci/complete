@@ -25,7 +25,7 @@ class HrLeave(models.Model):
             'views': gantt_views[:1],
             'domain': [
                 ('employee_id.company_id', 'in', self.env.companies.ids),
-                ('employee_id.active', '=', True),
+                ('employee_id.active', 'in', [True]),
                 ('state', 'not in', ['refuse', 'cancel']),
             ],
             'context': {'hide_employee_name': 1},

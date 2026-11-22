@@ -70,7 +70,7 @@ test("a28 49 employees: only the Employee facet", async () => {
 test("a26 50 employees, nobody under the user: My Department and Employee", async () => {
     const asked = await open({ employees: 50, subordinates: 0 });
     expect(asked.length).toBe(2);
-    expect(asked[1][0][0]).toBe("parent_id.user_id");
+    expect(asked[1][0][0]).toBe("parent_id");
     expect(facets()).toEqual(["My Department", "Employee"]);
 });
 

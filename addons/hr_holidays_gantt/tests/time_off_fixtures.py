@@ -15,6 +15,7 @@ from datetime import date, datetime
 TZ = "Europe/Brussels"
 PREFIX = "Toff "
 CONTRACT_START = "2026-01-01"
+ALLOCATION_YEAR = 2026
 DEMO_SCHEDULE = "40 hours/week"
 SCHEDULE_NAME = "Toff 40 hours/week"
 PEER_NAME = "Toff Peer"
@@ -180,12 +181,18 @@ def make_leave(
     return leave
 
 
+def _approve_unchecked(leave):
+    """One approval step, without the check of the state the request is in."""
+    options = {"check_state": False}
+    leave.action_approve(**options)
+
+
 def approve_leave(env, leave, once=False):
     """Approve ``leave`` as the administrator until it is Approved (or once)."""
     leave = leave.with_user(find_admin(env))
     if once:
         # the first approval of a type validated twice, whoever the approver is
-        leave.action_approve(check_state=False)
+        _approve_unchecked(leave)
         return leave
     for _step in range(2):
         if leave.state in ("validate", "refuse", "cancel"):
@@ -416,8 +423,8 @@ def _allocate(env, employee, leave_type, days):
         "employee_id": employee.id,
         "work_entry_type_id": leave_type.id,
         "number_of_days": days,
-        "date_from": date(2026, 1, 1),
-        "date_to": date(2026, 12, 31),
+        "date_from": date(ALLOCATION_YEAR, 1, 1),
+        "date_to": date(ALLOCATION_YEAR, 12, 31),
     })
     allocation.action_approve()
 

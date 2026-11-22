@@ -3,14 +3,26 @@
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { click, press, queryAll, queryOne, resize } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
-import { getService, onRpc, patchWithCleanup } from "@web/../tests/web_test_helpers";
 
-import { LEAVE_ARCH, mountTimeOff, REPORT_ARCH, setupTimeOffFixtures } from "./time_off_test_helpers";
+import {
+    getService,
+    LEAVE_ARCH,
+    mountTimeOff,
+    onRpc,
+    patchWithCleanup,
+    REPORT_ARCH,
+    setupTimeOffFixtures,
+} from "./time_off_test_helpers";
 import { dashboardScale } from "../src/time_off_avatar_card";
 
 describe.current.tags("desktop");
 
 setupTimeOffFixtures();
+
+/** Nothing of the employee card is on screen. */
+function expectNoCard() {
+    expect(document.querySelectorAll(".o_avatar_card")).toHaveLength(0);
+}
 
 const LEAVE = ["Anita Oliver", [12, "9:00"], [14, "18:00"]];
 const SUMMARY = [
@@ -173,7 +185,7 @@ describe("the leave view", () => {
         expect(calls[0][2]).toBe("month");
         expect(actions).toHaveLength(1);
         expect(actions[0].name).toBe("Dashboard");
-        expect(".o_avatar_card").toHaveCount(0);
+        expectNoCard();
     });
 
     test("A18: the week scale from the Week range", async () => {
@@ -239,13 +251,13 @@ describe("the leave view", () => {
         await openCard();
         await press("escape");
         await animationFrame();
-        expect(".o_avatar_card").toHaveCount(0);
+        expectNoCard();
         await click(".o_tl_row_header .o_hrg_avatar");
         await animationFrame();
         expect(".o_avatar_card").toHaveCount(1);
         await click(document.body);
         await animationFrame();
-        expect(".o_avatar_card").toHaveCount(0);
+        expectNoCard();
     });
 });
 

@@ -15,15 +15,14 @@ class TestActions(TransactionCase):
         cls.leave_view = cls.env.ref('hr_holidays_gantt.hr_leave_gantt_view')
 
     def _user(self, login, group):
-        return self.env['res.users'].create({
+        group_ids = [self.env.ref(xmlid).id for xmlid in ('base.group_user', group)]
+        values = {
             'name': f'Overview {login}',
             'login': f'hhg_{login}',
             'email': f'hhg_{login}@example.com',
-            'group_ids': [(6, 0, [
-                self.env.ref('base.group_user').id,
-                self.env.ref(group).id,
-            ])],
-        })
+            'group_ids': [(6, 0, group_ids)],
+        }
+        return self.env['res.users'].create(values)
 
     def _run(self, user):
         return self.overview.with_user(user).run()
@@ -56,14 +55,14 @@ class TestActions(TransactionCase):
     def _check_officer_action(self, action):
         self.assertEqual(action['id'], self.management.id)
         self.assertEqual(action['path'], self.management.path)
-        self.assertEqual(action['res_model'], 'hr.leave')
+        self.assertEqual(action.get('res_model'), 'hr.leave')
         self.assertEqual(action['view_mode'], 'gantt')
         self.assertEqual(
             [tuple(view) for view in action['views']], [(self.leave_view.id, 'gantt')])
         self.assertEqual(action['name'], self.dashboard.read(['name'])[0]['name'])
         expected = Domain([
             ('employee_id.company_id', 'in', self.env.companies.ids),
-            ('employee_id.active', '=', True),
+            ('employee_id.active', 'in', [True]),
             ('state', 'not in', ['refuse', 'cancel']),
         ])
         self.assertEqual(Domain(action['domain']), expected)
