@@ -1,6 +1,7 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
+import { hoursLabel } from "./time_off_layout";
 
 /**
  * The renderer of the leave view; the later parts add inputs, label and card here.
@@ -22,6 +23,8 @@ import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
  * gesture in progress, and neither can start while these entries are `false`.
  */
 export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
+    static template = "hr_holidays_gantt.TimeOffRenderer";
+
     get hhgInputs() {
         return {
             pillClick: false,
@@ -30,6 +33,27 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
             pillPress: false,
             cellPress: false,
             multiSelect: false,
+        };
+    }
+
+    /**
+     * R16 points 3 and 4: the hours label alone, muted at every value: no bar, no tooltip, no
+     * warning. The server's progress value is `{value: hours}`.
+     */
+    _progressOf(row, data) {
+        const entry =
+            row.fieldName && row.resId !== null && row.resId !== undefined
+                ? data.progress[row.fieldName]?.[row.resId]
+                : null;
+        if (!entry) {
+            return null;
+        }
+        return {
+            label: hoursLabel(entry.value),
+            hasBar: false,
+            tooltip: null,
+            warning: null,
+            over: false,
         };
     }
 
@@ -124,5 +148,5 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
     }
 }
 
-/** The renderer of the report view: as the leave view's. */
+/** The renderer of the report view: as the leave view's; its arch asks for no progress, so no label. */
 export class TimeOffReportRenderer extends TimeOffLeaveRenderer {}

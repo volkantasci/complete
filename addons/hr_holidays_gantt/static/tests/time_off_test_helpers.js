@@ -15,7 +15,7 @@ import {
 } from "@web/../tests/web_test_helpers";
 import { parseXML } from "@web/core/utils/xml";
 import { parseTimelineArch } from "@web_gantt/timeline_arch_parser";
-import { setupTimelineFixtures } from "@web_gantt/../tests/timeline_test_helpers";
+import { setupTimelineFixtures, timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
 import { TimeOffLeaveModel, TimeOffReportModel } from "../src/time_off_view";
 
 const { DateTime } = luxon;
@@ -157,12 +157,26 @@ export async function mountTimeOff({
     employees,
     records = [],
     report = false,
+    progress = null,
+    expand = false,
     arch = report ? REPORT_ARCH() : LEAVE_ARCH(),
     groupBy = ["employee_id"],
     ...rest
 }) {
     const resModel = report ? "hhg.report" : "hhg.leave";
     const ids = await makeTimeOffData(employees, records, resModel);
+    if (progress) {
+        // the progress hook's answer by employee name
+        timelineMock.progress = {
+            employee_id: Object.fromEntries(
+                Object.entries(progress).map(([name, answer]) => [ids[name], answer])
+            ),
+        };
+    }
+    if (expand) {
+        // every employee gets a row, as the server's data call gives them (R13)
+        timelineMock.expandGroups = Object.values(ids);
+    }
     await start();
     const view = await mountView({
         type: "gantt",

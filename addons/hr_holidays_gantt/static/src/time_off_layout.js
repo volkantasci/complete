@@ -18,3 +18,14 @@ export function hhgOnePeriod(kind, focus) {
     const after = stepRange(middle, 1);
     return { kind, start: middle.start, stop: after.start.minus({ days: 1 }), focus: day };
 }
+
+/**
+ * R16 point 3: the hours label, the value rounded to the nearest whole hour (a half rounds away
+ * from zero), then "h": 166.5 reads "167h", 79.4 reads "79h", 0 reads "0h".
+ */
+export function hoursLabel(value) {
+    const hours = Number(value) || 0;
+    const rounded = Math.sign(hours) * Math.round(Math.abs(hours));
+    // no "-0h"
+    return `${rounded || 0}h`;
+}

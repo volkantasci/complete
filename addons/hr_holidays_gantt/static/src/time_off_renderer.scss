@@ -1,0 +1,12 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R16 point 4, M5: the hours label of a row header is small and muted at every value (it never
+// turns to the danger colour), with 4 px of room on its left and on its right; the right edge
+// of the line, the label's margin and the header's border leave it 9 px from the header's edge.
+.o_hhg_time_off .o_tl_row_header .o_tl_progress_label {
+    padding-left: 4px;
+    margin: 0 4px 0 0;
+    font-size: 13px;
+    color: $o-main-color-muted;
+}
