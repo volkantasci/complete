@@ -113,9 +113,11 @@ class TestCardData(TransactionCase):
                 self.env.ref('base.group_user') | self.env.ref('hr.group_hr_user')).ids)]})
         self.env.flush_all()
         self.env.invalidate_all()
-        # the read must not raise; the lines the user's rights allow are shown, else none
+        # the read must not raise; without a right on the allocations and the requests the user
+        # gets no line (the lines the rights allow, and these are none)
         card = self.env['hr.employee.public'].with_user(user).browse(self.anita.id).read(FIELDS)[0]
-        self.assertIsInstance(card['avatar_leave_summary'] or [], list)
+        # an empty Json value reads back as False
+        self.assertFalse(card['avatar_leave_summary'])
         self.assertEqual(card['avatar_hours_per_week'], 40)
 
     def test_a17_hours_and_country(self):
