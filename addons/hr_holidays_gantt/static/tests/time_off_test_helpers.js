@@ -111,7 +111,7 @@ export async function makeTimeOffData(employeeNames, records = [], resModel = "h
             employee_id: byName[employee],
             start: utc(...from),
             stop: utc(...to),
-            ...(resModel === "hhg.leave" ? { state: "validate" } : {}),
+            ...(resModel === "hhg.report" ? {} : { state: "validate" }),
         }))
     );
     return byName;
@@ -161,9 +161,9 @@ export async function mountTimeOff({
     expand = false,
     arch = report ? REPORT_ARCH() : LEAVE_ARCH(),
     groupBy = ["employee_id"],
+    resModel = report ? "hhg.report" : "hhg.leave",
     ...rest
 }) {
-    const resModel = report ? "hhg.report" : "hhg.leave";
     const ids = await makeTimeOffData(employees, records, resModel);
     if (progress) {
         // the progress hook's answer by employee name
