@@ -624,7 +624,17 @@ const amount = (value, unit) => {
 
 async function openCardOf(name) {
     await realClick($(".o_hrg_avatar", rowEl(name)));
-    return until(() => $(".o_avatar_card .o_hhg_card_band"), `${name}'s card`);
+    const band = await until(() => $(".o_avatar_card .o_hhg_card_band"), `${name}'s card`);
+    // the card's own data (photo, contact lines) arrive after it opens and move its content
+    await settle(1200);
+    return band;
+}
+
+/** A real click on a button of the card, once nothing lies over its centre (links shift in). */
+async function clickCardButton(selector) {
+    const button = await until(() => $(selector), `the card's ${selector}`);
+    assertUncovered(button, centre(button), `the card's ${selector}`);
+    await realClick(button);
 }
 
 scenario("hhg_a17_summary_lines", async () => {
@@ -672,9 +682,8 @@ scenario("hhg_a18_schedule_button", async () => {
             await pointerAway();
         }
         await openCardOf("Anita Oliver");
-        const button = $(".o_hhg_card_schedule");
-        assertEqual(clean(button.textContent), "40 h / Week", "the schedule button");
-        await realClick(button);
+        assertEqual(clean($(".o_hhg_card_schedule").textContent), "40 h / Week", "the schedule button");
+        await clickCardButton(".o_hhg_card_schedule");
         await until(() => $(".o_calendar_container .o_calendar_header h5"), `the dashboard of ${kind}`, 20000);
         await settle(800);
         // the header names the scale: a week shows its number, a year only the year
@@ -711,7 +720,7 @@ async function countVersions(name) {
 scenario("hhg_a19_new_version", async () => {
     const before = await countVersions("Anita Oliver");
     await openCardOf("Anita Oliver");
-    await realClick($(".o_hhg_card_version"));
+    await clickCardButton(".o_hhg_card_version");
     await until(() => $(".o_datetime_picker"), "the date picker under the pencil");
     // closed without a date: nothing is created
     await pressKey("Escape");
@@ -722,7 +731,7 @@ scenario("hhg_a19_new_version", async () => {
     if (!$(".o_hhg_card_version")) {
         await openCardOf("Anita Oliver");
     }
-    await realClick($(".o_hhg_card_version"));
+    await clickCardButton(".o_hhg_card_version");
     await until(() => $(".o_datetime_picker"), "the date picker again");
     await realClick($(".o_datetime_picker .o_next"));
     await settle(400);
