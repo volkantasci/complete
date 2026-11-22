@@ -3,7 +3,8 @@
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
 import { click, queryAllTexts } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame } from "@odoo/hoot-mock";
-import { patchWithCleanup, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
+import { getMockEnv, patchWithCleanup, toggleSearchBarMenu } from "@web/../tests/web_test_helpers";
+import { browser } from "@web/core/browser/browser";
 import { localization } from "@web/core/l10n/localization";
 import { timelineMock } from "@web_gantt/../tests/timeline_test_helpers";
 
@@ -148,4 +149,19 @@ test("A15: the leave variant offers Week, Month and Quarter", async () => {
     await click(".o_tl_range_button");
     await animationFrame();
     expect(queryAllTexts(".o_tl_range_item")).toEqual(["Week", "Month", "Quarter"]);
+});
+
+test("A8: a stored Overview action is forgotten once shown, any other stays", async () => {
+    await mountTimeOff({ employees: ["Anita Oliver"] });
+    const bus = getMockEnv().bus;
+    const stored = (action) => browser.sessionStorage.setItem("current_action", JSON.stringify(action));
+    stored({ id: 7, path: "time-off-approval", hhg_overview: true });
+    bus.trigger("ACTION_MANAGER:UI-UPDATED", "current");
+    expect(browser.sessionStorage.getItem("current_action")).toBe(null);
+    stored({ id: 7, path: "time-off-approval" });
+    bus.trigger("ACTION_MANAGER:UI-UPDATED", "current");
+    expect(JSON.parse(browser.sessionStorage.getItem("current_action")).id).toBe(7);
+    browser.sessionStorage.removeItem("current_action");
+    bus.trigger("ACTION_MANAGER:UI-UPDATED", "current");
+    expect(browser.sessionStorage.getItem("current_action")).toBe(null);
 });

@@ -29,5 +29,8 @@ class HrLeave(models.Model):
                 ('state', 'not in', ['refuse', 'cancel']),
             ],
             'context': {'hide_employee_name': 1},
+            # our own key: the client drops this action from the session once it is shown, so a
+            # reload opens the management action itself (A8)
+            'hhg_overview': True,
         })
         return management
