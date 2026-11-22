@@ -22,7 +22,9 @@ import { hoursLabel } from "./time_off_layout";
  *   `pillClick`, `pillDoubleClick`, `pillHover` and `pillPress` set to `true`.
  * - 002e3 (selection of cells, creation form): it adds `multi_create_view` to the arch and
  *   overrides `hhgInputs` with `cellPress` and `multiSelect` set to `true`. `multiSelect` also
- *   lets the header clicks and Escape select and clear, as the framework does.
+ *   lets the header clicks and Escape select and clear, as the framework does. The controller
+ *   keeps `canCreate` as the framework computes it, so the selection bar's add button works
+ *   from the arch and `hhgInputs` alone; the New button stays hidden (the controller's template).
  *
  * Escape, Enter and Delete need no entry: the framework acts on them only for a selection or a
  * gesture in progress, and neither can start while these entries are `false`.

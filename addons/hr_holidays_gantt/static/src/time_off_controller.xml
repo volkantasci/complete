@@ -1,0 +1,12 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+
+    <!-- R6: the control panel's button slot stays empty, so there is no New button -->
+    <t t-name="hr_holidays_gantt.TimeOffController" t-inherit="web_gantt.TimelineController" t-inherit-mode="primary">
+        <xpath expr="//t[@t-set-slot='control-panel-buttons']" position="replace">
+            <t t-set-slot="control-panel-buttons"/>
+        </xpath>
+    </t>
+
+</templates>
