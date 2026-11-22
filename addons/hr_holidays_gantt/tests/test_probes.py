@@ -1088,5 +1088,11 @@ class TestTimeOffProbesZCoverage(TimeOffProbeCase):
         wanted = {
             (name, scheme, view) for name, scheme, view, _prop, _value in TIME_OFF_PROBES
             if name not in ('M65', 'M66', 'M67') and (scheme == 'light' or self.has_theme)}
+        # the attendance management view's probes need the Attendances bridge
+        if not self.env['ir.module.module'].sudo().search_count(
+                [('name', '=', 'hr_attendance_gantt'), ('state', '=', 'installed')]):
+            in_attendance_view = {
+                f'M{number}' for number in (*range(51, 60), *range(68, 75), 86, 87, 88)}
+            wanted = {key for key in wanted if key[0] not in in_attendance_view}
         _logger.info('PROBE-COVERAGE|%s compared|%s left out whole', len(COMPARED), len(SKIPPED))
         self.assertEqual(COMPARED, wanted - SKIPPED, 'the probes compared are the table\'s')
