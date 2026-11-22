@@ -80,6 +80,23 @@
 // package's line until 002a does (the attendance views still show 002a's).
 .o_timeline_view:is(.o_hhg_leave_view, .o_hhg_report_view) .o_tl_controls_phone .o_tl_separator {
     border-top-color: $o-main-text-color;
+    opacity: 0.25;
+}
+
+// D4, R22: until the later parts ship, the pointer keeps its default shape over a pill, its ends
+// and an empty cell (the frame's classes follow `hhgInputs`: they are gone once an input is on). A
+// group row and a folded cell keep their hand: their click works (002a R29).
+.o_tl_frame.o_hhg_no_pill_cursor {
+    .o_tl_pill,
+    .o_tl_pill .o_tl_handle {
+        cursor: default;
+    }
+}
+
+.o_tl_frame.o_hhg_no_cell_cursor {
+    .o_tl_row:not(.o_tl_group_row):not(.o_tl_total_row) .o_tl_cell:not(.o_tl_folded_cell) {
+        cursor: default;
+    }
 }
 
 // The text of a pill is centred in the pill (S1 to S4); the other Gantt views keep it at the start.

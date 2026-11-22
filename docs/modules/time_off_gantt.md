@@ -27,7 +27,8 @@ calendar, the request form and the Community dashboard). In the Gantt views
 themselves these inputs do nothing yet: a click or a tap on a pill, a double
 click, a drag or a resize of a pill, a click or a drag on empty cells, and the
 selection of several cells. No popover opens, no dialog opens, nothing is
-written and nothing is highlighted. The Gantt view takes these inputs in a later
+written and nothing is highlighted, and the pointer keeps its default shape over
+a pill, over its ends and over an empty cell (no hand, no resize arrow). The Gantt view takes these inputs in a later
 release.
 
 What does work in the views: the search and its filters, the grouping, the range
@@ -591,6 +592,12 @@ abstract model mixed into `hr.leave` and `hr.leave.report.calendar`):
   and `avatar_hours_per_week`, and a method that opens an employee's time-off
   dashboard for any user.
 - `resource.calendar._handle_flexible_leave_interval` is overridden for the leave
+The pointer shape follows the same entries: the grid's frame carries
+`o_hhg_no_pill_cursor` while `pillClick` and `pillPress` are both `false` and
+`o_hhg_no_cell_cursor` while `cellPress` and `multiSelect` are both `false`, and
+the stylesheet keeps the default pointer on pills, their ends and empty cells under
+them; the part that turns an input on gets the framework's pointers back.
+
   intervals of flexible schedules (all views of employees).
 - A method of `hr.leave` returns the action that the server action
   `hr_holidays_gantt.action_hr_holidays_overview` runs for the Overview menu;

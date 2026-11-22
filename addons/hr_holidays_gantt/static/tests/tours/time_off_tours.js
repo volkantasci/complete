@@ -1154,6 +1154,13 @@ const doubleClickOnAPill = async () => {
     }
 };
 
+const CELL_12 = "2026-11-12";
+const CELL_13 = "2026-11-13";
+const insideLeft = (cell) => {
+    const rect = rectOf(cell);
+    return { x: rect.left + 10, y: rect.top + rect.height / 2 };
+};
+
 const pointerOverAPill = async () => {
     const mark = noteMark();
     const pill = pillByTitle("Anita Oliver", titles.six);
@@ -1166,6 +1173,23 @@ const pointerOverAPill = async () => {
         await settle(1500);
         assertNothing(`rest ${run + 1}`, mark);
         assertEqual(count(), before, `rest ${run + 1}: no element appears in the grid`);
+    }
+    // D4, R22: the pointer keeps its default shape over the pill, 4 px inside each end, and over
+    // an empty cell (the shape drawn at the point, not a hand and not a resize arrow)
+    const cell = cellOfDate("Jennie Fletcher", CELL_12);
+    await bringIntoView(cell);
+    await bringIntoView(pill);
+    const rect = rectOf(pill);
+    const middle = rect.top + rect.height / 2;
+    for (const [where, point, element] of [
+        ["the pill's centre", centre(pill), pill],
+        ["4 px inside the pill's left end", { x: rect.left + 4, y: middle }, pill],
+        ["4 px inside the pill's right end", { x: rect.right - 4, y: middle }, pill],
+        ["an empty cell", insideLeft(cell), cell],
+    ]) {
+        assertUncovered(element, point, where);
+        const shape = getComputedStyle(document.elementFromPoint(point.x, point.y)).cursor;
+        assert(shape === "default" || shape === "auto", `the pointer over ${where} reads "${shape}"`);
     }
     await pointerAway();
 };
@@ -1194,13 +1218,6 @@ const dragOnAPill = async () => {
             assertEqual(snapshot(), before, `${where} ${run + 1}: the pill stays in place`);
         }
     }
-};
-
-const CELL_12 = "2026-11-12";
-const CELL_13 = "2026-11-13";
-const insideLeft = (cell) => {
-    const rect = rectOf(cell);
-    return { x: rect.left + 10, y: rect.top + rect.height / 2 };
 };
 
 const clickOnAnEmptyCell = async () => {
@@ -1373,34 +1390,6 @@ scenario("hhg_a92_bar_on_the_desktop", async () => {
     assertBox($(".o_tl_controls"), [0, 107, 1600, 58], "the control bar with nothing found");
 });
 
-// On the phone the bar grows to its two lines, as the report view's does (decision D3).
-scenario("hhg_a92_bar_on_the_phone", async () => {
-    assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
-    assertBox($(".o_tl_controls"), [0, 103, 390, 101], "the control bar (M84, M86)");
-    assertBox($(".o_tl_step_buttons"), [16, 109.328, 71.031, 33], "previous and next (M89)");
-    assertBox($(".o_tl_range_button"), [91.031, 109.328, 79.922, 33], "the range button (M90)");
-    assertBox($(".o_tl_separator"), [0, 147, 390, 1], "the separator (M91)");
-    assertBox($(".o_tl_today"), [16, 152.656, 59.359, 33], "Today (M92)");
-    assertBox($(".o_tl_gear"), [337.984, 152.656, 36.016, 33], "the bar's gear (M93)");
-    assertBox($(".o_tl_col_group"), [null, 205, null, 25], "the period line (M85)");
-});
-
-// A93: where the phone's grid opens (R23 point 2; M82, M83, M15, M16) -------------------------------
-
-scenario("hhg_a93_phone_opening_positions", async () => {
-    assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
-    assertEqual(rangeName(), "Month", "the range");
-    assertNear(renderer().scrollLeft, 322, "the grid is scrolled 322 px (M82)", 1);
-    assertNear(rectOf(colByDate("2026-11-11")).left, 260, "today's column's left edge (M15)", 0.5);
-    await pickRange("week");
-    await settle(600);
-    assertNear(renderer().scrollLeft, 312, "the Week range: 312 px (M83)", 1);
-    assertNear(rectOf(colByDate("2026-11-11")).left, 238, "Wednesday 11's left edge", 0.5);
-    await step(1);
-    await settle(600);
-    assertNear(renderer().scrollLeft, 312, "Next keeps the scroll (M83)", 1);
-    assertNear(rectOf(colByDate("2026-11-18")).left, 238, "Wednesday 18's left edge", 0.5);
-    // The table's y 297 is that of the probe's world, which has other rows above Anita Oliver's (the
 /** A computed colour text as [r, g, b, a]. */
 const channelsOf = (text) => {
     const [r, g, b, a = 1] = text.match(/[\d.]+/g).map(Number);
@@ -1450,6 +1439,35 @@ const separatorLooksFaint = () => {
     );
 };
 
+// On the phone the bar grows to its two lines, as the report view's does (decision D3).
+scenario("hhg_a92_bar_on_the_phone", async () => {
+    assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
+    assertBox($(".o_tl_controls"), [0, 103, 390, 101], "the control bar (M84, M86)");
+    assertBox($(".o_tl_step_buttons"), [16, 109.328, 71.031, 33], "previous and next (M89)");
+    assertBox($(".o_tl_range_button"), [91.031, 109.328, 79.922, 33], "the range button (M90)");
+    assertBox($(".o_tl_separator"), [0, 147, 390, 1], "the separator (M91)");
+    assertBox($(".o_tl_today"), [16, 152.656, 59.359, 33], "Today (M92)");
+    assertBox($(".o_tl_gear"), [337.984, 152.656, 36.016, 33], "the bar's gear (M93)");
+    assertBox($(".o_tl_col_group"), [null, 205, null, 25], "the period line (M85)");
+    separatorLooksFaint();
+});
+
+// A93: where the phone's grid opens (R23 point 2; M82, M83, M15, M16) -------------------------------
+
+scenario("hhg_a93_phone_opening_positions", async () => {
+    assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
+    assertEqual(rangeName(), "Month", "the range");
+    assertNear(renderer().scrollLeft, 322, "the grid is scrolled 322 px (M82)", 1);
+    assertNear(rectOf(colByDate("2026-11-11")).left, 260, "today's column's left edge (M15)", 0.5);
+    await pickRange("week");
+    await settle(600);
+    assertNear(renderer().scrollLeft, 312, "the Week range: 312 px (M83)", 1);
+    assertNear(rectOf(colByDate("2026-11-11")).left, 238, "Wednesday 11's left edge", 0.5);
+    await step(1);
+    await settle(600);
+    assertNear(renderer().scrollLeft, 312, "Next keeps the scroll (M83)", 1);
+    assertNear(rectOf(colByDate("2026-11-18")).left, 238, "Wednesday 18's left edge", 0.5);
+    // The table's y 297 is that of the probe's world, which has other rows above Anita Oliver's (the
     // probe checks it); here the pill lies 1 px under its 41 px row, as in the table
     const pill = pillByTitle("Anita Oliver", "PTO 1d");
     assertBox(pill, [239, null, 190, 23], "Anita Oliver's pill (M16)");
@@ -1460,7 +1478,6 @@ const separatorLooksFaint = () => {
 
 // A94: nothing covers the grid on the phone (R23 point 1, D3) -------------------------------------------
 
-    separatorLooksFaint();
 scenario("hhg_a94_nothing_covers_the_grid", async () => {
     assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
     assertEqual(rangeName(), "Month", "the range");

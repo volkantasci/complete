@@ -8,5 +8,10 @@
         <xpath expr="//div[hasclass('o_tl_box')]" position="attributes">
             <attribute name="class" add="o_hhg_time_off" separator=" "/>
         </xpath>
+        <!-- D4, R22: the grid's frame says which pointer shapes stay at the default, so that the
+             part that turns an input on gets the framework's pointers back (`hhgInputs`). -->
+        <xpath expr="//div[hasclass('o_tl_frame')]" position="attributes">
+            <attribute name="t-att-class">{ o_tl_with_panel: this.hasPanel, o_hhg_no_pill_cursor: this.hhgNoPillCursor, o_hhg_no_cell_cursor: this.hhgNoCellCursor }</attribute>
+        </xpath>
     </t>
 </templates>

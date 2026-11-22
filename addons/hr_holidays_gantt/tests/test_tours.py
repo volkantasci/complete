@@ -261,7 +261,7 @@ class TestTimeOffLeaveTours(TimeOffToursBase):
         self._tour_writes_nothing('hhg_a65_double_click_on_a_pill')
 
     def test_a66_pointer_over_a_pill(self):
-        self._demo_like()
+        self._demo_like(jennie=True)
         self._tour_writes_nothing('hhg_a66_pointer_over_a_pill')
 
     def test_a67_drag_on_a_pill(self):

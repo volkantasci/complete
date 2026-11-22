@@ -80,6 +80,9 @@ function cellPoint(date) {
 const pillRect = () => queryRect(pillEl());
 const leftOf = () => Math.round(pillRect().left);
 
+/** The pointer shape drawn at a point of the page. */
+const cursorAt = ({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor;
+
 /** Nothing opened, nothing selected, no handle, nothing written. */
 function expectNothing() {
     expect(".o_tl_popover").toHaveCount(0);
@@ -121,6 +124,17 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             await hover(pillEl());
             await settle();
             expectNothing();
+        });
+
+        test("A66, D4: the pointer keeps its default shape over a pill, its ends and an empty cell", async () => {
+            await mount();
+            const rect = pillRect();
+            const y = rect.top + rect.height / 2;
+            for (const x of [rect.left + 4, rect.left + rect.width / 2, rect.right - 4]) {
+                expect(cursorAt({ x, y })).toBe("default");
+            }
+            const cell = cellPoint("2026-11-20");
+            expect(cursorAt(cell)).toBe("default");
         });
 
         test("A67: a press at the centre and a drag of 120 px does not move the pill, writes nothing", async () => {
@@ -327,6 +341,17 @@ describe("control: a plain Gantt view of the same data keeps every input", () =>
         await advanceTime(300);
         await animationFrame();
         expect(".modal").toHaveCount(1);
+    });
+
+    test("the pointer is a hand over a pill and a resize arrow over its ends", async () => {
+        await mountPlain();
+        await hover(pillEl());
+        await animationFrame();
+        const rect = pillRect();
+        const y = rect.top + rect.height / 2;
+        expect(cursorAt({ x: rect.left + rect.width / 2, y })).toBe("pointer");
+        expect(cursorAt({ x: rect.left + 4, y })).toBe("w-resize");
+        expect(cursorAt({ x: rect.right - 4, y })).toBe("e-resize");
     });
 
     test("hover shows the handles", async () => {

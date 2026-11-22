@@ -62,6 +62,21 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
     }
 
     /**
+     * D4, R22: while neither a click nor a press on a pill does anything, the pointer keeps its
+     * default shape over a pill and over its ends (no hand, no resize cursor).
+     */
+    get hhgNoPillCursor() {
+        const { pillClick, pillPress } = this.hhgInputs;
+        return !pillClick && !pillPress;
+    }
+
+    /** D4, R22: the same for an empty cell, while no press and no selection start there. */
+    get hhgNoCellCursor() {
+        const { cellPress, multiSelect } = this.hhgInputs;
+        return !cellPress && !multiSelect;
+    }
+
+    /**
      * R16 points 3 and 4: the hours label alone, muted at every value: no bar, no tooltip, no
      * warning. The server's progress value is `{value: hours}`.
      */
