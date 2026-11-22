@@ -32,6 +32,10 @@
         <field name="name">Overview</field>
         <field name="model_id" ref="hr_holidays.model_hr_leave"/>
         <field name="state">code</field>
+        <!-- every internal user may run it: without a group the server action asks the user for
+             write access on requests, and a user with no Time Off group would get that error
+             instead of the Community's access error on the report (E1) -->
+        <field name="group_ids" eval="[(4, ref('base.group_user'))]"/>
         <field name="code">action = model._hhg_overview_action()</field>
     </record>
 
