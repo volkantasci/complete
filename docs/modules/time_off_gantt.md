@@ -54,7 +54,10 @@ The menu **Time Off > Overview** chooses by role each time you click it.
 For an Officer or Administrator the Overview opens the leave view alone, with
 the title "All Time Off", the grouping by employee as its only facet and no
 other search default. Requests that are Refused or Cancelled are not listed
-there. Management > Time Off is the Community list action with a Gantt view
+there. The page's address names the management action, and **a reload keeps this
+reduced view**: the leave view alone, the title "All Time Off", the Employee
+grouping as the only facet (no Waiting For Me) and the same rows, with no view
+switcher. Management > Time Off is the Community list action with a Gantt view
 added after its other views (List stays the default); its Gantt view lists every
 state, and starts with the action's own filters (Waiting For Me and the current
 year).
@@ -237,11 +240,15 @@ The band has:
   time-off dashboard, on the Week range of the view if it shows a week, on the
   Month range if it shows a month, and on the year for every other range.
 - **The leave lines**, for Employees officers only: one line for each leave type
-  that is valid in the company's country and for which the employee has time
-  allocated or taken. A line reads the type, the time taken in bold and, for a
-  type that needs an allocation, the time left in muted text ("Legal leave
-  employee: 11 days / 9 days"). The lines are ordered by time left, the smallest
-  first.
+  that is valid in the company's country (or has no country) and for which the
+  employee has time allocated or taken. A line reads the type, the time taken in
+  bold and, for a type that needs an allocation, the time left in muted text
+  ("Legal leave employee: 11 days / 9 days"). The amounts are the Community's,
+  added up over the employee's allocations of the type and computed with your own
+  rights; they are in days or in hours by the type's unit of measure. A type that
+  needs no allocation shows the time taken alone, with no slash. The lines are
+  ordered by time left, the smallest first; types with the same time left keep
+  the Community's order.
 - **A pencil**, for Employees officers only: it asks for a date and creates a
   new version of the employee at that date, then opens the employee on it.
   Closing the date picker without a date does nothing.
@@ -258,9 +265,13 @@ offers two entries. They are not there in the report view, and not on a phone.
 - **Import** opens the Community's import screen for time off requests. Its
   breadcrumb comes back to the view.
 - **Export**, for users of the Community's export group, downloads at once, with
-  no dialog, a spreadsheet of the requests of the current search (the action's
-  filters included), without grouping, with five columns: the request, the
-  employee, the type, the start and the end.
+  no dialog, a spreadsheet (xlsx) of the requests of the current search (the
+  action's filters included), without grouping, the latest start first, with one
+  header line and five columns in this order: the request's external identifier
+  (made by the export for a request that has none), the employee's name, the
+  type's external identifier, the start date and the end date. The export group
+  is not implied by any Time Off group: an Officer or Administrator who is not in
+  it sees Import alone.
 
 ![The gear menu, light](../assets/time_off_gantt/07-cog.png)
 
@@ -279,11 +290,22 @@ sample data appears only when the report holds no record at all.
 
 ![An empty report view, light](../assets/time_off_gantt/09-empty-report.png)
 
-## On a phone
+## The control bar and the phone
+
+On a wide screen the control bar of the leave view is a fixed 58 px tall, with
+its controls 4.5 px below its top and the grid right under it.
 
 Below the small-screen breakpoint both views take the phone layout of the Gantt
 view: a narrow row header with the avatar, the cut name and the label, and the
 search facets behind the search button. There is no card and no gear entry.
+The leave view's control bar follows the phone layout of the Gantt view as the
+report view's does: two lines with a separator between them, and the grid
+**below** the bar, so no control lies over the grid.
+
+The phone's grid opens scrolled sideways so that today lies at the middle of the
+visible part of the grid (the part right of the row header column). On the Month
+range today's column starts at that middle; choosing the Week range from there
+keeps today near it, and Next keeps the scroll position.
 
 ![The leave view on a phone, light](../assets/time_off_gantt/01-month.mobile.png)
 
@@ -335,6 +357,145 @@ A Manager who is not an approver does not see Management > Time Off. If they
 open it by its address they get the same view as an Approver, with the
 Community's read rules on requests applied. An Approver in Management > Time
 Off sees the label, since the hours are read with their own rights.
+
+## Verifying with demo data
+
+The Community's Time Off demo leaves are placed around the day of installation, so
+the database that shows the same days every time is created while the server's
+clock reads Wednesday 11 November 2026, 10:00 UTC. The tool
+[`tools/odoo_at_instant.py`](../../tools/odoo_at_instant.py) does that; how it
+works, why it runs in the project's container only and how to stop the server are
+told in
+[The demo database at the project's instant](attendance_gantt.md#the-demo-database-at-the-projects-instant).
+Every command below is one plain `podman compose` command from the root of the
+repository, after `docker/.env` has been created. Replace `DB` with `demo002e`.
+
+Create the database with the modules of this part and the demo data (the skills
+module fills the employee card):
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB -i web_enterprise,test_web_gantt,hr_gantt,hr_attendance_gantt,hr_holidays_gantt,hr_skills --with-demo --stop-after-init
+```
+
+Check the attendance demo data of the earlier part, then the leaves of this one:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py check-demo -d DB
+```
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB --test-tags hr_holidays_gantt_demo_check --stop-after-init
+```
+
+The second command runs one test class that no normal run picks up. It writes one
+line `DEMO-LEAVE ...` per leave of Anita Oliver, Mitchell Admin, Marc Demo, Ronnie
+Hart, Sharlene Rhodes and Paul Williams (the type, its display code, its country,
+its colour, the state and the first and last day in Europe/Brussels) and one for
+Anita Oliver's allocation. It fails when a day, a type or a state differs from the
+table of the acceptance scenarios (every leave Approved; Anita Oliver: 20 days of
+Legal leave employee, 11 taken, 9 left) and is skipped in a database without the
+Time Off demo data. It changes nothing.
+
+**The attendance part's prepared records.** `prepare` and `unprepare` of the
+attendance part work as told there; this part's scenarios that use the attendance
+view (the ones that show time off in it) use the same database:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py prepare -d DB
+```
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py unprepare -d DB
+```
+
+**Starting and stopping the server.** Start it under the same clock, published on
+the machine's own address only, in the background or in its own terminal:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 127.0.0.1:8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB
+```
+
+It answers at `http://127.0.0.1:8069`. `podman ps` lists the run container (a
+name such as `docker-odoo-run-c38678dc7f23`); `podman stop CONTAINER` stops it and
+`--rm` removes it.
+
+**Which values depend on the server's clock.** Only one, while the server runs:
+the "flexible today" check of the hours label, which decides whether an employee's
+schedule in effect **today** is flexible. The module's models have no other reading
+of a clock (`git grep -n "Datetime.now\|context_today\|fields.Date.today" addons/hr_holidays_gantt/models`
+finds that one). It takes the server's instant and reads it as a day in the zone
+the **browser** sends in `tz`, so the answer follows the browser's zone, and the
+server must run under the clock above for it to be 11 November. The clock also
+matters when the database is created, because of the demo data and the dates it
+computes from it.
+
+### The role users and the prepared records
+
+The administrator is Mitchell Admin (login `admin`), a Time Off administrator. The
+acceptance scenarios need six **role users** and four sets of **prepared
+records**. Create them as the administrator through the screens, as the
+acceptance scenarios describe, or with the module's functions from an Odoo shell,
+which makes them the same way every time. Start the shell under the clock:
+
+```
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- shell -d DB
+```
+
+In the shell (the functions take the shell's `env`; `env.cr.commit()` keeps what
+they made):
+
+```python
+from odoo.addons.hr_holidays_gantt.tests import time_off_fixtures as fx
+fx.make_role_users(env)      # the six role users, their employees and "Toff Peer"
+fx.make_flexible(env)        # "Toff Flex", "Toff Hours", "Toff Flexible", "Toff Fixed" and their leaves
+fx.make_states(env)          # "Toff States": one request in each state
+fx.make_bulk(env)            # "Toff Bulk 00" to "Toff Bulk 29"
+fx.make_tokyo(env)           # "Toff Split" and "Toff Tokyo"
+env.cr.commit()
+```
+
+Each function creates its records only; `make_role_users` first removes every
+earlier prepared record, so call it first, once. To remove everything the
+functions made (and anything left by an earlier run: the requests and allocations
+of the employees whose name begins with "Toff ", those employees, the users whose
+login begins with "toff_", the schedules and leave types named "Toff ..."):
+
+```python
+fx.drop_time_off_records(env)
+env.cr.commit()
+```
+
+Records are found by name. The six role users have the login as their password:
+
+| Login = password | Role |
+|---|---|
+| `toff_none` | internal user only |
+| `toff_emp` | Time Off Employee |
+| `toff_approver` | Employee, time off approver of "Toff Peer" |
+| `toff_manager` | Employee, manager of "Toff Peer" |
+| `toff_officer` | Officer, and the export group |
+| `toff_admin` | Administrator, and the export group |
+
+Their groups are **set explicitly**, replacing the ones a new user gets by
+default, and each user has the time zone Europe/Brussels and an employee of the
+same name. Check them after the setup, in the user's form or from the shell: for
+instance `toff_approver` holds "Time Off Responsible" and `toff_manager` does not,
+and only the officer and the administrator hold "Export / Allowed".
+
+### The browser
+
+Set the browser to the state the scenarios assume before each one:
+
+- the clock at Wednesday 11 November 2026, 11:00, running on, and the time zone
+  Europe/Brussels (for example with the browser's developer tools);
+- one active language, US English (weeks start on Sunday), and fresh browser
+  storage, because the range is remembered;
+- a window of 1600 × 900 for the desktop, 390 × 844 with touch for the phone;
+- the user's theme preference System, light or dark by the browser's colour
+  scheme;
+- the menus by role: Time Off > Overview for everyone (the leave view for the
+  Officer and the Administrator, the report view for the others), and Management >
+  Time Off for the Approver, the Officer and the Administrator.
 
 ## For developers
 
