@@ -1630,6 +1630,13 @@ or the gestures.
   `progress_bars`.
 - `_gantt_unavailability` and `_gantt_progress_bar` are the two hooks a host
   model overrides to fill the last two keys. The base versions return nothing.
+- The instants a host gives in `_gantt_unavailability` are read to the second
+  in every Gantt view. A period that covers a part of a column up to one second
+  before its end greys that part; a column folds only when every row is covered
+  up to its last millisecond. A whole-day period that a host ends at
+  23:59:59.999999 (arriving as 23:59:59) therefore greys its day and leaves it
+  open, while one that ends at the next midnight greys it and folds it when no
+  pill touches it and every row is covered.
 - The module [Employees Timeline](employee_gantt.md) adds
   `_get_gantt_data_with_empty` to every model: the same call, answered with a
   group for every matching record of the one related model the view groups by,

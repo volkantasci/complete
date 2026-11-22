@@ -57,6 +57,17 @@ class TestAttendanceTours(TimeOffToursBase):
         self._flexible()
         self._tour('hhg_a35_attendance_flexible', path=ATTENDANCE)
 
+    def test_a91_greyed_not_folded(self):
+        self._flexible()
+        # the company's Thursday 19 November, ending at 23:59:59 (Brussels) as the Community's
+        # default end does
+        self.env['resource.calendar.leaves'].create({
+            'name': 'Toff company day',
+            'date_from': fx.utc('2026-11-18 23:00'),
+            'date_to': fx.utc('2026-11-19 22:59').replace(second=59),
+        })
+        self._tour('hhg_a91_greyed_not_folded', path=ATTENDANCE)
+
     def test_a36_attendance_expected(self):
         self._flexible()
         self._tour('hhg_a36_attendance_expected', path=ATTENDANCE)

@@ -252,3 +252,24 @@ tours.add("hhg_a80_helper_phone", {
         },
     ],
 });
+
+// A91: greyed but not folded (R15, E11) ---------------------------------------------------------------
+
+scenario("hhg_a91_greyed_not_folded", async () => {
+    await flexibleWeek();
+    assertWeekOpen();
+    const widthOf = (date) => rectOf($(`.o_tl_col[data-date="${date}"]`)).width;
+    for (const name of ["Toff Flexible", "Toff Fixed"]) {
+        // Monday (a whole-day leave) and Thursday (the company's day, ending at 23:59:59)
+        for (const date of ["2026-11-16", "2026-11-19"]) {
+            assert(isGrey(cellOfDate(name, date)), `${describe(name, date)} is greyed`);
+        }
+    }
+    for (const date of ["2026-11-16", "2026-11-19"]) {
+        assertEqual(foldedHeaders().length, 0, `${date}: no folded column`);
+        assert(
+            Math.abs(widthOf(date) - widthOf("2026-11-17")) < 1,
+            `${date} keeps the width of an open day: ${widthOf(date)} against ${widthOf("2026-11-17")}`
+        );
+    }
+});

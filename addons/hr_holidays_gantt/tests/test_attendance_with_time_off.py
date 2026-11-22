@@ -1,12 +1,22 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
+import json
 import unittest
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
+from odoo.tools import json_default
 
 from . import time_off_fixtures as fx
 from .test_unavailability import WEEK_PLUS, covered, day_at, local, touches
+
+
+def local_text(text):
+    """A datetime of the data call (UTC text) as the text of the user's zone."""
+    moment = datetime.strptime(text, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
+    return moment.astimezone(ZoneInfo(fx.TZ)).strftime('%Y-%m-%d %H:%M:%S')
 
 
 @tagged('post_install', '-at_install')
@@ -70,3 +80,49 @@ class TestAttendanceWithTimeOff(TransactionCase):
         self.assertEqual(
             {employee.name: found[employee.id]['max_value'] for employee in staff},
             {'Toff Fixed': 24, 'Toff Flexible': 40, 'Mitchell Admin': 16, 'Anita Oliver': 32})
+
+    def _data_call(self, employees):
+        """The attendance view's data call for the week of 15 to 21 November, as the browser
+        reads it (datetimes as text, to the second)."""
+        result = self.env['hr.attendance'].with_context(
+            tz=fx.TZ, user_domain=[('employee_id', 'in', employees.ids)],
+        ).get_gantt_data(
+            [('employee_id', 'in', employees.ids)], ['employee_id'], {'id': {}},
+            unavailability_fields=['employee_id'], start_date=WEEK_PLUS[0],
+            stop_date=WEEK_PLUS[1], scale='week')
+        result = json.loads(json.dumps(result, default=json_default))
+        return {
+            int(employee_id): [
+                (local_text(item['start']), local_text(item['stop'])) for item in items]
+            for employee_id, items in result['unavailabilities']['employee_id'].items()}
+
+    def test_a91_whole_day_leave_to_the_second(self):
+        """R15 (the instants), E11: a flexible schedule's whole-day leave runs 0:00:00 to
+        23:59:59 of the day; a fixed schedule's, to the next midnight."""
+        flexible, fixed = self.made['Toff Flexible'], self.made['Toff Fixed']
+        found = self._data_call(flexible | fixed)
+        self.assertEqual(
+            found[flexible.id][0], ('2026-11-16 00:00:00', '2026-11-16 23:59:59'))
+        # the fixed schedule's Monday is covered to the next midnight (the interval runs on
+        # into the neighbouring days, which the leaves and the weekend cover in one piece)
+        monday = [
+            pair for pair in found[fixed.id]
+            if pair[0] <= '2026-11-16 00:00:00' < pair[1]]
+        self.assertEqual(len(monday), 1, found[fixed.id])
+        self.assertGreaterEqual(monday[0][1], '2026-11-17 00:00:00')
+
+    def test_a91_company_leave_to_the_second(self):
+        """A company-wide leave of Thursday 19 with the Community's default end (23:59:59)
+        covers the day for both schedules, to the second."""
+        self.env['resource.calendar.leaves'].create({
+            'name': 'Toff company day',
+            'date_from': fx.utc('2026-11-18 23:00'),
+            'date_to': fx.utc('2026-11-19 22:59').replace(second=59),
+        })
+        flexible, fixed = self.made['Toff Flexible'], self.made['Toff Fixed']
+        found = self._data_call(flexible | fixed)
+        for employee in (flexible, fixed):
+            thursday = [pair for pair in found[employee.id] if pair[0].startswith('2026-11-19')]
+            self.assertTrue(thursday, employee.name)
+            self.assertEqual(thursday[0][0], '2026-11-19 00:00:00', employee.name)
+            self.assertIn(thursday[-1][1], ('2026-11-19 23:59:59', '2026-11-20 00:00:00'))
