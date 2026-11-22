@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from . import (
     test_actions,
+    test_attendance_tours,
     test_attendance_with_time_off,
     test_card_data,
     test_fixtures,
@@ -9,6 +10,7 @@ from . import (
     test_hours_label,
     test_install,
     test_pill_text,
+    test_prepared_tours,
     test_report_tours,
     test_roles,
     test_rows,
