@@ -67,8 +67,6 @@ class TestActions(TransactionCase):
         ])
         self.assertEqual(Domain(action['domain']), expected)
         self.assertEqual(action['context'], {'hide_employee_name': 1})
-        # the marker is a key of its own, not part of the context
-        self.assertIs(action['hhg_overview'], True)
 
     def test_a07_server_action_by_role(self):
         officer = self._user('officer', 'hr_holidays.group_hr_holidays_user')
@@ -77,7 +75,6 @@ class TestActions(TransactionCase):
         self._check_officer_action(self._run(manager))
         employee = self._user('employee', 'hr_holidays.group_hr_holidays_employee')
         self.assertEqual(self._run(employee)['id'], self.dashboard.id)
-        self.assertNotIn('hhg_overview', self._run(employee))
 
     def test_a07_without_gantt_view_everyone_gets_the_dashboard(self):
         officer = self._user('officer2', 'hr_holidays.group_hr_holidays_user')

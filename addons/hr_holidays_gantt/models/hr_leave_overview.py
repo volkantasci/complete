@@ -18,7 +18,7 @@ class HrLeave(models.Model):
         if 'gantt' not in (management['view_mode'] or '').split(',') or not gantt_views:
             return dashboard
         # the action keeps its id and path, so the address of the browser names the management
-        # action and a reload opens that action with its own defaults
+        # action; the web client stores the action it opened and restores it on a reload (A8)
         management.update({
             'name': dashboard['name'],
             'view_mode': 'gantt',
@@ -29,8 +29,5 @@ class HrLeave(models.Model):
                 ('state', 'not in', ['refuse', 'cancel']),
             ],
             'context': {'hide_employee_name': 1},
-            # our own key: the client drops this action from the session once it is shown, so a
-            # reload opens the management action itself (A8)
-            'hhg_overview': True,
         })
         return management
