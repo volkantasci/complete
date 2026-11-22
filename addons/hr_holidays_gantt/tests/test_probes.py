@@ -68,18 +68,14 @@ ANITA_COLOUR = 3
 # ``SHELL-DIFFERENCE`` (a spec question):
 # * desktop: the original's search field is 34 px tall there (no view switcher in the row) where
 #   the shell's field is 37 px high at least (``.o_cp_searchview`` of web_enterprise's control
-#   panel, a rule of every page), so the original's bar and grid lie 3 px *higher* than Complete's;
-# * phone: the original's Overview page has no separator and no gap between its two control lines
-#   and lets the second line (Today, the gear) lie over the first 13 px of the grid, which starts
-#   at y 161.9; Complete's phone bar is the framework's, the one of the attendance views, with its
-#   separator and its second line in the flow, so its grid lies 42.7 px lower (the first line 2.3
-#   px lower). The report view's page, which has a view switcher, has the framework's layout also
-#   in the original (M21 matches). Not reproduced: the second line would hide the header corner;
-# * phone: the original's grid lies 5 px further left once the page scrolled to today (the capture
-#   hides the scrollbars after the load; a non-touch phone page loads with 15 px of scrollbar in
-#   the width the scroll centres in).
-SHELL = {'desktop': -3, 'phone': -42.72}
-SHELL_X = {'desktop': 0, 'phone': 5}
+#   panel, a rule of every page), so the original's bar and grid lie 3 px *higher* than
+#   Complete's: the desktop readings of the leave view M1 to M20, M26 to M32, M39 to M50, M60 to
+#   M67, M75 to M80 are compared 3 px lower (the table's M81 is not compared);
+# * phone (decision D3, R23 point 1): the leave view's control bar grows to its two lines as the
+#   report view's does, so the grid starts 43 px lower than on the original (y 205, not 162): the
+#   phone readings of the leave view below the bar (M1, M2, M4 to M7, M11, M15 to M17, M19, M40,
+#   M44, M45) are compared 43 px lower; M14 is compared with the report view's range button (M90).
+SHELL = {'desktop': -3, 'phone': -43}
 
 INSTALL_COUNTER = """(() => {
     window.__hp = { requests: 0, responses: 0 };
@@ -372,6 +368,26 @@ class TimeOffProbeCase(TimelineProbeCase):
 
     # -- checks ---------------------------------------------------------------------------------
 
+    @staticmethod
+    def as_reported(probe, scheme, viewport='phone'):
+        """The geometry rows of another probe, to compare an element with where that one lies."""
+        return {prop: value for prop, value in measured(probe, viewport)[scheme].items()
+                if prop.startswith('geometry.')}
+
+    def check_scroll(self, probe, element_js, scheme, viewport, label):
+        """The grid's sideways scroll (``scroll-left`` rows of M82 and M83), within a pixel."""
+        self.assertIn(probe, KNOWN, f'{probe} is not a probe of the table')
+        want = measured(probe, viewport).get(scheme)
+        if not want:
+            return
+        got = self.js(f"({element_js}).scrollLeft")
+        COMPARED.add((probe, scheme, viewport))
+        with self.subTest(probe=probe, scheme=scheme, viewport=viewport, element=label):
+            if abs(got - float(want['scroll-left'])) > 1:
+                _logger.warning('PROBE-MISMATCH|%s|%s|%s|scroll-left|%s|%s|%s', probe, scheme,
+                                viewport, want['scroll-left'], got, label)
+            self.assertAlmostEqual(got, float(want['scroll-left']), delta=1, msg=f'{probe} {label}')
+
     def check(self, probe, element_js, scheme, viewport, label, skip=(), override=None, dy=0, dx=0):
         """Compare the element with the rows of ``probe`` of this scheme and viewport; a probe the
         table has for the other viewport only asks nothing here (desktop-only or phone-only).
@@ -506,15 +522,13 @@ class TestTimeOffProbesDemo(TimeOffProbeCase):
             kwargs.setdefault('dy', dy)
             return self.check(*args, **kwargs)
 
-        dx =SHELL_X[viewport]
-        check('M1', pill_js(anita, 'PTO 4 days'), scheme, viewport, 'the pill "PTO 4 days"',
-              dx=dx)
-        check('M2', pill_js(anita, '1d'), scheme, viewport, 'the one-day pill', dx=dx)
+        check('M1', pill_js(anita, 'PTO 4 days'), scheme, viewport, 'the pill "PTO 4 days"')
+        check('M2', pill_js(anita, '1d'), scheme, viewport, 'the one-day pill')
         check('M3', pill_js('Mitchell Admin', 'CTO 3 days'), scheme, viewport, 'CTO 3 days')
         check('M4', pill_js('Mitchell Admin', 'STO 3 days'), scheme, viewport, 'STO 3 days')
         # the label and the avatar lie half a pixel less low than the rows' other boxes (the
         # table's value 261.5 and 262 on a half-pixel grid): the residue is part of the offset
-        half = .5 if viewport == 'desktop' else 0
+        half = .5
         check('M5', self.anita(LABEL), scheme, viewport, 'the hours label', dy=dy + half)
         self.check_text(self.anita(LABEL), '80h', 'Anita Oliver\'s hours label')
         check('M6', self.anita('.o_tl_row_header'), scheme, viewport, 'the row header')
@@ -529,10 +543,21 @@ class TestTimeOffProbesDemo(TimeOffProbeCase):
         self.check_count('M12', f"{ROW_EL}.length", scheme, viewport, 'employee rows')
         self.check_count('M13', "document.querySelectorAll('.o_tl_progress').length", scheme,
                          viewport, 'progress bars')
+        # on the phone the range button lies where the report view's does (M90, R23 point 1)
         self.check('M14', "document.querySelector('.o_tl_range_button')", scheme, viewport,
-                   'the range button', dy=-3.5 if viewport == 'desktop' else -2.297)
+                   'the range button', dy=dy if viewport == 'desktop' else 0,
+                   override=self.as_reported('M90', scheme) if viewport == 'phone' else None)
         self.check_text("document.querySelector('.o_tl_range_button')", 'Month', 'the range')
-        check('M15', column_js('2026-11-11'), scheme, viewport, 'the header of today', dx=dx)
+        check('M15', column_js('2026-11-11'), scheme, viewport, 'the header of today')
+        # the control bar: 58 px tall in the leave view on the desktop, its controls 4.5 px below
+        # its top, the period line 1 px below the bar (R6); the phone's bar is R23 point 1's
+        check('M77', "document.querySelector('.o_tl_controls')", scheme, viewport,
+              'the control bar')
+        check('M78', "document.querySelector('.o_tl_step_buttons')", scheme, viewport,
+              'the previous and next buttons')
+        check('M79', "document.querySelector('.o_tl_today')", scheme, viewport, 'Today')
+        check('M80', "document.querySelector('.o_tl_col_group')", scheme, viewport,
+              'the period line')
 
     def test_m01_m15_month(self):
         for viewport in VIEWPORTS:
@@ -542,6 +567,8 @@ class TestTimeOffProbesDemo(TimeOffProbeCase):
                     self.loaded("document.querySelectorAll('.o_tl_progress_label').length > 0")
                     self.mouse('mouseMoved', 1000, 123, buttons=0)
                     self.settle(500)
+                    self.check_scroll('M82', "document.querySelector('.o_tl_renderer')", scheme,
+                                      viewport, 'the grid opens on today')
                     self.month_probes(scheme, viewport)
 
     def test_m16_m18_week(self):
@@ -550,21 +577,23 @@ class TestTimeOffProbesDemo(TimeOffProbeCase):
                 with self.subTest(scheme=scheme, viewport=viewport), \
                         self.open(scheme, viewport):
                     self.loaded("document.querySelectorAll('.o_tl_progress_label').length > 0")
-                    self.to_week()
+                    grid = "document.querySelector('.o_tl_renderer')"
+                    self.choose_range('week')
+                    self.check_scroll('M83', grid, scheme, viewport, 'the Week range')
+                    self.step(1)
+                    self.check_scroll('M83', grid, scheme, viewport, 'after Next')
                     self.mouse('mouseMoved', 1000, 123, buttons=0)
                     self.settle(800)
                     self.check('M16', pill_js('Anita Oliver', 'PTO 1d'), scheme, viewport,
-                               'the pill "PTO 1d"', dy=SHELL[viewport],
-                               skip=('geometry.x',) if viewport == 'phone' else ())
+                               'the pill "PTO 1d"', dy=SHELL[viewport])
                     self.check('M17', in_row('Mitchell Admin', LABEL), scheme, viewport,
                                'the hours label')
                     self.check_text(in_row('Mitchell Admin', LABEL), '16h', 'Mitchell\'s label')
-                    # the header cell is centred by the framework's text-center class (computed
-                    # text-align center, line-height 23), where the original's box reads start
-                    # and 21: the picture is the same, left out and logged
                     self.check('M18', column_js('2026-11-16'), scheme, viewport,
-                               'the header of Monday 16', dy=SHELL[viewport],
-                               skip=('line-height', 'text-align'))
+                               'the header of Monday 16', dy=SHELL[viewport])
+                    self.check('M76', f"{column_js('2026-11-16')}.querySelector('.o_tl_col_title')",
+                               scheme, viewport, 'the text of the header of Monday 16',
+                               dy=SHELL[viewport])
 
     def test_m19_m20_quarter(self):
         for viewport in VIEWPORTS:
@@ -577,7 +606,7 @@ class TestTimeOffProbesDemo(TimeOffProbeCase):
                     self.settle(800)
                     self.check('M19', in_row('Abigail Peterson', LABEL), scheme, viewport,
                                'the hours label',
-                               dy=SHELL[viewport] + (.5 if viewport == 'desktop' else 0))
+                               dy=SHELL[viewport] + .5)
                     self.check_text(in_row('Abigail Peterson', LABEL), '528h', 'the label')
                     self.check('M20', pill_js('Sharlene Rhodes', 'PTO 5 days'), scheme, viewport,
                                'the pill "PTO 5 days"', dy=SHELL[viewport])
@@ -717,7 +746,7 @@ class TestTimeOffProbesRoles(TimeOffProbeCase):
                     self.mouse('mouseMoved', 1000, 123, buttons=0)
                     self.settle(800)
                     self.check('M21', pill_js('Anita Oliver', '4 days'), scheme, viewport,
-                               'the pill "4 days"', dx=SHELL_X[viewport])
+                               'the pill "4 days"')
                     self.check_count('M22', "document.querySelectorAll('.o_tl_progress_label')"
                                      ".length", scheme, viewport, 'hours labels')
                     self.check_count('M23', f"{ROW_EL}.length", scheme, viewport, 'employee rows')
@@ -726,6 +755,31 @@ class TestTimeOffProbesRoles(TimeOffProbeCase):
                     self.check_count('M25', "document.querySelectorAll('.o_cp_switch_buttons "
                                      ".o_switch_view').length", scheme, viewport,
                                      'switcher buttons')
+
+    def test_m84_m93_report_control_bar(self):
+        """The report view's bar follows its controls (M84, M85) and on the phone its two lines
+        (M89 to M93): the layout decision D3 gives the leave view too."""
+        for viewport in VIEWPORTS:
+            for scheme in self.schemes():
+                with self.subTest(scheme=scheme, viewport=viewport), \
+                        self.report(scheme, viewport):
+                    self.loaded()
+                    self.mouse('mouseMoved', 1000, 123, buttons=0)
+                    self.settle(800)
+                    self.check('M84', "document.querySelector('.o_tl_controls')", scheme,
+                               viewport, 'the control bar')
+                    self.check('M85', "document.querySelector('.o_tl_col_group')", scheme,
+                               viewport, 'the period line')
+                    self.check('M89', "document.querySelector('.o_tl_step_buttons')", scheme,
+                               viewport, 'the previous and next buttons')
+                    self.check('M90', "document.querySelector('.o_tl_range_button')", scheme,
+                               viewport, 'the range button')
+                    self.check('M91', "document.querySelector('.o_tl_separator')", scheme,
+                               viewport, 'the separator')
+                    self.check('M92', "document.querySelector('.o_tl_today')", scheme, viewport,
+                               'Today')
+                    self.check('M93', "document.querySelector('.o_tl_gear')", scheme, viewport,
+                               'the gear')
 
     def test_m33_m35_card_of_an_employee(self):
         for scheme in self.schemes():
@@ -917,6 +971,17 @@ class TestTimeOffProbesAttendance(TimeOffProbeCase):
                            'Anita Oliver\'s label')
                 self.check_text(in_row('Anita Oliver', LABEL), '0h / 32h', 'Anita\'s label')
 
+    def test_m86_m88_phone_control_bar(self):
+        for scheme in self.schemes():
+            with self.subTest(scheme=scheme), self.attendance(scheme, 'phone'):
+                self.loaded("document.querySelectorAll('.o_tl_progress_label').length > 0")
+                self.check('M86', "document.querySelector('.o_tl_controls')", scheme, 'phone',
+                           'the control bar')
+                self.check('M87', "document.querySelector('.o_tl_today')", scheme, 'phone',
+                           'Today')
+                self.check('M88', "document.querySelector('.o_tl_col_group')", scheme, 'phone',
+                           'the period line')
+
     # -- M68 to M71: the first Escape of the creation dialog (A79) ---------------------------
 
     def test_m68_m71_first_escape(self):
@@ -974,12 +1039,32 @@ class TestTimeOffProbesAttendance(TimeOffProbeCase):
                 self.settle(1500)
                 self.check('M72', "document.querySelector('.o_hag_helper')", scheme, 'phone',
                            'the helper')
-                # x and width: the original's period line is one folded column as wide as the
-                # window right of the header (130 to 390, x 129); Complete's is the 24 hours
-                # (x 130, 960 wide): left out and logged
+                # The table's box (M73) is the period line's title: as wide as the grid's visible
+                # part (260 px from x 129), over a line of 24 hour columns of 40 px, none folded.
+                # Complete's period line is that line itself (24 x 40 px = 960 px from x 130) with a
+                # sticky label, so the visible part of the line is read: y and height as the
+                # table's, width 260; the left edge lies at x 130, 1 px right of the table's 129
+                # (logged).
                 self.check('M73', "document.querySelector('.o_tl_col_group')", scheme, 'phone',
-                           'the period line',
-                           skip=('geometry.x', 'geometry.width'))
+                           'the period line', skip=('geometry.x', 'geometry.width'))
+                visible = self.js("""(() => {
+                    const line = document.querySelector('.o_tl_col_group').getBoundingClientRect();
+                    const head = document.querySelector('.o_tl_title_cell').getBoundingClientRect();
+                    const left = Math.max(line.left, head.right);
+                    const right = Math.min(line.right, window.innerWidth);
+                    return {x: left, width: right - left,
+                            columns: document.querySelectorAll('.o_tl_col[data-index]').length,
+                            folded: document.querySelectorAll('.o_tl_col.o_tl_folded').length,
+                            span: line.width};
+                })()""")
+                want = measured('M73', 'phone')[scheme]
+                with self.subTest(probe='M73', scheme=scheme, element='the visible title box'):
+                    self.assertAlmostEqual(
+                        visible['width'], float(want['geometry.width']), delta=.5)
+                    self.assertEqual((visible['columns'], visible['folded'], visible['span']),
+                                     (24, 0, 960))
+                _logger.warning('SHELL-DIFFERENCE|M73|%s|phone|geometry.x|Complete %s, table %s',
+                                scheme, visible['x'], want['geometry.x'])
                 self.check('M74', f"{ROW_EL}[0].querySelector('.o_tl_row_header')", scheme,
                            'phone', 'the empty row header')
 
