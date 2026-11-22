@@ -80,6 +80,62 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         };
     }
 
+    /**
+     * R23 point 2, on the phone: the focus place is the middle of the visible part, which runs from
+     * the right edge of the row headers (x 130) to the screen's right edge (x 390): x 260. The row
+     * header column is a third of the page's width, and a page that opens with a scrollbar is
+     * narrower than the one the scrollbar leaves (375 px, headers 125 px, then 390 and 130): the
+     * place is counted on the full screen, from the headers' present edge, so that the day lies
+     * at x 260 once the page has its full width.
+     */
+    _focusX() {
+        if (!this.ui.isSmall) {
+            return super._focusX();
+        }
+        const element = this.rendererRef();
+        const title = element.querySelector(".o_tl_title_cell");
+        const header = title ? title.getBoundingClientRect().width : 0;
+        const full = window.innerWidth;
+        const share = (full - Math.round(full / 3)) / 2;
+        const box = element.getBoundingClientRect();
+        return this._isRtl() ? box.left + share : box.left + header + share;
+    }
+
+    /**
+     * R23 point 2, on the phone: the focus day lies at the focus place as a linear share of the
+     * whole period, folded weekends included (the Month range of November opens scrolled 322 px,
+     * the Week range 312 px), where the framework puts the day's own column there when a run is
+     * folded.
+     */
+    _centreDate(date) {
+        this._hhgLinear = this.ui.isSmall;
+        try {
+            return super._centreDate(date);
+        } finally {
+            this._hhgLinear = false;
+        }
+    }
+
+    /** The cells as one linear scale, folded runs counted by their drawn width, while centring. */
+    _linearSpan() {
+        if (!this._hhgLinear) {
+            return super._linearSpan();
+        }
+        const { columns } = this.data;
+        const headers = this._headers();
+        if (!columns.length || !headers.length) {
+            return null;
+        }
+        const first = headers[0].getBoundingClientRect();
+        const last = headers.at(-1).getBoundingClientRect();
+        return {
+            start: columns[0].start,
+            stop: columns.at(-1).stop,
+            left: Math.min(first.left, last.left),
+            right: Math.max(first.right, last.right),
+        };
+    }
+
     /** No selection of cells (and so no selection through a header) while `multiSelect` is off. */
     get isMultiSelect() {
         return this.hhgInputs.multiSelect && super.isMultiSelect;
