@@ -300,10 +300,17 @@ test("A74: a period that ends one second short still covers the last part", () =
         columns,
         4
     );
-    expect(short.get(12)).toEqual([true, true, true, true]);
+    expect([...short.get(12)]).toEqual([true, true, true, true]);
+    // greyed whole, but not foldable: the day stays open (R29 wants the whole column covered)
+    const open = (map) =>
+        foldableRuns({ columns, rowsUnavailable: [map], pillsSubRanges: [], scaleId: "week" });
+    expect(open(short)).toEqual([]);
+    // a column covered to the exact end still folds
+    const exact = unavailableParts([{ start: at(1, "00:00"), stop: at(2, "00:00") }], columns, 4);
+    expect(open(exact)).toEqual([{ first: 12, last: 12 }]);
     // a gap of a minute is a gap
     const gap = unavailableParts([{ start: at(1, "00:00"), stop: at(1, "23:58") }], columns, 4);
-    expect(gap.get(12)).toEqual([true, true, true, false]);
+    expect([...gap.get(12)]).toEqual([true, true, true, false]);
 });
 
 test("A75/A76: foldable runs", () => {
