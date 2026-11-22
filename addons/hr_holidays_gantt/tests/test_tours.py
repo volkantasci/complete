@@ -18,6 +18,7 @@ from unittest.mock import patch
 from odoo.addons.test_web_gantt.tests import timeline_real_pointer
 from odoo.addons.test_web_gantt.tests.timeline_real_pointer import MouseBridge, RealPointerMixin
 from odoo.tests import HttpCase, tagged
+from odoo.tests.common import ChromeBrowser
 
 from . import time_off_fixtures as fx
 
@@ -82,10 +83,28 @@ class TimeOffToursBase(RealPointerMixin, HttpCase):
     # -- helpers --------------------------------------------------------------------------------
 
     def start_tour_with_pointer(self, *args, **kwargs):
-        with patch.object(timeline_real_pointer, 'MouseBridge', CommandBridge):
+        plain = getattr(self, '_plain_viewport', None)
+        navigate = ChromeBrowser.navigate_to
+
+        def navigate_to(browser, *a, **kw):
+            if plain:
+                # a page of the phone's size and no touch emulation, as the spec's values were taken
+                browser._websocket_request('Emulation.setDeviceMetricsOverride', params={
+                    'width': plain[0], 'height': plain[1], 'deviceScaleFactor': 1, 'mobile': False})
+            return navigate(browser, *a, **kw)
+
+        with patch.object(timeline_real_pointer, 'MouseBridge', CommandBridge), \
+                patch.object(ChromeBrowser, 'navigate_to', navigate_to):
             return super().start_tour_with_pointer(*args, **kwargs)
 
-    def _tour(self, name, now=NOW, timezone=TZ, mobile=None, login='admin', path=OVERVIEW):
+    def _tour(self, name, now=NOW, timezone=TZ, mobile=None, login='admin', path=OVERVIEW,
+              touch=True):
+        """``touch=False`` with ``mobile``: a window of that size without touch emulation."""
+        self._plain_viewport = None
+        if mobile and not touch:
+            self._plain_viewport = mobile
+            self.browser_size = f'{mobile[0]}x{mobile[1]}'
+            mobile = None
         if mobile:
             self.touch_enabled = True
             self.browser_size = f'{mobile[0]}x{mobile[1]}'

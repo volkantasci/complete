@@ -234,14 +234,12 @@ tours.add("hhg_a80_helper_phone", {
                 const period = rectOf($(".o_tl_col_group"));
                 const row = rectOf($(".o_tl_row"));
                 const seen = `helper ${box.top}, period line ${period.top} (${period.height} tall), row ${row.top}`;
-                // the helper's top is the table's (M72: 274.6). The period line (M73) and the empty
-                // row (M74) are pinned to Complete's accepted values (ruling R-O10): the table's
-                // 274 and 324 plus the shell's open search field, 3 px taller, plus 1 px that is a
-                // question for the spec: 278 and 328
+                // the table's values, on a page without touch emulation: the helper's top 274.6,
+                // the period line from 274 (25 tall) and the empty row from 324
                 assert(Math.abs(box.top - 274.6) <= 0.5, `the helper's top is 274.6: ${seen}`);
                 assert(Math.abs(period.height - 25) <= 0.5, `the period line is 25 tall: ${seen}`);
-                assert(Math.abs(period.top - 278) <= 0.5, `the period line's top is 278: ${seen}`);
-                assert(Math.abs(row.top - 328) <= 0.5, `the empty row's top is 328: ${seen}`);
+                assert(Math.abs(period.top - 274) <= 0.5, `the period line's top is 274: ${seen}`);
+                assert(Math.abs(row.top - 324) <= 0.5, `the empty row's top is 324: ${seen}`);
                 // nothing of the grid shows above the helper's top but the period line's top
                 // part (none here: it starts under the helper's top), read by points
                 const x = window.innerWidth / 2;

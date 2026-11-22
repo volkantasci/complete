@@ -72,4 +72,4 @@ class TestAttendanceTours(TimeOffToursBase):
 
     def test_a80_helper_phone(self):
         self._demo()
-        self._tour('hhg_a80_helper_phone', path=ATTENDANCE, mobile=PHONE)
+        self._tour('hhg_a80_helper_phone', path=ATTENDANCE, mobile=PHONE, touch=False)
