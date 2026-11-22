@@ -60,6 +60,32 @@ class TestCardData(TransactionCase):
         lefts = [line['left'] for line in lines]
         self.assertEqual(lefts, sorted(lefts))
 
+    def _legal_summary(self, employee):
+        lines = self.card(employee)['avatar_leave_summary']
+        return [line for line in lines if line['name'] == 'Legal leave employee']
+
+    def test_a88_waiting_request_not_counted(self):
+        fx.make_peer_band_records(self.env)
+        states = self.env['hr.leave'].search([('employee_id', '=', self.peer.id)]).mapped('state')
+        self.assertEqual(sorted(states), ['confirm', 'validate'], states)
+        self.assertEqual(self._legal_summary(self.peer), [{
+            'name': 'Legal leave employee', 'taken': 2, 'left': 8,
+            'requires_allocation': True, 'unit': 'days'}])
+
+    def test_a88_allocations_of_any_date(self):
+        legal = fx.find_type(self.env, 'PTO')
+        fx._allocate(self.env, self.peer, legal, 10)
+        other = self.env['hr.leave.allocation'].with_user(fx.find_admin(self.env)).create({
+            'name': 'Toff earlier year', 'employee_id': self.peer.id,
+            'work_entry_type_id': legal.id, 'number_of_days': 3,
+            'date_from': date(2025, 1, 1), 'date_to': date(2025, 12, 31)})
+        other.action_approve()
+        # Approved requests count past and future alike
+        fx.make_leave(self.env, self.peer, legal, date(2026, 12, 28))
+        self.assertEqual(self._legal_summary(self.peer), [{
+            'name': 'Legal leave employee', 'taken': 1, 'left': 12,
+            'requires_allocation': True, 'unit': 'days'}])
+
     def test_a17_equal_left_keeps_the_community_order(self):
         for code in ('B', 'A'):
             kind = self.env['hr.work.entry.type'].create({
