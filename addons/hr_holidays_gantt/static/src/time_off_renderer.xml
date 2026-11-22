@@ -2,7 +2,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
     <!-- The grid of the employee variant, with the class of the time-off views on its box, so that
-         the stylesheet can restyle the hours label (R16) without touching other views. -->
+         the stylesheet can guard the style of the hours label (R16) without touching other views; its
+         values equal the inherited ones, so it is a guard, not a restyle. -->
     <t t-name="hr_holidays_gantt.TimeOffRenderer" t-inherit="hr_gantt.EmployeeTimelineRenderer" t-inherit-mode="primary">
         <xpath expr="//div[hasclass('o_tl_box')]" position="attributes">
             <attribute name="class" add="o_hhg_time_off" separator=" "/>

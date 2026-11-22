@@ -66,9 +66,11 @@ export class TimeOffAvatarCard extends AvatarCard {
         return false;
     }
 
+    /** R18 point 3: the stored number as it is, the digits it has and no more ("37.5", "40"). */
     get scheduleLabel() {
+        const hours = formatFloat(this.hhgHours, { digits: [0, 14], trailingZeros: false });
         return this.hhgHours
-            ? _t("%(hours)s h / Week", { hours: formatFloat(this.hhgHours, { trailingZeros: false }) })
+            ? _t("%(hours)s h / Week", { hours })
             : _t("Time Off");
     }
 
