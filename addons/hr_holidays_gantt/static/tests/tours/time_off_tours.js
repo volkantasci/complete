@@ -1321,6 +1321,101 @@ scenario("hhg_a73_keys", async () => {
     }
 });
 
+// A92: the control bar of the leave view (R6, R23 point 1, D3; M77 to M80, M84 to M93) -----------------
+
+/** A box reads the values (x, y, width, height) within half a pixel, `null` leaves one out. */
+function assertBox(el, wanted, what) {
+    assert(el, `${what}: the element is there`);
+    const rect = rectOf(el);
+    const [x, y, width, height] = wanted;
+    for (const [name, want, got] of [
+        ["x", x, rect.left],
+        ["y", y, rect.top],
+        ["width", width, rect.width],
+        ["height", height, rect.height],
+    ]) {
+        if (want !== null) {
+            assertNear(got, want, `${what}: ${name}`, 0.5);
+        }
+    }
+}
+
+// On the desktop Complete lies 3 px lower than the table (the search field, "Out of scope").
+scenario("hhg_a92_bar_on_the_desktop", async () => {
+    assert(!$(".o_timeline_view.o_tl_phone"), "the desktop layout");
+    assertBox($(".o_tl_controls"), [0, 107, 1600, 58], "the control bar (M77)");
+    assertBox($(".o_tl_step_buttons"), [16, 111.5, 71.031, 33], "previous and next (M78)");
+    assertBox($(".o_tl_today"), [174.953, 111.5, 59.359, 33], "Today (M79)");
+    assertBox($(".o_tl_range_button"), [91.031, 111.5, 79.922, 33], "the range button (M14)");
+    assertBox($(".o_tl_col_group"), [null, 166, null, 25], "the period line (M80)");
+    const bar = rectOf($(".o_tl_controls"));
+    assertNear(rectOf($(".o_tl_col_group")).top - bar.bottom, 1, "the grid lies 1 px below the bar", 0.5);
+    // the bar's height does not follow its content: the same 58 px with a search that finds nothing
+    await searchFor("zzz");
+    await settle(600);
+    assertBox($(".o_tl_controls"), [0, 107, 1600, 58], "the control bar with nothing found");
+});
+
+// On the phone the bar grows to its two lines, as the report view's does (decision D3).
+scenario("hhg_a92_bar_on_the_phone", async () => {
+    assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
+    assertBox($(".o_tl_controls"), [0, 103, 390, 101], "the control bar (M84, M86)");
+    assertBox($(".o_tl_step_buttons"), [16, 109.328, 71.031, 33], "previous and next (M89)");
+    assertBox($(".o_tl_range_button"), [91.031, 109.328, 79.922, 33], "the range button (M90)");
+    assertBox($(".o_tl_separator"), [0, 147, 390, 1], "the separator (M91)");
+    assertBox($(".o_tl_today"), [16, 152.656, 59.359, 33], "Today (M92)");
+    assertBox($(".o_tl_gear"), [337.984, 152.656, 36.016, 33], "the bar's gear (M93)");
+    assertBox($(".o_tl_col_group"), [null, 205, null, 25], "the period line (M85)");
+});
+
+// A93: where the phone's grid opens (R23 point 2; M82, M83, M15, M16) -------------------------------
+
+scenario("hhg_a93_phone_opening_positions", async () => {
+    assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
+    assertEqual(rangeName(), "Month", "the range");
+    assertNear(renderer().scrollLeft, 322, "the grid is scrolled 322 px (M82)", 1);
+    assertNear(rectOf(colByDate("2026-11-11")).left, 260, "today's column's left edge (M15)", 0.5);
+    await pickRange("week");
+    await settle(600);
+    assertNear(renderer().scrollLeft, 312, "the Week range: 312 px (M83)", 1);
+    assertNear(rectOf(colByDate("2026-11-11")).left, 238, "Wednesday 11's left edge", 0.5);
+    await step(1);
+    await settle(600);
+    assertNear(renderer().scrollLeft, 312, "Next keeps the scroll (M83)", 1);
+    assertNear(rectOf(colByDate("2026-11-18")).left, 238, "Wednesday 18's left edge", 0.5);
+    // The table's y 297 is that of the probe's world, which has other rows above Anita Oliver's (the
+    // probe checks it); here the pill lies 1 px under its 41 px row, as in the table
+    const pill = pillByTitle("Anita Oliver", "PTO 1d");
+    assertBox(pill, [239, null, 190, 23], "Anita Oliver's pill (M16)");
+    const row = rectOf($(".o_tl_row_header", rowEl("Anita Oliver")));
+    assertNear(rectOf(pill).top - row.top, 1, "the pill lies 1 px under its row's top (M16)", 0.5);
+    assertNear(row.height, 41, "the row is 41 px tall", 0.5);
+});
+
+// A94: nothing covers the grid on the phone (R23 point 1, D3) -------------------------------------------
+
+scenario("hhg_a94_nothing_covers_the_grid", async () => {
+    assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
+    assertEqual(rangeName(), "Month", "the range");
+    const period = rectOf($(".o_tl_col_group"));
+    const bar = rectOf($(".o_tl_controls"));
+    assert(bar.bottom <= period.top + 0.01, `the bar's bottom ${bar.bottom} is above the period line's top ${period.top}`);
+    for (const selector of [".o_tl_today", ".o_tl_gear"]) {
+        const box = rectOf($(selector));
+        assert(box.bottom <= period.top, `${selector} ends at ${box.bottom}, above the period line ${period.top}`);
+    }
+    // the second line lies under the separator, which lies under the first line
+    assert(rectOf($(".o_tl_separator")).top >= rectOf($(".o_tl_range_button")).bottom, "the separator lies under the first line");
+    assert(rectOf($(".o_tl_today")).top >= rectOf($(".o_tl_separator")).bottom, "the second line lies under the separator");
+    // the element at a point 2 px under the period line's top, in the middle of the screen
+    const found = document.elementFromPoint(200, period.top + 2);
+    assert(
+        found && found.closest(".o_tl_col_group"),
+        `the period line is at (200, ${period.top + 2}), not ${found?.tagName}.${found?.className}`
+    );
+    assert(!found.closest(".o_tl_controls"), "no control of the bar is there");
+});
+
 // A87: one-day pills whatever the search holds
 const ONE_DAY = /^(PTO|STO|CTO) 1d$/;
 

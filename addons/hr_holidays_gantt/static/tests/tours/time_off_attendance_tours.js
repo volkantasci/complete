@@ -240,6 +240,17 @@ tours.add("hhg_a80_helper_phone", {
                 assert(Math.abs(period.height - 25) <= 0.5, `the period line is 25 tall: ${seen}`);
                 assert(Math.abs(period.top - 274) <= 0.5, `the period line's top is 274: ${seen}`);
                 assert(Math.abs(row.top - 324) <= 0.5, `the empty row's top is 324: ${seen}`);
+                // M73: 24 hour columns of 40 px, none folded; the period line's title box is as
+                // wide as the grid's visible part (260 px): the line's part right of the header
+                const columns = $$(".o_tl_col[data-index]");
+                assert(columns.length === 24 && foldedHeaders().length === 0, `24 columns, none folded: ${seen}`);
+                assert(
+                    columns.every((column) => Math.abs(rectOf(column).width - 40) <= 0.5),
+                    `every column is 40 px wide: ${columns.map((c) => rectOf(c).width)}`
+                );
+                const head = rectOf($(".o_tl_title_cell"));
+                const visibleWidth = Math.min(period.right, window.innerWidth) - Math.max(period.left, head.right);
+                assert(Math.abs(visibleWidth - 260) <= 0.5, `the title box shows 260 px: ${visibleWidth}, ${seen}`);
                 // nothing of the grid shows above the helper's top but the period line's top
                 // part (none here: it starts under the helper's top), read by points
                 const x = window.innerWidth / 2;

@@ -287,6 +287,25 @@ class TestTimeOffLeaveTours(TimeOffToursBase):
         self._demo_like()
         self._tour_writes_nothing('hhg_a73_keys')
 
+    # -- the control bar and where the phone's grid opens (R6, R23, decision D3) ----------------
+
+    def test_a92_bar_on_the_desktop(self):
+        self._demo_like()
+        self._tour('hhg_a92_bar_on_the_desktop')
+
+    def test_a92_bar_on_the_phone(self):
+        # the table's values were taken on a phone page without touch emulation
+        self._demo_like()
+        self._tour('hhg_a92_bar_on_the_phone', mobile=PHONE, touch=False)
+
+    def test_a93_phone_opening_positions(self):
+        self._demo_like()
+        self._tour('hhg_a93_phone_opening_positions', mobile=PHONE, touch=False)
+
+    def test_a94_nothing_covers_the_grid(self):
+        self._demo_like()
+        self._tour('hhg_a94_nothing_covers_the_grid', mobile=PHONE, touch=False)
+
     # -- one-day pills whatever the search holds ------------------------------------------------
 
     def test_a87_one_day_pills_officer(self):
