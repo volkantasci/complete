@@ -64,6 +64,16 @@ class TestTimeOffSplitTours(ReportToursBase):
         self._split_state()
         self._tour_writes_nothing('hhg_a40_split_tool')
 
+    def test_a40_split_tool_dark(self):
+        """The dark scheme's colours (needs the theme module that provides the dark bundle)."""
+        if not self.env['ir.module.module'].sudo().search_count(
+                [('name', '=', 'web_enterprise'), ('state', '=', 'installed')]):
+            raise unittest.SkipTest('the dark scheme needs web_enterprise')
+        self._split_state()
+        self.env['res.users.settings']._find_or_create_for_user(self.admin).color_scheme = 'dark'
+        self.env.flush_all()
+        self._tour_writes_nothing('hhg_a40_split_tool_dark')
+
     def test_a41_split(self):
         leave = self._split_state()
         self._tour('hhg_a41_split')
@@ -180,21 +190,22 @@ class TestTimeOffSplitTours(ReportToursBase):
     # -- A76: Arabic ----------
 
     def test_a76_right_to_left(self):
-        lang = self.env['res.lang']._activate_lang('ar_001')
-        self.assertTrue(lang, 'Arabic exists')
-        was_active = True
+        lang = self.env['res.lang'].with_context(active_test=False).search(
+            [('code', '=', 'ar_001')])
+        was_active = lang.active
         self.addCleanup(self._put_language_back, lang, was_active)
+        self.assertTrue(self.env['res.lang']._activate_lang('ar_001'), 'Arabic exists')
         self.admin.write({'lang': 'ar_001'})
         leave = self._split_state()
         self.env.flush_all()
         self._tour('hhg_a76_split_tool_rtl')
         self._assert_split(leave)
 
-    def _put_language_back(self, lang, _was_active):
+    def _put_language_back(self, lang, was_active):
         self.admin.write({'lang': 'en_US'})
         self.env['res.users'].with_context(active_test=False).search(
             [('lang', '=', 'ar_001')]).write({'lang': 'en_US'})
-        lang.write({'active': False})
+        lang.write({'active': was_active})
 
     # -- A90, A93 ----------
 

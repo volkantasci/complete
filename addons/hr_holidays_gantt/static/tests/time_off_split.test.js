@@ -432,3 +432,53 @@ describe("the browser's zone in the writes (R25)", () => {
         expect(calls).toEqual([["unlink", "UTC+5"]]);
     });
 });
+
+describe("the browser's zone in the popover's decisions (R25)", () => {
+    const calls = [];
+
+    beforeEach(async () => {
+        mockTimeZone(5);
+        mockDate("2026-11-11T10:00:05Z");
+        calls.length = 0;
+        for (const method of ["action_approve", "action_refuse", "action_back_to_approval"]) {
+            onRpc(method, ({ method: name, kwargs }) => {
+                calls.push([name, kwargs.context?.tz]);
+                return true;
+            });
+        }
+        await resize({ width: 1600, height: 1400 });
+    });
+
+    /** Opens the popover of a request of the given state and flags and presses a button. */
+    async function press(extra, button) {
+        await mountTimeOff({
+            employees: ["Anita Oliver"],
+            records: [["Anita Oliver", [12, "9:00"], [14, "18:00"], extra]],
+        });
+        const box = queryRect(".o_tl_row:not(.o_tl_total_row) .o_tl_pill");
+        await click(".o_tl_row:not(.o_tl_total_row) .o_tl_pill", {
+            position: { x: box.left + 10, y: box.top + box.height / 2 },
+        });
+        await advanceTime(400);
+        await animationFrame();
+        await animationFrame();
+        await click(button);
+        await advanceTime(400);
+        await animationFrame();
+    }
+
+    test("A33 Approve names the browser's zone", async () => {
+        await press({ state: "confirm", can_approve: true }, ".o_hhg_pop_approve");
+        expect(calls).toEqual([["action_approve", "UTC+5"]]);
+    });
+
+    test("A33 Refuse names the browser's zone", async () => {
+        await press({ state: "confirm", can_refuse: true }, ".o_hhg_pop_refuse");
+        expect(calls).toEqual([["action_refuse", "UTC+5"]]);
+    });
+
+    test("A33 Edit (back to approval) names the browser's zone", async () => {
+        await press({ state: "validate", can_back_to_approve: true }, ".o_hhg_pop_edit");
+        expect(calls).toEqual([["action_back_to_approval", "UTC+5"]]);
+    });
+});

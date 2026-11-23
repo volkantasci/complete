@@ -117,7 +117,11 @@ const hoursOf = (name) => Number(/(\d+(?:\.\d+)?)h/.exec(labelOf(name))?.[1]);
 
 // A40 ---------------------------------------------------------------------------------------------
 
-scenario("hhg_a40_split_tool", async () => {
+/**
+ * A40's drawing (M57 to M60). `dark`: the colours of the dark scheme. The spec prescribes the
+ * literal black line and the black/white scissors with their halos (M58, M59), whatever the scheme.
+ */
+const a40Body = (dark) => async () => {
     await openToffAct(ACT);
     const pill = pillOn(ACT, FIRST);
     assert(pill, "the request of Monday 16");
@@ -153,14 +157,30 @@ scenario("hhg_a40_split_tool", async () => {
     assertNear(cut.left + cut.width / 2, bx - 1.3, "the scissors' centre", 1);
     assertNear(cut.top, box.top + 25 + 4.3, "the scissors lie under the pill", 1.2);
     const scissorsStyle = getComputedStyle(scissors);
-    assertEqual(scissorsStyle.color, "rgb(0, 0, 0)", "black scissors");
-    assert(scissorsStyle.textShadow.includes("rgb(255, 255, 255)"), "with a white halo");
+    const [ink, halo] = dark ? ["rgb(255, 255, 255)", "rgb(0, 0, 0)"] : ["rgb(0, 0, 0)", "rgb(255, 255, 255)"];
+    assertEqual(scissorsStyle.color, ink, "the scissors' colour");
+    assert(scissorsStyle.textShadow.includes(halo), `with a ${halo} halo: ${scissorsStyle.textShadow}`);
+    // the glyph is drawn (its icon text is there, the box is not empty) and turned a quarter
+    const glyph = getComputedStyle(scissors, "::before").content;
+    assert(glyph && glyph !== "none" && glyph !== "normal" && glyph !== '""', `the glyph is drawn: ${glyph}`);
+    assert(scissors.getAttribute("data-icon") && cut.width > 10 && cut.height > 10, "the glyph box is not empty");
+    const turn = new DOMMatrix(scissorsStyle.transform);
+    assertNear(Math.abs(turn.b), 1, "the scissors are turned a quarter", 0.01);
+    assertNear(turn.a, 0, "a quarter turn, not a flip", 0.01);
+    // the dashed line over the pill's colour: black at 60 % (dark olive on the yellow)
+    const [r, g, b] = getComputedStyle(pill).backgroundColor.match(/\d+/g).map(Number);
+    const drawn = [r, g, b].map((v) => Math.round(v * 0.4));
+    const wanted = dark ? [95, 83, 41] : [96, 86, 48];
+    assert(drawn.every((v, i) => Math.abs(v - wanted[i]) <= 4), `the line over the pill reads ${drawn}, wanted about ${wanted}`);
     // the pointer keeps the hand (M60) and the tool takes no pointer event of its own
     const under = document.elementFromPoint(point.x, point.y);
     assertEqual(getComputedStyle(under).cursor, "pointer", "the pointer is the hand");
     assert(pill.contains(under), "the pill lies under the pointer, not the tool");
     assertEqual(writesSince(mark), [], "no write");
-});
+};
+
+scenario("hhg_a40_split_tool", a40Body(false));
+scenario("hhg_a40_split_tool_dark", a40Body(true));
 
 // A41, A42 ----------------------------------------------------------------------------------------
 
@@ -355,20 +375,37 @@ scenario("hhg_a45_split_twice", async () => {
 
 // A46: Undo after the first part was deleted -----------------------------------------------------
 
+/** The notification waits for the tour (test only): the pointer's enter, with the leave swallowed. */
+function holdNotice() {
+    const el = noticeEl();
+    assert(el, "the notification to hold");
+    el.addEventListener("mouseleave", (event) => event.stopImmediatePropagation(), true);
+    el.dispatchEvent(new MouseEvent("mouseenter"));
+}
+
+/** A point inside the first day of a pill, away from its borders. */
+const insideFirstDay = (pill) => ({ x: rectOf(pill).left + dayWidth() / 2, y: centreY(pill) });
+
+/** The popover's Delete, by real clicks: open the part's popover, press Delete, the view reloads. */
+async function deleteByPopover(pill) {
+    const at = insideFirstDay(pill);
+    await clickAt(at.x, at.y);
+    await until(() => popover() && $(".o_hhg_pop_title")?.textContent && $(".o_hhg_pop .o_form_view"), "the popover loads", 8000);
+    await settle(500);
+    await realClick($(".o_hhg_pop_delete"));
+    await until(() => !popover(), "the popover closes", 10000);
+    await dataSettled();
+    await settle(600);
+}
+
 scenario("hhg_a46_undo_after_delete", async () => {
     const { point } = await restAtSplit();
     await clickAt(point.x, point.y);
     await splitIsDone();
-    // keep the pointer over the notification, so that it waits, then delete the first part
-    const notice = rectOf(noticeEl());
-    await restAt(notice.left + 20, notice.top + notice.height / 2);
-    // the first part is deleted by the administrator, as the popover's Delete does
-    await rpc("/web/dataset/call_kw/hr.leave/unlink", {
-        model: "hr.leave",
-        method: "unlink",
-        args: [await leaveIdsOf(ACT, FIRST)],
-        kwargs: {},
-    });
+    holdNotice();
+    await deleteByPopover(pillOn(ACT, FIRST));
+    assert(!pillOn(ACT, FIRST), "the first part is gone");
+    assert(undoButton(), "the split's notification is still open");
     await realClick(undoButton());
     await until(
         () => $(".o_notification.o_tl_notification_danger") && /could not be undone/i.test(noticeText()),
@@ -377,6 +414,7 @@ scenario("hhg_a46_undo_after_delete", async () => {
     );
     await dataSettled();
     assertEqual($$(".o_notification").length, 1, "one notification");
+    assert(pillOn(ACT, SECOND), "the second part still shows");
 });
 
 /** The ids of the requests of `name` that start on `day`, by a call as the administrator. */
@@ -397,23 +435,13 @@ scenario("hhg_a47_split_days", async () => {
     const { point } = await restAtSplit();
     await clickAt(point.x, point.y);
     await splitIsDone();
+    holdNotice();
     for (const day of [FIRST, SECOND, THIRD]) {
         assert(isGrey(cellOfDate(ACT, day)), `${day} stays greyed`);
     }
     assertEqual(hoursOf(ACT), 16, "the label stays 16h");
-    // the second part's deletion by the administrator frees its days alone
-    await rpc("/web/dataset/call_kw/hr.leave/unlink", {
-        model: "hr.leave",
-        method: "unlink",
-        args: [await leaveIdsOf(ACT, SECOND)],
-        kwargs: {},
-    });
-    await $(".o_tl_today").click();
-    await dataSettled();
-    await settle(400);
-    await step(1);
-    await dataSettled();
-    await settle(500);
+    // the second part's Delete frees its days alone
+    await deleteByPopover(pillOn(ACT, SECOND));
     await until(() => hoursOf(ACT) === 32, `the label reads 32h: ${labelOf(ACT)}`);
     assert(isGrey(cellOfDate(ACT, FIRST)), "Monday 16 stays greyed");
     assert(!isGrey(cellOfDate(ACT, SECOND)), "Tuesday 17 is free");
