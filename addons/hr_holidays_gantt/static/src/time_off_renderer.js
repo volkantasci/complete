@@ -47,7 +47,7 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         this.avatarCard = usePopover(TimeOffAvatarCard);
         // R2: the leave popover replaces the framework's popover (002a R30); the framework's own
         // options are kept, except that a click on the pill of the open popover leaves it open
-        this.popover = usePopover(TimeOffLeavePopover, {
+        const popover = usePopover(TimeOffLeavePopover, {
             position: "bottom",
             onPositioned: (element, { direction }) => {
                 const shift = { bottom: PILL_INSET, top: -PILL_INSET }[direction];
@@ -61,10 +61,65 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
                     this._lockClicks(POPOVER_CLOSE_LOCK, false);
                 }
                 this._popoverFor = null;
+                this._hhgGhost?.remove();
+                this._hhgGhost = null;
             },
         });
+        // R2 point 3, R-C-6: the framework closes its popover when new data arrives (`close`, from
+        // its `onWillRender`); the reload that the popover itself asks for leaves it open
+        this.popover = {
+            open: (...args) => popover.open(...args),
+            close: () => {
+                const keep = this._hhgKeep;
+                if (keep && popover.isOpen && this.data !== keep.data) {
+                    this._hhgKeep = null;
+                    return;
+                }
+                popover.close();
+            },
+            get isOpen() {
+                return popover.isOpen;
+            },
+        };
+        this._hhgKeep = null;
+        this._hhgGhost = null;
         this._hhgClickPill = null;
         this._hhgClickTimer = null;
+    }
+
+    /**
+     * The view loads again for a write of the popover, which stays open on its place (R2 point 3,
+     * R8 point 4): the new data does not close it.
+     */
+    async hhgReloadKeepingPopover() {
+        this._hhgKeep = { data: this.data };
+        try {
+            await this.props.model.reload();
+        } catch (error) {
+            this._hhgKeep = null;
+            throw error;
+        }
+    }
+
+    /**
+     * The popover hangs from a stand-in for the pill, not from the pill: the pill goes when the
+     * request leaves the view (the Overview shows no refused request, R8 point 4), and the popover
+     * would close with it. The stand-in is a hidden element beside the pill whose box is the
+     * pill's, live while the pill is in the grid and the last one it had after.
+     */
+    _hhgAnchorOf(pill) {
+        const anchor = document.createElement("div");
+        anchor.className = "o_hhg_pop_anchor";
+        anchor.style.display = "none";
+        let last = pill.getBoundingClientRect();
+        anchor.getBoundingClientRect = () => {
+            if (pill.isConnected) {
+                last = pill.getBoundingClientRect();
+            }
+            return last;
+        };
+        pill.after(anchor);
+        return anchor;
     }
 
     /** The variant of the popover this view opens (R9): the request's own, or the report's. */
@@ -242,15 +297,18 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         }
         this._popoverTimer = browser.setTimeout(() => {
             this._popoverTimer = null;
-            this.popover.open(target, {
+            const anchor = this._hhgAnchorOf(target);
+            this.popover.open(anchor, {
                 model: this.props.model,
                 archInfo: this.props.archInfo,
                 record: pill.record,
                 editor: this.props.editor,
                 variant: this.hhgPopoverVariant,
+                onChanged: () => this.hhgReloadKeepingPopover(),
             });
             // after `open`, which first closes (and so forgets) the previous popover
             this._popoverFor = pill.id;
+            this._hhgGhost = anchor;
         }, POPOVER_DELAY);
     }
 
