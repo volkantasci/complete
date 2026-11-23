@@ -5,19 +5,25 @@
 The tours read the date from the browser and compare positions with each other; the only thing
 they expect from the records is that pills exist near today. The browser inherits the time zone
 of the test process, which these tests pin to UTC, and the records are built around the date of
-that zone with a zero offset, so the browser and the records agree on what today is.
+that zone with a zero offset around D0, the instant the browser's clock starts at, so the
+browser and the records agree on what today is.
 """
 import os
 import time
+from datetime import datetime
 
-from odoo import fields
 from odoo.tests import HttpCase, tagged
 
+from .timeline_real_pointer import RealPointerMixin
+
 HOST_ACTION = '/odoo/action-test_web_gantt.host_action_{}'
+# 002a's D0 is Thursday 12 November 2026 (its captures); 002b adds the hour, 09:00. The browser's
+# clock moves to this instant (this process runs in UTC) and runs on from there.
+D0 = datetime(2026, 11, 12, 9, 0)
 
 
 @tagged('post_install', '-at_install')
-class TestTimelineTours(HttpCase):
+class TestTimelineTours(RealPointerMixin, HttpCase):
 
     @classmethod
     def setUpClass(cls):
@@ -36,10 +42,10 @@ class TestTimelineTours(HttpCase):
         cls.addClassCleanup(restore)
         pill = cls.env['test.web.gantt.pill']
         cls.records = pill._tl_build_host_records(
-            today=fields.Date.today(), tz_offset_hours=0)
+            today=D0.date(), tz_offset_hours=0)
 
     def _tour(self, host, name):
-        self.start_tour(HOST_ACTION.format(host), name, login='admin')
+        self.start_tour_with_pointer(HOST_ACTION.format(host), name, login='admin', now=D0)
 
     def test_a20_tour_week_scroll_centres_today(self):
         self._tour('h1', 'timeline_week_scroll_centres_today')
