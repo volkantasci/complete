@@ -14,6 +14,7 @@ from . import (
     test_install,
     test_pill_text,
     test_popover_form,
+    test_popover_tours,
     test_prepared_tours,
     test_probes,
     test_report_tours,

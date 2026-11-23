@@ -150,7 +150,7 @@ def make_days_type(env):
     no code, colour 2."""
     found = env["hr.work.entry.type"].search([("name", "=", DAYS_TYPE)], limit=1)
     return found or env["hr.work.entry.type"].create({
-        "name": DAYS_TYPE, "code": False, "display_code": False, "color": 2,
+        "name": DAYS_TYPE, "code": "TOFF.D", "display_code": False, "color": 2,
         "count_as": "absence", "country_id": False, "request_unit": "day",
         "unit_of_measure": "day", "requires_allocation": False,
         "leave_validation_type": "hr",

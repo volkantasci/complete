@@ -1121,7 +1121,8 @@ scenario("hhg_a55_grouping_removed", async () => {
     assert(/11\/0?5\/(20)?26/.test(anita), `and the end date: "${anita}"`);
 });
 
-// A64 to A69, A73: the inputs of a pill and of the empty cells do nothing
+// A64 to A69, A73: the inputs of a pill and of the empty cells (002e2 R20: the click on a pill opens
+// the popover, the double click the dialog; the empty cells' inputs wait for 002e3)
 // The titles of Anita Oliver's pills these tours look for: the leave view reads the type code, the
 // report view of an Employee the duration alone (the report tours of 13b run the same bodies).
 const titles = { four: "PTO 4 days", six: "PTO 6 days" };
@@ -1135,9 +1136,14 @@ const clickOnAPill = async () => {
         await bringIntoView(pill);
         assertUncovered(pill, centre(pill), "the pill's centre");
         await realClick(pill);
-        await settle(1200);
-        assertNothing(`click ${run + 1}`, mark);
+        await until(() => $(".o_hhg_pop"), `click ${run + 1}: the leave popover opens`);
+        await settle(600);
+        assert(!$(".modal"), `click ${run + 1}: no dialog`);
+        assert(!$(".o_tl_handle"), `click ${run + 1}: no handle`);
+        assertEqual(writesSince(mark), [], `click ${run + 1}: no write`);
         assertEqual(snapshot(), before, `click ${run + 1}: the view is unchanged`);
+        await pressKey("Escape");
+        await until(() => !$(".o_hhg_pop"), `click ${run + 1}: Escape closes the popover`);
     }
 };
 
@@ -1148,8 +1154,13 @@ const doubleClickOnAPill = async () => {
         const pill = ANITA_FOUR();
         await bringIntoView(pill);
         await realClick(pill, { count: 2 });
+        await until(() => $(".modal"), `double click ${run + 1}: the record dialog opens`);
         await settle(1200);
-        assertNothing(`double click ${run + 1}`, mark);
+        assertEqual($$(".modal").length, 1, `double click ${run + 1}: one dialog`);
+        assert(!$(".o_hhg_pop"), `double click ${run + 1}: no popover`);
+        assert(!$(".o_tl_handle"), `double click ${run + 1}: no handle`);
+        assertEqual(writesSince(mark), [], `double click ${run + 1}: no write`);
+        await closeDialog();
         assertEqual(snapshot(), before, `double click ${run + 1}: the view is unchanged`);
     }
 };
@@ -1174,8 +1185,8 @@ const pointerOverAPill = async () => {
         assertNothing(`rest ${run + 1}`, mark);
         assertEqual(count(), before, `rest ${run + 1}: no element appears in the grid`);
     }
-    // D4, R22: the pointer keeps its default shape over the pill, 4 px inside each end, and over
-    // an empty cell (the shape drawn at the point, not a hand and not a resize arrow)
+    // R18, D4: the pointer is the hand over the pill (its ends show no resize arrow until the
+    // handles come) and keeps its default shape over an empty cell
     const cell = cellOfDate("Jennie Fletcher", CELL_12);
     await bringIntoView(cell);
     await bringIntoView(pill);
@@ -1189,7 +1200,8 @@ const pointerOverAPill = async () => {
     ]) {
         assertUncovered(element, point, where);
         const shape = getComputedStyle(document.elementFromPoint(point.x, point.y)).cursor;
-        assert(shape === "default" || shape === "auto", `the pointer over ${where} reads "${shape}"`);
+        const wanted = element === pill ? ["pointer"] : ["default", "auto"];
+        assert(wanted.includes(shape), `the pointer over ${where} reads "${shape}"`);
     }
     await pointerAway();
 };
@@ -1282,7 +1294,7 @@ reportScenario("hhg_a67_report_drag_on_a_pill", dragOnAPill);
 reportScenario("hhg_a68_report_click_on_an_empty_cell", clickOnAnEmptyCell);
 reportScenario("hhg_a69_report_drag_across_empty_cells", dragAcrossEmptyCells);
 
-// A70: a tap on a pill on the phone
+// A70: a tap on a pill on the phone opens 002a's sheet (R21)
 scenario("hhg_a70_tap_on_a_pill", async () => {
     assert($(".o_timeline_view.o_tl_phone"), "the phone layout");
     const mark = noteMark();
@@ -1293,9 +1305,12 @@ scenario("hhg_a70_tap_on_a_pill", async () => {
         const point = centre(pill);
         assertUncovered(pill, point, "the pill's centre");
         await realTap(pill);
-        await settle(1200);
-        assertNothing(`tap ${run + 1}`, mark);
+        await until(() => $(".o_hhg_pop.o_tl_popover_sheet"), `tap ${run + 1}: the sheet opens`);
+        await settle(600);
+        assertEqual(writesSince(mark), [], `tap ${run + 1}: no write`);
         assertEqual(snapshot(), before, `tap ${run + 1}: the view is unchanged`);
+        await realClick($(".o_hhg_pop_close"));
+        await until(() => !$(".o_hhg_pop"), `tap ${run + 1}: the close icon closes the sheet`);
     }
 });
 
@@ -1343,9 +1358,12 @@ scenario("hhg_a73_keys", async () => {
             assertNothing(`${name} ${run + 1}`, mark);
             assertEqual(snapshot(), before, `${name} ${run + 1}: the view is unchanged`);
         }
-        // with a pill pressed and released first (a pill has the focus then)
+        // with a pill clicked first: its popover opens, Escape closes it, the other keys do nothing
         const pill = ANITA_FOUR();
         await realClick(pill);
+        await until(() => $(".o_hhg_pop"), "the popover of the click");
+        await pressKey("Escape");
+        await until(() => !$(".o_hhg_pop"), "Escape closes the popover");
         for (const name of ["Escape", "Enter", "Delete"]) {
             await pressKey(name);
             await settle(700);
@@ -1579,11 +1597,13 @@ export {
     assertEqual,
     assertUncovered,
     breadcrumb,
+    bringIntoView,
     cellOfDate,
     cellsOf,
     centre,
     clean,
     clickCardButton,
+    closeDialog,
     colByDate,
     dataSettled,
     dateColumns,
@@ -1602,6 +1622,7 @@ export {
     openCardOf,
     pager,
     pickRange,
+    pillByTitle,
     pillsOf,
     pillTitles,
     pointerAway,
@@ -1621,6 +1642,7 @@ export {
     send,
     settle,
     sleep,
+    snapshot,
     step,
     texts,
     until,

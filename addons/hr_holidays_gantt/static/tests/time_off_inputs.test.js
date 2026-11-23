@@ -85,6 +85,7 @@ const cursorAt = ({ x, y }) => getComputedStyle(document.elementFromPoint(x, y))
 
 /** Nothing opened, nothing selected, no handle, nothing written. */
 function expectNothing() {
+    expect(".o_hhg_pop").toHaveCount(0);
     expect(".o_tl_popover").toHaveCount(0);
     expect(".o_popover").toHaveCount(0);
     expect(".modal").toHaveCount(0);
@@ -101,21 +102,29 @@ async function settle() {
 
 for (const [name, mount] of Object.entries(VARIANTS)) {
     describe(name, () => {
-        test("A64: a click on a pill does nothing", async () => {
+        // R20: the click on a pill opens the leave popover, the double click the record dialog
+        test("A64: a click on a pill opens the popover and moves nothing", async () => {
             await mount();
             const before = leftOf();
             await click(pillEl());
             await settle();
-            expectNothing();
+            expect(".o_hhg_pop").toHaveCount(1);
+            expect(".modal").toHaveCount(0);
+            expect(".o_tl_cell_picked").toHaveCount(0);
+            expect(".o_tl_handle").toHaveCount(0);
+            expect(writes).toEqual([]);
             expect(leftOf()).toBe(before);
         });
 
-        test("A65: a double click on a pill does nothing", async () => {
+        test("A65: a double click on a pill opens the dialog, no popover", async () => {
             await mount();
             const before = leftOf();
             await dblclick(pillEl());
             await settle();
-            expectNothing();
+            expect(".modal").toHaveCount(1);
+            expect(".o_hhg_pop").toHaveCount(0);
+            expect(".o_tl_handle").toHaveCount(0);
+            expect(writes).toEqual([]);
             expect(leftOf()).toBe(before);
         });
 
@@ -126,12 +135,13 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             expectNothing();
         });
 
-        test("A66, D4: the pointer keeps its default shape over a pill, its ends and an empty cell", async () => {
+        test("A66, D4, R18: the pointer is the hand over a pill and keeps its default shape over an empty cell", async () => {
             await mount();
             const rect = pillRect();
             const y = rect.top + rect.height / 2;
+            // the ends show no resize shape until the part that draws the handles (R18)
             for (const x of [rect.left + 4, rect.left + rect.width / 2, rect.right - 4]) {
-                expect(cursorAt({ x, y })).toBe("default");
+                expect(cursorAt({ x, y })).toBe("pointer");
             }
             const cell = cellPoint("2026-11-20");
             expect(cursorAt(cell)).toBe("default");
@@ -239,16 +249,18 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
                 await settle();
             }
             await click(pillEl());
+            await settle();
             await press("Delete");
             await settle();
-            expectNothing();
+            // the popover is open and Delete (the key) removes nothing
+            expect(writes).toEqual([]);
             expect(queryAll(".o_tl_row:not(.o_tl_total_row) .o_tl_pill")).toHaveCount(1);
         });
     });
 }
 
 describe("phone", () => {
-    test("A70: a tap on a pill on the phone opens nothing", async () => {
+    test("A70: a tap on a pill on the phone opens the sheet", async () => {
         mockTouch(true);
         await resize({ width: 390, height: 844 });
         await mountTimeOff({ employees: ["Anita Oliver"], records: [LEAVE] });
@@ -258,7 +270,7 @@ describe("phone", () => {
         // with `mockTouch(true)` a click is a touch tap
         await click(pillEl());
         await settle();
-        expectNothing();
+        expect(".o_hhg_pop.o_tl_popover_sheet").toHaveCount(1);
         expect(".o_tl_pill").toHaveCount(1);
         expect(leftOf()).toBe(before);
     });
