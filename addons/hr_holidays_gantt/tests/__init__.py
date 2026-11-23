@@ -4,6 +4,7 @@ from . import (
     test_actions,
     test_attendance_tours,
     test_attendance_with_time_off,
+    test_button_tours,
     test_card_data,
     test_community_writes,
     test_demo_leave_days,

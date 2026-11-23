@@ -15,8 +15,12 @@ import {
 } from "@odoo/hoot-dom";
 import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 
+import { start } from "@mail/../tests/mail_test_helpers";
+import { MockServer, mountView } from "@web/../tests/web_test_helpers";
+
 import {
     getService,
+    makeTimeOffData,
     mountTimeOff,
     onRpc,
     patchWithCleanup,
@@ -51,7 +55,7 @@ beforeEach(async () => {
     onRpc("get_gantt_data", () => {
         reloads += 1;
     });
-    await resize({ width: 1600, height: 900 });
+    await resize({ width: 1600, height: 1400 });
 });
 
 const pillEl = () => queryOne(".o_tl_row:not(.o_tl_total_row) .o_tl_pill");
@@ -381,5 +385,354 @@ describe("Escape with a dropdown open (R23, D4)", () => {
         expect(".o_hhg_pop").toHaveCount(0);
         expect(writes).toEqual([]);
         expect(reloads).toBe(0);
+    });
+});
+
+// The footer's buttons (R6 to R10) ---------------------------------------------------------------
+
+const names = () => queryAll(".o_hhg_pop_footer button").map((button) => button.getAttribute("name"));
+const leaves = () => MockServer.current.env["hhg.leave"];
+
+/** A request with the Community's flags for the reading user. */
+const REQUEST = (values) => ["Anita Oliver", [12, "9:00"], [14, "18:00"], values];
+
+/** Types a note and leaves the field: the record holds a pending change. */
+async function typeNote() {
+    await click(".o_hhg_pop [name='name'] input");
+    await edit("Dentist");
+    // Tab leaves the field: the change is committed to the record
+    await press("Tab");
+    await settle();
+}
+
+const ALL = { can_approve: true, can_validate: true, can_refuse: true, can_back_to_approve: true };
+
+// state, flags, pending change, the buttons left to right (R6)
+const MATRIX = [
+    ["To Approve, no right: Delete alone", { state: "confirm" }, false, ["delete"]],
+    [
+        "To Approve, may send back only: no Edit (the request is To Approve)",
+        { state: "confirm", can_back_to_approve: true },
+        false,
+        ["delete"],
+    ],
+    ["To Approve, may approve", { state: "confirm", can_approve: true }, false, ["approve", "delete"]],
+    ["To Approve, may validate", { state: "confirm", can_validate: true }, false, ["approve", "delete"]],
+    ["To Approve, may refuse", { state: "confirm", can_refuse: true }, false, ["refuse", "delete"]],
+    ["To Approve, every right", { state: "confirm", ...ALL }, false, ["approve", "refuse", "delete"]],
+    ["Second Approval, every right: Edit and Delete, no Approve (D2)", { state: "validate1", ...ALL }, false, ["edit", "delete"]],
+    ["Second Approval, no right: Delete alone", { state: "validate1" }, false, ["delete"]],
+    ["Approved, may send back", { state: "validate", ...ALL }, false, ["edit", "delete"]],
+    ["Refused, may send back", { state: "refuse", ...ALL }, false, ["edit", "delete"]],
+    ["Refused, no right", { state: "refuse" }, false, ["delete"]],
+    ["Cancelled, no right: Delete alone", { state: "cancel" }, false, ["delete"]],
+    ["pending change, no right: Save and Discard", { state: "confirm" }, true, ["save", "discard"]],
+    [
+        "pending change, may approve: Approve and Discard, no Save",
+        { state: "confirm", can_approve: true },
+        true,
+        ["approve", "discard"],
+    ],
+    [
+        "pending change, may refuse: Refuse and Discard, no Save",
+        { state: "confirm", can_refuse: true },
+        true,
+        ["refuse", "discard"],
+    ],
+    [
+        "pending change, every right: Approve, Refuse and Discard",
+        { state: "confirm", ...ALL },
+        true,
+        ["approve", "refuse", "discard"],
+    ],
+];
+
+describe("the footer's buttons (R6)", () => {
+    for (const [title, values, dirty, expected] of MATRIX) {
+        test(`R6 ${title}`, async () => {
+            await openPopover({ records: [REQUEST(values)] });
+            if (dirty) {
+                await typeNote();
+            }
+            expect(names()).toEqual(expected);
+            // absent, never disabled
+            expect(".o_hhg_pop_footer button[disabled]").toHaveCount(0);
+            // the last button lies at the right end
+            const last = queryRect(".o_hhg_pop_footer button:last-child");
+            const footer = queryRect(".o_hhg_pop_footer");
+            expect(Math.abs(footer.right - 16 - last.right)).toBeLessThan(1);
+        });
+    }
+
+    test("R6 the buttons are 4 px apart and carry the labels and the theme's colours", async () => {
+        await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });
+        const [approve, refuse] = queryAll(".o_hhg_pop_footer button");
+        expect(approve).toHaveText("Approve");
+        expect(refuse).toHaveText("Refuse");
+        expect(".o_hhg_pop_approve").toHaveClass("btn-success");
+        expect(".o_hhg_pop_refuse").toHaveClass("btn-danger");
+        expect(".o_hhg_pop_delete").toHaveClass("btn-danger");
+        expect(queryRect(refuse).left - queryRect(approve).right).toBeCloseTo(4, { margin: 0.6 });
+        expect(".o_hhg_pop_approve .oi").toHaveAttribute("data-icon", "thumb_up");
+        expect(".o_hhg_pop_refuse .oi").toHaveAttribute("data-icon", "close");
+        expect(".o_hhg_pop_delete .oi").toHaveAttribute("data-icon", "delete");
+    });
+
+    test("R6 Edit is primary, with the pencil and its label", async () => {
+        await openPopover({ records: [REQUEST({ state: "validate", ...ALL })] });
+        expect(".o_hhg_pop_edit").toHaveClass("btn-primary");
+        expect(".o_hhg_pop_edit").toHaveText("Edit");
+        expect(".o_hhg_pop_edit .oi").toHaveAttribute("data-icon", "edit");
+    });
+
+    test("R6 Save is primary with the disk, Discard secondary", async () => {
+        await openPopover({ records: [REQUEST({ state: "confirm" })] });
+        await typeNote();
+        expect(".o_hhg_pop_save").toHaveClass("btn-primary");
+        expect(".o_hhg_pop_save").toHaveText("Save");
+        expect(".o_hhg_pop_save .oi").toHaveAttribute("data-icon", "save");
+        expect(".o_hhg_pop_discard").toHaveClass("btn-secondary");
+        expect(".o_hhg_pop_discard").toHaveText("Discard");
+    });
+
+    test("R9 the report's popover holds Delete alone, whatever the state", async () => {
+        await openPopover({
+            report: true,
+            arch: REPORT_ARCH(),
+            records: [["Anita Oliver", [12, "9:00"], [14, "18:00"], {}]],
+        });
+        expect(names()).toEqual(["delete"]);
+    });
+});
+
+describe("what the buttons do (R7 to R10)", () => {
+    let calls;
+
+    beforeEach(() => {
+        calls = [];
+        for (const method of ["action_back_to_approval", "action_approve", "action_refuse"]) {
+            onRpc(method, ({ args, model, method: name }) => {
+                calls.push([name, model, args[0]]);
+                const state = {
+                    action_back_to_approval: "confirm",
+                    action_approve: "validate",
+                    action_refuse: "refuse",
+                }[name];
+                leaves().write(args[0], { state });
+                return true;
+            });
+        }
+    });
+
+    test("A34 Edit: the request is To Approve and editable, the popover stays open", async () => {
+        await openPopover({ records: [REQUEST({ state: "validate", ...ALL })] });
+        expect(".o_hhg_pop .o_form_readonly").toHaveCount(1);
+        const same = popoverEl();
+        await click(".o_hhg_pop_edit");
+        await settle();
+        expect(calls).toHaveLength(1);
+        expect(calls[0][0]).toBe("action_back_to_approval");
+        expect(calls[0][2]).toHaveLength(1);
+        expect(reloads).toBe(1);
+        expect(popoverEl()).toBe(same);
+        expect(".o_hhg_pop .o_form_editable").toHaveCount(1);
+        expect(names()).toEqual(["approve", "refuse", "delete"]);
+        // the focus is not moved into the form
+        expect(document.activeElement).not.toBe(queryOne(".o_hhg_pop_type input"));
+    });
+
+    test("A35 Approve: read-only again, Edit and Delete, the view reloads", async () => {
+        await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });
+        const same = popoverEl();
+        await click(".o_hhg_pop_approve");
+        await settle();
+        expect(calls.map(([name]) => name)).toEqual(["action_approve"]);
+        expect(reloads).toBe(1);
+        expect(popoverEl()).toBe(same);
+        expect(".o_hhg_pop .o_form_readonly").toHaveCount(1);
+        expect(names()).toEqual(["edit", "delete"]);
+    });
+
+    test("A38 Approve saves a pending change first", async () => {
+        const order = [];
+        onRpc("web_save", () => {
+            order.push("web_save");
+        });
+        onRpc("action_approve", () => {
+            order.push("action_approve");
+        });
+        await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });
+        await typeNote();
+        await click(".o_hhg_pop_approve");
+        await settle();
+        expect(order).toEqual(["web_save", "action_approve"]);
+        expect(leaves()[0].name).toBe("Dentist");
+        expect(leaves()[0].state).toBe("validate");
+        expect(names()).toEqual(["edit", "delete"]);
+    });
+
+    test("A38 a refused save stops Approve: nothing else happens", async () => {
+        expect.errors(1);
+        onRpc("web_save", () => {
+            throw new Error("Not allowed");
+        });
+        await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });
+        await typeNote();
+        await click(".o_hhg_pop_approve");
+        await settle();
+        expect(calls).toEqual([]);
+        expect(reloads).toBe(0);
+        expect(".o_hhg_pop").toHaveCount(1);
+        expect(names()).toEqual(["approve", "refuse", "discard"]);
+        expect.verifyErrors(["RPC_ERROR: Not allowed"]);
+    });
+
+    test("A37 Refuse in the Overview: the pill is gone, the popover stays open on its place", async () => {
+        onRpc("action_refuse", ({ args }) => {
+            // the Overview shows no refused request: the pill leaves the data
+            leaves().write(args[0], { active: false });
+        });
+        await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });
+        const same = popoverEl();
+        const before = queryRect(same);
+        const pill = queryRect(pillEl());
+        await click(".o_hhg_pop_refuse");
+        await settle();
+        expect(calls.map(([name]) => name)).toEqual(["action_refuse"]);
+        expect(reloads).toBe(1);
+        expect(".o_tl_pill").toHaveCount(0);
+        expect(".o_hhg_pop").toHaveCount(1);
+        expect(popoverEl()).toBe(same);
+        expect(popoverEl().isConnected).toBe(true);
+        // on its place: still over the pill's former span and at the same height (the body is
+        // shorter read-only and the grid under it is laid out again, so a few pixels may move)
+        const after = queryRect(same);
+        expect(after.left).toBeLessThan(pill.right);
+        expect(after.right).toBeGreaterThan(pill.left);
+        expect(Math.abs(after.top - before.top)).toBeLessThan(6);
+        expect(".o_hhg_pop .o_form_readonly").toHaveCount(1);
+        expect(names()).toEqual(["edit", "delete"]);
+        // it closes with the close icon, and the next opening holds no hidden anchor
+        await click(".o_hhg_pop_close");
+        await settle();
+        expect(".o_hhg_pop").toHaveCount(0);
+        expect(".o_hhg_pop_anchor").toHaveCount(0);
+    });
+
+    test("R8 point 4 a click elsewhere still closes a popover that outlived its pill", async () => {
+        onRpc("action_refuse", ({ args }) => {
+            leaves().write(args[0], { active: false });
+        });
+        await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });
+        await click(".o_hhg_pop_refuse");
+        await settle();
+        expect(".o_hhg_pop").toHaveCount(1);
+        await click(".o_tl_row_header");
+        await settle();
+        expect(".o_hhg_pop").toHaveCount(0);
+    });
+
+    test("R8 point 1 Save writes the change, then the request and the view load again", async () => {
+        await openPopover({ records: [REQUEST({ state: "confirm" })] });
+        await typeNote();
+        await click(".o_hhg_pop_save");
+        await settle();
+        expect(writes).toEqual(["web_save"]);
+        expect(reloads).toBe(1);
+        expect(".o_hhg_pop").toHaveCount(1);
+        expect(".o_hhg_pop .o_form_editable").toHaveCount(1);
+        expect(names()).toEqual(["delete"]);
+        expect(".o_hhg_pop [name='name'] input").toHaveValue("Dentist");
+    });
+
+    test("R8 point 2 Discard brings back the stored values, writes nothing, reloads the view", async () => {
+        await openPopover({ records: [REQUEST({ state: "confirm" })] });
+        await typeNote();
+        await click(".o_hhg_pop_discard");
+        await settle();
+        expect(writes).toEqual([]);
+        expect(reloads).toBe(1);
+        expect(".o_hhg_pop [name='name'] input").toHaveValue("L");
+        expect(names()).toEqual(["delete"]);
+        expect(".o_hhg_pop").toHaveCount(1);
+    });
+
+    test("A52 Delete accepted: the popover closes and the view reloads", async () => {
+        await openPopover({ records: [REQUEST({ state: "confirm" })] });
+        await click(".o_hhg_pop_delete");
+        await settle();
+        expect(writes).toEqual(["unlink"]);
+        expect(reloads).toBe(1);
+        expect(".o_hhg_pop").toHaveCount(0);
+        expect(".o_tl_pill").toHaveCount(0);
+    });
+
+    test("A53 Delete refused: the error shows, the popover stays open, nothing changes", async () => {
+        expect.errors(2);
+        onRpc("unlink", () => {
+            throw new Error("Only administrators delete approved requests");
+        });
+        await openPopover({ records: [REQUEST({ state: "validate" })] });
+        await click(".o_hhg_pop_delete");
+        await settle();
+        expect(".o_hhg_pop").toHaveCount(1);
+        expect(reloads).toBe(0);
+        expect(".o_tl_pill").toHaveCount(1);
+        expect(names()).toEqual(["delete"]);
+        // the next press goes through the same path
+        await click(".o_hhg_pop_delete");
+        await settle();
+        expect(".o_hhg_pop").toHaveCount(1);
+        expect.verifyErrors([
+            "RPC_ERROR: Only administrators delete approved requests",
+            "RPC_ERROR: Only administrators delete approved requests",
+        ]);
+    });
+
+    test("A33 the report's Delete calls the request's deletion with the line's id", async () => {
+        const unlinked = [];
+        onRpc("unlink", ({ args, model }) => {
+            unlinked.push([model, args[0]]);
+            return true;
+        });
+        await openPopover({
+            report: true,
+            arch: REPORT_ARCH(),
+            records: [["Anita Oliver", [12, "9:00"], [14, "18:00"], {}]],
+        });
+        await click(".o_hhg_pop_delete");
+        await settle();
+        expect(unlinked).toHaveLength(1);
+        expect(unlinked[0][0]).toBe("hr.leave");
+        expect(unlinked[0][1]).toEqual([1]);
+        expect(".o_hhg_pop").toHaveCount(0);
+        expect(reloads).toBe(1);
+    });
+});
+
+describe("the hour widget (R4 point 2)", () => {
+    test("A19 reads 4h30, 4:30 and 4.5 and shows hours in edit mode", async () => {
+        await makeTimeOffData(["Anita Oliver"], [REQUEST({ hours: 4 })]);
+        await start();
+        await mountView({
+            type: "form",
+            resModel: "hhg.leave",
+            resId: 1,
+            arch: `<form><field name="hours" widget="hhg_hours"/></form>`,
+        });
+        expect("[name='hours'] input").toHaveValue("4h");
+        for (const [typed, shown] of [
+            ["4h30", "4h30"],
+            ["4:30", "4h30"],
+            ["4.5", "4h30"],
+            ["2h", "2h"],
+            ["0:15", "0h15"],
+        ]) {
+            await click("[name='hours'] input");
+            await edit(typed);
+            await press("Tab");
+            await animationFrame();
+            expect("[name='hours'] input").toHaveValue(shown, { message: `${typed} reads ${shown}` });
+        }
     });
 });

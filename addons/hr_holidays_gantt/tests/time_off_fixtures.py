@@ -534,7 +534,9 @@ def make_matrix_state(env, login, first=date(2026, 11, 16), peer_first=None):
         "peer": make_four_states(env, peer, peer_first or first),
     }
     cancelled = make_leave(env, own, find_type(env, "STO"), first + timedelta(days=4))
-    cancelled.with_user(users_of(env)[login])._action_user_cancel("Toff cancelled")
+    # the Community's cancellation as the role user, without its check of the day (the request
+    # lies in the past when the server's day is after 20 November)
+    cancelled.with_user(users_of(env)[login])._force_cancel("Toff cancelled", 'mail.mt_note')
     made["own"]["cancel"] = cancelled
     env.flush_all()
     return made

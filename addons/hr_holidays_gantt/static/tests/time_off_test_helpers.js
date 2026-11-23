@@ -51,9 +51,18 @@ export class Leave extends models.Model {
         string: "Status",
         selection: [
             ["confirm", "To Approve"],
+            ["validate1", "Second Approval"],
             ["validate", "Approved"],
+            ["refuse", "Refused"],
+            ["cancel", "Cancelled"],
         ],
     });
+    // the Community's flags for the reading user (the popover's footer reads them)
+    can_approve = fields.Boolean();
+    can_validate = fields.Boolean();
+    can_refuse = fields.Boolean();
+    can_back_to_approve = fields.Boolean();
+    hours = fields.Float({ string: "Hours" });
     start = fields.Datetime({ string: "Start" });
     stop = fields.Datetime({ string: "Stop" });
 
@@ -63,6 +72,10 @@ export class Leave extends models.Model {
         "form,false": `<form>
             <field name="duration_display" invisible="1"/>
             <field name="state" invisible="1"/>
+            <field name="can_approve" invisible="1"/>
+            <field name="can_validate" invisible="1"/>
+            <field name="can_refuse" invisible="1"/>
+            <field name="can_back_to_approve" invisible="1"/>
             <div class="o_hhg_pop_type"><field name="employee_id" nolabel="1"/></div>
             <field name="name"/>
         </form>`,
