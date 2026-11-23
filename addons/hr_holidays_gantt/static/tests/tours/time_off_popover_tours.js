@@ -575,7 +575,6 @@ tours.add("hhg_a93_reload_after_expand", {
 
 // What the tours of the footer's buttons (`time_off_button_tours.js`) use of this file.
 export {
-    clickPill,
     closeWithEscape,
     firstDayOf,
     loaded,
@@ -583,7 +582,5 @@ export {
     openToffAct,
     pillOn,
     popover,
-    pressPoint,
     titleOf,
-    typeDescription,
 };

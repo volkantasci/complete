@@ -177,7 +177,7 @@ scenario("hhg_a13_pending_change", async () => {
     // the field is left: the pending change shows
     await realClick($(".o_hhg_pop_title"));
     await expectButtons(["Approve", "Refuse", "Discard"], "a pending change");
-    assert(!buttonOf("Delete") || !visibleButtons().includes("Delete"), "no Delete");
+    assert(!visibleButtons().includes("Delete"), "no Delete");
     assert(!visibleButtons().includes("Save"), "no Save for one who may approve");
     // Discard brings the empty description and Delete back
     await pressButton("Discard");

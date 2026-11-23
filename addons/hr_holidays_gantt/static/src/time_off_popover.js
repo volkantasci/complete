@@ -299,12 +299,23 @@ export class TimeOffLeavePopover extends Component {
      */
     async decide(method) {
         const record = this.leaveRecord;
+        let saved = false;
         if (await record.isDirty()) {
             if (!(await record.save())) {
                 return;
             }
+            saved = true;
         }
-        await this.callRequest(method);
+        try {
+            await this.callRequest(method);
+        } catch (error) {
+            if (saved) {
+                // the change was written: the view shows it, the Community's error shows too
+                await this.reloadView();
+                this.onRecordState();
+            }
+            throw error;
+        }
         await Promise.all([record.load(), this.reloadView()]);
         this.onRecordState();
     }

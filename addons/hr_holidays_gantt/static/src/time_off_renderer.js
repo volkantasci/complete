@@ -1,5 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { onPatched } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
 import { usePopover } from "@web/core/popover/popover_hook";
 import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
@@ -61,6 +62,7 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
                     this._lockClicks(POPOVER_CLOSE_LOCK, false);
                 }
                 this._popoverFor = null;
+                this._hhgKeep = null;
                 this._hhgGhost?.remove();
                 this._hhgGhost = null;
             },
@@ -81,6 +83,12 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
                 return popover.isOpen;
             },
         };
+        // the render that took the awaited reload's data has consumed the keep
+        onPatched(() => {
+            if (this._hhgKeep && this.data !== this._hhgKeep.data) {
+                this._hhgKeep = null;
+            }
+        });
         this._hhgKeep = null;
         this._hhgGhost = null;
         this._hhgClickPill = null;

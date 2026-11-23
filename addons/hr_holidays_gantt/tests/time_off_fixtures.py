@@ -569,8 +569,9 @@ def make_alloc_state(env, schedule=None):
 
 def past_day(env):
     """The last working day (Monday to Friday of the 40 hours schedule) before the server's
-    day (``fields.Date.context_today``)."""
-    day = fields.Date.context_today(env["hr.leave"]) - timedelta(days=1)
+    day: the UTC date the Community's deletion check reads (``fields.Datetime.now().date()``),
+    so the request starts before it at every hour of the day."""
+    day = fields.Datetime.now().date() - timedelta(days=1)
     while day.weekday() >= 5:
         day -= timedelta(days=1)
     return day

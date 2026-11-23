@@ -160,7 +160,7 @@ class TestTimeOffButtonTours(ReportToursBase):
         day and the tour finds the pill by the view's own Next."""
         self._world(demo=False)
         emp = self.role_employees['toff_emp']
-        day = fields.Date.today() + timedelta(days=1)
+        day = fields.Datetime.now().date() + timedelta(days=1)
         while day.weekday() >= 5:
             day += timedelta(days=1)
         leave = fx.make_waiting(self.env, emp, fx.find_type(self.env, 'STO'), day)
@@ -171,7 +171,7 @@ class TestTimeOffButtonTours(ReportToursBase):
 
     def _server_day_instant(self):
         """The server's day at 10:00 UTC, as the browser's clock for the tours that depend on it."""
-        return datetime.combine(fields.Date.today(), time(10, 0))
+        return datetime.combine(fields.Datetime.now().date(), time(10, 0))
 
     def test_a54_delete_past(self):
         """The request lies on the working day before the server's day; the browser starts on
