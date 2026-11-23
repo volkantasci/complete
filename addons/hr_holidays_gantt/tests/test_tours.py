@@ -61,6 +61,8 @@ class TimeOffToursBase(RealPointerMixin, HttpCase):
 
     def setUp(self):
         super().setUp()
+        # the card's "back on" line follows the server's clock: pin it to the package's day
+        fx.pin_leave_status_clock(self)
         self.browser_size = '1600x900'
         self.touch_enabled = False
         self.admin = fx.find_admin(self.env)

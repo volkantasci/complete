@@ -1,7 +1,8 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-from datetime import date
+from datetime import date, timedelta
 
+from odoo import fields
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
@@ -195,3 +196,18 @@ class TestCardData(TransactionCase):
         with self.assertRaises(AccessError):
             self.anita.with_user(self.users['toff_emp']).create_version(
                 {'date_version': '2026-12-02'})
+
+    def test_card_status_reads_the_package_instant(self):
+        employee = self.env['hr.employee'].create({'name': 'Toff Clock Probe'})
+        today = fields.Date.context_today(employee)
+        fx.make_leave(
+            self.env, employee, fx.find_type(self.env, 'STO'),
+            today - timedelta(days=1), today + timedelta(days=1))
+        self.env.flush_all()
+        self.env.invalidate_all()
+        self.assertTrue(employee.leave_date_to, "the leave in progress is read at the real now")
+        fx.pin_leave_status_clock(self)
+        self.env.invalidate_all()
+        self.assertFalse(employee.leave_date_to)
+        public = self.env['hr.employee.public'].browse(employee.id)
+        self.assertFalse(public.read(['leave_date_to'])[0]['leave_date_to'])

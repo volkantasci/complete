@@ -11,6 +11,9 @@ the Time Off administrator group here (made so when the database lacks it).
 """
 
 from datetime import date, datetime
+from unittest import mock
+
+from odoo import fields
 
 TZ = "Europe/Brussels"
 PREFIX = "Toff "
@@ -504,3 +507,20 @@ class TimeOffGanttMixin:
     def texts(result):
         """The display names of the returned records, by sorted text."""
         return sorted(record["display_name"] for record in result["records"])
+
+
+def pin_leave_status_clock(case, instant=datetime(2026, 11, 11, 10, 0, 5)):
+    """Make the Community's leave status (``leave_date_to``, the card's "back on" line) read
+    ``instant`` (a naive UTC datetime) as the server's now, for the test ``case``.
+
+    The compute method of ``hr.employee`` runs the original with ``fields.Datetime.now``
+    returning ``instant`` for the duration of that call only; the public employee reads the
+    same compute, so the card is covered whoever reads it.
+    """
+    original = type(case.env['hr.employee'])._compute_leave_status
+
+    def pinned(self):
+        with mock.patch.object(fields.Datetime, 'now', return_value=instant):
+            return original(self)
+
+    case.patch(type(case.env['hr.employee']), '_compute_leave_status', pinned)

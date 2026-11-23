@@ -143,6 +143,11 @@ def column_js(date):
 class TimeOffProbeCase(TimelineProbeCase):
     """A page, the steps, the real input and the readings of the probes; it holds no test."""
 
+    def setUp(self):
+        super().setUp()
+        # the card's "back on" line follows the server's clock: pin it to the package's day
+        fx.pin_leave_status_clock(self)
+
     @classmethod
     def setUpClass(cls):
         # the host records of the timeline probes are not wanted here
