@@ -1,5 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import {
     $,
     $$,
@@ -36,35 +37,27 @@ import { loaded, popover } from "@hr_holidays_gantt/../tests/tours/time_off_popo
  * 390 x 801) with touch emulation; the records come from `tests/test_phone_tours.py`.
  */
 
-const FACTS = false;
-
 // the sheet ----------------------------------------------------------------------------------------
 
 /** The popover service's box of the sheet (its frame, 1 px border included, is inside it). */
 const outerOf = () => $(".o_popover:has(.o_hhg_pop)");
 const frameOf = () => $(".o_hhg_pop");
 
-/** The facts a tour compares: each check keeps its measure, the tour fails with all that differ. */
+/** The checks of a tour: each one is kept, the tour fails with all that differ. */
 function checker() {
     const failures = [];
-    const facts = [];
     return {
         near(what, actual, expected, tolerance = 0.3) {
-            facts.push(`${what}: ${actual}`);
             if (!(Math.abs(actual - expected) <= tolerance)) {
                 failures.push(`${what}: ${actual}, expected ${expected} (+-${tolerance})`);
             }
         },
         yes(what, ok, detail = "") {
-            facts.push(`${what}: ${ok}`);
             if (!ok) {
                 failures.push(`${what}: ${detail}`);
             }
         },
         done(what) {
-            if (FACTS) {
-                throw new Error(`${what} FACTS ${facts.join("; ")}`);
-            }
             if (failures.length) {
                 throw new Error(`${what}: ${failures.join("; ")}`);
             }
@@ -73,23 +66,10 @@ function checker() {
 }
 
 /** A tap on a pill, and the wait for the sheet to be open, loaded and still. */
-let taps = 0;
-let lastTap = null;
 async function tapOpen(pill) {
-    taps++;
     await bringIntoView(pill);
     await realTap(pill);
-    try {
-        await until(() => loaded() && frameOf()?.classList.contains("o_tl_popover_sheet"), "the sheet opens", 10000);
-    } catch (error) {
-        throw new Error(
-            `${error.message} (tap ${taps}; popover ${Boolean(popover())}, modal ${Boolean($(".modal"))}, ` +
-                `pill ${pill.isConnected} ${rectOf(pill).left}, url ${window.location.pathname}, ` +
-                `last tap ${JSON.stringify(lastTap)}, at the pill ${
-                    document.elementFromPoint(rectOf(pill).left + 5, rectOf(pill).top + 5)?.className
-                })`
-        );
-    }
+    await until(() => loaded() && frameOf()?.classList.contains("o_tl_popover_sheet"), "the sheet opens", 10000);
     await settle(700);
 }
 
@@ -121,7 +101,7 @@ function checkAbove(check, what) {
 }
 
 /** Facts of the sheet's frame: size, place, colour, the screen above dimmed. */
-function checkFrame(check, what, { height = 844 } = {}) {
+function checkFrame(check, what, { height = 844, dark = false } = {}) {
     const outer = rectOf(outerOf());
     const frame = rectOf(frameOf());
     check.near(`${what}: the window's height`, window.innerHeight, height, 0.5);
@@ -136,9 +116,10 @@ function checkFrame(check, what, { height = 844 } = {}) {
         // 002a's rule: the sheet keeps the 144 px of the top of the window free
         check.near(`${what}: the frame's height`, frame.height, window.innerHeight - 144 - 2, 1);
     }
+    const background = dark ? "rgb(62, 63, 71)" : "rgb(255, 255, 255)";
     check.yes(
-        `${what}: the frame's background`,
-        getComputedStyle(frameOf()).backgroundColor === "rgb(255, 255, 255)",
+        `${what}: the frame's background is ${background}`,
+        getComputedStyle(frameOf()).backgroundColor === background,
         getComputedStyle(frameOf()).backgroundColor
     );
     const dim = getComputedStyle(outerOf(), "::before");
@@ -196,14 +177,10 @@ function checkContent(check, what, { badge = true, buttons = {}, choices = false
         check.near(`${what}: Morning's width`, widths.Morning, 80.6, 0.5);
     }
     if (area) {
+        // the field's wrapper (`.o_field_widget`, the box with the border) is the 50 px area; its
+        // textarea fills it
         const box = $(".o_hhg_pop_note > .o_field_widget");
-        const css = getComputedStyle(box);
-        check.near(
-            `${what}: the description area's height (${box.tagName} ${box.className}; ${css.height} ${css.boxSizing} ${css.padding} ${css.overflowY}; ${box.innerHTML.slice(0, 300)})`,
-            rectOf(box).height,
-            50,
-            0.3
-        );
+        check.near(`${what}: the description area's height`, rectOf(box).height, 50, 0.3);
     }
     const footer = $(".o_hhg_pop_footer");
     const style = getComputedStyle(footer);
@@ -242,7 +219,7 @@ const searchToggler = () =>
     $$(".o_control_panel button.btn-secondary").find((el) => $("i[data-icon='search']", el));
 
 /** Opens the search bar of the phone's control panel and searches an employee. */
-async function phoneSearch(name) {
+async function phoneSearch(name, { fold = true } = {}) {
     if (!$(".o_searchview_input")) {
         const button = searchToggler();
         assert(button, "the control panel's search button");
@@ -252,8 +229,14 @@ async function phoneSearch(name) {
     await searchFor(name);
     await until(() => rowNames().every((row) => row.startsWith(name)), `only the rows of ${name}: ${rowNames()}`, 8000);
     await dataSettled();
-    // the open search bar makes the control panel taller than the 144 px the sheet leaves free
-    // (ruling R-T7-1): the search stays, its bar is folded by the button that opened it
+    if (!fold) {
+        await settle(500);
+        return;
+    }
+    // The open search bar makes the control panel 176 px tall, more than the 144 px 002a's sheet
+    // leaves free. Controller ruling R-C-8 keeps 002a's sheet geometry; the other tours fold the
+    // bar (the search stays) by the button that opened it, the tour "hhg_a85_phone_open_search_bar"
+    // taps with it open (spec question: A58 and A85 should name the folded bar).
     await realTap(searchToggler());
     await until(() => !$(".o_searchview_input"), "the search bar folds");
     await settle(500);
@@ -267,7 +250,7 @@ const actPill = (index) =>
 
 // A56: the sheet -------------------------------------------------------------------------------------
 
-scenario("hhg_a56_phone_sheet", async () => {
+async function sheetOfAnita({ dark }) {
     await toTheWeek();
     const mark = noteMark();
     const check = checker();
@@ -275,18 +258,19 @@ scenario("hhg_a56_phone_sheet", async () => {
     assert(pill, "Anita Oliver's PTO 1d");
     await tapOpen(pill);
     assertEqual(clean($(".o_hhg_pop_title").textContent), "Anita Oliver - 1 day", "the title");
-    checkFrame(check, "A56");
+    checkFrame(check, "A56", { dark });
     checkAbove(check, "A56");
     checkContent(check, "A56", { buttons: { Edit: 68.1, Delete: 84.5 } });
-    // the control bar of the grid lies below the control panel (reported, not asserted)
-    const bar = $(".o_tl_controls");
-    check.yes(`A56: the grid's bar bottom ${bar && rectOf(bar).bottom}`, true);
     check.done("A56");
     // the close icon closes it
     await realTap($(".o_hhg_pop_close"));
     await until(() => !sheetOpen(), "the close icon closes the sheet");
     assertEqual(writesSince(mark), [], "no write");
-});
+}
+
+scenario("hhg_a56_phone_sheet", () => sheetOfAnita({ dark: false }));
+// the same page in the dark scheme: the sheet's background as drawn (002a M43 phone)
+scenario("hhg_a56_phone_sheet_dark", () => sheetOfAnita({ dark: true }));
 
 // A57: a window of 390 x 801 -------------------------------------------------------------------------
 
@@ -349,7 +333,6 @@ function emptyPointAbove() {
 }
 
 async function tapAt({ x, y }) {
-    lastTap = { x, y, element: document.elementFromPoint(x, y)?.className };
     await send({
         touch: true,
         events: [
@@ -455,5 +438,56 @@ scenario("hhg_a85_phone_rows", async () => {
         await until(() => !sheetOpen(), `${name}: the close icon closes the sheet`);
     }
     check.done("A85");
+    assertEqual(writesSince(mark), [], "no write");
+});
+
+// A85 with the search bar open: 002a's sheet keeps its geometry (controller ruling R-C-8) ------------
+
+scenario("hhg_a85_phone_open_search_bar", async () => {
+    await toTheWeek();
+    await phoneSearch("Toff", { fold: false });
+    assert($(".o_searchview_input"), "the search bar is open");
+    const mark = noteMark();
+    const check = checker();
+    await tapOpen(pillsOf("Toff A")[0]);
+    checkFrame(check, "A85 open bar");
+    const outer = rectOf(outerOf());
+    // 002a's rule: the sheet's top is 144 px below the screen's top
+    check.near("A85 open bar: the sheet's top", outer.top, 144, 1);
+    const top = rectOf($(".o_navbar"));
+    check.yes("A85 open bar: the top bar ends above the sheet", top.bottom <= outer.top + 0.5, `${top.bottom}`);
+    const at = document.elementFromPoint(top.left + top.width / 2, top.top + top.height / 2);
+    check.yes("A85 open bar: the top bar's middle is not the sheet's", !outerOf().contains(at), `${at?.className}`);
+    check.done("A85 open bar");
+    // the measure for the spec question: how far the sheet reaches into the open control panel
+    const panel = rectOf($(".o_control_panel"));
+    console.log(`HHG_OVERLAP control panel bottom ${panel.bottom}, sheet top ${outer.top}, overlap ${panel.bottom - outer.top}`);
+    await realTap($(".o_hhg_pop_close"));
+    await until(() => !sheetOpen(), "the close icon closes the sheet");
+    assertEqual(writesSince(mark), [], "no write");
+});
+
+// R21 point 4: Back with a dialog open over the sheet closes the dialog only -------------------------
+
+scenario("hhg_a56_phone_back_with_a_dialog", async () => {
+    await toTheWeek();
+    await phoneSearch("Toff Act");
+    const mark = noteMark();
+    const url = window.location.pathname + window.location.search;
+    await tapOpen(actPill(0));
+    const dialogs = odoo.__WOWL_DEBUG__?.root?.env?.services?.dialog;
+    assert(dialogs, "the dialog service");
+    dialogs.add(AlertDialog, { title: "Over the sheet", body: "A dialog over the sheet" });
+    await until(() => $(".o_dialog .modal"), "the dialog opens over the sheet");
+    await settle(500);
+    window.history.back();
+    await until(() => !$(".o_dialog .modal"), "Back closes the dialog");
+    await settle(500);
+    assert(sheetOpen(), "the sheet stays open under the dialog's Back");
+    window.history.back();
+    await until(() => !sheetOpen(), "the next Back closes the sheet");
+    await settle(800);
+    assert($(".o_tl_renderer .o_tl_pill"), "the view is still there");
+    assertEqual(window.location.pathname + window.location.search, url, "the address is as it was");
     assertEqual(writesSince(mark), [], "no write");
 });

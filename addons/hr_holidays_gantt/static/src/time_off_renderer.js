@@ -56,7 +56,11 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
                     element.style.top = `${parseFloat(element.style.top) + shift}px`;
                 }
             },
-            closeOnClickAway: (target) => !this._isPopoverAnchor(target),
+            // the framework reports the browser's Back as a click on the page: with a dialog open
+            // over the popover, Back belongs to the dialog (R21 point 4)
+            closeOnClickAway: (target) =>
+                !this._isPopoverAnchor(target) &&
+                !(target === document.documentElement && document.querySelector(".o_dialog .modal")),
             onClose: () => {
                 if (this._popoverFor !== null) {
                     this._lockClicks(POPOVER_CLOSE_LOCK, false);

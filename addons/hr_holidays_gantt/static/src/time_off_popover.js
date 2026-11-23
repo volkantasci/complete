@@ -85,7 +85,7 @@ export class TimeOffLeavePopover extends Component {
         }
         const manager = new BackButtonManager();
         const scope = useScope();
-        onMounted(() => manager.addListener(scope, () => this.props.close()));
+        onMounted(() => manager.addListener(scope, () => this.onSheetBack()));
         onWillUnmount(() => manager.removeListener(scope));
     }
 
@@ -98,6 +98,20 @@ export class TimeOffLeavePopover extends Component {
         const names = (list) => list.map((button) => button.name).join(" ");
         if (names(buttons) !== names(untrack(() => this.footerShown()))) {
             this.footerShown.set(buttons);
+        }
+    }
+
+    /**
+     * Back with a dialog open over the sheet closes the dialog only (the framework's dialogs take
+     * Back only on a mobile OS, so here the topmost one is dismissed by its own close button).
+     */
+    onSheetBack() {
+        const modal = [...document.querySelectorAll(".o_dialog .modal")].at(-1);
+        const dismiss = modal?.querySelector(".btn-close");
+        if (dismiss) {
+            dismiss.click();
+        } else if (!modal) {
+            this.props.close();
         }
     }
 

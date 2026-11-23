@@ -189,24 +189,14 @@
         gap: 8px !important;
         min-height: 0;
 
-        // the label icon: a box of its own above the value
-        .o_hhg_pop_icon,
-        .o_hhg_pop_iconcol {
+        // the label icon: a box of its own above the value (the line's direct child, the icon
+        // alone or its column with the help mark); `!important` because the form's `align-self-center`
+        // utility class is one
+        > .o_hhg_pop_icon,
+        > .o_hhg_pop_iconcol {
+            display: flex;
+            align-items: center;
             align-self: stretch !important;
-        }
-
-        .o_hhg_pop_iconcol {
-            display: flex;
-            align-items: center;
-            min-height: 46px;
-            padding: 0 12px;
-            border: 1px solid $border-color;
-            border-radius: $border-radius;
-        }
-
-        > .o_hhg_pop_icon {
-            display: flex;
-            align-items: center;
             min-height: 46px;
             padding: 0 12px;
             border: 1px solid $border-color;
@@ -223,7 +213,8 @@
         }
     }
 
-    // the description's area is 50 px tall, its border included
+    // the description's area is 50 px tall, its border included: the field's wrapper
+    // (`.o_field_widget`) carries the height, its textarea fills it
     .o_hhg_pop_note > .o_field_widget {
         padding: 0;
         height: 50px;

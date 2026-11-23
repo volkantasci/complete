@@ -30,6 +30,17 @@ class TestTimeOffPhoneTours(ReportToursBase):
         self._demo_like()
         self._tour_writes_nothing('hhg_a56_phone_sheet', mobile=PHONE)
 
+    def test_a56_phone_sheet_dark(self):
+        # the dark scheme needs the theme (as the probes)
+        if not self.env['ir.module.module'].sudo().search_count(
+                [('name', '=', 'web_enterprise'), ('state', '=', 'installed')]):
+            self.skipTest('the theme is not installed')
+        self._demo_like()
+        self.env['res.users.settings']._find_or_create_for_user(
+            self.admin).color_scheme = 'dark'
+        self.env.flush_all()
+        self._tour_writes_nothing('hhg_a56_phone_sheet_dark', mobile=PHONE)
+
     def test_a57_phone_short_window(self):
         self._demo_like()
         self._tour_writes_nothing('hhg_a57_phone_short_window', mobile=SHORT_PHONE)
@@ -52,10 +63,21 @@ class TestTimeOffPhoneTours(ReportToursBase):
 
     # -- the first and the second row (A85) -------------------------------------------------------
 
-    def test_a85_phone_rows(self):
+    def test_a56_phone_back_with_a_dialog(self):
+        self._act()
+        self._tour_writes_nothing('hhg_a56_phone_back_with_a_dialog', mobile=PHONE)
+
+    def _toff_rows(self):
         sick = fx.find_type(self.env, 'STO')
         for name in ('Toff A', 'Toff B'):
             employee = fx._employee(self.env, name, self.schedule)
             fx.make_waiting(self.env, employee, sick, date(2026, 11, 18))
         self._isolate(keep={'Toff A', 'Toff B'})
+
+    def test_a85_phone_open_search_bar(self):
+        self._toff_rows()
+        self._tour_writes_nothing('hhg_a85_phone_open_search_bar', mobile=PHONE)
+
+    def test_a85_phone_rows(self):
+        self._toff_rows()
         self._tour_writes_nothing('hhg_a85_phone_rows', mobile=PHONE)
