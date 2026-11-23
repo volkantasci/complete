@@ -1,0 +1,161 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The leave popover (R2 to R5, R26; M2 to M17). The outer box is the popover service's element: it
+// draws the 1 px border of the popover role, the 12 px corners and the shadow 8 px down with a 16 px
+// blur (M2); the surface inside it is the view background (M3).
+.o_popover:has(> .o_hhg_pop:not(.o_hhg_pop_sheet)) {
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(#000, 0.15);
+    // the width follows the body (R3): no fixed width of the framework's popover
+    max-width: 95vw;
+}
+
+.o_hhg_pop {
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    min-width: 232px;
+    max-width: 95vw;
+    max-height: 80vh;
+    border-radius: 11px;
+    background-color: $o-view-background-color;
+    color: $body-color;
+    font-size: $o-font-size-base-small;
+
+    // R3, M4, M5: a grey band, 29.2 px with its bottom border; no colour of the request (D1)
+    .o_hhg_pop_header {
+        padding: 0 8px 0 16px;
+        background-color: $o-tl-popover-header-bg;
+        border-bottom: 1px solid $popover-border-color;
+        border-top-left-radius: 11px;
+        border-top-right-radius: 11px;
+        color: $o-main-headings-color;
+    }
+
+    .o_hhg_pop_title {
+        padding: 4px 0;
+        font-size: 16.8px;
+        font-weight: 500;
+        line-height: 20.16px;
+        color: $o-main-headings-color;
+    }
+
+    // M6, M7: the two icons, black; the cross 16 px right of the expand icon
+    .o_hhg_pop_expand,
+    .o_hhg_pop_close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: $o-main-headings-color;
+        line-height: 1;
+
+        &:hover,
+        &:focus-visible {
+            color: $o-main-headings-color;
+        }
+    }
+
+    .o_hhg_pop_expand {
+        margin-inline-start: 16px;
+        font-size: 17.5px;
+    }
+
+    .o_hhg_pop_close {
+        margin-inline-start: 16px;
+        font-size: 14px;
+    }
+
+    // M8: the body is the form; its box takes what the footer leaves
+    .o_hhg_pop_content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .o_hhg_pop_form {
+        padding: 0;
+
+        .o_form_view_container,
+        .o_content {
+            padding: 0;
+        }
+    }
+
+    // R4: the two columns, a label icon per line and its value, 16 px apart (M9, M13, M16)
+    .o_hhg_pop_body {
+        padding: 12px 16px 16px;
+        font-size: $o-tl-popover-body-font-size;
+    }
+
+    .o_hhg_pop_line {
+        gap: 16px !important;
+        min-height: 36px;
+        align-items: flex-start;
+
+        .o_hhg_pop_icon {
+            flex: 0 0 auto;
+            align-self: center;
+            color: inherit;
+        }
+    }
+
+    .o_hhg_pop_hours {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .o_hhg_pop_note textarea {
+        width: 271.2px;
+        max-width: 100%;
+        min-height: 50px;
+    }
+
+    // R4 point 2: the small question mark beside the clock icon; it only shows its tooltip
+    .o_hhg_pop_iconcol .o_widget {
+        position: absolute;
+        top: -6px;
+        inset-inline-start: 100%;
+        margin-inline-start: -4px;
+    }
+
+    .o_hhg_pop_help {
+        color: $text-muted;
+        cursor: help;
+        font-size: 12px;
+    }
+
+    // the footer is empty until the part that adds the buttons fills it (R6)
+    .o_hhg_pop_footer {
+        gap: 4px;
+        padding: 0 16px 16px;
+        border-top: 0;
+
+        &:empty {
+            display: none;
+        }
+    }
+}
+
+// the report's body: the Community's report form, read-only (R9 point 2)
+.o_hhg_pop_report .o_hhg_pop_form .o_inner_group {
+    margin: 0;
+}
+
+// the phone's sheet is 002a's (`o_tl_popover_sheet`); its content takes the sheet's width (R21)
+.o_hhg_pop.o_hhg_pop_sheet {
+    width: 100%;
+    min-width: 0;
+    max-height: none;
+    border-radius: 0;
+
+    .o_hhg_pop_content {
+        flex: 1 1 auto;
+    }
+
+    .o_hhg_pop_footer {
+        margin-top: auto;
+    }
+}

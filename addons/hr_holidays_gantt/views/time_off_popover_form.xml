@@ -39,7 +39,11 @@
                             options="{'no_create': True, 'no_open': False, 'request_type': 'leave'}"/>
                     </div>
                     <div class="o_hhg_pop_line o_hhg_pop_dates d-flex gap-2">
-                        <i class="o_hhg_pop_icon oi oi-lg align-self-center" data-icon="schedule" title="Dates"/>
+                        <div class="o_hhg_pop_iconcol position-relative align-self-center">
+                            <i class="o_hhg_pop_icon oi oi-lg" data-icon="schedule" title="Dates"/>
+                            <widget name="hhg_field_help" field="number_of_hours"
+                                invisible="work_entry_type_request_unit != 'hour'"/>
+                        </div>
                         <div class="o_hhg_pop_dates_value">
                             <div class="o_hhg_pop_hours" invisible="work_entry_type_request_unit != 'hour'">
                                 <field name="number_of_hours" widget="float_time" nolabel="1"

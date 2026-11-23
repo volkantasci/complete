@@ -1,0 +1,26 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <!-- The leave popover (R2 to R6): header, body (the request's form) and footer. The footer is
+         the template `hr_holidays_gantt.TimeOffPopoverFooter`, empty here; the part that adds the
+         buttons inherits it. -->
+    <t t-name="hr_holidays_gantt.TimeOffLeavePopover">
+        <div t-att-class="this.rootClass">
+            <div class="o_hhg_pop_header d-flex align-items-center flex-shrink-0">
+                <div class="o_hhg_pop_title flex-grow-1 text-truncate" t-out="this.title"/>
+                <button type="button" class="o_hhg_pop_expand btn btn-link p-0 border-0" title="Expand" aria-label="Expand" t-on-click="this.onExpand">
+                    <i class="oi" data-icon="expand_content"/>
+                </button>
+                <button type="button" class="o_hhg_pop_close btn btn-link p-0 border-0" title="Close" aria-label="Close" t-on-click.stop="this.props.close">
+                    <i class="oi" data-icon="close"/>
+                </button>
+            </div>
+            <div class="o_hhg_pop_content">
+                <View t-props="this.viewProps"/>
+            </div>
+            <div class="o_hhg_pop_footer d-flex flex-shrink-0"><t t-call="hr_holidays_gantt.TimeOffPopoverFooter"/></div>
+        </div>
+    </t>
+
+    <t t-name="hr_holidays_gantt.TimeOffPopoverFooter"/>
+</templates>

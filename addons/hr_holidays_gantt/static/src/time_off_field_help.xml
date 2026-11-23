@@ -1,0 +1,7 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <t t-name="hr_holidays_gantt.TimeOffFieldHelp">
+        <i t-if="this.help" class="o_hhg_pop_help oi oi-fw" data-icon="help" t-att-data-tooltip="this.help"/>
+    </t>
+</templates>
