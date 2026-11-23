@@ -43,7 +43,8 @@ class TestTimeOffPopoverForm(TransactionCase):
         fields_ = {node.get('name'): node for node in arch.iterfind('.//field')}
         for name in (
             'state', 'employee_id', 'duration_display', 'can_approve', 'can_validate',
-            'can_refuse', 'can_back_to_approve', 'request_date_from_period',
+            'can_refuse', 'can_back_to_approve', 'request_date_from', 'request_date_to',
+            'request_date_from_period',
             'request_date_to_period', 'request_hour_from', 'request_hour_to',
             'work_entry_type_request_unit', 'last_several_days', 'allowed_request_durations',
             'request_duration', 'number_of_days', 'number_of_hours',
@@ -61,28 +62,18 @@ class TestTimeOffPopoverForm(TransactionCase):
 
     def test_a67_role_groups(self):
         users = fx.make_role_users(self.env)
-        responsible = 'hr_holidays.group_hr_holidays_responsible'
-        officer = 'hr_holidays.group_hr_holidays_user'
-        admin = 'hr_holidays.group_hr_holidays_manager'
-        employee = 'hr_holidays.group_hr_holidays_employee'
-        expected = {
-            'toff_none': (),
-            'toff_emp': (employee,),
-            'toff_approver': (employee, responsible),
-            'toff_manager': (employee,),
-            'toff_officer': (employee, responsible, officer),
-            'toff_admin': (employee, responsible, officer, admin),
-        }
-        for login, groups in expected.items():
+        for login, keys in fx.ROLE_GROUPS.items():
             user = users[login]
-            held = {x for x in (employee, responsible, officer, admin) if user.has_group(x)}
-            self.assertEqual(held, set(groups), login)
+            held = {key for key, xmlid in fx.TIME_OFF_GROUPS.items() if user.has_group(xmlid)}
+            self.assertEqual(held, set(keys), login)
             self.assertTrue(user.has_group('base.group_user'), login)
             self.assertEqual(
                 user.has_group('base.group_allow_export'),
                 login in ('toff_officer', 'toff_admin'), login)
+        responsible = fx.TIME_OFF_GROUPS['responsible']
         self.assertFalse(users['toff_manager'].has_group(responsible))
         # the checking step stops on a mismatch
-        users['toff_emp'].sudo().write({'group_ids': [(4, self.env.ref(officer).id)]})
+        officer = self.env.ref(fx.TIME_OFF_GROUPS['officer'])
+        users['toff_emp'].sudo().write({'group_ids': [(4, officer.id)]})
         with self.assertRaises(AssertionError):
             fx.check_role_groups(self.env, users)

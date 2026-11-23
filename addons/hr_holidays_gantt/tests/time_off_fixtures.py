@@ -299,7 +299,7 @@ def make_role_users(env, schedule=None):
 
 
 # login -> the Time Off groups the user holds (acceptance "Users", A67)
-_TIME_OFF_GROUPS = {
+TIME_OFF_GROUPS = {
     "employee": "hr_holidays.group_hr_holidays_employee",
     "responsible": "hr_holidays.group_hr_holidays_responsible",
     "officer": "hr_holidays.group_hr_holidays_user",
@@ -322,7 +322,7 @@ def check_role_groups(env, users):
     for login, expected in ROLE_GROUPS.items():
         user = users[login]
         held = {
-            key for key, xmlid in _TIME_OFF_GROUPS.items() if user.has_group(xmlid)}
+            key for key, xmlid in TIME_OFF_GROUPS.items() if user.has_group(xmlid)}
         if held != set(expected):
             problems.append(f"{login}: Time Off groups {sorted(held)}, expected {sorted(expected)}")
         if not user.has_group("base.group_user"):
@@ -424,14 +424,9 @@ def _named(env, name):
     return found
 
 
-def to_approve(env, leave):
-    """``leave`` (Approved at creation) put To Approve, as the administrator would."""
-    return set_waiting(env, leave)
-
-
 def make_waiting(env, employee, leave_type, first, last=None, **kwargs):
     """A request To Approve of ``employee``."""
-    return to_approve(env, make_leave(env, employee, leave_type, first, last, **kwargs))
+    return set_waiting(env, make_leave(env, employee, leave_type, first, last, **kwargs))
 
 
 def make_second_approval(env, employee, first, last=None):

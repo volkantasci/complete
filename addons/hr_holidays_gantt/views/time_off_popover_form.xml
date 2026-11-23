@@ -18,8 +18,8 @@
                 <field name="can_validate" invisible="1"/>
                 <field name="can_refuse" invisible="1"/>
                 <field name="can_back_to_approve" invisible="1"/>
-                <field name="request_date_from_period" invisible="1"/>
-                <field name="request_date_to_period" invisible="1"/>
+                <field name="request_date_from" invisible="1"/>
+                <field name="request_date_to" invisible="1"/>
                 <field name="request_hour_from" invisible="1"/>
                 <field name="request_hour_to" invisible="1"/>
                 <field name="date_from" invisible="1"/>
@@ -47,11 +47,9 @@
                             </div>
                             <div class="o_hhg_pop_halves d-flex gap-2"
                                 invisible="work_entry_type_request_unit != 'half_day' or not last_several_days">
-                                <field name="request_date_from_period" nolabel="1" readonly="state != 'confirm'"
-                                    invisible="work_entry_type_request_unit != 'half_day'"/>
+                                <field name="request_date_from_period" nolabel="1" readonly="state != 'confirm'"/>
                                 <i class="oi" data-icon="east" aria-label="to" title="To"/>
-                                <field name="request_date_to_period" nolabel="1" readonly="state != 'confirm'"
-                                    invisible="work_entry_type_request_unit != 'half_day'"/>
+                                <field name="request_date_to_period" nolabel="1" readonly="state != 'confirm'"/>
                             </div>
                             <div class="o_hhg_pop_choice"
                                 invisible="work_entry_type_request_unit != 'half_day' or last_several_days">

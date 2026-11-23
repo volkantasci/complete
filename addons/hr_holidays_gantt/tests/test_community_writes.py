@@ -116,9 +116,8 @@ class TestTimeOffCommunityWrites(TransactionCase):
             self.shift(approved)
         self.assertEqual(self.span(approved), (date(2026, 11, 18), date(2026, 11, 18)))
         # onto the Approved request's day: the overlap error
-        with self.assertRaises(ValidationError) as caught:
+        with self.assertRaisesRegex(ValidationError, 'overlaps with this period'):
             self.shift(waiting)
-        self.assertIn('overlap', str(caught.exception).lower() + ' overlap')
         self.assertEqual(self.span(waiting), (date(2026, 11, 17), date(2026, 11, 17)))
         # a copy of a request To Approve is refused
         with self.assertRaises(UserError):
