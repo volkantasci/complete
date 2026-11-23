@@ -637,10 +637,12 @@ podman compose --env-file docker/versions.env --env-file docker/.env -f docker/c
 
 Start the server on that database with the clock started at the instant and
 running on, published on port 8069 (the server answers at
-`http://localhost:8069`). Run it in the background or in its own terminal:
+`http://localhost:8069`). The option `--max-cron-threads=0` runs no scheduled job:
+a job of an installed application can change the demo records while the server
+runs. Run it in the background or in its own terminal:
 
 ```
-podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 127.0.0.1:8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB
+podman compose --env-file docker/versions.env --env-file docker/.env -f docker/compose.yaml run --rm -p 127.0.0.1:8069:8069 -v ./tools:/mnt/instant:ro odoo python3 /mnt/instant/odoo_at_instant.py --at 2026-11-11T10:00:00 -- -d DB --max-cron-threads=0
 ```
 
 Stop it by name: `podman ps` lists the run container (its name looks like

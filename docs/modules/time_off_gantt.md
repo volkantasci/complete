@@ -388,6 +388,23 @@ open it by its address they get the same view as an Approver, with the
 Community's read rules on requests applied. An Approver in Management > Time
 Off sees the label, since the hours are read with their own rights.
 
+## Known differences
+
+- **The leave view lies 3 px lower on a wide screen.** Where the control panel shows
+  no view switcher, the search field sets the height of its row. The field is 37 px
+  tall on Complete and 34 px in the reference look, so the control bar and the grid
+  of the leave view lie 3 px lower. The field belongs to the shell (`web_enterprise`);
+  a later change of the shell can correct it.
+- **The sample rows.** With no request on the first page in the opening period, the
+  report view shows the Gantt view's sample rows: two rows named "Sample 1" and
+  "Sample 2". The reference look shows five rows with person names and a pager. The
+  sample mode is the Gantt view's own (`web_gantt`); a later polish batch can change it.
+- **Where Complete differs on purpose.** In the leave view, a request of one day or
+  less reads its duration alone on the Month and Quarter ranges, whatever the search
+  holds. On a phone, the leave view's control bar takes two lines and no control lies
+  over the grid. And until the releases that open, move and create leaves in these
+  views, the pointer keeps its default shape over a pill and over an empty cell.
+
 ## Verifying with demo data
 
 The Community's Time Off demo leaves are placed around the day of installation, so
