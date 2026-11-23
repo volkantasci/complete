@@ -1,6 +1,6 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessError
@@ -199,10 +199,17 @@ class TestCardData(TransactionCase):
 
     def test_card_status_reads_the_package_instant(self):
         employee = self.env['hr.employee'].create({'name': 'Toff Clock Probe'})
+        pin = datetime(2026, 11, 11, 10, 0, 5)
+        now = fields.Datetime.now()
+        if abs(now - pin) < timedelta(hours=2):
+            self.skipTest("the real now is within two hours of the pinned instant")
         today = fields.Date.context_today(employee)
-        fx.make_leave(
-            self.env, employee, fx.find_type(self.env, 'STO'),
-            today - timedelta(days=1), today + timedelta(days=1))
+        leave = fx.make_leave(self.env, employee, fx.find_type(self.env, 'STO'), today)
+        # a window around the real now that never holds the pinned instant
+        start, end = now - timedelta(hours=1), now + timedelta(hours=1)
+        leave.with_context(leave_skip_state_check=True).sudo().write(
+            {'date_from': start, 'date_to': end})
+        self.assertFalse(start <= pin <= end)
         self.env.flush_all()
         self.env.invalidate_all()
         self.assertTrue(employee.leave_date_to, "the leave in progress is read at the real now")

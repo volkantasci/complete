@@ -513,6 +513,9 @@ def pin_leave_status_clock(case, instant=datetime(2026, 11, 11, 10, 0, 5)):
     """Make the Community's leave status (``leave_date_to``, the card's "back on" line) read
     ``instant`` (a naive UTC datetime) as the server's now, for the test ``case``.
 
+    The pin moves every field of that compute (``leave_date_to``, ``leave_date_from``,
+    ``current_leave_state``, ``is_absent``), not only the card's line.
+
     The compute method of ``hr.employee`` runs the original with ``fields.Datetime.now``
     returning ``instant`` for the duration of that call only; the public employee reads the
     same compute, so the card is covered whoever reads it.
