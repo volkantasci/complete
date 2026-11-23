@@ -6,5 +6,6 @@ from . import (
     hr_leave,
     hr_leave_overview,
     hr_leave_report_calendar,
+    hr_leave_split,
     resource_calendar,
 )

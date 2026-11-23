@@ -18,6 +18,7 @@ from . import (
     test_roles,
     test_rows,
     test_screens,
+    test_split,
     test_tours,
     test_unavailability,
     test_views,

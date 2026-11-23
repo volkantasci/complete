@@ -23,6 +23,8 @@ DEMO_SCHEDULE = "40 hours/week"
 SCHEDULE_NAME = "Toff 40 hours/week"
 PEER_NAME = "Toff Peer"
 HOURS_TYPE = "Toff Hours"
+DAYS_TYPE = "Toff Days"
+ACT_NAME = "Toff Act"
 SICK_NAME = "Guaranteed monthly wage illness"
 UNPAID_NAME = "Leave without pay"
 
@@ -143,6 +145,18 @@ def make_hours_type(env):
     })
 
 
+def make_days_type(env):
+    """"Toff Days": day unit, unit of measure day, no allocation, validated by the officer,
+    no code, colour 2."""
+    found = env["hr.work.entry.type"].search([("name", "=", DAYS_TYPE)], limit=1)
+    return found or env["hr.work.entry.type"].create({
+        "name": DAYS_TYPE, "code": False, "display_code": False, "color": 2,
+        "count_as": "absence", "country_id": False, "request_unit": "day",
+        "unit_of_measure": "day", "requires_allocation": False,
+        "leave_validation_type": "hr",
+    })
+
+
 def _employee(env, name, schedule, tz=TZ, user=None, **extra):
     values = {
         "name": name,
@@ -160,13 +174,14 @@ def _employee(env, name, schedule, tz=TZ, user=None, **extra):
 
 def make_leave(
     env, employee, leave_type, first, last=None, *, duration="full", hours=None,
-    approve=True, state=None,
+    approve=True, state=None, periods=None,
 ):
     """A request of ``employee`` from ``first`` to ``last`` (dates), made by the administrator.
 
     ``duration`` is ``full``, ``am`` or ``pm`` (a half day: both periods) or ``specific`` with
     ``hours=(from, to)`` as clock hours. A request of a type validated twice is approved
-    twice; ``approve=False`` leaves it To Approve. Returns the request.
+    twice; ``approve=False`` leaves it To Approve. ``periods=(from, to)`` names the halves of
+    the first and last day of a request of several days. Returns the request.
     """
     admin = find_admin(env)
     values = {
@@ -179,6 +194,8 @@ def make_leave(
     if duration in ("am", "pm"):
         values["request_date_from_period"] = duration
         values["request_date_to_period"] = duration
+    if periods:
+        values["request_date_from_period"], values["request_date_to_period"] = periods
     if duration == "specific":
         values["request_hour_from"], values["request_hour_to"] = hours
     leave = env["hr.leave"].with_user(admin).create(values)
@@ -313,6 +330,45 @@ def make_flexible(env, schedule=None):
         make_leave(env, employee, hours, date(2026, 11, 18), duration="specific", hours=(9, 13))
     env.flush_all()
     return made
+
+
+def set_waiting(env, leave):
+    """Put ``leave`` To Approve by hand (the Community refuses to reset a request whose day
+    has passed), without its resource leave."""
+    leave.sudo().write({"state": "confirm"})
+    env["resource.calendar.leaves"].sudo().search([("holiday_id", "=", leave.id)]).unlink()
+    env.flush_all()
+    return leave
+
+
+def make_split_state(env, schedule=None):
+    """The *split* records: "Toff Act" with STO Approved from Monday 16 to Wednesday 18
+    November; returns the request."""
+    schedule = schedule or find_schedule(env)
+    employee = env["hr.employee"].search([("name", "=", ACT_NAME)], limit=1)
+    employee = employee or _employee(env, ACT_NAME, schedule)
+    leave = make_leave(env, employee, find_type(env, "STO"), date(2026, 11, 16), date(2026, 11, 18))
+    env.flush_all()
+    return leave
+
+
+def make_units_state(env, schedule=None):
+    """The *units* records: type "Toff Hours"; "Toff Act" with STO To Approve from Monday 16
+    afternoon to Wednesday 18 morning and Toff Hours To Approve on Thursday 19, 9:00 to 13:00.
+    Returns ``(half-day request, hours request)``."""
+    schedule = schedule or find_schedule(env)
+    employee = env["hr.employee"].search([("name", "=", ACT_NAME)], limit=1)
+    employee = employee or _employee(env, ACT_NAME, schedule)
+    half = make_leave(
+        env, employee, find_type(env, "STO"), date(2026, 11, 16), date(2026, 11, 18),
+        periods=("pm", "am"), approve=False)
+    hours = make_leave(
+        env, employee, make_hours_type(env), date(2026, 11, 19), duration="specific",
+        hours=(9, 13), approve=False)
+    set_waiting(env, half)
+    set_waiting(env, hours)
+    env.flush_all()
+    return half, hours
 
 
 def make_states(env, schedule=None):
