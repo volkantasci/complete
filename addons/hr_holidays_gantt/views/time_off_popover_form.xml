@@ -1,0 +1,83 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <!-- The body of the leave popover (R4): a two-column form, a label icon per line and its
+         value. Priority 120, so the requests' default form stays the Community's. The footer's
+         buttons read the invisible fields; the classes o_hhg_pop_* are styled by the popover. -->
+    <record id="hr_leave_gantt_multi_create_view" model="ir.ui.view">
+        <field name="name">time off popover form</field>
+        <field name="model">hr.leave</field>
+        <field name="type">form</field>
+        <field name="priority">120</field>
+        <field name="arch" type="xml">
+            <form string="Time Off" create="0" duplicate="0">
+                <field name="state" invisible="1"/>
+                <field name="employee_id" invisible="1"/>
+                <field name="duration_display" invisible="1"/>
+                <field name="can_approve" invisible="1"/>
+                <field name="can_validate" invisible="1"/>
+                <field name="can_refuse" invisible="1"/>
+                <field name="can_back_to_approve" invisible="1"/>
+                <field name="request_date_from_period" invisible="1"/>
+                <field name="request_date_to_period" invisible="1"/>
+                <field name="request_hour_from" invisible="1"/>
+                <field name="request_hour_to" invisible="1"/>
+                <field name="date_from" invisible="1"/>
+                <field name="date_to" invisible="1"/>
+                <field name="allowed_work_entry_type_ids" invisible="1"/>
+                <field name="work_entry_type_request_unit" invisible="1"/>
+                <field name="last_several_days" invisible="1"/>
+                <field name="allowed_request_durations" invisible="1"/>
+                <div class="o_hhg_pop_body">
+                    <div class="o_hhg_pop_line o_hhg_pop_type d-flex gap-2">
+                        <i class="o_hhg_pop_icon oi oi-lg align-self-center" data-icon="label" title="Time Off Type"/>
+                        <field name="work_entry_type_id" nolabel="1" force_save="1" default_focus="1"
+                            widget="many2one_work_entry_type"
+                            domain="[('id', 'in', allowed_work_entry_type_ids), ('time_off_selectable', '=', True)]"
+                            context="{'employee_id': employee_id, 'default_date_from': date_from, 'default_date_to': date_to, 'leave_date_from': date_from}"
+                            readonly="state != 'confirm'"
+                            options="{'no_create': True, 'no_open': False, 'request_type': 'leave'}"/>
+                    </div>
+                    <div class="o_hhg_pop_line o_hhg_pop_dates d-flex gap-2">
+                        <i class="o_hhg_pop_icon oi oi-lg align-self-center" data-icon="schedule" title="Dates"/>
+                        <div class="o_hhg_pop_dates_value">
+                            <div class="o_hhg_pop_hours" invisible="work_entry_type_request_unit != 'hour'">
+                                <field name="number_of_hours" widget="float_time" nolabel="1"
+                                    readonly="state != 'confirm'"/>
+                            </div>
+                            <div class="o_hhg_pop_halves d-flex gap-2"
+                                invisible="work_entry_type_request_unit != 'half_day' or not last_several_days">
+                                <field name="request_date_from_period" nolabel="1" readonly="state != 'confirm'"
+                                    invisible="work_entry_type_request_unit != 'half_day'"/>
+                                <i class="oi" data-icon="east" aria-label="to" title="To"/>
+                                <field name="request_date_to_period" nolabel="1" readonly="state != 'confirm'"
+                                    invisible="work_entry_type_request_unit != 'half_day'"/>
+                            </div>
+                            <div class="o_hhg_pop_choice"
+                                invisible="work_entry_type_request_unit != 'half_day' or last_several_days">
+                                <field name="request_duration" nolabel="1" required="1"
+                                    readonly="state != 'confirm'"
+                                    widget="selection_badge_with_filter"
+                                    options="{'allowed_selection_field': 'allowed_request_durations'}"/>
+                            </div>
+                            <div class="o_hhg_pop_days d-flex gap-1 text-muted"
+                                invisible="work_entry_type_request_unit == 'hour' or (work_entry_type_request_unit == 'half_day' and not last_several_days)">
+                                <field name="number_of_days" readonly="1" nolabel="1" class="w-auto"/>
+                                <span class="text-nowrap">day(s)</span>
+                            </div>
+                            <div class="o_hhg_pop_warning alert alert-danger mb-0 mt-1" role="alert"
+                                invisible="not allocation_display_warning">
+                                <field name="allocation_display_warning" nolabel="1"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="o_hhg_pop_line o_hhg_pop_note d-flex gap-2">
+                        <i class="o_hhg_pop_icon oi oi-lg oi-filled align-self-center" data-icon="edit" title="Description"/>
+                        <field name="name" nolabel="1" widget="text" readonly="state != 'confirm'"
+                            placeholder="Add a note if you like" rows="2"/>
+                    </div>
+                </div>
+            </form>
+        </field>
+    </record>
+</odoo>

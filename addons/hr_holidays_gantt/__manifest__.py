@@ -14,6 +14,7 @@
     'installable': True,
     'data': [
         'views/time_off_gantt_views.xml',
+        'views/time_off_popover_form.xml',
         'data/time_off_actions.xml',
     ],
     'assets': {

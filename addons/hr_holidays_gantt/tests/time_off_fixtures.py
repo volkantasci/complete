@@ -10,7 +10,7 @@ The requests are created and approved as the administrator (``base.user_admin``)
 the Time Off administrator group here (made so when the database lacks it).
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest import mock
 
 from odoo import fields
@@ -224,6 +224,20 @@ def approve_leave(env, leave, once=False):
     return leave
 
 
+def drop_leaves(env):
+    """Delete every request and allocation of the employees named "Toff ..." (as the
+    administrator); returns those employees (archived too)."""
+    admin = find_admin(env)
+    employees = env["hr.employee"].with_context(active_test=False).search(
+        [("name", "=like", PREFIX + "%")])
+    env["hr.leave"].with_context(active_test=False).with_user(admin).search(
+        [("employee_id", "in", employees.ids)]).unlink()
+    env["hr.leave.allocation"].with_context(
+        active_test=False, allocation_skip_state_check=True).with_user(admin).search(
+        [("employee_id", "in", employees.ids)]).unlink()
+    return employees
+
+
 def drop_time_off_records(env):
     """Delete the prepared records by name (acceptance.md, "Prepared records").
 
@@ -231,16 +245,7 @@ def drop_time_off_records(env):
     too), the users whose login begins with "toff_", the schedules and leave types named
     "Toff ...".
     """
-    admin = find_admin(env)
-    employees = env["hr.employee"].with_context(active_test=False).search(
-        [("name", "=like", PREFIX + "%")])
-    leaves = env["hr.leave"].with_context(active_test=False).with_user(admin).search(
-        [("employee_id", "in", employees.ids)])
-    leaves.unlink()
-    allocations = env["hr.leave.allocation"].with_context(
-        active_test=False, allocation_skip_state_check=True).with_user(admin).search(
-        [("employee_id", "in", employees.ids)])
-    allocations.unlink()
+    employees = drop_leaves(env)
     users = env["res.users"].with_context(active_test=False).search(
         [("login", "=like", "toff\\_%")])
     employees.unlink()
@@ -289,7 +294,43 @@ def make_role_users(env, schedule=None):
     peer = _employee(env, PEER_NAME, schedule, parent_id=manager.id)
     peer.leave_manager_id = users["toff_approver"]
     env.flush_all()
+    check_role_groups(env, users)
     return users
+
+
+# login -> the Time Off groups the user holds (acceptance "Users", A67)
+_TIME_OFF_GROUPS = {
+    "employee": "hr_holidays.group_hr_holidays_employee",
+    "responsible": "hr_holidays.group_hr_holidays_responsible",
+    "officer": "hr_holidays.group_hr_holidays_user",
+    "admin": "hr_holidays.group_hr_holidays_manager",
+}
+ROLE_GROUPS = {
+    "toff_none": (),
+    "toff_emp": ("employee",),
+    "toff_approver": ("employee", "responsible"),
+    "toff_manager": ("employee",),
+    "toff_officer": ("employee", "responsible", "officer"),
+    "toff_admin": ("employee", "responsible", "officer", "admin"),
+}
+
+
+def check_role_groups(env, users):
+    """Raise ``AssertionError`` when a role user's Time Off groups, internal group or export
+    group differ from the table of the acceptance's "Users"."""
+    problems = []
+    for login, expected in ROLE_GROUPS.items():
+        user = users[login]
+        held = {
+            key for key, xmlid in _TIME_OFF_GROUPS.items() if user.has_group(xmlid)}
+        if held != set(expected):
+            problems.append(f"{login}: Time Off groups {sorted(held)}, expected {sorted(expected)}")
+        if not user.has_group("base.group_user"):
+            problems.append(f"{login}: not an internal user")
+        if user.has_group("base.group_allow_export") != (login in EXPORTERS):
+            problems.append(f"{login}: export group differs")
+    if problems:
+        raise AssertionError("role users' groups differ: " + "; ".join(problems))
 
 
 def make_peer_band_records(env):
@@ -369,6 +410,182 @@ def make_units_state(env, schedule=None):
     set_waiting(env, hours)
     env.flush_all()
     return half, hours
+
+
+def _act_employee(env, schedule=None):
+    found = env["hr.employee"].search([("name", "=", ACT_NAME)], limit=1)
+    return found or _employee(env, ACT_NAME, schedule or find_schedule(env))
+
+
+def _named(env, name):
+    found = env["hr.employee"].search([("name", "=", name)], limit=1)
+    if not found:
+        raise AssertionError(f"employee {name!r} missing: call make_role_users first")
+    return found
+
+
+def to_approve(env, leave):
+    """``leave`` (Approved at creation) put To Approve, as the administrator would."""
+    return set_waiting(env, leave)
+
+
+def make_waiting(env, employee, leave_type, first, last=None, **kwargs):
+    """A request To Approve of ``employee``."""
+    return to_approve(env, make_leave(env, employee, leave_type, first, last, **kwargs))
+
+
+def make_second_approval(env, employee, first, last=None):
+    """A request of "Leave without pay" (validated twice) at Second Approval."""
+    leave = make_waiting(env, employee, find_type(env, "UN"), first, last)
+    approve_leave(env, leave, once=True)
+    return leave
+
+
+def make_refused(env, employee, leave_type, first, last=None):
+    """A request of ``employee`` refused by the administrator while To Approve."""
+    leave = make_waiting(env, employee, leave_type, first, last)
+    leave.with_user(find_admin(env)).action_refuse()
+    return leave
+
+
+def make_four_states(env, employee, first):
+    """STO To Approve on ``first``, UN at Second Approval the day after, STO Approved the day
+    after that and STO Refused on the fourth day; ``{state: request}``."""
+    day = [first + timedelta(days=n) for n in range(4)]
+    sick = find_type(env, "STO")
+    return {
+        "confirm": make_waiting(env, employee, sick, day[0]),
+        "validate1": make_second_approval(env, employee, day[1]),
+        "validate": make_leave(env, employee, sick, day[2]),
+        "refuse": make_refused(env, employee, sick, day[3]),
+    }
+
+
+def make_act_state(env, schedule=None):
+    """*act*: "Toff Act" with STO To Approve on Wednesday 18 November, UN at Second Approval
+    on Thursday 19 and STO Approved on Friday 20; ``{"employee", "confirm", "validate1",
+    "validate"}``."""
+    employee = _act_employee(env, schedule)
+    made = {
+        "employee": employee,
+        "confirm": make_waiting(env, employee, find_type(env, "STO"), date(2026, 11, 18)),
+        "validate1": make_second_approval(env, employee, date(2026, 11, 19)),
+        "validate": make_leave(env, employee, find_type(env, "STO"), date(2026, 11, 20)),
+    }
+    env.flush_all()
+    return made
+
+
+def make_move_state(env, schedule=None):
+    """*move*: "Toff Act" with STO To Approve on Monday 16 and STO Approved on Wednesday 18
+    November; ``{"employee", "confirm", "validate"}``."""
+    employee = _act_employee(env, schedule)
+    sick = find_type(env, "STO")
+    made = {
+        "employee": employee,
+        "confirm": make_waiting(env, employee, sick, date(2026, 11, 16)),
+        "validate": make_leave(env, employee, sick, date(2026, 11, 18)),
+    }
+    env.flush_all()
+    return made
+
+
+def make_emp_state(env):
+    """*emp* (roles made): Toff Role Emp with STO To Approve on Wednesday 18 and STO Approved
+    on Thursday 19, Toff Peer with STO To Approve on Friday 20 November; ``{"emp_confirm",
+    "emp_validate", "peer_confirm"}``."""
+    emp, peer = _named(env, ROLES["toff_emp"][0]), _named(env, PEER_NAME)
+    sick = find_type(env, "STO")
+    made = {
+        "emp_confirm": make_waiting(env, emp, sick, date(2026, 11, 18)),
+        "emp_validate": make_leave(env, emp, sick, date(2026, 11, 19)),
+        "peer_confirm": make_waiting(env, peer, sick, date(2026, 11, 20)),
+    }
+    env.flush_all()
+    return made
+
+
+def make_types_state(env):
+    """*types* (roles made): 10 days of CTO allocated to Toff Peer, approved; Toff Peer with
+    CTO To Approve on Monday 16, UN To Approve on Tuesday 17 and STO To Approve on Wednesday
+    18 November; ``{"allocation", "cto", "un", "sto"}``."""
+    peer = _named(env, PEER_NAME)
+    cto = find_type(env, "CTO")
+    _allocate(env, peer, cto, 10)
+    made = {
+        "allocation": env["hr.leave.allocation"].search([
+            ("employee_id", "=", peer.id), ("work_entry_type_id", "=", cto.id)], limit=1),
+        "cto": make_waiting(env, peer, cto, date(2026, 11, 16)),
+        "un": make_waiting(env, peer, find_type(env, "UN"), date(2026, 11, 17)),
+        "sto": make_waiting(env, peer, find_type(env, "STO"), date(2026, 11, 18)),
+    }
+    env.flush_all()
+    return made
+
+
+def make_matrix_state(env, login, first=date(2026, 11, 16), peer_first=None):
+    """*matrix* (roles made): for the role user's own employee (``login``) and Toff Peer, the
+    four states of ``make_four_states`` from Monday 16 November (``first``; Toff Peer from
+    ``peer_first`` when given), and for the own employee also STO on Friday 20 (``first`` + 4),
+    Approved then cancelled by the role user.
+
+    Returns ``{"own": {state: request}, "peer": {state: request}}`` with the cancelled request
+    as ``own["cancel"]``.
+    """
+    own = _named(env, ROLES[login][0])
+    peer = _named(env, PEER_NAME)
+    made = {
+        "own": make_four_states(env, own, first),
+        "peer": make_four_states(env, peer, peer_first or first),
+    }
+    cancelled = make_leave(env, own, find_type(env, "STO"), first + timedelta(days=4))
+    cancelled.with_user(users_of(env)[login])._action_user_cancel("Toff cancelled")
+    made["own"]["cancel"] = cancelled
+    env.flush_all()
+    return made
+
+
+def users_of(env):
+    """The role users by login."""
+    found = env["res.users"].with_context(active_test=False).search(
+        [("login", "in", list(ROLES))])
+    return {user.login: user for user in found}
+
+
+def make_alloc_state(env, schedule=None):
+    """*alloc*: "Toff Act" with 2 days of CTO allocated from 1 January 2026, approved; CTO To
+    Approve on Monday 16 and Tuesday 17 November (one request of 2 days, the whole balance) and
+    STO Approved on Thursday 19; ``{"employee", "allocation", "cto", "sto"}``."""
+    employee = _act_employee(env, schedule)
+    cto = find_type(env, "CTO")
+    _allocate(env, employee, cto, 2)
+    made = {
+        "employee": employee,
+        "allocation": env["hr.leave.allocation"].search([
+            ("employee_id", "=", employee.id), ("work_entry_type_id", "=", cto.id)], limit=1),
+        "cto": make_waiting(env, employee, cto, date(2026, 11, 16), date(2026, 11, 17)),
+        "sto": make_leave(env, employee, find_type(env, "STO"), date(2026, 11, 19)),
+    }
+    env.flush_all()
+    return made
+
+
+def past_day(env):
+    """The last working day (Monday to Friday of the 40 hours schedule) before the server's
+    day (``fields.Date.context_today``)."""
+    day = fields.Date.context_today(env["hr.leave"]) - timedelta(days=1)
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day
+
+
+def make_past_state(env):
+    """*past* (roles made): Toff Role Emp with STO To Approve on the server's day minus one
+    working day; ``{"emp_past": request}``."""
+    emp = _named(env, ROLES["toff_emp"][0])
+    made = {"emp_past": make_waiting(env, emp, find_type(env, "STO"), past_day(env))}
+    env.flush_all()
+    return made
 
 
 def make_states(env, schedule=None):
