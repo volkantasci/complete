@@ -4,25 +4,31 @@
 
 The browser inherits the time zone of the test process, pinned to UTC here, and the records are
 built around the date of that zone with a zero offset, so the browser and the records agree on
-what today is. A scenario that changes the database runs inside the test's own savepoint, which
-is rolled back after it: every test starts from the records of `setUpClass`.
+what today is: D0, the instant the browser's clock starts at. A scenario that changes the
+database runs inside the test's own savepoint, which is rolled back after it: every test starts
+from the records of `setUpClass`.
 """
 import os
 import time
 from datetime import datetime, timedelta
 
-from odoo import Command, fields
+from odoo import Command
 from odoo.tests import HttpCase, tagged
+
+from .timeline_real_pointer import RealPointerMixin
 
 HOST_ACTION = '/odoo/action-test_web_gantt.host_action_{}'
 PILL = 'test.web.gantt.pill'
 DESKTOP = '1600x900'
 PHONE = '390x844'
+# 002b's D0: Thursday 12 November 2026, 09:00, as the captures' browser clock (this process runs
+# in UTC; the browser's clock moves to D0 and runs on from there)
+D0 = datetime(2026, 11, 12, 9, 0)
 RESTRICTED = 'restricted_editor'
 
 
 @tagged('post_install', '-at_install')
-class TestTimelineEditTours(HttpCase):
+class TestTimelineEditTours(RealPointerMixin, HttpCase):
 
     @classmethod
     def setUpClass(cls):
@@ -43,7 +49,7 @@ class TestTimelineEditTours(HttpCase):
         # the demo data (when loaded) holds the same records: start from a clean host
         pill.with_context(active_test=False).search([]).unlink()
         cls.env['test.web.gantt.pill2'].with_context(active_test=False).search([]).unlink()
-        cls.today = fields.Date.today()
+        cls.today = D0.date()
         cls.records = pill._tl_build_host_records(today=cls.today, tz_offset_hours=0)
         cls.restricted = cls.env['res.users'].create({
             'name': 'Restricted editor',
@@ -64,7 +70,7 @@ class TestTimelineEditTours(HttpCase):
         self.browser_size = size
         self.touch_enabled = touch
         path = host if host.startswith('/') else HOST_ACTION.format(host)
-        self.start_tour(path, name, login=login)
+        self.start_tour_with_pointer(path, name, login=login, now=D0)
 
     def _at(self, days, clock='00:00'):
         """The datetime (UTC) of `clock` on the day `days` after today."""
