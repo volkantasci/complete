@@ -161,3 +161,100 @@
         margin-top: auto;
     }
 }
+
+// R21 points 2 and 3: on the sheet the header is 28.2 px (a 16 px title on a 19.2 px line with 4 px
+// above and below, and the border), the form stacks every label icon and every value in a box of
+// its own, as wide as the sheet allows, and the footer takes the 37 px buttons of the touch size
+.o_hhg_pop.o_hhg_pop_sheet {
+    .o_hhg_pop_title {
+        font-size: 16px;
+        line-height: 19.2px;
+    }
+
+    // the form's own paddings leave the sheet's width to the body's 16 px
+    .o_form_renderer,
+    .o_form_nosheet {
+        padding-inline: 0;
+    }
+
+    .o_hhg_pop_body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .o_hhg_pop_line {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px !important;
+        min-height: 0;
+
+        // the label icon: a box of its own above the value
+        .o_hhg_pop_icon,
+        .o_hhg_pop_iconcol {
+            align-self: stretch !important;
+        }
+
+        .o_hhg_pop_iconcol {
+            display: flex;
+            align-items: center;
+            min-height: 46px;
+            padding: 0 12px;
+            border: 1px solid $border-color;
+            border-radius: $border-radius;
+        }
+
+        > .o_hhg_pop_icon {
+            display: flex;
+            align-items: center;
+            min-height: 46px;
+            padding: 0 12px;
+            border: 1px solid $border-color;
+            border-radius: $border-radius;
+        }
+
+        // the value: a box of its own, the width of the sheet less the form's padding
+        .o_hhg_pop_dates_value,
+        > .o_field_widget {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid $border-color;
+            border-radius: $border-radius;
+        }
+    }
+
+    // the description's area is 50 px tall, its border included
+    .o_hhg_pop_note > .o_field_widget {
+        padding: 0;
+        height: 50px;
+        min-height: 0;
+        max-height: 50px;
+        overflow-y: auto;
+        box-sizing: border-box;
+
+        textarea {
+            display: block;
+            width: 100%;
+            // the field sets its height by the text's (an inline style)
+            height: 48px !important;
+            min-height: 48px;
+            padding: 8px 12px;
+            border: 0;
+            resize: none;
+        }
+
+        .o_field_text,
+        span {
+            display: block;
+            padding: 8px 12px;
+        }
+    }
+
+    .o_hhg_pop_footer {
+        .o_hhg_pop_button {
+            padding: 7px 12px;
+            font-size: 14px;
+            line-height: 21px;
+        }
+    }
+}

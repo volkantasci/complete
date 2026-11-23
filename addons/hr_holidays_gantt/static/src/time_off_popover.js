@@ -1,9 +1,20 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Component, onWillStart, signal, t, untrack, useProps } from "@odoo/owl";
+import {
+    Component,
+    onMounted,
+    onWillStart,
+    onWillUnmount,
+    signal,
+    t,
+    untrack,
+    useProps,
+    useScope,
+} from "@odoo/owl";
+import { isMobileOS } from "@web/core/browser/feature_detection";
 import { useSubEnv } from "@web/owl2/utils";
 import { _t } from "@web/core/l10n/translation";
-import { useService } from "@web/core/utils/hooks";
+import { BackButtonManager, useService } from "@web/core/utils/hooks";
 import { View } from "@web/views/view";
 import { POPOVER_FORM_CLASS } from "./time_off_popover_form";
 
@@ -60,6 +71,22 @@ export class TimeOffLeavePopover extends Component {
         // the footer follows the record (its state, its flags, a pending change): the form tells
         // when the record loads or changes (`onRecordState`), and the buttons are worked out then
         this.footerShown = signal([]);
+        this.useSheetBack();
+    }
+
+    /**
+     * R21 point 4: the device's Back closes the sheet and stays on the view. The framework's popover
+     * does it by itself on a mobile operating system (its back-button hook); a small window of
+     * another system gets the same trap of the history here (the framework's own manager).
+     */
+    useSheetBack() {
+        if (!this.ui.isSmall || isMobileOS()) {
+            return;
+        }
+        const manager = new BackButtonManager();
+        const scope = useScope();
+        onMounted(() => manager.addListener(scope, () => this.props.close()));
+        onWillUnmount(() => manager.removeListener(scope));
     }
 
     /** The record has loaded or changed: the footer's buttons follow it (R6). */
