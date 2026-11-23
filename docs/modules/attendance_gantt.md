@@ -504,6 +504,33 @@ validated) shows the Community's access error and the pill goes back.
 Every image above also exists in a dark variant (suffix `-dark`) and, for most, a
 phone variant (suffix `.mobile`) in `docs/assets/attendance_gantt/`.
 
+## What Time Off changes in the attendance views
+
+When the Time Off application and the [Time Off Timeline](time_off_gantt.md)
+module are installed too, the attendance views change in three places, with the
+Community's own computations.
+
+- **Validated leaves grey their days.** The days of an employee's approved leave
+  are grey, as a company-wide leave is. A request that waits for approval does
+  not grey anything. On the Week range, for example, an employee away from the
+  16th to the 18th has those three days grey.
+- **The hours expected subtract the validated leaves**, for an employee whose
+  schedule is **not flexible**: the label of someone with two approved days of 8
+  hours on a 40-hour week reads "0h / 24h" instead of "0h / 40h". For a
+  **flexible** schedule the hours expected are those of the formula above and do
+  not subtract leaves.
+- **Leaves of flexible schedules by their unit.** Such an employee has no grey
+  day of their own, but an approved leave greys what it covers: a leave in half
+  days, the morning or the afternoon it names; a leave in hours, the whole days
+  when its hours equal the schedule's hours per day, the morning or the
+  afternoon when they equal half of it; a leave in days, whole days. On the
+  attendance scales, which are finer than a day, a morning greys the two
+  morning quarters of the day, and a leave from 9:00 to 13:00 greys nothing.
+
+![A flexible schedule's leave in the attendances, light](../assets/time_off_gantt/11-flex-att.png)
+
+![A week with leaves greyed, light](../assets/time_off_gantt/14-att-week.png)
+
 ## Known differences
 
 - **The phone dialog's left line.** On a Complete dialog at 390 x 844, in light

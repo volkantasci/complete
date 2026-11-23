@@ -15,14 +15,19 @@ from datetime import time as clock
 from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
 
+from .timeline_real_pointer import RealPointerMixin
+
 HOST_ACTION = '/odoo/action-test_web_gantt.host_action_{}'
 PILL = 'test.web.gantt.pill'
 DESKTOP = '1600x900'
+# 002b2's D0: Thursday 12 November 2026, 09:00, as the captures' browser clock (this process runs
+# in UTC; the browser's clock moves to D0 and runs on from there)
+D0 = datetime(2026, 11, 12, 9, 0)
 RESTRICTED = 'restricted_editor'
 
 
 @tagged('post_install', '-at_install')
-class TestTimelineDragTours(HttpCase):
+class TestTimelineDragTours(RealPointerMixin, HttpCase):
 
     @classmethod
     def setUpClass(cls):
@@ -61,11 +66,15 @@ class TestTimelineDragTours(HttpCase):
 
     # -- helpers --------------------------------------------------------------------------------
 
-    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False):
+    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False, now=None):
+        """``now`` moves the browser's clock to that instant (UTC), which then runs on."""
         self.browser_size = size
         self.touch_enabled = touch
         path = host if host.startswith('/') else HOST_ACTION.format(host)
-        self.start_tour(path, name, login=login)
+        if now is None:
+            self.start_tour(path, name, login=login)
+        else:
+            self.start_tour_with_pointer(path, name, login=login, now=now)
 
     # -- notes on 002a and 002b -----------------------------------------------------------------
 
@@ -76,7 +85,8 @@ class TestTimelineDragTours(HttpCase):
 
     def test_a64_tour_scroll_moves_focus(self):
         count = self.env[PILL].search_count([])
-        self._tour('h1', 'timeline_002b2_a64_scroll_moves_focus')
+        # the browser's clock starts at D0 so that the tour runs from the same day every time
+        self._tour('h1', 'timeline_002b2_a64_scroll_moves_focus', now=D0)
         self.assertEqual(self.env[PILL].search_count([]), count)
 
     # -- the chain of empty-value rows (R26) ------------------------------------------------------

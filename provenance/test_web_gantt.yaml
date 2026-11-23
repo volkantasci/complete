@@ -1,13 +1,13 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: test_web_gantt
-slice: 002d2-gantt-hr-rows
-spec_sha256: 531f2a1a433e63c90527b3fe8f107686cbec87bb2a7c29f74faebe8c96d9dad8
+slice: 002e-gantt-time-off-views
+spec_sha256: 753c83efe0bdbd592676bca359b13733608f5c95003e5788441c0beba14effcf
 ee_build: "20261106"
 implementer_sessions:
-  - fbc3ec68-523e-47b0-b762-5c3b59290154
-verifier_session: abfbad46-0435-47d4-995a-099e15be464e
-analyst_session: 8411299d-5158-4d5e-949c-85d54cb37991
+  - df26cba6-048f-42c9-b2f0-fc62c857a754
+verifier_session: 8d1f151c-8560-45a5-85cc-8aea5b89dc7f
+analyst_session: a6ecb2cc-95e9-438f-a697-3817ebddcdb8
 overlap:
   ratio: 0.0044
   longest_run: 2
@@ -201,21 +201,236 @@ overlap:
     - file: addons/test_web_gantt/tests/test_note_tours.py
       line: 209
       reason: "generic test idiom: a one-line sub-test of Python's standard test library"
-audit_log_sha256: ec4b4da85ca4af07154114159351fca3e1cd3500f42733d5806d3e45f5e6e272
+audit_log_sha256: c8ec4b07ba487d73ebf65f794f01e66c706167cb335bd8e24213f73d85d3f405
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-18"
-  implemented: "2026-11-19"
-  verified: "2026-11-19"
+  spec_approved: "2026-11-21"
+  implemented: "2026-11-22"
+  verified: "2026-11-23"
 approvals:
   - "owner: split the Gantt view into five parts at CP-scope (2026-11-11)"
-  - "owner: at the analyst's scope check, split the fourth part, the bridges, into two (2026-11-16)"
-  - "owner: at the analyst's scope check of the second of those two, split it into two again, of which this is the first: the employee rows and the attendance display (2026-11-18)"
-  - "owner: spec approved at CP-spec with decisions D1-D3, and with the two original module names that the spec requires for database compatibility, hr_gantt and hr_attendance_gantt (2026-11-18)"
-  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-18)"
-  - "owner: decided D4-D6 on the questions that the analyst's answers raised (2026-11-18)"
-  - "owner: verification round 1 passed with every scenario, 72 of 72, and no rework; release approved at CP-release, the overlap matches accepted, with the nine of the two new modules among them; the polish item P1 (the available quarters of a quarter-shaded cell on the week range are not painted) moved into the next slice, which extends the same module; the polish item P2 (1.66 px at the top of the phone's empty-view helper, from the shell's phone control panel) left for a later batch; the polish item P3 (a box of the row header that draws nothing) accepted as a known difference (2026-11-19)"
+  - "owner: at the analyst's scope check of the fifth part, the Gantt views of Time Off, split it into three, of which this is the first: what the views show and who reaches them (2026-11-21)"
+  - "owner: spec approved at CP-spec with decisions D1-D2 and the technical name hr_holidays_gantt, which the spec requires for compatibility (2026-11-21)"
+  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-22)"
+  - "owner: decided D3 on the question that the analyst's answers raised (2026-11-22)"
+  - "owner: after verification round 1, which passed 89 of 94 scenarios and found three rework items (a text colour of the employee card in dark, the separator line of the phone's control bar, and the header line of the exported file), decided at CP-release that the analyst corrects the package, the implementer reworks, the pointer over an input that waits shows no hand until the later parts ship (P1), the polish item P2 (the sample rows of an empty report) is left for a later batch, a tour of slice 002b2 that read the real day is fixed in test_web_gantt, and the slice is released if round 2 passes with no new difference and no new overlap match; accepted the overlap matches of round 1 (2026-11-22)"
+  - "verification round 2 passed with every scenario of the corrected package, 95 of 95, with no new difference and no new overlap match (2026-11-23)"
+  - "owner: approved the release under the condition that the owner set at CP-release after round 1: round 2 passed with no new difference and no new overlap match (2026-11-23)"
 earlier_slices:
+  - slice: 002d2-gantt-hr-rows
+    spec_sha256: 531f2a1a433e63c90527b3fe8f107686cbec87bb2a7c29f74faebe8c96d9dad8
+    ee_build: "20261106"
+    implementer_sessions:
+      - fbc3ec68-523e-47b0-b762-5c3b59290154
+    verifier_session: abfbad46-0435-47d4-995a-099e15be464e
+    analyst_session: 8411299d-5158-4d5e-949c-85d54cb37991
+    overlap:
+      ratio: 0.0044
+      longest_run: 2
+      reviewed_matches:
+        - file: addons/test_web_gantt/data/host_fields.xml
+          line: 15
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 32
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 49
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 66
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 83
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 100
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 117
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 134
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 151
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 173
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 191
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 207
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 224
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 241
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 259
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 455
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 464
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 473
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 482
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 491
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 500
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 509
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 518
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 527
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 535
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 544
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 553
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 562
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 571
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 580
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 589
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 713
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 722
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 731
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 739
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 748
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 757
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 771
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 780
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 789
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 798
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 808
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 818
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 884
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 893
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 902
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 911
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 919
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 928
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 936
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 945
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 954
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/data/host_views.xml
+          line: 968
+          reason: prescribed by acceptance.md, only framework form
+        - file: addons/test_web_gantt/models/test_pills.py
+          line: 32
+          reason: database compatibility (model.md)
+        - file: addons/test_web_gantt/models/test_pills.py
+          line: 38
+          reason: database compatibility (model.md)
+        - file: addons/test_web_gantt/models/test_pills.py
+          line: 41
+          reason: database compatibility (model.md)
+        - file: addons/test_web_gantt/models/test_pills.py
+          line: 255
+          reason: database compatibility (model.md)
+        - file: addons/test_web_gantt/models/test_pills.py
+          line: 256
+          reason: database compatibility (model.md)
+        - file: addons/test_web_gantt/models/test_pills.py
+          line: 262
+          reason: database compatibility (model.md)
+        - file: addons/test_web_gantt/models/test_pills.py
+          line: 265
+          reason: database compatibility (model.md)
+        - file: addons/test_web_gantt/static/tests/tours/timeline_edit_tours.js
+          line: 968
+          reason: generic one-line test idiom (reads an element's bounding box)
+        - file: addons/test_web_gantt/static/tests/tours/timeline_multi_tours.js
+          line: 467
+          reason: generic one-line test idiom (reads an element's bounding box)
+        - file: addons/test_web_gantt/tests/test_note_tours.py
+          line: 209
+          reason: "generic test idiom: a one-line sub-test of Python's standard test library"
+    audit_log_sha256: ec4b4da85ca4af07154114159351fca3e1cd3500f42733d5806d3e45f5e6e272
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-18"
+      implemented: "2026-11-19"
+      verified: "2026-11-19"
+    approvals:
+      - "owner: split the Gantt view into five parts at CP-scope (2026-11-11)"
+      - "owner: at the analyst's scope check, split the fourth part, the bridges, into two (2026-11-16)"
+      - "owner: at the analyst's scope check of the second of those two, split it into two again, of which this is the first: the employee rows and the attendance display (2026-11-18)"
+      - "owner: spec approved at CP-spec with decisions D1-D3, and with the two original module names that the spec requires for database compatibility, hr_gantt and hr_attendance_gantt (2026-11-18)"
+      - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-18)"
+      - "owner: decided D4-D6 on the questions that the analyst's answers raised (2026-11-18)"
+      - "owner: verification round 1 passed with every scenario, 72 of 72, and no rework; release approved at CP-release, the overlap matches accepted, with the nine of the two new modules among them; the polish item P1 (the available quarters of a quarter-shaded cell on the week range are not painted) moved into the next slice, which extends the same module; the polish item P2 (1.66 px at the top of the phone's empty-view helper, from the shell's phone control panel) left for a later batch; the polish item P3 (a box of the row header that draws nothing) accepted as a known difference (2026-11-19)"
   - slice: 002d-gantt-event-tracks
     spec_sha256: 18af2304f78b3c68f3471d00c38b1cef835b0297b0761c3287206e2c29f7d26e
     ee_build: "20261106"

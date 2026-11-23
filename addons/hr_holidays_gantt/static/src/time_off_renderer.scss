@@ -1,0 +1,103 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// R16 point 4, M5: an explicit guard of the label's style, not a restyle: the size and the colour
+// below equal the inherited ones, written down so that the label stays small and muted at every
+// value (it never turns to the danger colour). The label has 4 px of room on its left and on its
+// right; the right edge of the line, the label's margin and the header's border leave it 9 px
+// from the header's edge.
+.o_hhg_time_off .o_tl_row_header .o_tl_progress_label {
+    padding-left: 4px;
+    margin: 0 4px 0 0;
+    font-size: 13px;
+    color: $o-main-color-muted;
+}
+
+// R18, M27 to M32: the leave band of the employee card, under the body of the card.
+.o_hhg_card_band {
+    padding: 0 16px 8px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    font-size: $o-font-size-base-small;
+
+    .o_hhg_card_head {
+        margin-top: 8px;
+    }
+
+    .o_hhg_card_schedule,
+    .o_hhg_card_version {
+        padding: 0;
+        font-size: $h5-font-size;
+        font-weight: 500;
+        border-radius: 6px;
+    }
+
+    // the pencil is a plain control: the body's colour and the base size, 24 x 23 px (M29)
+    .o_hhg_card_version {
+        padding: 0 4px;
+        font-size: $font-size-base;
+        color: inherit;
+
+        &:hover,
+        &:focus-visible {
+            color: inherit;
+        }
+    }
+
+    // M31: the time taken is the theme's dark text role at weight 500 (`#212529` in light,
+    // `#B3B4B8` in dark), not the card's own text colour, which is brighter in dark
+    .o_hhg_card_taken {
+        font-weight: 500;
+        color: $dark;
+    }
+}
+
+// R6: on the desktop the control bar of the leave view is 58 px tall whatever it holds (it keeps
+// room for the selection buttons of a later part), where the bar of the report and of the
+// attendance views follows its controls. The controls start 4.5 px below the bar's top. The
+// phone's bar keeps the framework's two lines (R23 point 1).
+.o_timeline_view.o_hhg_leave_view .o_tl_controls:not(.o_tl_controls_phone) {
+    box-sizing: border-box;
+    height: 58px;
+    padding-top: 4.5px;
+    padding-bottom: 20.5px;
+}
+
+// M76: the text of a day header is a 21 px tall box (the height of its line), centred in the 25 px
+// cell, 1 px under the cell's inner top; the other Gantt views keep the height of the glyphs.
+.o_hhg_time_off .o_tl_col:not(.o_tl_run_hover) .o_tl_col_title {
+    display: inline-block;
+    margin-top: 1px;
+    line-height: 21px;
+    vertical-align: top;
+}
+
+// D4, R22: until the later parts ship, the pointer keeps its default shape over a pill, its ends
+// and an empty cell (the frame's classes follow `hhgInputs`: they are gone once an input is on). A
+// group row and a folded cell keep their hand: their click works (002a R29).
+.o_tl_frame.o_hhg_no_pill_cursor {
+    .o_tl_pill,
+    .o_tl_pill .o_tl_handle {
+        cursor: default;
+    }
+}
+
+.o_tl_frame.o_hhg_no_cell_cursor {
+    .o_tl_row:not(.o_tl_group_row):not(.o_tl_total_row) .o_tl_cell:not(.o_tl_folded_cell) {
+        cursor: default;
+    }
+}
+
+// The text of a pill is centred in the pill (S1 to S4); the other Gantt views keep it at the start.
+.o_hhg_time_off .o_tl_pill_title {
+    text-align: center;
+}
+
+// The report has no hours label: the name may use the room the label would take (the name's own
+// 4 px and the line's 4 px on its right), so that a long name is cut where the original cuts it.
+.o_timeline_view.o_hhg_report_view .o_tl_row_header:has(.o_hrg_identity) {
+    .o_tl_row_line,
+    .o_tl_row_name {
+        padding-right: 0;
+    }
+}

@@ -1,0 +1,24 @@
+# Copyright 2026 Complete contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+from . import (
+    test_actions,
+    test_attendance_tours,
+    test_attendance_with_time_off,
+    test_card_data,
+    test_demo_leave_days,
+    test_export,
+    test_fixtures,
+    test_hoot,
+    test_hours_label,
+    test_install,
+    test_pill_text,
+    test_prepared_tours,
+    test_probes,
+    test_report_tours,
+    test_roles,
+    test_rows,
+    test_screens,
+    test_tours,
+    test_unavailability,
+    test_views,
+)

@@ -1,13 +1,13 @@
 # Copyright 2026 Complete contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 module: web_gantt
-slice: 002d3-gantt-hr-attendance-actions
-spec_sha256: b269b6a589b9e074eba44516a9db4ae2b51ecbb701a615a3549f8897c5286171
+slice: 002e-gantt-time-off-views
+spec_sha256: 753c83efe0bdbd592676bca359b13733608f5c95003e5788441c0beba14effcf
 ee_build: "20261106"
 implementer_sessions:
-  - 2a441ce1-9d29-48ea-9827-3d117faddc6c
-verifier_session: b5d0d105-fefe-4615-a7fb-e4731fb016ac
-analyst_session: 339967e2-0eae-4256-b46e-bbe3cf6661e9
+  - df26cba6-048f-42c9-b2f0-fc62c857a754
+verifier_session: 8d1f151c-8560-45a5-85cc-8aea5b89dc7f
+analyst_session: a6ecb2cc-95e9-438f-a697-3817ebddcdb8
 overlap:
   ratio: 0.0005
   longest_run: 1
@@ -36,23 +36,73 @@ overlap:
     - file: addons/web_gantt/static/tests/timeline_undo.test.js
       line: 506
       reason: generic one-line test assertion on Community names
-audit_log_sha256: 9c8675c23681b897d74e4b168d7adbb103dc756ff7ea4600ab181f1c1ab5498f
+audit_log_sha256: c8ec4b07ba487d73ebf65f794f01e66c706167cb335bd8e24213f73d85d3f405
 escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
 dates:
-  spec_approved: "2026-11-19"
-  implemented: "2026-11-20"
-  verified: "2026-11-20"
+  spec_approved: "2026-11-21"
+  implemented: "2026-11-22"
+  verified: "2026-11-23"
 approvals:
   - "owner: split the Gantt view into five parts at CP-scope (2026-11-11)"
-  - "owner: at the analyst's scope check, split the fourth part, the bridges, into two (2026-11-16)"
-  - "owner: at the analyst's scope check of the second of those two, split it into two again, of which this is the second: what a user does in the attendance views (2026-11-18)"
-  - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-19)"
-  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-20)"
-  - "owner: decided D7-D8 on the questions that the analyst's answers raised (2026-11-20)"
-  - "owner: after verification round 1, which passed 91 of 93 scenarios and found one rework item (on the phone, the empty-view helper of My Attendances hid the user's row), decided at CP-release that the analyst corrects the package, the implementer reworks, and the slice is released if round 2 passes with no new difference and no new overlap match; accepted the overlap matches of round 1 (2026-11-20)"
-  - "verification round 2 passed with every scenario of the corrected package, 95 of 95, and no rework; it reported one new polish item, P-R2-1 (on the phone, with the search bar open, the row of My Attendances lies 3 px lower than the original's, because the shell's open search field is 3 px taller), and one new overlap match, a one-line framework idiom in a test (2026-11-20)"
-  - "owner: approved the release at CP-release after round 2: the polish item P-R2-1 is left for a later batch on the shell, and the new overlap match is accepted (2026-11-20)"
+  - "owner: at the analyst's scope check of the fifth part, the Gantt views of Time Off, split it into three, of which this is the first: what the views show and who reaches them (2026-11-21)"
+  - "owner: spec approved at CP-spec with decisions D1-D2 and the technical name hr_holidays_gantt, which the spec requires for compatibility (2026-11-21)"
+  - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-22)"
+  - "owner: decided D3 on the question that the analyst's answers raised (2026-11-22)"
+  - "owner: after verification round 1, which passed 89 of 94 scenarios and found three rework items (a text colour of the employee card in dark, the separator line of the phone's control bar, and the header line of the exported file), decided at CP-release that the analyst corrects the package, the implementer reworks, the pointer over an input that waits shows no hand until the later parts ship (P1), the polish item P2 (the sample rows of an empty report) is left for a later batch, a tour of slice 002b2 that read the real day is fixed in test_web_gantt, and the slice is released if round 2 passes with no new difference and no new overlap match; accepted the overlap matches of round 1 (2026-11-22)"
+  - "verification round 2 passed with every scenario of the corrected package, 95 of 95, with no new difference and no new overlap match (2026-11-23)"
+  - "owner: approved the release under the condition that the owner set at CP-release after round 1: round 2 passed with no new difference and no new overlap match (2026-11-23)"
 earlier_slices:
+  - slice: 002d3-gantt-hr-attendance-actions
+    spec_sha256: b269b6a589b9e074eba44516a9db4ae2b51ecbb701a615a3549f8897c5286171
+    ee_build: "20261106"
+    implementer_sessions:
+      - 2a441ce1-9d29-48ea-9827-3d117faddc6c
+    verifier_session: b5d0d105-fefe-4615-a7fb-e4731fb016ac
+    analyst_session: 339967e2-0eae-4256-b46e-bbe3cf6661e9
+    overlap:
+      ratio: 0.0005
+      longest_run: 1
+      reviewed_matches:
+        - file: addons/web_gantt/models/ir_ui_view.py
+          line: 39
+          reason: interface (the Community validator calls it by name and signature)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 28
+          reason: interface (model.md; the Community view loader calls it)
+        - file: addons/web_gantt/models/timeline_base.py
+          line: 57
+          reason: interface (model.md)
+        - file: addons/web_gantt/models/timeline_reschedule.py
+          line: 128
+          reason: interface (the rollback method's name and argument, model.md)
+        - file: addons/web_gantt/models/timeline_reschedule.py
+          line: 256
+          reason: interface (the overridable step's name, model.md)
+        - file: addons/web_gantt/static/tests/timeline_connect.test.js
+          line: 636
+          reason: generic test idiom (a counting loop)
+        - file: addons/web_gantt/static/tests/timeline_controller.test.js
+          line: 404
+          reason: generic one-line test idiom
+        - file: addons/web_gantt/static/tests/timeline_undo.test.js
+          line: 506
+          reason: generic one-line test assertion on Community names
+    audit_log_sha256: 9c8675c23681b897d74e4b168d7adbb103dc756ff7ea4600ab181f1c1ab5498f
+    escape_test: "PASS: isolation-check-20261107 (isolation check evidence); the git probe and the container probe of 2026-11-07 also passed, and no isolation file has changed since 2026-11-07. Since this slice, the coordinator's notes sit outside the repository, so no search in the implementer's working tree can reach them; and every implementer session started only after a check that the local settings do not name the coordinator's directory."
+    dates:
+      spec_approved: "2026-11-19"
+      implemented: "2026-11-20"
+      verified: "2026-11-20"
+    approvals:
+      - "owner: split the Gantt view into five parts at CP-scope (2026-11-11)"
+      - "owner: at the analyst's scope check, split the fourth part, the bridges, into two (2026-11-16)"
+      - "owner: at the analyst's scope check of the second of those two, split it into two again, of which this is the second: what a user does in the attendance views (2026-11-18)"
+      - "owner: spec approved at CP-spec with decisions D1-D6 (2026-11-19)"
+      - "before verification, the analyst answered the implementer's spec questions and checked its rulings in the package, which changed its hash, in a step the owner started (2026-11-20)"
+      - "owner: decided D7-D8 on the questions that the analyst's answers raised (2026-11-20)"
+      - "owner: after verification round 1, which passed 91 of 93 scenarios and found one rework item (on the phone, the empty-view helper of My Attendances hid the user's row), decided at CP-release that the analyst corrects the package, the implementer reworks, and the slice is released if round 2 passes with no new difference and no new overlap match; accepted the overlap matches of round 1 (2026-11-20)"
+      - "verification round 2 passed with every scenario of the corrected package, 95 of 95, and no rework; it reported one new polish item, P-R2-1 (on the phone, with the search bar open, the row of My Attendances lies 3 px lower than the original's, because the shell's open search field is 3 px taller), and one new overlap match, a one-line framework idiom in a test (2026-11-20)"
+      - "owner: approved the release at CP-release after round 2: the polish item P-R2-1 is left for a later batch on the shell, and the new overlap match is accepted (2026-11-20)"
   - slice: 002d2-gantt-hr-rows
     spec_sha256: 531f2a1a433e63c90527b3fe8f107686cbec87bb2a7c29f74faebe8c96d9dad8
     ee_build: "20261106"

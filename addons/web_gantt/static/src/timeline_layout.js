@@ -210,11 +210,20 @@ export function unavailableParts(periods, columns, parts) {
     columns.forEach((column, index) => {
         const begin = column.start.toMillis();
         const length = column.stop.toMillis() - begin;
-        const covered = Array.from({ length: parts }, (_unused, part) => {
-            const from = begin + Math.round((length * part) / parts);
-            const to = begin + Math.round((length * (part + 1)) / parts);
-            return merged.some(([start, stop]) => start <= from && stop >= to);
-        });
+        const edges = Array.from({ length: parts }, (_unused, part) => [
+            begin + Math.round((length * part) / parts),
+            begin + Math.round((length * (part + 1)) / parts),
+        ]);
+        // drawn with a second of tolerance at the end: a period that ends at 23:59:59.999999 on
+        // the server arrives as 23:59:59 (datetimes travel by whole seconds)
+        const covered = edges.map(([from, to]) =>
+            merged.some(([start, stop]) => start <= from && stop + 1000 >= to)
+        );
+        // folded only when covered to the exact end (R29): a day that ends one second short
+        // is greyed whole and stays open
+        covered.exact = edges.every(([from, to]) =>
+            merged.some(([start, stop]) => start <= from && stop >= to)
+        );
         if (covered.some(Boolean)) {
             result.set(index, covered);
         }
@@ -244,7 +253,10 @@ export function foldableRuns({ columns, rowsUnavailable, pillsSubRanges, scaleId
     columns.forEach((_column, index) => {
         const low = index * parts;
         const high = low + parts;
-        const unavailable = rowsUnavailable.every((map) => map.get(index)?.every(Boolean));
+        const unavailable = rowsUnavailable.every((map) => {
+            const cell = map.get(index);
+            return cell?.every(Boolean) && cell.exact !== false;
+        });
         const touched = (pillsSubRanges || []).some(
             (range) => range.from < high && Math.max(range.to, range.from + 1) > low
         );

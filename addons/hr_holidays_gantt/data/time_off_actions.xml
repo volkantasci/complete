@@ -1,0 +1,52 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<odoo>
+    <!-- The dashboard action (the report): Gantt first, the Community calendar after it. The
+         calendar has no action view of its own, as in the Community. -->
+    <record
+        model="ir.actions.act_window"
+        id="hr_holidays.action_hr_holidays_dashboard">
+        <field name="view_mode">gantt,calendar</field>
+    </record>
+
+    <record id="hhg_dashboard_action_view_gantt" model="ir.actions.act_window.view">
+        <field name="sequence" eval="0"/>
+        <field name="view_mode">gantt</field>
+        <field name="view_id" ref="hhg_report_gantt_view"/>
+        <field name="act_window_id" ref="hr_holidays.action_hr_holidays_dashboard"/>
+    </record>
+
+    <!-- The management action: the Gantt mode comes after the Community's five. -->
+    <record
+        model="ir.actions.act_window"
+        id="hr_holidays.hr_leave_action_action_approve_department">
+        <field name="view_mode">list,kanban,form,calendar,activity,gantt</field>
+    </record>
+
+    <record id="hhg_management_action_view_gantt" model="ir.actions.act_window.view">
+        <field name="sequence" eval="6"/>
+        <field name="view_mode">gantt</field>
+        <field name="view_id" ref="hr_leave_gantt_view"/>
+        <field name="act_window_id" ref="hr_holidays.hr_leave_action_action_approve_department"/>
+    </record>
+
+    <!-- The Overview entry: the answer depends on the role of the user who opens it. -->
+    <record
+        model="ir.actions.server"
+        id="action_hr_holidays_overview">
+        <field name="name">Overview</field>
+        <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+        <field name="state">code</field>
+        <!-- every internal user may run it: without a group the server action asks the user for
+             write access on requests, and a user with no Time Off group would get that error
+             instead of the Community's access error on the report (E1) -->
+        <field name="group_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="code">action = model._hhg_overview_action()</field>
+    </record>
+
+    <record
+        model="ir.ui.menu"
+        id="hr_holidays.menu_hr_holidays_dashboard">
+        <field name="action" eval="'ir.actions.server,%d' % ref('action_hr_holidays_overview')"/>
+    </record>
+</odoo>
