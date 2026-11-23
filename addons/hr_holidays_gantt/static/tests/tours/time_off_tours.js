@@ -1132,14 +1132,23 @@ scenario("hhg_a55_grouping_removed", async () => {
 const titles = { four: "PTO 4 days", six: "PTO 6 days" };
 const ANITA_FOUR = () => pillByTitle("Anita Oliver", titles.four);
 
+/**
+ * A point on a multi-day pill away from every day border (the split tool shows within 8 px of
+ * one, R16): the middle of its first day, at its vertical centre.
+ */
+const awayPoint = (pill) => {
+    const rect = rectOf(pill);
+    return { x: rect.left + rectOf($(".o_tl_col[data-index]")).width / 2, y: rect.top + rect.height / 2 };
+};
+
 const clickOnAPill = async () => {
     const mark = noteMark();
     const before = snapshot();
     for (let run = 0; run < 2; run++) {
         const pill = ANITA_FOUR();
         await bringIntoView(pill);
-        assertUncovered(pill, centre(pill), "the pill's centre");
-        await realClick(pill);
+        assertUncovered(pill, awayPoint(pill), "the pill's first day");
+        await realClick(null, { at: awayPoint(pill) });
         await until(() => $(".o_hhg_pop"), `click ${run + 1}: the leave popover opens`);
         await settle(600);
         assertNothing(`click ${run + 1}`, mark, { popover: true });
@@ -1155,7 +1164,7 @@ const doubleClickOnAPill = async () => {
     for (let run = 0; run < 2; run++) {
         const pill = ANITA_FOUR();
         await bringIntoView(pill);
-        await realClick(pill, { count: 2 });
+        await realClick(null, { at: awayPoint(pill), count: 2 });
         await until(() => $(".modal"), `double click ${run + 1}: the record dialog opens`);
         await settle(1200);
         assertEqual($$(".modal").length, 1, `double click ${run + 1}: one dialog`);
@@ -1181,7 +1190,7 @@ const pointerOverAPill = async () => {
     const before = count();
     for (let run = 0; run < 2; run++) {
         await pointerAway();
-        await realHover(pill);
+        await realMove(awayPoint(pill).x, awayPoint(pill).y);
         await settle(1500);
         assertNothing(`rest ${run + 1}`, mark);
         assertEqual(count(), before, `rest ${run + 1}: no element appears in the grid`);
@@ -1194,7 +1203,7 @@ const pointerOverAPill = async () => {
     const rect = rectOf(pill);
     const middle = rect.top + rect.height / 2;
     for (const [where, point, element] of [
-        ["the pill's centre", centre(pill), pill],
+        ["the pill's first day", awayPoint(pill), pill],
         ["4 px inside the pill's left end", { x: rect.left + 4, y: middle }, pill],
         ["4 px inside the pill's right end", { x: rect.right - 4, y: middle }, pill],
         ["an empty cell", insideLeft(cell), cell],
@@ -1217,7 +1226,7 @@ const dragOnAPill = async () => {
             const rect = rectOf(pill);
             const start =
                 offset === null
-                    ? centre(pill)
+                    ? awayPoint(pill)
                     : { x: rect.right - offset, y: rect.top + rect.height / 2 };
             assertUncovered(pill, start, `the ${where}`);
             const points = [20, 40, 60, 80, 100, 120].map((dx) => ({ x: start.x + dx, y: start.y }));
@@ -1365,7 +1374,7 @@ scenario("hhg_a73_keys", async () => {
         }
         // with a pill clicked first: its popover opens, Escape closes it, the other keys do nothing
         const pill = ANITA_FOUR();
-        await realClick(pill);
+        await realClick(null, { at: awayPoint(pill) });
         await until(() => $(".o_hhg_pop"), "the popover of the click");
         await pressKey("Escape");
         await until(() => !$(".o_hhg_pop"), "Escape closes the popover");
