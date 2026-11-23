@@ -134,6 +134,39 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
         self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
         self.assertEqual(leave.request_date_to_period, 'pm')
 
+    def test_a05_undo_refuses_foreign_ids(self):
+        leave, new, answer = self.cut_split()
+        other = fx.make_leave(
+            self.env, self.employee('Toff Peer'), self.sick, date(2026, 11, 17), date(2026, 11, 18))
+        later = fx.make_leave(
+            self.env, leave.employee_id, self.sick, date(2026, 11, 24), date(2026, 11, 24))
+        for ids in ([other.id], [later.id], [leave.id], [new.id, later.id]):
+            with self.subTest(ids=ids), self.assertRaises(UserError):
+                leave.with_user(self.officer).hhg_rejoin_request(
+                    ids, answer['end_day'], answer['end_period'], answer['end_hour'])
+            for record in (other, later, leave, new):
+                self.assertTrue(record.exists())
+            self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+            self.assertEqual(self.span(new), (date(2026, 11, 17), date(2026, 11, 18)))
+
+    def test_a07_approved_hour_request_leaves(self):
+        employee = self.env['hr.employee'].create({
+            'name': 'Toff Act Hours', 'tz': fx.TZ, 'contract_date_start': fx.CONTRACT_START,
+            'date_version': fx.CONTRACT_START,
+            'resource_calendar_id': fx.find_schedule(self.env).id})
+        leave = fx.make_leave(
+            self.env, employee, fx.make_hours_type(self.env), date(2026, 11, 16),
+            date(2026, 11, 18), duration='specific', hours=(9, 13))
+        self.assertEqual(leave.state, 'validate')
+        new = self.env['hr.leave'].browse(self.cut(leave, '2026-11-18')['new_ids'])
+        first = self.resource_leaves(leave)
+        second = self.resource_leaves(new)
+        self.assertEqual((len(first), len(second)), (1, 1))
+        self.assertEqual(first.date_from, fx.utc('2026-11-16 08:00'))
+        self.assertEqual(first.date_to, fx.utc('2026-11-17 15:00'))
+        self.assertEqual(second.date_from, fx.utc('2026-11-18 07:00'))
+        self.assertEqual(second.date_to, fx.utc('2026-11-18 12:00'))
+
     def test_a06_undo_after_request_deleted(self):
         leave, new, answer = self.cut_split()
         leave.with_user(self.admin).unlink()

@@ -57,7 +57,19 @@ class HrLeave(models.Model):
         self._hhg_check_split_caller()
         free = self.with_context(leave_skip_state_check=True)
         parts = free.browse(new_ids).exists()
-        if parts.employee_id - self.employee_id:
+        if not isinstance(end_day, str) or not _ISO_DAY.fullmatch(end_day):
+            raise UserError(_("The former end day must be given as YYYY-MM-DD."))
+        former_end = date.fromisoformat(end_day)
+        # only the parts of this cut: another request is never removed by an undo
+        if any(
+            part == self
+            or part.employee_id != self.employee_id
+            or part.work_entry_type_id != self.work_entry_type_id
+            or part.state != self.state
+            or part.request_date_from <= self.request_date_to
+            or part.request_date_to > former_end
+            for part in parts
+        ):
             raise UserError(_("Only the parts cut from this request can be removed."))
         # the Community lets only an administrator delete an Approved request; the parts
         # are the ones the cut made for this officer, so their removal runs as the Community's
