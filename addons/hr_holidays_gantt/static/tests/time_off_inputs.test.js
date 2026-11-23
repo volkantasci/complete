@@ -130,7 +130,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             expect(leftOf()).toBe(before);
         });
 
-        test("A66: the pointer over a pill shows nothing", async () => {
+        test("A66: the pointer over a locked or report pill shows no handle", async () => {
             await mount();
             await hover(pillEl());
             await settle();
@@ -141,7 +141,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             await mount();
             const rect = pillRect();
             const y = rect.top + rect.height / 2;
-            // the ends show no resize shape until the part that draws the handles (R18)
+            // an Approved pill and a report pill show no handle: the hand at the ends too (R18, D7)
             for (const x of [rect.left + 4, rect.left + rect.width / 2, rect.right - 4]) {
                 expect(cursorAt({ x, y })).toBe("pointer");
             }
@@ -159,7 +159,8 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
                 position: { x: start.x + 120, y: start.y },
             });
             await animationFrame();
-            expect(".o_tl_pill_moved").toHaveCount(0);
+            // the fixture's request is Approved: the press shows 002b2's locked lift and no more
+            expect(".o_tl_pill_moved .o_tl_pill_lock").toHaveCount(1);
             await helpers.drop();
             await settle();
             expectNothing();

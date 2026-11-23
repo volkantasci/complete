@@ -341,8 +341,8 @@ describe("closing (R2 point 3, R9, R23)", () => {
     });
 });
 
-describe("the inputs that stay off (R20)", () => {
-    test("hover and press on a pill: no handle, no move, no write", async () => {
+describe("a locked pill (R20, D7)", () => {
+    test("hover and press on an Approved pill: no handle, only the locked lift, no write", async () => {
         await mountTimeOff({ employees: ["Anita Oliver"], records: [LEAVE] });
         const before = queryRect(pillEl());
         await hover(pillEl());
@@ -354,9 +354,10 @@ describe("the inputs that stay off (R20)", () => {
             position: { x: start.x + 120, y: start.y },
         });
         await animationFrame();
-        expect(".o_tl_pill_moved").toHaveCount(0);
+        expect(".o_tl_pill_moved .o_tl_pill_lock").toHaveCount(1);
         await helpers.drop();
         await settle();
+        expect(".o_tl_pill_moved").toHaveCount(0);
         expect(".o_tl_handle").toHaveCount(0);
         expect(writes).toEqual([]);
         expect(queryRect(pillEl()).left).toBe(before.left);

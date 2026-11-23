@@ -10,6 +10,7 @@ from . import (
     test_demo_leave_days,
     test_export,
     test_fixtures,
+    test_gesture_tours,
     test_hoot,
     test_hours_label,
     test_install,

@@ -444,7 +444,7 @@ async function bringIntoView(el) {
 }
 
 /** Nothing is open, picked, drawn or written (the "nothing happens" scenarios). */
-function assertNothing(what, mark, { popover = false, modal = false } = {}) {
+function assertNothing(what, mark, { popover = false, modal = false, lock = false } = {}) {
     assert(popover || !popoverOfView(), `${what}: no popover`);
     for (const selector of [
         ...(modal ? [] : [".modal"]),
@@ -454,7 +454,8 @@ function assertNothing(what, mark, { popover = false, modal = false } = {}) {
         ".o_tl_selection_layer",
         ".o_tl_selection_badge",
         ".o_tl_handle",
-        ".o_tl_pill_moved",
+        // 002e2: a press on a locked pill raises it in place with its lock (002b2 R11)
+        ...(lock ? [] : [".o_tl_pill_moved"]),
         ".o_tl_pill_faded",
         ".o_tl_connect_handle",
         ".o_tl_panel",
@@ -471,12 +472,15 @@ function assertNothing(what, mark, { popover = false, modal = false } = {}) {
 
 const noteMark = () => calls.length;
 
+/** A pill of the grid, not the raised copy of a held one (002b2 R11). */
+const atRest = (pill) => !pill.closest(".o_tl_pill_moved");
+
 /** The rows as the view shows them: names and their pill titles. */
 function snapshot() {
     return JSON.stringify([
         rowNames(),
-        rowEls().map((el) => $$(".o_tl_pill", el).map((pill) => clean(pill.textContent))),
-        $$(".o_tl_pill").map((pill) => {
+        rowEls().map((el) => $$(".o_tl_pill", el).filter(atRest).map((pill) => clean(pill.textContent))),
+        $$(".o_tl_pill").filter(atRest).map((pill) => {
             const rect = rectOf(pill);
             return [Math.round(rect.left), Math.round(rect.top), Math.round(rect.width)];
         }),
@@ -1219,7 +1223,11 @@ const dragOnAPill = async () => {
             const points = [20, 40, 60, 80, 100, 120].map((dx) => ({ x: start.x + dx, y: start.y }));
             await pressAndMove(start, points, false);
             await settle(500);
-            assertNothing(`${where} ${run + 1}, button down`, mark);
+            // 002e2 D7: the pills of the demo are Approved (the report's are not editable): a press
+            // shows the locked lift, in place, and the pill moves nowhere
+            assertNothing(`${where} ${run + 1}, button down`, mark, { lock: true });
+            assertEqual($$(".o_tl_pill_moved .o_tl_pill_lock").length, 1, `${where} ${run + 1}: the lock shows`);
+            assert(!$(".o_tl_drop") && !$(".o_tl_selection_badge"), `${where} ${run + 1}: no highlight, no badge`);
             assertEqual(snapshot(), before, `${where} ${run + 1}: the pill stays during the drag`);
             await release(points.at(-1));
             await settle(1200);
@@ -1593,6 +1601,7 @@ export {
     assert,
     assertEqual,
     assertNear,
+    assertNothing,
     assertUncovered,
     breadcrumb,
     bringIntoView,
@@ -1627,6 +1636,7 @@ export {
     popoverOfView,
     allPillTitles,
     pressKey,
+    mouse,
     realClick,
     realHover,
     realTap,

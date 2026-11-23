@@ -510,3 +510,6 @@ fromList("hhg_a78_cancelled", async () => {
     assertEqual(writesSince(mark), [], "no write");
     assert(loaded(), "the popover has loaded");
 });
+
+// What the gesture tours (`time_off_gesture_tours.js`) use of this file.
+export { errorText, fromList, openManagement };

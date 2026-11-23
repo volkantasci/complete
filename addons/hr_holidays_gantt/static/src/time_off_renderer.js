@@ -13,6 +13,9 @@ import { TimeOffLeavePopover } from "./time_off_popover";
 /** The lane of a pill starts one pixel above its body (002b2 M5): the popover's gap counts from the body. */
 const PILL_INSET = 1;
 
+/** D7: the states in which a request cannot be moved or resized in the view. */
+const LOCKED_STATES = ["validate1", "validate"];
+
 /**
  * The renderer of the leave view; the later parts add inputs, label and card here.
  *
@@ -29,7 +32,7 @@ const PILL_INSET = 1;
  *   its own popover (`this.popover = usePopover(...)`), then overrides `hhgInputs` with
  *   `pillClick`, `pillDoubleClick`, `pillHover` and `pillPress` set to `true`. The popover and
  *   the double click come first (`pillClick`, `pillDoubleClick`); the pointer's hover and press
- *   (handles, moves, resizes, the split tool) follow with their own parts.
+ *   (handles, moves, resizes) are on from 002e2's gestures; the split tool follows.
  * - 002e3 (selection of cells, creation form): it adds `multi_create_view` to the arch and
  *   overrides `hhgInputs` with `cellPress` and `multiSelect` set to `true`. `multiSelect` also
  *   lets the header clicks and Escape select and clear, as the framework does. The controller
@@ -60,7 +63,11 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
             // over the popover, Back belongs to the dialog (R21 point 4)
             closeOnClickAway: (target) =>
                 !this._isPopoverAnchor(target) &&
-                !(target === document.documentElement && document.querySelector(".o_dialog .modal")),
+                !(
+                    this.ui.isSmall &&
+                    target === document.documentElement &&
+                    document.querySelector(".o_dialog .modal")
+                ),
             onClose: () => {
                 if (this._popoverFor !== null) {
                     this._lockClicks(POPOVER_CLOSE_LOCK, false);
@@ -155,11 +162,25 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         return {
             pillClick: true,
             pillDoubleClick: true,
-            pillHover: false,
-            pillPress: false,
+            pillHover: true,
+            pillPress: true,
             cellPress: false,
             multiSelect: false,
         };
+    }
+
+    /**
+     * D7, R12, R13: a request at Second Approval or Approved is locked for every user: it neither
+     * moves nor resizes, and a press on it shows 002b2's locked lift (the framework's reply to a
+     * pill that is not movable). The report view has no `state` and its arch is read-only, so the
+     * framework already makes its pills fixed.
+     */
+    _pillState(pill) {
+        const state = super._pillState(pill);
+        if (!LOCKED_STATES.includes(pill.record.raw?.state)) {
+            return state;
+        }
+        return { movable: false, resizable: { start: false, stop: false } };
     }
 
     /**
@@ -356,8 +377,13 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         }
     }
 
+    /** The framework's handles of the pill, less those of an end the pill may not resize (D7). */
     handlesOf(pill, row) {
-        return this.hhgInputs.pillHover ? super.handlesOf(pill, row) : [];
+        if (!this.hhgInputs.pillHover) {
+            return [];
+        }
+        const { resizable } = this._pillState(pill);
+        return super.handlesOf(pill, row).filter((handle) => resizable[handle.edge]);
     }
 
     onPillPointerDown(ev, pill, row) {

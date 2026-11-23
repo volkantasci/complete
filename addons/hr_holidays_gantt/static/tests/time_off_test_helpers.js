@@ -153,7 +153,7 @@ export const LEAVE_ARCH = (attrs = "") =>
     `<gantt js_class="hr_holidays_gantt_manager_hr_leave" string="Days" date_start="start"
         date_stop="stop" default_group_by="employee_id" groups_limit="20" default_range="month"
         scales="week,month,quarter" precision="{'week': 'day:full', 'month': 'day:full'}"
-        plan="0" ${attrs}/>`;
+        plan="0" ${attrs}><field name="state"/></gantt>`;
 
 export const REPORT_ARCH = (attrs = "") =>
     `<gantt js_class="hr_holidays_report_gantt" string="Time Off" date_start="start"

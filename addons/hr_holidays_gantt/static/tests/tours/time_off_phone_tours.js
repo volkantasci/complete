@@ -459,9 +459,6 @@ scenario("hhg_a85_phone_open_search_bar", async () => {
     const at = document.elementFromPoint(top.left + top.width / 2, top.top + top.height / 2);
     check.yes("A85 open bar: the top bar's middle is not the sheet's", !outerOf().contains(at), `${at?.className}`);
     check.done("A85 open bar");
-    // the measure for the spec question: how far the sheet reaches into the open control panel
-    const panel = rectOf($(".o_control_panel"));
-    console.log(`HHG_OVERLAP control panel bottom ${panel.bottom}, sheet top ${outer.top}, overlap ${panel.bottom - outer.top}`);
     await realTap($(".o_hhg_pop_close"));
     await until(() => !sheetOpen(), "the close icon closes the sheet");
     assertEqual(writesSince(mark), [], "no write");
@@ -491,3 +488,6 @@ scenario("hhg_a56_phone_back_with_a_dialog", async () => {
     assertEqual(window.location.pathname + window.location.search, url, "the address is as it was");
     assertEqual(writesSince(mark), [], "no write");
 });
+
+// What the gesture tours (`time_off_gesture_tours.js`) use of this file.
+export { actPill, phoneSearch, toTheWeek };
