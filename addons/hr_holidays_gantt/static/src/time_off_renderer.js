@@ -1,7 +1,8 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { onPatched } from "@odoo/owl";
+import { onPatched, onWillStart, proxy } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
+import { user } from "@web/core/user";
 import { usePopover } from "@web/core/popover/popover_hook";
 import { EmployeeTimelineRenderer } from "@hr_gantt/employee_timeline_renderer";
 import { POPOVER_CLOSE_LOCK } from "@web_gantt/timeline_renderer";
@@ -9,9 +10,16 @@ import { POPOVER_DELAY } from "@web_gantt/timeline_popover";
 import { TimeOffAvatarCard } from "./time_off_avatar_card";
 import { hoursLabel } from "./time_off_layout";
 import { TimeOffLeavePopover } from "./time_off_popover";
+import { hhgSplitBorderAt } from "./time_off_split_tool";
 
 /** The lane of a pill starts one pixel above its body (002b2 M5): the popover's gap counts from the body. */
 const PILL_INSET = 1;
+
+/** R16: the Time Off group that may split a request (the server's two methods refuse any other). */
+const OFFICER_GROUP = "hr_holidays.group_hr_holidays_user";
+
+/** R16, M59: the pill's outer box is one pixel taller than its body on each side. */
+const SPLIT_BOX_HEIGHT = 25;
 
 /** D7: the states in which a request cannot be moved or resized in the view. */
 const LOCKED_STATES = ["validate1", "validate"];
@@ -104,6 +112,122 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         this._hhgGhost = null;
         this._hhgClickPill = null;
         this._hhgClickTimer = null;
+        // R16: the split tool follows the pointer's rest on a pill; `busy` is the time of the
+        // split call (R17 point 6)
+        this.hhgSplit = proxy({ key: null, day: null, borderX: null, styles: null });
+        this._hhgSplitBusy = false;
+        this._hhgOfficer = false;
+        onWillStart(async () => {
+            this._hhgOfficer = await user.hasGroup(OFFICER_GROUP);
+        });
+    }
+
+    /**
+     * R16: the leave view, an Officer or above, the desktop, no sample, nothing held. The report
+     * view never splits (its own server methods are the leave's).
+     */
+    get hhgSplitAllowed() {
+        return (
+            this.hhgPopoverVariant === "leave" &&
+            this._hhgOfficer &&
+            !this.ui.isSmall &&
+            !this.data?.isSample &&
+            Boolean(this.props.editor) &&
+            !this._hhgSplitBusy
+        );
+    }
+
+    /** The unfolded day columns as boxes in the viewport (R16), one per visible header. */
+    _hhgDayColumns() {
+        const { columns } = this.data;
+        const result = [];
+        for (const header of this._headers()) {
+            const column = columns[Number(header.dataset.index)];
+            if (!column || header.classList.contains("o_tl_folded")) {
+                continue;
+            }
+            const { left, right } = header.getBoundingClientRect();
+            result.push({ left, right, start: column.start });
+        }
+        return result;
+    }
+
+    _hhgHideSplit() {
+        if (this.hhgSplit.key !== null) {
+            this.hhgSplit.key = null;
+            this.hhgSplit.day = null;
+            this.hhgSplit.styles = null;
+        }
+    }
+
+    /** The pointer moves over a pill: where it rests decides whether the split tool shows (R16). */
+    hhgOnPillMove(ev, pill, row) {
+        if (ev.pointerType === "touch") {
+            return;
+        }
+        if (!this.hhgSplitAllowed) {
+            return this._hhgHideSplit();
+        }
+        if (this.state.drag || this.connect.isActive || this._drag.state === "dragging") {
+            return this._hhgHideSplit();
+        }
+        if (this._drag.state !== "idle") {
+            // a press that has not moved yet: the click that follows decides (R17)
+            return;
+        }
+        const pillEl = ev.currentTarget;
+        const rtl = this._isRtl();
+        const found = hhgSplitBorderAt({
+            x: ev.clientX,
+            y: ev.clientY,
+            pillRect: pillEl.getBoundingClientRect(),
+            columns: this._hhgDayColumns(),
+            rtl,
+        });
+        if (!found) {
+            return this._hhgHideSplit();
+        }
+        const key = this._pillPointer.keyOf(pill, row);
+        if (this.hhgSplit.key === key && this.hhgSplit.day === found.day && this.hhgSplit.borderX === found.borderX) {
+            return;
+        }
+        const layer = pillEl.parentElement.getBoundingClientRect();
+        const pillRect = pillEl.getBoundingClientRect();
+        const width = found.box.right - found.box.left;
+        // the border lies at the box's left edge, or at its right edge in a mirrored grid (D11)
+        const at = rtl ? width : 0;
+        const left = found.box.left - layer.left;
+        const top = pillRect.top - PILL_INSET - layer.top;
+        const styles = {
+            box: `left: ${left}px; top: ${top}px; width: ${width}px; height: ${SPLIT_BOX_HEIGHT}px`,
+            line: `left: ${at + (rtl ? -0.5 : -1.5)}px`,
+            scissors: `left: ${at + (rtl ? 1.3 : -1.3) - 8.75}px`,
+        };
+        this.hhgSplit.borderX = found.borderX;
+        this.hhgSplit.day = found.day;
+        this.hhgSplit.styles = styles;
+        this.hhgSplit.key = key;
+    }
+
+    /** The styles of the split tool when it shows on this pill, else null. */
+    hhgSplitOf(pill, row) {
+        return this.hhgSplit.key === this._pillPointer.keyOf(pill, row) ? this.hhgSplit.styles : null;
+    }
+
+    /** R17: the click took the tool: split the pill's request at the tool's border. */
+    async _hhgSplitNow(pill) {
+        const day = this.hhgSplit.day;
+        this._cancelPopover();
+        this._hhgEndClickWindow();
+        this.popover.close();
+        this._hhgHideSplit();
+        // R17 point 6: the tool is off while the call runs; on again after it, whatever the answer
+        this._hhgSplitBusy = true;
+        try {
+            await this.props.editor.hhgSplit({ resId: pill.record.resId, day });
+        } finally {
+            this._hhgSplitBusy = false;
+        }
     }
 
     /**
@@ -181,15 +305,6 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
             return state;
         }
         return { movable: false, resizable: { start: false, stop: false } };
-    }
-
-    /**
-     * D4, R22: while neither a click nor a press on a pill does anything, the pointer keeps its
-     * default shape over a pill and over its ends (no hand, no resize cursor).
-     */
-    get hhgNoPillCursor() {
-        const { pillClick, pillPress } = this.hhgInputs;
-        return !pillClick && !pillPress;
     }
 
     /** D4, R22: the same for an empty cell, while no press and no selection start there. */
@@ -311,6 +426,11 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         if (!this.hhgInputs.pillClick) {
             return;
         }
+        // R17: a click while the split tool shows on this pill splits, where the popover would open
+        if (this.hhgSplitOf(pill, row) && this.hhgSplitAllowed) {
+            ev.stopPropagation();
+            return this._hhgSplitNow(pill);
+        }
         if (this._drag.isPaired && this._drag.clickDetail(ev.detail) > 1) {
             this._hhgOpenDialog(pill);
             return;
@@ -372,12 +492,17 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
     }
 
     onPillLeave(pill, row, ev) {
+        this._hhgHideSplit();
         if (this.hhgInputs.pillHover) {
             return super.onPillLeave(pill, row, ev);
         }
     }
 
-    /** The framework's handles of the pill, less those of an end the pill may not resize (D7). */
+    /**
+     * The framework's handles of the pill (`web_gantt/static/src/timeline_pill_pointer.js`, which
+     * shows them for the pill under the pointer while nothing is held), less those of an end the
+     * pill may not resize (D7).
+     */
     handlesOf(pill, row) {
         if (!this.hhgInputs.pillHover) {
             return [];

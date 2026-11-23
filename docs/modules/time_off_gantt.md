@@ -333,7 +333,26 @@ keeps today near it, and Next keeps the scroll position.
 - The leave intervals of flexible schedules follow the employee's time zone.
 - The dates in the long pill text are those of the request.
 
-The browser sends its zone with each load of the data.
+The browser sends its zone with each load of the data, and with the writes of a
+move, a resize, a copy and the popover's buttons.
+
+## The split tool
+
+In the leave view, for a user of the Time Off group "Officer: Manage all
+requests" or above, on the desktop: with the pointer within 8 px of a day border
+inside a pill, a dashed line and scissors show on that border, and a click there
+(no move) splits the request at the first day after the border, read in the
+browser's zone (a click elsewhere on the pill opens the popover as before). The
+border at a pill's first or last edge, a one-day pill, a border beside a folded
+column and the report view show no tool. Where a day column is narrower than
+16 px (the Quarter range) the column's end border is taken. In a right-to-left
+language the line lies on the same border, mirrored about it.
+
+The split calls `hhg_cut_request` and shows a notification with Undo (the
+editor's own notification box), which calls `hhg_rejoin_request`. While the call
+runs the tool is off; it is back once the call has answered, also after the
+Community's error. The code is in `time_off_split_tool.js` (the border math),
+`time_off_editor.js` (the two calls) and the renderer.
 
 ## What Time Off changes in the attendance views
 
@@ -608,11 +627,11 @@ the selection of cells adds its form option to the view and sets `cellPress` and
 `multiSelect`. Clicks on avatars and row headers, folding and the controls are
 not listed: they stay.
 
-The pointer shape follows the same entries: the grid's frame carries
-`o_hhg_no_pill_cursor` while `pillClick` and `pillPress` are both `false` and
+The pointer shape of empty cells follows the same entries: the grid's frame carries
 `o_hhg_no_cell_cursor` while `cellPress` and `multiSelect` are both `false`, and
-the stylesheet keeps the default pointer on pills, their ends and empty cells under
-them; the part that turns an input on gets the framework's pointers back.
+the stylesheet keeps the default pointer on empty cells under it; the part that
+turns an input on gets the framework's pointers back. Pills keep the framework's
+pointers (002e2).
 
 **Server.** A model holds the part both data calls share (`hhg.gantt.rows`, an
 abstract model mixed into `hr.leave` and `hr.leave.report.calendar`):

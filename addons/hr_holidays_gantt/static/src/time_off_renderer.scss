@@ -72,16 +72,9 @@
     vertical-align: top;
 }
 
-// D4, R22: until the later parts ship, the pointer keeps its default shape over a pill, its ends
-// and an empty cell (the frame's classes follow `hhgInputs`: they are gone once an input is on). A
-// group row and a folded cell keep their hand: their click works (002a R29).
-.o_tl_frame.o_hhg_no_pill_cursor {
-    .o_tl_pill,
-    .o_tl_pill .o_tl_handle {
-        cursor: default;
-    }
-}
-
+// D4, R22: until 002e3 ships, the pointer keeps its default shape over an empty cell (the frame's
+// class follows `hhgInputs`: it is gone once an input is on). A group row and a folded cell keep
+// their hand: their click works (002a R29). Pills keep the framework's pointers (R18).
 .o_tl_frame.o_hhg_no_cell_cursor {
     .o_tl_row:not(.o_tl_group_row):not(.o_tl_total_row) .o_tl_cell:not(.o_tl_folded_cell) {
         cursor: default;

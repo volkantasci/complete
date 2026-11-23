@@ -11,7 +11,15 @@
         <!-- D4, R22: the grid's frame says which pointer shapes stay at the default, so that the
              part that turns an input on gets the framework's pointers back (`hhgInputs`). -->
         <xpath expr="//div[hasclass('o_tl_frame')]" position="attributes">
-            <attribute name="t-att-class">{ o_tl_with_panel: this.hasPanel, o_hhg_no_pill_cursor: this.hhgNoPillCursor, o_hhg_no_cell_cursor: this.hhgNoCellCursor }</attribute>
+            <attribute name="t-att-class">{ o_tl_with_panel: this.hasPanel, o_hhg_no_cell_cursor: this.hhgNoCellCursor }</attribute>
+        </xpath>
+        <!-- R16: the pointer's rest on the pill is followed for the split tool; the tool is drawn
+             after the pill, in the row's layer of pills -->
+        <xpath expr="//div[hasclass('o_tl_pill') and @t-on-click]" position="attributes">
+            <attribute name="t-on-pointermove">(ev) => this.hhgOnPillMove(ev, pill, row)</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('o_tl_pill') and @t-on-click]" position="after">
+            <t t-call="hr_holidays_gantt.TimeOffSplitTool"/>
         </xpath>
     </t>
 </templates>

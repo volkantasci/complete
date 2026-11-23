@@ -199,7 +199,9 @@ describe("opening", () => {
         await click(first);
         await settle();
         const title = queryOne(".o_hhg_pop_title").textContent;
-        await click(second);
+        // not at the centre of the two-day pill: that is the border between its days (R16)
+        const box = queryRect(second);
+        await click(second, { position: { x: box.left + 10, y: box.top + box.height / 2 } });
         await settle();
         expect(".o_hhg_pop").toHaveCount(1);
         expect(queryOne(".o_hhg_pop_title").textContent).not.toBe(title);

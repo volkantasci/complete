@@ -25,6 +25,7 @@ from . import (
     test_rows,
     test_screens,
     test_split,
+    test_split_tours,
     test_tours,
     test_unavailability,
     test_views,

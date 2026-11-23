@@ -308,7 +308,9 @@ export class TimeOffLeavePopover extends Component {
 
     /** The Community's method `method` on the request, with the user's rights. */
     callRequest(method) {
-        return this.orm.call(this.leaveModel, method, [[this.props.record.resId]]);
+        return this.orm.call(this.leaveModel, method, [[this.props.record.resId]], {
+            context: this.props.model.context,
+        });
     }
 
     /** R7: back to approval; the request loads again in edit mode (R5) and the view reloads. */
@@ -372,7 +374,10 @@ export class TimeOffLeavePopover extends Component {
     /** R10: the request is deleted; accepted, the popover closes and the view reloads. */
     async deleteRequest() {
         const model = this.props.model;
-        await this.orm.unlink(this.leaveModel, [this.props.record.resId]);
+        // R25: the browser's zone is in the context of every call of the view
+        await this.orm.unlink(this.leaveModel, [this.props.record.resId], {
+            context: model.context,
+        });
         this.props.close();
         await model.reload();
     }

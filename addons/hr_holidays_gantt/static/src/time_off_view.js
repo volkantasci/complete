@@ -3,12 +3,14 @@
 import { registry } from "@web/core/registry";
 import { employeeTimelineView } from "@hr_gantt/employee_timeline_view";
 import { TimeOffController } from "./time_off_controller";
+import { TimeOffEditor } from "./time_off_editor";
 import { TimeOffLeaveModel } from "./time_off_model";
 import { TimeOffLeaveRenderer, TimeOffReportRenderer } from "./time_off_renderer";
 import { TimeOffLeaveSearchModel, TimeOffReportSearchModel } from "./time_off_search_model";
 
 export {
     TimeOffController,
+    TimeOffEditor,
     TimeOffLeaveModel,
     TimeOffLeaveRenderer,
     TimeOffLeaveSearchModel,
@@ -30,6 +32,7 @@ export const timeOffLeaveView = {
         return { ...props, className: [props.className, HHG_LEAVE_CLASS].filter(Boolean).join(" ") };
     },
     Controller: TimeOffController,
+    Editor: TimeOffEditor,
     SearchModel: TimeOffLeaveSearchModel,
     Model: TimeOffLeaveModel,
     Renderer: TimeOffLeaveRenderer,
@@ -46,6 +49,7 @@ export const timeOffReportView = {
         return { ...props, className: [props.className, HHG_REPORT_CLASS].filter(Boolean).join(" ") };
     },
     Controller: TimeOffController,
+    Editor: TimeOffEditor,
     SearchModel: TimeOffReportSearchModel,
     // 002a's sample mode, as it is: the first load of the view, with no request on the first page
     // under the search (R7, R21)
