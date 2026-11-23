@@ -13,6 +13,7 @@ from . import (
     test_hoot,
     test_hours_label,
     test_install,
+    test_phone_tours,
     test_pill_text,
     test_popover_form,
     test_popover_tours,
