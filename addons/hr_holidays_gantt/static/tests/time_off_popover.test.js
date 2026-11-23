@@ -1,18 +1,29 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, mockDate, mockTimeZone, test } from "@odoo/hoot";
-import { click, dblclick, edit, press, queryAll, queryOne, queryRect, resize } from "@odoo/hoot-dom";
+import {
+    click,
+    dblclick,
+    drag,
+    edit,
+    hover,
+    press,
+    queryAll,
+    queryOne,
+    queryRect,
+    resize,
+} from "@odoo/hoot-dom";
 import { advanceTime, animationFrame, mockTouch } from "@odoo/hoot-mock";
 
 import {
     getService,
-    LEAVE_ARCH,
     mountTimeOff,
     onRpc,
     patchWithCleanup,
     REPORT_ARCH,
     setupTimeOffFixtures,
 } from "./time_off_test_helpers";
+import { hoursText } from "../src/time_off_hours_field";
 
 describe.current.tags("desktop");
 
@@ -327,9 +338,48 @@ describe("closing (R2 point 3, R9, R23)", () => {
 });
 
 describe("the inputs that stay off (R20)", () => {
-    test("the pointer's hover and press stay off: no handle, no move", async () => {
-        await openPopover();
+    test("hover and press on a pill: no handle, no move, no write", async () => {
+        await mountTimeOff({ employees: ["Anita Oliver"], records: [LEAVE] });
+        const before = queryRect(pillEl());
+        await hover(pillEl());
+        await settle();
         expect(".o_tl_handle").toHaveCount(0);
-        expect(LEAVE_ARCH()).toInclude("hr_holidays_gantt_manager_hr_leave");
+        const start = { x: before.left + before.width / 2, y: before.top + before.height / 2 };
+        const helpers = await drag(pillEl(), { position: start });
+        await helpers.moveTo(document.elementFromPoint(start.x + 120, start.y), {
+            position: { x: start.x + 120, y: start.y },
+        });
+        await animationFrame();
+        expect(".o_tl_pill_moved").toHaveCount(0);
+        await helpers.drop();
+        await settle();
+        expect(".o_tl_handle").toHaveCount(0);
+        expect(writes).toEqual([]);
+        expect(queryRect(pillEl()).left).toBe(before.left);
+    });
+});
+
+describe("the hour line (R4 point 2)", () => {
+    test("A19 hours read 4h and 4h30", () => {
+        expect(hoursText(4)).toBe("4h");
+        expect(hoursText(4.5)).toBe("4h30");
+        expect(hoursText(0.25)).toBe("0h15");
+        expect(hoursText(0)).toBe("0h");
+        expect(hoursText(12.5).length).toBeLessThan(10);
+    });
+});
+
+describe("Escape with a dropdown open (R23, D4)", () => {
+    test("A51 one Escape closes the popover while the type's dropdown is open", async () => {
+        await openPopover({ records: [TO_APPROVE] });
+        await click(".o_hhg_pop_type input");
+        await edit("A");
+        await settle();
+        expect(".o-autocomplete--dropdown-menu").toHaveCount(1);
+        await press("Escape");
+        await settle();
+        expect(".o_hhg_pop").toHaveCount(0);
+        expect(writes).toEqual([]);
+        expect(reloads).toBe(0);
     });
 });

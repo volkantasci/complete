@@ -6,6 +6,7 @@ import {
     $$,
     assert,
     assertEqual,
+    assertNear,
     breadcrumb,
     bringIntoView,
     clean,
@@ -213,8 +214,8 @@ scenario("hhg_a19_hours_and_days", async () => {
     // the hour request of Thursday 19, 9:00 to 13:00
     await openPopoverOf(pillOn("Toff Act", "2026-11-19"));
     assert($(".o_hhg_pop_hours"), "the hours line");
-    const hours = clean($(".o_hhg_pop_hours").textContent + ($(".o_hhg_pop_hours input")?.value || ""));
-    assert(hours.includes("4"), `the number of hours: "${hours}"`);
+    const hours = clean($(".o_hhg_pop_hours input")?.value || $(".o_hhg_pop_hours").textContent);
+    assertEqual(hours, "4h", "the number of hours");
     const help = $(".o_hhg_pop_help");
     assert(help, "a question mark beside the clock icon");
     assert(help.dataset.tooltip, "it carries the Community's help of the hours field");
@@ -383,6 +384,94 @@ scenario("hhg_a51_escape_after_leaving_the_field", async () => {
     await until(() => !popover(), "one Escape closes the popover");
     assertEqual(writesSince(mark), [], "nothing written");
     assertEqual(gantt.requests, requests, "no reload");
+});
+
+scenario("hhg_a51_escape_with_the_dropdown_open", async () => {
+    await openToffAct();
+    const mark = noteMark();
+    const requests = gantt.requests;
+    await openPopoverOf(pillOn("Toff Act", "2026-11-18"));
+    const input = $(".o_hhg_pop_type input");
+    assert(document.activeElement === input, "the focus is on the type's input");
+    // a letter opens the drop-down of the types
+    input.value = "S";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await until(() => $(".o-autocomplete--dropdown-menu"), "the drop-down opens");
+    await pressKey("Escape");
+    await until(() => !popover(), "one Escape closes the popover");
+    assert(!$(".o-autocomplete--dropdown-menu"), "and the drop-down with it");
+    assertEqual(writesSince(mark), [], "nothing written");
+    assertEqual(gantt.requests, requests, "no reload");
+});
+
+// R2.1: placement -----------------------------------------------------------------------------------
+
+/** The window's height, through the DevTools protocol. */
+async function resizeHeight(height) {
+    await send({
+        method: "Emulation.setDeviceMetricsOverride",
+        events: [{ width: 1600, height, deviceScaleFactor: 1, mobile: false }],
+    });
+    await until(() => window.innerHeight === height, `a window ${height} px high`);
+    await settle(400);
+}
+
+/** Where the popover lies against the pill: below, above, right, left or centred. */
+function sideOf(pill, frame) {
+    if (frame.top >= pill.bottom - 1) {
+        return "below";
+    }
+    if (frame.bottom <= pill.top + 1) {
+        return "above";
+    }
+    if (frame.left >= pill.right - 1) {
+        return "right";
+    }
+    if (frame.right <= pill.left + 1) {
+        return "left";
+    }
+    return "centre";
+}
+
+scenario("hhg_a10_placement", async () => {
+    await pickRange("week");
+    await step(1);
+    await searchFor("Toff");
+    await until(
+        () => rowNames().includes("Toff Zed") && rowNames().includes("Toff Act"),
+        `the rows: ${rowNames()}`,
+        8000
+    );
+    await dataSettled();
+    await settle(500);
+    // a pill low in the grid: no room below, room above
+    const low = pillsOf("Toff Zed")[0];
+    await openPopoverOf(low);
+    let frame = rectOf($(".o_popover"));
+    let pill = rectOf(low);
+    assertEqual(sideOf(pill, frame), "above", "a pill near the bottom edge opens above");
+    assert(frame.top >= 0, "inside the window");
+    assertNear(frame.left + frame.width / 2, pill.left + pill.width / 2, "centred on the pill", 3);
+    assert(pill.top - frame.bottom >= 6 && pill.top - frame.bottom <= 12, `8 px gap: ${pill.top - frame.bottom}`);
+    await closeWithEscape();
+    // the first pill, in a window too short for a place below: no room above either, so at its
+    // right side, vertically centred on it
+    const first = pillOn("Toff Act", "2026-11-18");
+    await bringIntoView(first);
+    await openPopoverOf(first);
+    const height = rectOf($(".o_popover")).height;
+    pill = rectOf(first);
+    await closeWithEscape();
+    assert(pill.top < height + 8, `no room above: pill top ${pill.top}, popover ${height}`);
+    await resizeHeight(Math.round(pill.bottom + 8 + height - 30));
+    await openPopoverOf(first);
+    frame = rectOf($(".o_popover"));
+    pill = rectOf(first);
+    assertEqual(sideOf(pill, frame), "right", "neither below nor above: at the right side");
+    assertNear(frame.top + frame.height / 2, pill.top + pill.height / 2, "vertically centred on the pill", 3);
+    assert(frame.bottom <= window.innerHeight && frame.top >= 0, "inside the window");
+    await closeWithEscape();
+    await resizeHeight(900);
 });
 
 // A55: reloading the page ----------------------------------------------------------------------------

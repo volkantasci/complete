@@ -5,7 +5,7 @@
          the template `hr_holidays_gantt.TimeOffPopoverFooter`, empty here; the part that adds the
          buttons inherits it. -->
     <t t-name="hr_holidays_gantt.TimeOffLeavePopover">
-        <div t-att-class="this.rootClass">
+        <div t-att-class="this.rootClass" t-on-keydown.capture="this.onKeydownCapture">
             <div class="o_hhg_pop_header d-flex align-items-center flex-shrink-0">
                 <div class="o_hhg_pop_title flex-grow-1 text-truncate" t-out="this.title"/>
                 <button type="button" class="o_hhg_pop_expand btn btn-link p-0 border-0" title="Expand" aria-label="Expand" t-on-click="this.onExpand">

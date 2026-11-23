@@ -81,6 +81,16 @@ class TestTimeOffPopoverTours(ReportToursBase):
         self._act()
         self._tour_writes_nothing('hhg_a22_focus')
 
+    def test_a10_placement(self):
+        # a pill low in the grid: "Toff Zed" sorts after nine empty rows
+        for number in range(1, 10):
+            fx._employee(self.env, f'Toff Pad {number:02d}', self.schedule)
+        zed = fx._employee(self.env, 'Toff Zed', self.schedule)
+        fx.make_waiting(self.env, zed, fx.find_type(self.env, 'STO'), date(2026, 11, 18))
+        fx.make_act_state(self.env, self.schedule)
+        self._isolate(keep={fx.ACT_NAME, 'Toff Zed'} | {f'Toff Pad {n:02d}' for n in range(1, 10)})
+        self._tour_writes_nothing('hhg_a10_placement')
+
     # -- Expand ----------------------------------------------------------------------------------
 
     def test_a48_expand_breadcrumb(self):
@@ -116,6 +126,11 @@ class TestTimeOffPopoverTours(ReportToursBase):
         made = self._act()
         self._tour_writes_nothing('hhg_a51_escape_after_leaving_the_field')
         self.assertFalse(made['confirm'].name, 'the description is still empty')
+
+    def test_a51_escape_with_the_dropdown_open(self):
+        made = self._act()
+        self._tour_writes_nothing('hhg_a51_escape_with_the_dropdown_open')
+        self.assertFalse(made['confirm'].name, 'the request is unchanged')
 
     def test_a55_reload(self):
         made = self._act()

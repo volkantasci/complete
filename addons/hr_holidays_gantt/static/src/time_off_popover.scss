@@ -6,7 +6,7 @@
 // blur (M2); the surface inside it is the view background (M3).
 .o_popover:has(> .o_hhg_pop:not(.o_hhg_pop_sheet)) {
     border-radius: 12px;
-    box-shadow: 0 8px 16px rgba(#000, 0.15);
+    box-shadow: 0 8px 16px rgba($o-black, 0.15);
     // the width follows the body (R3): no fixed width of the framework's popover
     max-width: 95vw;
 }

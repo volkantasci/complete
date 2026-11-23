@@ -444,11 +444,11 @@ async function bringIntoView(el) {
 }
 
 /** Nothing is open, picked, drawn or written (the "nothing happens" scenarios). */
-function assertNothing(what, mark) {
-    assert(!popoverOfView(), `${what}: no popover`);
+function assertNothing(what, mark, { popover = false, modal = false } = {}) {
+    assert(popover || !popoverOfView(), `${what}: no popover`);
     for (const selector of [
-        ".modal",
-        ".o_tl_popover",
+        ...(modal ? [] : [".modal"]),
+        ...(popover ? [] : [".o_tl_popover", ".o_hhg_pop"]),
         ".o_tl_cell_picked",
         ".o_tl_selection",
         ".o_tl_selection_layer",
@@ -1138,9 +1138,7 @@ const clickOnAPill = async () => {
         await realClick(pill);
         await until(() => $(".o_hhg_pop"), `click ${run + 1}: the leave popover opens`);
         await settle(600);
-        assert(!$(".modal"), `click ${run + 1}: no dialog`);
-        assert(!$(".o_tl_handle"), `click ${run + 1}: no handle`);
-        assertEqual(writesSince(mark), [], `click ${run + 1}: no write`);
+        assertNothing(`click ${run + 1}`, mark, { popover: true });
         assertEqual(snapshot(), before, `click ${run + 1}: the view is unchanged`);
         await pressKey("Escape");
         await until(() => !$(".o_hhg_pop"), `click ${run + 1}: Escape closes the popover`);
@@ -1158,8 +1156,7 @@ const doubleClickOnAPill = async () => {
         await settle(1200);
         assertEqual($$(".modal").length, 1, `double click ${run + 1}: one dialog`);
         assert(!$(".o_hhg_pop"), `double click ${run + 1}: no popover`);
-        assert(!$(".o_tl_handle"), `double click ${run + 1}: no handle`);
-        assertEqual(writesSince(mark), [], `double click ${run + 1}: no write`);
+        assertNothing(`double click ${run + 1}`, mark, { modal: true });
         await closeDialog();
         assertEqual(snapshot(), before, `double click ${run + 1}: the view is unchanged`);
     }
@@ -1307,7 +1304,7 @@ scenario("hhg_a70_tap_on_a_pill", async () => {
         await realTap(pill);
         await until(() => $(".o_hhg_pop.o_tl_popover_sheet"), `tap ${run + 1}: the sheet opens`);
         await settle(600);
-        assertEqual(writesSince(mark), [], `tap ${run + 1}: no write`);
+        assertNothing(`tap ${run + 1}`, mark, { popover: true });
         assertEqual(snapshot(), before, `tap ${run + 1}: the view is unchanged`);
         await realClick($(".o_hhg_pop_close"));
         await until(() => !$(".o_hhg_pop"), `tap ${run + 1}: the close icon closes the sheet`);
@@ -1595,6 +1592,7 @@ export {
     $$,
     assert,
     assertEqual,
+    assertNear,
     assertUncovered,
     breadcrumb,
     bringIntoView,

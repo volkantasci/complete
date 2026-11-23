@@ -46,7 +46,7 @@
                         </div>
                         <div class="o_hhg_pop_dates_value">
                             <div class="o_hhg_pop_hours" invisible="work_entry_type_request_unit != 'hour'">
-                                <field name="number_of_hours" widget="float_time" nolabel="1"
+                                <field name="number_of_hours" widget="hhg_hours" nolabel="1"
                                     readonly="state != 'confirm'"/>
                             </div>
                             <div class="o_hhg_pop_halves d-flex gap-2"

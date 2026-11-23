@@ -22,6 +22,11 @@
             'hr_holidays_gantt/static/src/**/*.js',
             'hr_holidays_gantt/static/src/**/*.xml',
             'hr_holidays_gantt/static/src/**/*.scss',
+            # dark-only rules belong to the dark stylesheet
+            ('remove', 'hr_holidays_gantt/static/src/time_off_popover.dark.scss'),
+        ],
+        'web.assets_web_dark': [
+            'hr_holidays_gantt/static/src/time_off_popover.dark.scss',
         ],
         'web.assets_tests': ['hr_holidays_gantt/static/tests/tours/**/*'],
         'web.assets_unit_tests': [

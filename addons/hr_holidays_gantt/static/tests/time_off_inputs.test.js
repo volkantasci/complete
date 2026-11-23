@@ -83,12 +83,19 @@ const leftOf = () => Math.round(pillRect().left);
 /** The pointer shape drawn at a point of the page. */
 const cursorAt = ({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor;
 
-/** Nothing opened, nothing selected, no handle, nothing written. */
-function expectNothing() {
-    expect(".o_hhg_pop").toHaveCount(0);
-    expect(".o_tl_popover").toHaveCount(0);
-    expect(".o_popover").toHaveCount(0);
-    expect(".modal").toHaveCount(0);
+/**
+ * Nothing opened, nothing selected, no handle, nothing written. `popover` / `modal` name what the
+ * input under test may open (the leave popover and its sheet; the record dialog).
+ */
+function expectNothing({ popover = false, modal = false } = {}) {
+    if (!popover) {
+        expect(".o_hhg_pop").toHaveCount(0);
+        expect(".o_tl_popover").toHaveCount(0);
+        expect(".o_popover").toHaveCount(0);
+    }
+    if (!modal) {
+        expect(".modal").toHaveCount(0);
+    }
     expect(".o_tl_cell_picked").toHaveCount(0);
     expect(".o_tl_selected").toHaveCount(0);
     expect(".o_tl_handle").toHaveCount(0);
@@ -109,10 +116,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             await click(pillEl());
             await settle();
             expect(".o_hhg_pop").toHaveCount(1);
-            expect(".modal").toHaveCount(0);
-            expect(".o_tl_cell_picked").toHaveCount(0);
-            expect(".o_tl_handle").toHaveCount(0);
-            expect(writes).toEqual([]);
+            expectNothing({ popover: true });
             expect(leftOf()).toBe(before);
         });
 
@@ -122,9 +126,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             await dblclick(pillEl());
             await settle();
             expect(".modal").toHaveCount(1);
-            expect(".o_hhg_pop").toHaveCount(0);
-            expect(".o_tl_handle").toHaveCount(0);
-            expect(writes).toEqual([]);
+            expectNothing({ modal: true });
             expect(leftOf()).toBe(before);
         });
 
@@ -253,7 +255,7 @@ for (const [name, mount] of Object.entries(VARIANTS)) {
             await press("Delete");
             await settle();
             // the popover is open and Delete (the key) removes nothing
-            expect(writes).toEqual([]);
+            expectNothing({ popover: true });
             expect(queryAll(".o_tl_row:not(.o_tl_total_row) .o_tl_pill")).toHaveCount(1);
         });
     });
@@ -271,6 +273,7 @@ describe("phone", () => {
         await click(pillEl());
         await settle();
         expect(".o_hhg_pop.o_tl_popover_sheet").toHaveCount(1);
+        expectNothing({ popover: true });
         expect(".o_tl_pill").toHaveCount(1);
         expect(leftOf()).toBe(before);
     });

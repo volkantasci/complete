@@ -1,0 +1,7 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// M2: the shadow of the popover's frame is twice as dark in the dark scheme
+.o_popover:has(> .o_hhg_pop:not(.o_hhg_pop_sheet)) {
+    box-shadow: 0 8px 16px rgba($o-black, 0.3);
+}

@@ -49,15 +49,43 @@ export class TimeOffLeavePopover extends Component {
         this.hhgAction = useService("action");
         this.orm = useService("orm");
         // the employee's name: the form holds the field invisible, which carries no name
-        this.employeeName = "";
-        onWillStart(async () => {
-            const [row] = await this.orm.read(
-                this.props.model.resModel,
-                [this.props.record.resId],
-                ["employee_id"]
-            );
-            this.employeeName = row?.employee_id?.[1] || "";
+        this.employeeName = signal("");
+        this.employeeKey = null;
+        onWillStart(() => this.readEmployeeName());
+    }
+
+    /** The employee's name, read from the request (the form's invisible field carries none). */
+    async readEmployeeName() {
+        const [row] = await this.orm.read(
+            this.props.model.resModel,
+            [this.props.record.resId],
+            ["employee_id"]
+        );
+        this.employeeKey = row?.employee_id?.[0] || false;
+        this.employeeName.set(row?.employee_id?.[1] || "");
+    }
+
+    /** The form's model is ready: the name is read again when a reload brings another employee. */
+    onModelReady(model) {
+        this.formModel.set(model);
+        model.bus.addEventListener("update", () => {
+            const id = model.root?.data.employee_id?.id || false;
+            if (id !== this.employeeKey) {
+                this.readEmployeeName();
+            }
         });
+    }
+
+    /**
+     * R23, D4: Escape closes the popover in one press, also from a field whose own dropdown is
+     * open (the autocomplete stops the key's propagation), and drops the pending change.
+     */
+    onKeydownCapture(ev) {
+        if (ev.key === "Escape") {
+            ev.stopPropagation();
+            ev.preventDefault();
+            this.props.close();
+        }
     }
 
     get isReport() {
@@ -80,7 +108,7 @@ export class TimeOffLeavePopover extends Component {
         if (!record) {
             return "";
         }
-        const name = this.employeeName || _t("Employee");
+        const name = this.employeeName() || _t("Employee");
         return `${name} - ${record.data.duration_display || ""}`;
     }
 
@@ -110,7 +138,7 @@ export class TimeOffLeavePopover extends Component {
             display: { controlPanel: false },
             readonly: report,
             editableStates: report ? [] : EDITABLE_STATES,
-            onModelReady: (model) => this.formModel.set(model),
+            onModelReady: (model) => this.onModelReady(model),
         };
     }
 
