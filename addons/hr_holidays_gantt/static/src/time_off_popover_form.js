@@ -29,6 +29,7 @@ export class TimeOffPopoverFormController extends FormController {
         // the form's own `props` keep the keys the Community controller declares
         this.hhgProps = useProps({
             onModelReady: t.function().optional(),
+            onRecordState: t.function().optional(),
             editableStates: t.array(t.string()).optional(),
         });
         onMounted(() => {
@@ -44,13 +45,24 @@ export class TimeOffPopoverFormController extends FormController {
         return params;
     }
 
-    /** R5: edit mode for the states the popover names, as soon as the record is loaded. */
+    /**
+     * R5: edit mode for the states the popover names, read-only for the others, as soon as the
+     * record is loaded (a reload after Edit turns the form to edit mode, one after Approve or
+     * Refuse back to read-only).
+     */
     async onRootLoaded(root) {
         const states = this.hhgProps.editableStates || [];
         const record = root || this.model.root;
-        if (this.canEdit && !this.props.readonly && states.includes(record.data.state)) {
-            record._switchMode("edit");
+        if (this.canEdit && !this.props.readonly) {
+            record._switchMode(states.includes(record.data.state) ? "edit" : "readonly");
         }
+        this.hhgProps.onRecordState?.(record);
+    }
+
+    /** The popover's footer follows the record: a field changed (a pending change, R6). */
+    onRecordChanged(record, ...args) {
+        super.onRecordChanged(record, ...args);
+        this.hhgProps.onRecordState?.(record);
     }
 
     onRootUpdated() {}

@@ -5,3 +5,8 @@
 .o_popover:has(> .o_hhg_pop:not(.o_hhg_pop_sheet)) {
     box-shadow: 0 8px 16px rgba($o-black, 0.3);
 }
+
+// M31: the label of Approve is black on the success colour in the dark scheme
+.o_hhg_pop .o_hhg_pop_approve {
+    color: $o-black;
+}

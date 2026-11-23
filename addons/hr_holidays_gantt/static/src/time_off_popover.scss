@@ -127,14 +127,16 @@
         font-size: 12px;
     }
 
-    // the footer is empty until the part that adds the buttons fills it (R6)
+    // R6, M18 to M21, M31 to M48: the buttons 4 px apart, the last one at the right end; the
+    // button's own padding (3 px 8 px) is the theme's
     .o_hhg_pop_footer {
         gap: 4px;
         padding: 0 16px 16px;
         border-top: 0;
 
-        &:empty {
-            display: none;
+        .o_hhg_pop_button {
+            font-size: 13px;
+            font-weight: 500;
         }
     }
 }

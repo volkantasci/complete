@@ -1,9 +1,7 @@
 <!-- Copyright 2026 Complete contributors -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <templates xml:space="preserve">
-    <!-- The leave popover (R2 to R6): header, body (the request's form) and footer. The footer is
-         the template `hr_holidays_gantt.TimeOffPopoverFooter`, empty here; the part that adds the
-         buttons inherits it. -->
+    <!-- The leave popover (R2 to R6): header, body (the request's form) and footer. -->
     <t t-name="hr_holidays_gantt.TimeOffLeavePopover">
         <div t-att-class="this.rootClass" t-on-keydown.capture="this.onKeydownCapture">
             <div class="o_hhg_pop_header d-flex align-items-center flex-shrink-0">
@@ -22,5 +20,13 @@
         </div>
     </t>
 
-    <t t-name="hr_holidays_gantt.TimeOffPopoverFooter"/>
+    <!-- R6: the footer's buttons, left to right, absent where not shown; the last one sits at the
+         right end (Discard with a pending change, else Delete). -->
+    <t t-name="hr_holidays_gantt.TimeOffPopoverFooter">
+        <t t-foreach="this.footerButtons" t-as="button" t-key="button.name">
+            <button type="button" t-att-class="`o_hhg_pop_button o_hhg_pop_${button.name} btn ${button.style}`" t-att-name="button.name" t-on-click="() => this.onFooterButton(button.name)">
+                <i class="oi me-1" t-att-data-icon="button.icon"/><t t-out="button.label"/>
+            </button>
+        </t>
+    </t>
 </templates>
