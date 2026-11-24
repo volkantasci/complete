@@ -296,3 +296,34 @@ class TestActionScreensMove(ActionScreenCase):
             self.drag(ap.pill_on(ap.ACT, '2026-11-18'), width)
             self.snap(self.stem('17-move-refused', scheme))
         self.run_variants(step)
+
+
+@tagged(*TAGS)
+class TestActionScreensAway(ActionScreenCase):
+    """N1 (A94): the card of "Toff Away" with the Community's "back on" line, the leave covering
+    the server's real now (the card's status clock is not pinned)."""
+
+    pin_status_clock = False
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        fx.make_away_state(cls.env, cls.schedule)
+        cls.isolate(keep={fx.AWAY_NAME})
+
+    def test_n1_card_away(self):
+        def step(scheme, viewport):
+            self.loaded()
+            kind = self.js("document.querySelector('.o_tl_range_button').textContent.trim()")
+            if kind != 'Month':
+                self.choose_range('month')
+            self.search(fx.AWAY_NAME)
+            self.mouse('mouseMoved', 1000, 123, buttons=0)
+            self.settle(500)
+            self.real_click(base.in_row(fx.AWAY_NAME, '.o_hrg_avatar'), settle=1.5)
+            lines = ("[...document.querySelectorAll('.o_avatar_card .o_card_user_infos "
+                     ".text-warning')].filter((e) => /^Back on /.test(e.textContent.trim()))")
+            self.wait(f"{lines}.length > 0", timeout=30)
+            self.settle(800)
+            self.snap(self.stem('n1-card-away', scheme))
+        self.run_variants(step)
