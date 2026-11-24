@@ -5,6 +5,8 @@ import { registry } from "@web/core/registry";
 import { FormController } from "@web/views/form/form_controller";
 import { formView } from "@web/views/form/form_view";
 
+const { Settings } = luxon;
+
 /** The key of the popover's own form variant in the views registry (named by the `jsClass` prop). */
 export const POPOVER_FORM_CLASS = "hhg_time_off_popover_form";
 
@@ -26,6 +28,17 @@ export class TimeOffPopoverFormController extends FormController {
 
     setup() {
         super.setup();
+        // the form's onchange, read and save go out with the browser's zone (R25), as the view's
+        // own calls do. The `View`'s context cannot carry it (the search model puts the user's
+        // zone over it) and every load takes the context of the props: it is added there.
+        const load = this.model.load;
+        this.model.load = (params = {}) =>
+            load.call(
+                this.model,
+                "context" in params
+                    ? { ...params, context: { ...params.context, tz: Settings.defaultZone.name } }
+                    : params
+            );
         // the form's own `props` keep the keys the Community controller declares
         this.hhgProps = owl.useProps({
             onModelReady: owl.t.function().optional(),

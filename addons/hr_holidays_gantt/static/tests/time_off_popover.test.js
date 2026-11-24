@@ -576,6 +576,24 @@ describe("what the buttons do (R7 to R10)", () => {
         expect(names()).toEqual(["edit", "delete"]);
     });
 
+    test("R25 the form's calls carry the browser's time zone", async () => {
+        const contexts = {};
+        for (const method of ["onchange", "web_read", "web_save"]) {
+            onRpc(method, ({ method: name, kwargs }) => {
+                contexts[name] = kwargs.context;
+            });
+        }
+        await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });
+        await typeNote();
+        await click(".o_hhg_pop_approve");
+        await settle();
+        const zone = luxon.Settings.defaultZone.name;
+        expect(Boolean(zone)).toBe(true);
+        expect(contexts.web_read.tz).toBe(zone);
+        expect(contexts.web_save.tz).toBe(zone);
+        expect(contexts.web_save.form_view_ref).toBe("hr_holidays_gantt.hr_leave_gantt_multi_create_view");
+    });
+
     test("A38 a refused save stops Approve: nothing else happens", async () => {
         expect.errors(1);
         onRpc("web_save", () => {
