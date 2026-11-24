@@ -213,6 +213,16 @@
         }
     }
 
+    // the type's link takes the focus without the browser's ring: its box shows the focus with
+    // the primary border
+    .o_hhg_pop_type a:focus {
+        outline: 0;
+    }
+
+    .o_hhg_pop_type > .o_field_widget:focus-within {
+        border-color: $primary;
+    }
+
     // the description's area is 50 px tall, its border included: the field's wrapper
     // (`.o_field_widget`) carries the height, its textarea fills it
     .o_hhg_pop_note > .o_field_widget {
