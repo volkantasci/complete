@@ -70,10 +70,13 @@ class TestTimeOffButtonTours(ReportToursBase):
         """The Overview without a search: 14 demo employees (by name), "Toff Act" and five
         employees after him, 20 rows (the first page), so that the grid scrolls by more than
         150 px and his row lies in its lower part, in view."""
-        fx.make_demo_world(self.env, self.schedule)
+        before = sorted(fx.DEMO_EMPLOYEES)[:14]
+        for name in before:
+            if not self.env['hr.employee'].search_count([('name', '=', name)]):
+                fx._employee(self.env, name, self.schedule)
         made = fx.make_act_state(self.env, self.schedule)
         after = [fx._employee(self.env, f'Toff Zed {n}', self.schedule).name for n in range(1, 6)]
-        self._isolate(keep=set(sorted(fx.DEMO_EMPLOYEES)[:14]) | {fx.ACT_NAME, *after})
+        self._isolate(keep={*before, fx.ACT_NAME, *after})
         self._tour('hhg_a99_popover_stays')
         self.assertEqual(self._state(made['confirm']), 'refuse')
         self.assertEqual(self._state(made['validate']), 'validate')
