@@ -201,7 +201,7 @@ scenario("hhg_a41_split", splitAndCheck);
 scenario("hhg_a42_split_undo", async () => {
     await splitAndCheck();
     await realClick(undoButton());
-    await noticeSays(/merged back/i, "the notification of Undo");
+    await noticeSays(/one request again/i, "the notification of Undo");
     await dataSettled();
     await settle(500);
     assertEqual(pillsOf(ACT).length, 1, "one pill again");

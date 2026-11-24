@@ -31,6 +31,7 @@ export class TimeOffEditor extends TimelineEditor {
                 }
                 this._notifyChange({
                     message: _t("Time off split in two."),
+                    plain: true,
                     undo: {
                         kind: "split",
                         resId,
@@ -65,9 +66,10 @@ export class TimeOffEditor extends TimelineEditor {
             announce: (done) =>
                 this._notifyChange({
                     message: done
-                        ? _t("The two parts are merged back into one.")
+                        ? _t("The two parts are one request again.")
                         : _t("This split could not be undone."),
                     failed: !done,
+                    plain: true,
                 }),
         }).then(Boolean);
     }
