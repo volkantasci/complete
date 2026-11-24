@@ -511,5 +511,15 @@ fromList("hhg_a78_cancelled", async () => {
     assert(loaded(), "the popover has loaded");
 });
 
-// What the gesture tours (`time_off_gesture_tours.js`) use of this file.
-export { errorText, fromList, openManagement };
+// What the gesture, split and role tours use of this file.
+export {
+    errorText,
+    expectButtons,
+    fromList,
+    isEditable,
+    isReadonly,
+    openManagement,
+    pressButton,
+    visibleButtons,
+    written,
+};
