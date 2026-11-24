@@ -75,11 +75,15 @@ export class TimeOffPopoverFormController extends FormController {
         return true;
     }
 
-    /** R23: the focus lies on the time type, its link (read-only) or its input (edit). */
+    /**
+     * R23: the focus lies on the time type, its link (read-only) or its input (edit); the report's
+     * form has no type, its first link takes the focus.
+     */
     focusType() {
-        const element = this.rootRef()?.querySelector(
-            ".o_hhg_pop_type a, .o_hhg_pop_type input"
-        );
+        const root = this.rootRef();
+        const element =
+            root?.querySelector(".o_hhg_pop_type a, .o_hhg_pop_type input") ||
+            root?.querySelector(".o_form_nosheet a");
         element?.focus();
     }
 }
