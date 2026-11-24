@@ -81,7 +81,8 @@ const DAY = {
 const MULTI = "2026-11-23";
 const MULTI_BORDERS = ["2026-11-24", "2026-11-25"];
 const ONLY_ADMINISTRATORS = /can only be deleted by Administrators/;
-const ACCESS = /not allowed|access/i;
+// the Community's access error: "Sorry, <user> doesn't have 'delete' access to: - Time Off (hr.leave)"
+const ACCESS = /doesn't have 'delete' access to.*Time Off \(hr\.leave\)/i;
 
 // what a cell of the matrix shows ---------------------------------------------------------------------
 
@@ -395,7 +396,8 @@ employeeTours("a62", "manager");
 
 fromList("hhg_a63_approver_types", async () => {
     await openManagement();
-    await openRows(PEER, [PEER]);
+    // their own row and Toff Peer's show
+    await openRows("Toff", [PEER, OWN.approver]);
     const name = PEER;
     // the day of each type's request (the *types* state): CTO 16, UN 17, STO 18
     const cell = async (day, want, label) => {
