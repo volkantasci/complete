@@ -1,6 +1,6 @@
 // Copyright 2026 Complete contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-import { onMounted, t, useProps } from "@odoo/owl";
+import * as owl from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { FormController } from "@web/views/form/form_controller";
 import { formView } from "@web/views/form/form_view";
@@ -27,12 +27,12 @@ export class TimeOffPopoverFormController extends FormController {
     setup() {
         super.setup();
         // the form's own `props` keep the keys the Community controller declares
-        this.hhgProps = useProps({
-            onModelReady: t.function().optional(),
-            onRecordState: t.function().optional(),
-            editableStates: t.array(t.string()).optional(),
+        this.hhgProps = owl.useProps({
+            onModelReady: owl.t.function().optional(),
+            onRecordState: owl.t.function().optional(),
+            editableStates: owl.t.array(owl.t.string()).optional(),
         });
-        onMounted(() => {
+        owl.onMounted(() => {
             this.hhgProps.onModelReady?.(this.model);
             this.focusType();
         });

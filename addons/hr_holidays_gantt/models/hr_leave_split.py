@@ -5,7 +5,8 @@
 import re
 from datetime import date
 
-from odoo import SUPERUSER_ID, _, models
+from odoo import models
+from odoo.api import SUPERUSER_ID
 from odoo.exceptions import AccessError, UserError
 
 _ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -19,7 +20,8 @@ class HrLeave(models.Model):
         """One request, and a caller of the Officer group or above (D10)."""
         self.ensure_one()
         if not self.env.su and not self.env.user.has_group(_OFFICER):
-            raise AccessError(_("Only a Time Off officer may divide a request or join it again."))
+            raise AccessError(
+                self.env._("Only a Time Off officer may divide a request or join it again."))
 
     def _hhg_end_values(self):
         self.ensure_one()
@@ -34,11 +36,11 @@ class HrLeave(models.Model):
         day) with the Community's split; return the new request ids and the former end."""
         self._hhg_check_split_caller()
         if not isinstance(split_day, str) or not _ISO_DAY.fullmatch(split_day):
-            raise UserError(_("The day to divide at must be given as YYYY-MM-DD."))
+            raise UserError(self.env._("The day to divide at must be given as YYYY-MM-DD."))
         try:
             day = date.fromisoformat(split_day)
         except ValueError:
-            raise UserError(_("The day to divide at is not a date.")) from None
+            raise UserError(self.env._("The day to divide at is not a date.")) from None
         former = self._hhg_end_values()
         if day <= self.request_date_from or day > self.request_date_to:
             return {"new_ids": [], **former}
@@ -58,7 +60,7 @@ class HrLeave(models.Model):
         free = self.with_context(leave_skip_state_check=True)
         parts = free.browse(new_ids).exists()
         if not isinstance(end_day, str) or not _ISO_DAY.fullmatch(end_day):
-            raise UserError(_("The former end day must be given as YYYY-MM-DD."))
+            raise UserError(self.env._("The former end day must be given as YYYY-MM-DD."))
         former_end = date.fromisoformat(end_day)
         # only the parts of this cut: another request is never removed by an undo
         if any(
@@ -70,7 +72,7 @@ class HrLeave(models.Model):
             or part.request_date_to > former_end
             for part in parts
         ):
-            raise UserError(_("Only the parts cut from this request can be removed."))
+            raise UserError(self.env._("Only the parts cut from this request can be removed."))
         # the Community lets only an administrator delete an Approved request; the parts
         # are the ones the cut made for this officer, so their removal runs as the Community's
         # own deletion as the system user

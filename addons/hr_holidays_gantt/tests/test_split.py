@@ -145,7 +145,7 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
                 leave.with_user(self.officer).hhg_rejoin_request(
                     ids, answer['end_day'], answer['end_period'], answer['end_hour'])
             for record in (other, later, leave, new):
-                self.assertTrue(record.exists())
+                self.assertEqual(len(record.exists()), 1)
             self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
             self.assertEqual(self.span(new), (date(2026, 11, 17), date(2026, 11, 18)))
 

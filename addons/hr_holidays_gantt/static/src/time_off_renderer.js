@@ -192,12 +192,12 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
             return;
         }
         const layer = pillEl.parentElement.getBoundingClientRect();
-        const pillRect = pillEl.getBoundingClientRect();
+        const pillBox = pillEl.getBoundingClientRect();
         const width = found.box.right - found.box.left;
         // the border lies at the box's left edge, or at its right edge in a mirrored grid (D11)
         const at = rtl ? width : 0;
         const left = found.box.left - layer.left;
-        const top = pillRect.top - PILL_INSET - layer.top;
+        const top = pillBox.top - PILL_INSET - layer.top;
         const styles = {
             box: `left: ${left}px; top: ${top}px; width: ${width}px; height: ${SPLIT_BOX_HEIGHT}px`,
             // left to right the line element spans the box with 1.5 px of negative margin at each side

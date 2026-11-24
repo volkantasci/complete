@@ -52,7 +52,7 @@ beforeEach(async () => {
             writes.push(name);
         });
     }
-    onRpc("get_gantt_data", () => {
+    onRpc("get_gantt_data", function noteReload() {
         reloads += 1;
     });
     await resize({ width: 1600, height: 1400 });
@@ -563,7 +563,7 @@ describe("what the buttons do (R7 to R10)", () => {
         onRpc("web_save", () => {
             order.push("web_save");
         });
-        onRpc("action_approve", () => {
+        onRpc("action_approve", function noteApprove() {
             order.push("action_approve");
         });
         await openPopover({ records: [REQUEST({ state: "confirm", ...ALL })] });

@@ -152,7 +152,7 @@ describe("the split tool in the view", () => {
         mockDate("2026-11-11T10:00:05Z");
         rpcLog = [];
         reloads = 0;
-        onRpc("get_gantt_data", () => {
+        onRpc("get_gantt_data", function noteReload() {
             reloads += 1;
         });
         onRpc("hhg_cut_request", ({ args, kwargs }) => {
@@ -257,7 +257,7 @@ describe("the split tool in the view", () => {
         expect(".o_hhg_pop").toHaveCount(0);
         expect(reloads).toBe(1);
         expect(".o_notification.o_tl_notification_success").toHaveCount(1);
-        expect(".o_notification .o_notification_buttons button").toHaveCount(1);
+        expect(".o_notification_buttons > button").toHaveCount(1);
         expect(".o_hhg_split_tool").toHaveCount(0);
     });
 

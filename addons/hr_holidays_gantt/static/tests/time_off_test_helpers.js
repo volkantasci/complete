@@ -58,13 +58,13 @@ export class Leave extends models.Model {
         ],
     });
     // the Community's flags for the reading user (the popover's footer reads them)
-    can_approve = fields.Boolean();
-    can_validate = fields.Boolean();
-    can_refuse = fields.Boolean();
-    can_back_to_approve = fields.Boolean();
+    can_approve = fields.Boolean({ string: "Can approve" });
     hours = fields.Float({ string: "Hours" });
+    can_validate = fields.Boolean({ string: "Can validate" });
     start = fields.Datetime({ string: "Start" });
+    can_refuse = fields.Boolean({ string: "Can refuse" });
     stop = fields.Datetime({ string: "Stop" });
+    can_back_to_approve = fields.Boolean({ string: "Can go back to approve" });
 
     _views = {
         "search,false": SEARCH,

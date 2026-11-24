@@ -137,7 +137,7 @@ class TestTimeOffSplitTours(ReportToursBase):
         self.assertEqual(
             [(leave.request_date_from, leave.request_date_to) for leave in leaves],
             [(DAY[16], DAY[16]), (DAY[17], DAY[17]), (DAY[18], DAY[18])])
-        self.assertEqual(set(leaves.mapped('state')), {'validate'})
+        self.assertEqual(leaves.filtered(lambda part: part.state != 'validate'), leaves.browse())
 
     def test_a46_undo_after_a_delete(self):
         leave = self._split_state()
