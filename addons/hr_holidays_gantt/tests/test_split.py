@@ -253,8 +253,12 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
         self.assertFalse(self.resource_leaves(unpaid))
         self.assertFalse(self.resource_leaves(part))
 
-    def refuses_undo(self, leave, ids, answer, user=None):
-        with self.assertRaises(UserError):
+    NOT_ITS_PART = 'Only the parts cut from this request can be removed'
+    DIVIDED_AGAIN = 'A part was divided again'
+
+    def refuses_undo(self, leave, ids, answer, user=None, message=NOT_ITS_PART):
+        """The undo is refused by our own check (D12), not by a Community check."""
+        with self.assertRaisesRegex(UserError, message):
             leave.with_user(user or self.officer).hhg_rejoin_request(
                 ids, answer['end_day'], answer['end_period'], answer['end_hour'])
 
@@ -269,12 +273,13 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
         self.assertEqual(waiting.state, 'confirm')
         foreign = (later, other, waiting)
         for one in foreign:
-            for ids in ([new.id, one.id], [one.id]):
-                with self.subTest(ids=ids):
-                    if ids == [new.id, one.id] and one is later:
-                        answer = dict(answer, end_day='2026-11-25')
-                    self.refuses_undo(leave, ids, answer)
-                    for record in (new, one):
+            calls = [([new.id, one.id], answer), ([one.id], answer), ([leave.id], answer)]
+            if one is later:
+                calls.append(([new.id, one.id], dict(answer, end_day='2026-11-25')))
+            for ids, sent in calls:
+                with self.subTest(ids=ids, end_day=sent['end_day']):
+                    self.refuses_undo(leave, ids, sent)
+                    for record in (leave, new, one):
                         self.assertEqual(len(record.exists()), 1)
                     self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
                     self.assertEqual(self.span(new), (date(2026, 11, 17), date(2026, 11, 18)))
@@ -295,17 +300,52 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
                 self.assert_leave_span(leave, '2026-11-16', '2026-11-18')
 
     def test_a98_two_splits_undone_in_order(self):
+        """The request split at 17, then its part split at 18 (A98)."""
+        for order in ('later first', 'earlier first'):
+            with self.subTest(order=order):
+                employee = self.employee('Toff Peer' if order == 'earlier first' else fx.ACT_NAME)
+                if order == 'later first':
+                    leave = self.split_state()
+                else:
+                    leave = fx.make_leave(
+                        self.env, employee, self.sick, date(2026, 11, 16), date(2026, 11, 18))
+                first = self.cut(leave, '2026-11-17', user=self.officer)
+                part = self.env['hr.leave'].browse(first['new_ids'])
+                second = self.cut(part, '2026-11-18', user=self.officer)
+                last = self.env['hr.leave'].browse(second['new_ids'])
+                self.assertEqual(len(last), 1)
+                self.assertEqual(self.span(part), (date(2026, 11, 17), date(2026, 11, 17)))
+                if order == 'later first':
+                    self.assertTrue(part.with_user(self.officer).hhg_rejoin_request(
+                        second['new_ids'], second['end_day'], second['end_period'],
+                        second['end_hour']))
+                    self.assertFalse(last.exists())
+                    self.assertEqual(self.span(part), (date(2026, 11, 17), date(2026, 11, 18)))
+                    self.assertTrue(self.rejoin(leave, first, user=self.officer))
+                    self.assertFalse(part.exists())
+                    self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
+                    self.assert_leave_span(leave, '2026-11-16', '2026-11-18')
+                else:
+                    self.refuses_undo(
+                        leave, first['new_ids'], first, message=self.DIVIDED_AGAIN)
+                    self.assertEqual(len((part | last).exists()), 2)
+                    self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+                    self.assertEqual(self.span(part), (date(2026, 11, 17), date(2026, 11, 17)))
+                    self.assertEqual(self.span(last), (date(2026, 11, 18), date(2026, 11, 18)))
+
+    def test_two_splits_of_the_same_request(self):
+        """Several splits of one request: each undo removes only its own parts. No refusal
+        arises here: both splits cut the request itself, so neither part has parts of its own
+        (a refusal comes only from a part cut again, see A98)."""
         leave = self.split_state()
         first = self.cut(leave, '2026-11-18', user=self.officer)
         second = self.cut(leave, '2026-11-17', user=self.officer)
         part_a = self.env['hr.leave'].browse(first['new_ids'])
         part_b = self.env['hr.leave'].browse(second['new_ids'])
         self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
-        # the earlier split first: refused as a whole, then the later one, then the earlier
-        self.refuses_undo(leave, first['new_ids'], first)
-        self.assertEqual(len((part_a | part_b).exists()), 2)
         self.assertTrue(self.rejoin(leave, second, user=self.officer))
         self.assertFalse(part_b.exists())
+        self.assertTrue(part_a.exists(), 'the other split keeps its own part')
         self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 17)))
         self.assertTrue(self.rejoin(leave, first, user=self.officer))
         self.assertFalse(part_a.exists())
@@ -313,61 +353,79 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
         self.assert_leave_span(leave, '2026-11-16', '2026-11-18')
 
     def test_a100_undo_after_part_changed_or_deleted(self):
-        # (a) moved to other days, same employee, type and state: still removed
-        leave, new, answer = self.cut_split()
+        # "Toff Act" with an STO request To Approve, 16 to 18 November
+        request = self.waiting(self.split_state())
+        self.assertEqual(request.state, 'confirm')
+        full = (date(2026, 11, 16), date(2026, 11, 18))
+
+        def split():
+            answer = self.cut(request, '2026-11-17')
+            return self.env['hr.leave'].browse(answer['new_ids']), answer
+
+        # (a) moved one day later, same employee, type and state: still removed
+        new, answer = split()
         new.with_user(self.admin).with_context(leave_skip_state_check=True).write({
             'request_date_from': date(2026, 11, 18), 'request_date_to': date(2026, 11, 19)})
-        self.assertTrue(self.rejoin(leave, answer, user=self.officer))
+        self.assertTrue(self.rejoin(request, answer, user=self.officer))
         self.assertFalse(new.exists())
-        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
-        # (b) state changed: refused, nothing changes
-        leave, new, answer = self.cut_split(leave)
+        self.assertEqual(self.span(request), full)
+        # (b) refused (state changed): the call is refused, nothing changes
+        new, answer = split()
         new.with_user(self.admin).action_refuse()
-        self.refuses_undo(leave, answer['new_ids'], answer)
+        self.refuses_undo(request, answer['new_ids'], answer)
         self.assertTrue(new.exists())
-        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+        self.assertEqual(self.span(request), (date(2026, 11, 16), date(2026, 11, 16)))
+        new.with_user(self.admin).unlink()
+        self.assertTrue(self.rejoin(request, answer, user=self.officer))
+        self.assertEqual(self.span(request), full)
         # (c) deleted: skipped
-        leave2 = fx.make_leave(
-            self.env, self.employee('Toff Peer'), self.sick, date(2026, 11, 16), date(2026, 11, 18))
-        leave2, new2, answer2 = self.cut_split(leave2)
-        new2.with_user(self.admin).unlink()
-        self.assertIs(self.rejoin(leave2, answer2, user=self.officer), True)
-        self.assertEqual(self.span(leave2), (date(2026, 11, 16), date(2026, 11, 18)))
-        # (d) the request itself deleted: false, the list is not examined
-        leave3 = fx.make_leave(
+        new, answer = split()
+        new.with_user(self.admin).unlink()
+        self.assertIs(self.rejoin(request, answer, user=self.officer), True)
+        self.assertEqual(self.span(request), full)
+        # (d) the request deleted, the list names another employee's request: false
+        new, answer = split()
+        peer_request = fx.make_leave(
             self.env, self.employee('Toff Peer'), self.sick, date(2026, 12, 7), date(2026, 12, 9))
-        answer3 = self.cut(leave3, '2026-12-08')
-        new3 = self.env['hr.leave'].browse(answer3['new_ids'])
-        self.assertEqual(len(new3), 1)
-        leave3.with_user(self.admin).unlink()
-        self.assertIs(leave3.with_user(self.officer).hhg_rejoin_request(
-            [new3.id, new.id], answer3['end_day'], answer3['end_period'], answer3['end_hour']),
+        request.with_user(self.admin).unlink()
+        self.assertIs(request.with_user(self.officer).hhg_rejoin_request(
+            [peer_request.id], answer['end_day'], answer['end_period'], answer['end_hour']),
             False)
-        self.assertTrue(new3.exists() and new.exists())
+        self.assertTrue(peer_request.exists() and new.exists())
+        self.assertEqual(peer_request.state, 'validate')
 
     def test_undo_raised_rights_reach_only_the_parts(self):
         leave, new, answer = self.cut_split()
         other = fx.make_leave(
             self.env, self.employee('Toff Peer'), self.sick, date(2026, 11, 17), date(2026, 11, 18))
-        self.refuses_undo(leave, [other.id], answer)
-        self.assertEqual(other.state, 'validate')
-        self.assertTrue(other.exists())
-        # the link is the system's: a normal user and an officer read or write nothing of it
+        # an Approved request of another employee: refused by our check, not deleted
+        for ids in ([other.id], [new.id, other.id]):
+            self.refuses_undo(leave, ids, answer)
+            self.assertEqual(
+                (other.state, len(other.exists()), len(new.exists())), ('validate', 1, 1))
+            self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+        # the link is the system's: no user but an administrator reads or writes it
         self.assertEqual(new.sudo().hhg_split_source_id, leave)
-        with self.assertRaises(AccessError):
-            new.with_user(self.officer).read(['hhg_split_source_id'])
-        with self.assertRaises(AccessError):
-            new.with_user(self.officer).write({'hhg_split_source_id': other.id})
+        for user in (self.officer, self.users['toff_emp']):
+            with self.subTest(user=user.login):
+                with self.assertRaises(AccessError):
+                    new.with_user(user).read(['hhg_split_source_id'])
+                with self.assertRaises(AccessError):
+                    new.with_user(user).write({'hhg_split_source_id': other.id})
         self.assertNotIn('hhg_split_source_id', new.with_user(self.officer).read()[0])
         # a copy carries no link
         copied = new.sudo().with_context(skip_copy_check=True).copy_data()[0]
         self.assertNotIn('hhg_split_source_id', copied)
-        # the write-back runs with the caller's rights: a caller without the group gets
-        # the access error before anything is removed
+        # a caller below the Officer group is refused before anything is removed
         with self.assertRaises(AccessError):
             leave.with_user(self.users['toff_emp']).hhg_rejoin_request(
                 answer['new_ids'], answer['end_day'], answer['end_period'], answer['end_hour'])
         self.assertTrue(new.exists())
+        # the write-back is the caller's: an Officer's undo changes nothing it may not write
+        # (the part is removed with raised rights, the request is written with the caller's)
+        self.assertTrue(self.rejoin(leave, answer, user=self.officer))
+        self.assertFalse(new.exists())
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
 
     def dec_requests(self, user_logins):
         """Requests of 14 to 16 December: To Approve for every owner, Approved for a second

@@ -101,5 +101,8 @@ class HrLeave(models.Model):
             values["request_hour_to"] = end_hour or 0
         free.write(values)
         if self.state == "validate":
+            # the Community's own step at the final approval, which it runs as the system
+            # user too (``holidays.sudo()._create_resource_leave()``): the leave record of
+            # the request's days, not a check the caller is excused from
             self.sudo()._create_resource_leave()
         return True
