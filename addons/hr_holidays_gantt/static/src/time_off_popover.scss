@@ -11,6 +11,15 @@
     max-width: 95vw;
 }
 
+// M11, M12: the type's link, in the desktop popover and in the phone sheet, has the focus without
+// any mark: no outline (a 3 px outline of no style, in the link's colour), no underline, no
+// shadow; it keeps its colour (S1)
+.o_hhg_pop .o_hhg_pop_type a:focus {
+    outline: 3px none currentcolor;
+    text-decoration: none;
+    box-shadow: none;
+}
+
 .o_hhg_pop {
     display: flex;
     flex-direction: column;
@@ -304,14 +313,6 @@
         padding: 0 !important;
         border: 0 !important;
         height: 23px;
-    }
-
-    // M11, M12: the link has the focus without any mark: no outline (a 3 px outline of no style,
-    // in the link's colour), no underline, no shadow; it keeps its colour (S1)
-    .o_hhg_pop_type a:focus {
-        outline: 3px none currentcolor;
-        text-decoration: none;
-        box-shadow: none;
     }
 
     .o_hhg_pop_iconcol .o_hhg_pop_icon {
