@@ -74,9 +74,9 @@ export class Leave extends models.Model {
             <field name="state" invisible="1"/>
             <field name="can_approve" invisible="1"/>
             <field name="can_validate" invisible="1"/>
+            <div class="o_hhg_pop_type"><field name="employee_id" nolabel="1"/></div>
             <field name="can_refuse" invisible="1"/>
             <field name="can_back_to_approve" invisible="1"/>
-            <div class="o_hhg_pop_type"><field name="employee_id" nolabel="1"/></div>
             <field name="name"/>
         </form>`,
     };

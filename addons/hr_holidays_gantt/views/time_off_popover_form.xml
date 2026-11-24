@@ -22,8 +22,10 @@
                 <field name="request_date_to" invisible="1"/>
                 <field name="request_hour_from" invisible="1"/>
                 <field name="request_hour_to" invisible="1"/>
-                <field name="date_from" invisible="True"/>
-                <field name="date_to" invisible="1"/>
+                <div invisible="1">
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                </div>
                 <field name="allowed_work_entry_type_ids" invisible="1"/>
                 <field name="work_entry_type_request_unit" invisible="1"/>
                 <field name="last_several_days" invisible="1"/>
@@ -47,7 +49,7 @@
                         <div class="o_hhg_pop_dates_value">
                             <div class="o_hhg_pop_hours" invisible="work_entry_type_request_unit != 'hour'">
                                 <field name="number_of_hours" widget="hhg_hours" nolabel="1"
-                                    readonly="state not in ('confirm',)"/>
+                                    readonly="state in ('refuse', 'validate1', 'validate', 'cancel')"/>
                             </div>
                             <div class="o_hhg_pop_halves d-flex gap-2"
                                 invisible="work_entry_type_request_unit != 'half_day' or not last_several_days">
@@ -58,7 +60,7 @@
                             <div class="o_hhg_pop_choice"
                                 invisible="work_entry_type_request_unit != 'half_day' or last_several_days">
                                 <field name="request_duration" nolabel="1" required="1"
-                                    readonly="state != 'confirm'"
+                                    readonly="state in ('refuse', 'validate1', 'validate', 'cancel')"
                                     widget="selection_badge_with_filter"
                                     options="{'allowed_selection_field': 'allowed_request_durations'}"/>
                             </div>
@@ -69,7 +71,7 @@
                             </div>
                             <div class="o_hhg_pop_warning alert alert-danger mb-0 mt-1" role="alert"
                                 invisible="not allocation_display_warning">
-                                <field name="allocation_display_warning" class="d-block" readonly="1" nolabel="1"/>
+                                <field name="allocation_display_warning" readonly="1" nolabel="1"/>
                             </div>
                         </div>
                     </div>
