@@ -946,6 +946,12 @@ request; the parts are removed by the Community's own deletion as the system use
 because the Community lets administrators alone delete an Approved request and the
 parts are the ones this split made.
 
+**The end the server recorded.** At each split the server records, per created part,
+the former end of the request in the field `hhg_split_record` (system-only, next to
+the link `hhg_split_source_id`). The undo writes back only those recorded values: it
+refuses a call that names no recorded part or sends end values other than the
+recorded ones (ruling R-C-11).
+
 **Server.** A model holds the part both data calls share (`hhg.gantt.rows`, an
 abstract model mixed into `hr.leave` and `hr.leave.report.calendar`):
 
