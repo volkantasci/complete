@@ -20,10 +20,11 @@
             lighten($o-gray-700, 6%) 20px
         );
 
-        // under the pointer the stripes stay and darken, as at the light scheme's colours
-        // (R26, M85); this rule outranks the light scheme's twin, so it needs its own
+        // under the pointer the stripes are the pill's full colour and its lighter tint, as at
+        // the other colours (R26, M85, M106); this rule outranks the light scheme's twin, so it
+        // needs its own
         &:hover {
-            $-hover: darken($o-gray-700, 8%);
+            $-hover: o-tl-pill-full($o-gray-700);
 
             background-image: repeating-linear-gradient(
                 -45deg,

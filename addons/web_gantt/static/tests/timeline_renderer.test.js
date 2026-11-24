@@ -709,3 +709,37 @@ test("R25: the day line of an Arabic user: the weekday name and the day number i
     ]);
     expect(queryAllTexts(".o_tl_col").some((text) => /[0-9]/.test(text))).toBe(false);
 });
+
+test("A101 R26 M105 M106: under the pointer the stripes are the pill's full colour and its tint", async () => {
+    const twins = addHoverTwins();
+    const probe = document.createElement("div");
+    document.body.appendChild(probe);
+    for (let index = 0; index < 12; index++) {
+        probe.className = `o_tl_pill o_tl_striped o_tl_color_${index}`;
+        const [colorText, restImage] = style(probe, "backgroundColor", "backgroundImage");
+        const pillColor = colorText.match(/\d+/g).slice(0, 3).map(Number);
+        probe.classList.add("o_tl_test_hover");
+        const [hoveredColor, hoveredImage] = style(probe, "backgroundColor", "backgroundImage");
+        probe.classList.remove("o_tl_test_hover");
+        expect(hoveredColor).toBe(colorText);
+        const stops = gradientStops(hoveredImage);
+        expect(stops).toHaveLength(4);
+        const full = pillColor.map((channel) => Math.max(0, (channel - 0.4 * 255) / 0.6));
+        // the first stripe is B, within one step per channel, for every colour (grey included)
+        stops[0].forEach((channel, i) => {
+            expect(Math.abs(channel - full[i])).toBeLessThan(1.01, {
+                message: `colour ${index}, channel ${i}`,
+            });
+        });
+        // the stripes of each pair are the same colour, the second one lighter
+        expect(stops[1]).toEqual(stops[0]);
+        expect(stops[3]).toEqual(stops[2]);
+        expect(stops[2].reduce((a, b) => a + b)).toBeGreaterThan(
+            stops[0].reduce((a, b) => a + b)
+        );
+        // at rest the stripes are the pill's colour P itself
+        expect(gradientStops(restImage)[0]).toEqual(pillColor);
+    }
+    probe.remove();
+    twins.remove();
+});
