@@ -421,10 +421,79 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
             leave.with_user(self.users['toff_emp']).hhg_rejoin_request(
                 answer['new_ids'], answer['end_day'], answer['end_period'], answer['end_hour'])
         self.assertTrue(new.exists())
-        # the write-back is the caller's: an Officer's undo changes nothing it may not write
-        # (the part is removed with raised rights, the request is written with the caller's)
+        # a correct undo by an Officer still works
         self.assertTrue(self.rejoin(leave, answer, user=self.officer))
         self.assertFalse(new.exists())
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
+
+    NO_RECORD = 'No division of this request is recorded'
+    OTHER_END = 'The end given is not the one'
+
+    def test_undo_writes_back_only_what_a_split_recorded(self):
+        """R-C-11: the end written back is the one the server recorded for the split."""
+        # an Approved request nobody split: no end can be moved around the Community's check
+        leave = self.split_state()
+        for ids in ([], [999999999]):
+            with self.subTest(ids=ids):
+                with self.assertRaisesRegex(UserError, self.NO_RECORD):
+                    leave.with_user(self.officer).hhg_rejoin_request(
+                        ids, '2027-01-31', 'pm', None)
+                self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
+                self.assertEqual(leave.state, 'validate')
+        # a split made: the list still has to name one of its parts
+        leave, new, answer = self.cut_split(leave)
+        with self.assertRaisesRegex(UserError, self.NO_RECORD):
+            leave.with_user(self.officer).hhg_rejoin_request([], '2027-01-31', 'pm', 16.0)
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+        self.assertTrue(new.exists())
+        # the end given must be the recorded one: day, period and hour
+        for change in ({'end_day': '2026-11-30'}, {'end_period': 'am'}, {'end_hour': 9.0}):
+            with self.subTest(change=change):
+                sent = dict(answer, **change)
+                with self.assertRaisesRegex(UserError, self.OTHER_END):
+                    leave.with_user(self.officer).hhg_rejoin_request(
+                        answer['new_ids'], sent['end_day'], sent['end_period'], sent['end_hour'])
+                self.assertTrue(new.exists())
+                self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+        # the right end undoes it, and the record is used up
+        self.assertTrue(self.rejoin(leave, answer, user=self.officer))
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
+        self.assertFalse(leave.sudo().hhg_split_record)
+        with self.assertRaisesRegex(UserError, self.NO_RECORD):
+            leave.with_user(self.officer).hhg_rejoin_request(
+                answer['new_ids'], answer['end_day'], answer['end_period'], answer['end_hour'])
+
+    def test_undo_record_is_the_systems(self):
+        leave, new, answer = self.cut_split()
+        self.assertTrue(leave.sudo().hhg_split_record)
+        for user in (self.officer, self.users['toff_emp']):
+            with self.subTest(user=user.login):
+                with self.assertRaises(AccessError):
+                    leave.with_user(user).read(['hhg_split_record'])
+                with self.assertRaises(AccessError):
+                    leave.with_user(user).write({'hhg_split_record': {}})
+        copied = leave.sudo().with_context(skip_copy_check=True).copy_data()[0]
+        self.assertNotIn('hhg_split_record', copied)
+
+    def test_undo_write_back_is_the_callers_not_the_systems(self):
+        """The parts are removed with raised rights, the request is written with the caller's:
+        where the Community refuses the caller the write, the undo is refused whole."""
+        leave, new, answer = self.cut_split()
+        # a restriction without a group: nobody but the system user writes the requests of
+        # any other employee than this one's
+        self.env['ir.access'].create({
+            'name': 'test: no write on the requests of other employees',
+            'model_id': self.env['ir.model']._get_id('hr.leave'),
+            'operation': 'u',
+            'domain': str([('employee_id', '!=', leave.employee_id.id)])})
+        with self.assertRaises(AccessError):
+            self.rejoin(leave, answer, user=self.officer)
+        self.assertTrue(new.exists(), 'the removal of the part is rolled back')
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+        # the same write as the system user passes: the refusal above is the caller's
+        new.sudo().unlink()
+        leave.sudo().with_context(leave_skip_state_check=True).write(
+            {'request_date_to': date(2026, 11, 18)})
         self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
 
     def dec_requests(self, user_logins):

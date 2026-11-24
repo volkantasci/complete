@@ -19,6 +19,8 @@ class HrLeave(models.Model):
     hhg_split_source_id = fields.Many2one(
         "hr.leave", string="Divided from", copy=False, index=True, readonly=True,
         ondelete="set null", groups="base.group_system")
+    hhg_split_record = fields.Json(
+        string="Divisions made", copy=False, readonly=True, groups="base.group_system")
 
     def _hhg_check_split_caller(self):
         """One request, and a caller of the Officer group or above (D10)."""
@@ -48,15 +50,18 @@ class HrLeave(models.Model):
         former = self._hhg_end_values()
         if day <= self.request_date_from or day > self.request_date_to:
             return {"new_ids": [], **former}
+        # the Community's split amends this request's leave and creates the new part's own
+        # (its fast creation of an Approved request makes it), so each part has one over its
+        # own days (D8)
         created = self._split_leaves(day)
-        if self.state == "validate":
-            # the Community's fast creation of the new part skips its leave: each part gets
-            # its own, over its own days, as at the final approval (D8)
-            (self | created).sudo()._create_resource_leave()
-        # the server's own record of where the parts come from (D12)
-        created.sudo().with_context(
-            tracking_disable=True, leave_skip_state_check=True,
-        ).write({"hhg_split_source_id": self.id})
+        # the server's own record of where the parts come from and of the end this request
+        # had before (D12): the undo writes back these values, not the caller's
+        quiet = {"tracking_disable": True, "leave_skip_state_check": True}
+        created.sudo().with_context(**quiet).write({"hhg_split_source_id": self.id})
+        if created:
+            record = dict(self.sudo().hhg_split_record or {})
+            record.update({str(part_id): former for part_id in created.ids})
+            self.sudo().with_context(**quiet).write({"hhg_split_record": record})
         return {"new_ids": created.ids, **former}
 
     def _hhg_remove_split_parts(self, parts):
@@ -78,7 +83,6 @@ class HrLeave(models.Model):
             date.fromisoformat(end_day)
         except ValueError:
             raise UserError(self.env._("The former end day is not a date.")) from None
-        free = self.with_context(leave_skip_state_check=True)
         named = self.browse(new_ids).exists()
         # the link is a bookkeeping value only the system reads
         if any(
@@ -92,17 +96,31 @@ class HrLeave(models.Model):
         if named.sudo().search_count([("hhg_split_source_id", "in", named.ids)]):
             raise UserError(self.env._(
                 "A part was divided again: join its parts first, then this one."))
+        # what the split did is the server's to know: the end to write back is the recorded
+        # one, and only a split recorded for these ids can be undone (R-C-11)
+        record = dict(self.sudo().hhg_split_record or {})
+        keys = [str(part_id) for part_id in (new_ids or []) if str(part_id) in record]
+        if not keys:
+            raise UserError(self.env._("No division of this request is recorded for these parts."))
+        former = record[keys[0]]
+        if any(record[key] != former for key in keys) or (
+            end_day, end_period) != (former["end_day"], former["end_period"]) or (
+            end_hour is not None
+            and abs((end_hour or 0) - (former["end_hour"] or 0)) > 1e-6
+        ):
+            raise UserError(self.env._(
+                "The end given is not the one this request had before it was divided."))
         self._hhg_remove_split_parts(named)
-        values = {
-            "request_date_to": end_day,
-            "request_date_to_period": end_period,
-        }
-        if end_hour is not None:
-            values["request_hour_to"] = end_hour or 0
-        free.write(values)
-        if self.state == "validate":
-            # the Community's own step at the final approval, which it runs as the system
-            # user too (``holidays.sudo()._create_resource_leave()``): the leave record of
-            # the request's days, not a check the caller is excused from
-            self.sudo()._create_resource_leave()
+        # the write-back is the caller's own write, with the Community's checks
+        self.with_context(leave_skip_state_check=True).write({
+            "request_date_to": former["end_day"],
+            "request_date_to_period": former["end_period"],
+            "request_hour_to": former["end_hour"] or 0,
+        })
+        # the split is consumed
+        for key in keys:
+            record.pop(key)
+        self.sudo().with_context(
+            tracking_disable=True, leave_skip_state_check=True,
+        ).write({"hhg_split_record": record or False})
         return True
