@@ -238,10 +238,12 @@ scenario("hhg_a43_split_area", async () => {
     const x = bx + 3;
     const rows = [
         [boxTop - 2, false],
-        [boxTop, true],
+        // inside the 1 px inset above the coloured body (the mouse point may be rounded down)
+        [boxTop + 0.6, true],
         [boxTop + 1, true],
         [centreY(pill), true],
-        [boxBottom - 1, true],
+        // inside the box's last pixel but one (the mouse point may be rounded)
+        [boxBottom - 1.5, true],
         [boxBottom + 2, false],
     ];
     for (const [yy, wanted] of rows) {

@@ -273,9 +273,11 @@ describe("the split tool in the view", () => {
         // pressed, then 12 px along: the move of R12 starts, the tool goes, nothing is cut
         await moveTo(borderAfter(1) + 2);
         const held = await drag(pillEl(), { position: lastPoint });
-        const to = { x: lastPoint.x + 12, y: lastPoint.y };
-        await held.moveTo(document.elementFromPoint(to.x, to.y), { position: to });
-        await animationFrame();
+        for (const shift of [12, 24]) {
+            const at = { x: lastPoint.x + shift, y: lastPoint.y };
+            await held.moveTo(document.elementFromPoint(at.x, at.y), { position: at });
+            await settle(100);
+        }
         expect(".o_hhg_split_tool").toHaveCount(0);
         await held.cancel();
         await settle();
@@ -347,6 +349,23 @@ describe("the split tool in the view", () => {
         await settle();
         expect(".o_notification").toHaveCount(1);
         expect(".o_notification.o_tl_notification_danger").toHaveCount(1);
+    });
+
+    test("E14 Undo that the server refuses with an error shows the error, no success notice, and reloads", async () => {
+        expect.errors(1);
+        onRpc("hhg_rejoin_request", () => {
+            throw new Error("not made by the split");
+        });
+        await mountLeave();
+        await moveTo(borderAfter(1) + 2);
+        await clickHere();
+        await settle();
+        await click(".o_notification .o_notification_buttons button");
+        await settle();
+        expect.verifyErrors(["RPC_ERROR: not made by the split"]);
+        expect(".o_notification.o_tl_notification_success").toHaveCount(0);
+        // the view reads the records again, so that it shows what the server holds
+        expect(reloads).toBe(2);
     });
 
     test("R17 point 6 while the call runs the tool is off and a click opens the popover", async () => {
