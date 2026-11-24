@@ -5,7 +5,7 @@
 import re
 from datetime import date
 
-from odoo import models
+from odoo import fields, models
 from odoo.api import SUPERUSER_ID
 from odoo.exceptions import AccessError, UserError
 
@@ -15,6 +15,10 @@ _OFFICER = "hr_holidays.group_hr_holidays_user"
 
 class HrLeave(models.Model):
     _inherit = "hr.leave"
+
+    hhg_split_source_id = fields.Many2one(
+        "hr.leave", string="Divided from", copy=False, index=True, readonly=True,
+        ondelete="set null", groups="base.group_system")
 
     def _hhg_check_split_caller(self):
         """One request, and a caller of the Officer group or above (D10)."""
@@ -49,34 +53,46 @@ class HrLeave(models.Model):
             # the Community's fast creation of the new part skips its leave: each part gets
             # its own, over its own days, as at the final approval (D8)
             (self | created).sudo()._create_resource_leave()
+        # the server's own record of where the parts come from (D12)
+        created.sudo().with_context(
+            tracking_disable=True, leave_skip_state_check=True,
+        ).write({"hhg_split_source_id": self.id})
         return {"new_ids": created.ids, **former}
 
+    def _hhg_remove_split_parts(self, parts):
+        """Delete the parts a split made, with the Community's own deletion as the system
+        user. This is the only step of the undo that runs with raised rights: the Community
+        lets only an administrator delete an Approved request (D13), yet the parts are the
+        ones the split made for this caller. The caller has already checked each part."""
+        parts.with_user(SUPERUSER_ID).unlink()
+
     def hhg_rejoin_request(self, new_ids, end_day, end_period, end_hour=None):
-        """Undo a cut: delete the new requests that still exist and write the former end
-        back; ``False`` when this request no longer exists."""
+        """Undo a cut: delete the requests this request's split made that still exist and
+        write the former end back; ``False`` when this request no longer exists (D12, D13)."""
+        self._hhg_check_split_caller()
         if not self.exists():
             return False
-        self._hhg_check_split_caller()
-        free = self.with_context(leave_skip_state_check=True)
-        parts = free.browse(new_ids).exists()
         if not isinstance(end_day, str) or not _ISO_DAY.fullmatch(end_day):
             raise UserError(self.env._("The former end day must be given as YYYY-MM-DD."))
-        former_end = date.fromisoformat(end_day)
-        # only the parts of this cut: another request is never removed by an undo
+        try:
+            date.fromisoformat(end_day)
+        except ValueError:
+            raise UserError(self.env._("The former end day is not a date.")) from None
+        free = self.with_context(leave_skip_state_check=True)
+        named = self.browse(new_ids).exists()
+        # the link is a bookkeeping value only the system reads
         if any(
-            part == self
+            part.sudo().hhg_split_source_id != self
             or part.employee_id != self.employee_id
             or part.work_entry_type_id != self.work_entry_type_id
             or part.state != self.state
-            or part.request_date_from <= self.request_date_to
-            or part.request_date_to > former_end
-            for part in parts
+            for part in named
         ):
             raise UserError(self.env._("Only the parts cut from this request can be removed."))
-        # the Community lets only an administrator delete an Approved request; the parts
-        # are the ones the cut made for this officer, so their removal runs as the Community's
-        # own deletion as the system user
-        parts.with_user(SUPERUSER_ID).unlink()
+        if named.sudo().search_count([("hhg_split_source_id", "in", named.ids)]):
+            raise UserError(self.env._(
+                "A part was divided again: join its parts first, then this one."))
+        self._hhg_remove_split_parts(named)
         values = {
             "request_date_to": end_day,
             "request_date_to_period": end_period,

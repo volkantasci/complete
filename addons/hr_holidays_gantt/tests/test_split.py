@@ -134,21 +134,6 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
         self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
         self.assertEqual(leave.request_date_to_period, 'pm')
 
-    def test_a05_undo_refuses_foreign_ids(self):
-        leave, new, answer = self.cut_split()
-        other = fx.make_leave(
-            self.env, self.employee('Toff Peer'), self.sick, date(2026, 11, 17), date(2026, 11, 18))
-        later = fx.make_leave(
-            self.env, leave.employee_id, self.sick, date(2026, 11, 24), date(2026, 11, 24))
-        for ids in ([other.id], [later.id], [leave.id], [new.id, later.id]):
-            with self.subTest(ids=ids), self.assertRaises(UserError):
-                leave.with_user(self.officer).hhg_rejoin_request(
-                    ids, answer['end_day'], answer['end_period'], answer['end_hour'])
-            for record in (other, later, leave, new):
-                self.assertEqual(len(record.exists()), 1)
-            self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
-            self.assertEqual(self.span(new), (date(2026, 11, 17), date(2026, 11, 18)))
-
     def test_a07_approved_hour_request_leaves(self):
         employee = self.env['hr.employee'].create({
             'name': 'Toff Act Hours', 'tz': fx.TZ, 'contract_date_start': fx.CONTRACT_START,
@@ -267,6 +252,122 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
         self.assertEqual((unpaid.state, part.state), ('validate1', 'validate1'))
         self.assertFalse(self.resource_leaves(unpaid))
         self.assertFalse(self.resource_leaves(part))
+
+    def refuses_undo(self, leave, ids, answer, user=None):
+        with self.assertRaises(UserError):
+            leave.with_user(user or self.officer).hhg_rejoin_request(
+                ids, answer['end_day'], answer['end_period'], answer['end_hour'])
+
+    def test_a96_undo_names_a_request_no_split_made(self):
+        leave, new, answer = self.cut_split()
+        peer = self.employee('Toff Peer')
+        later = fx.make_leave(
+            self.env, leave.employee_id, self.sick, date(2026, 11, 24), date(2026, 11, 24))
+        other = fx.make_leave(self.env, peer, self.sick, date(2026, 11, 17), date(2026, 11, 17))
+        waiting = self.waiting(fx.make_leave(
+            self.env, leave.employee_id, self.sick, date(2026, 11, 20), date(2026, 11, 20)))
+        self.assertEqual(waiting.state, 'confirm')
+        foreign = (later, other, waiting)
+        for one in foreign:
+            for ids in ([new.id, one.id], [one.id]):
+                with self.subTest(ids=ids):
+                    if ids == [new.id, one.id] and one is later:
+                        answer = dict(answer, end_day='2026-11-25')
+                    self.refuses_undo(leave, ids, answer)
+                    for record in (new, one):
+                        self.assertEqual(len(record.exists()), 1)
+                    self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+                    self.assertEqual(self.span(new), (date(2026, 11, 17), date(2026, 11, 18)))
+
+    def test_a97_officer_undo_of_approved_split(self):
+        officers_own = self.split_state()
+        admins = fx.make_leave(
+            self.env, self.employee('Toff Peer'), self.sick, date(2026, 11, 16), date(2026, 11, 18))
+        for user, leave in ((self.officer, officers_own), (self.admin, admins)):
+            with self.subTest(user=user.login):
+                answer = self.cut(leave, '2026-11-17', user=user)
+                new = self.env['hr.leave'].browse(answer['new_ids'])
+                self.assertEqual(new.state, 'validate')
+                self.assertIs(self.rejoin(leave, answer, user=user), True)
+                self.assertFalse(new.exists())
+                self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
+                self.assertEqual(leave.state, 'validate')
+                self.assert_leave_span(leave, '2026-11-16', '2026-11-18')
+
+    def test_a98_two_splits_undone_in_order(self):
+        leave = self.split_state()
+        first = self.cut(leave, '2026-11-18', user=self.officer)
+        second = self.cut(leave, '2026-11-17', user=self.officer)
+        part_a = self.env['hr.leave'].browse(first['new_ids'])
+        part_b = self.env['hr.leave'].browse(second['new_ids'])
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+        # the earlier split first: refused as a whole, then the later one, then the earlier
+        self.refuses_undo(leave, first['new_ids'], first)
+        self.assertEqual(len((part_a | part_b).exists()), 2)
+        self.assertTrue(self.rejoin(leave, second, user=self.officer))
+        self.assertFalse(part_b.exists())
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 17)))
+        self.assertTrue(self.rejoin(leave, first, user=self.officer))
+        self.assertFalse(part_a.exists())
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
+        self.assert_leave_span(leave, '2026-11-16', '2026-11-18')
+
+    def test_a100_undo_after_part_changed_or_deleted(self):
+        # (a) moved to other days, same employee, type and state: still removed
+        leave, new, answer = self.cut_split()
+        new.with_user(self.admin).with_context(leave_skip_state_check=True).write({
+            'request_date_from': date(2026, 11, 18), 'request_date_to': date(2026, 11, 19)})
+        self.assertTrue(self.rejoin(leave, answer, user=self.officer))
+        self.assertFalse(new.exists())
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 18)))
+        # (b) state changed: refused, nothing changes
+        leave, new, answer = self.cut_split(leave)
+        new.with_user(self.admin).action_refuse()
+        self.refuses_undo(leave, answer['new_ids'], answer)
+        self.assertTrue(new.exists())
+        self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+        # (c) deleted: skipped
+        leave2 = fx.make_leave(
+            self.env, self.employee('Toff Peer'), self.sick, date(2026, 11, 16), date(2026, 11, 18))
+        leave2, new2, answer2 = self.cut_split(leave2)
+        new2.with_user(self.admin).unlink()
+        self.assertIs(self.rejoin(leave2, answer2, user=self.officer), True)
+        self.assertEqual(self.span(leave2), (date(2026, 11, 16), date(2026, 11, 18)))
+        # (d) the request itself deleted: false, the list is not examined
+        leave3 = fx.make_leave(
+            self.env, self.employee('Toff Peer'), self.sick, date(2026, 12, 7), date(2026, 12, 9))
+        answer3 = self.cut(leave3, '2026-12-08')
+        new3 = self.env['hr.leave'].browse(answer3['new_ids'])
+        self.assertEqual(len(new3), 1)
+        leave3.with_user(self.admin).unlink()
+        self.assertIs(leave3.with_user(self.officer).hhg_rejoin_request(
+            [new3.id, new.id], answer3['end_day'], answer3['end_period'], answer3['end_hour']),
+            False)
+        self.assertTrue(new3.exists() and new.exists())
+
+    def test_undo_raised_rights_reach_only_the_parts(self):
+        leave, new, answer = self.cut_split()
+        other = fx.make_leave(
+            self.env, self.employee('Toff Peer'), self.sick, date(2026, 11, 17), date(2026, 11, 18))
+        self.refuses_undo(leave, [other.id], answer)
+        self.assertEqual(other.state, 'validate')
+        self.assertTrue(other.exists())
+        # the link is the system's: a normal user and an officer read or write nothing of it
+        self.assertEqual(new.sudo().hhg_split_source_id, leave)
+        with self.assertRaises(AccessError):
+            new.with_user(self.officer).read(['hhg_split_source_id'])
+        with self.assertRaises(AccessError):
+            new.with_user(self.officer).write({'hhg_split_source_id': other.id})
+        self.assertNotIn('hhg_split_source_id', new.with_user(self.officer).read()[0])
+        # a copy carries no link
+        copied = new.sudo().with_context(skip_copy_check=True).copy_data()[0]
+        self.assertNotIn('hhg_split_source_id', copied)
+        # the write-back runs with the caller's rights: a caller without the group gets
+        # the access error before anything is removed
+        with self.assertRaises(AccessError):
+            leave.with_user(self.users['toff_emp']).hhg_rejoin_request(
+                answer['new_ids'], answer['end_day'], answer['end_period'], answer['end_hour'])
+        self.assertTrue(new.exists())
 
     def dec_requests(self, user_logins):
         """Requests of 14 to 16 December: To Approve for every owner, Approved for a second
