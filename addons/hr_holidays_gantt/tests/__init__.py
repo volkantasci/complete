@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from . import (
     test_action_probes,
+    test_action_screens,
     test_actions,
     test_attendance_tours,
     test_attendance_with_time_off,
