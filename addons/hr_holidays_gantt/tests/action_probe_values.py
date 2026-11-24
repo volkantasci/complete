@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # ruff: noqa: E501
 """Measured values of the original for the time-off popover, the split tool, the pointer and the
-moves of slice 002e2 (spec.md, "Measured values", M1 to M80), transcribed from the package's
-table by a script run once (the script is not part of the repository): the values Complete is
-compared with.
+moves of slice 002e2 (spec.md, "Measured values", M1 to M80, M84 and M85), transcribed from the
+package's table by a script run once (the script is not part of the repository): the values
+Complete is compared with.
 
 ``TIME_OFF_ACTION_PROBES`` is a list of rows ``(probe, scheme, viewport, prop, value)``;
 ``measured`` turns the rows of one probe in one viewport into the ``{scheme: {prop: value}}``
@@ -2085,6 +2085,14 @@ TIME_OFF_ACTION_PROBES = [
     ('M77', 'dark', 'desktop', 'count', '1'),
     ('M78', 'light', 'desktop', 'count', '1'),
     ('M78', 'dark', 'desktop', 'count', '1'),
+    ('M84', 'light', 'desktop', 'background-color', 'rgba(241, 214, 119, 1)'),
+    ('M84', 'light', 'desktop', 'background-image', 'repeating-linear-gradient(-45deg, rgb(241, 214, 119) 0px, rgb(241, 214, 119) 10px, rgb(244, 222, 147) 10px, rgb(244, 222, 147) 20px)'),
+    ('M84', 'dark', 'desktop', 'background-color', 'rgba(237, 208, 102, 1)'),
+    ('M84', 'dark', 'desktop', 'background-image', 'repeating-linear-gradient(-45deg, rgb(237, 208, 102) 0px, rgb(237, 208, 102) 10px, rgb(240, 216, 129) 10px, rgb(240, 216, 129) 20px)'),
+    ('M85', 'light', 'desktop', 'background-color', 'rgba(241, 214, 119, 1)'),
+    ('M85', 'light', 'desktop', 'background-image', 'repeating-linear-gradient(-45deg, rgb(232, 187, 29) 0px, rgb(232, 187, 29) 10px, rgb(235, 195, 57) 10px, rgb(235, 195, 57) 20px)'),
+    ('M85', 'dark', 'desktop', 'background-color', 'rgba(237, 208, 102, 1)'),
+    ('M85', 'dark', 'desktop', 'background-image', 'repeating-linear-gradient(-45deg, rgb(225, 176, 0) 0px, rgb(225, 176, 0) 10px, rgb(255, 200, 1) 10px, rgb(255, 200, 1) 20px)'),
 ]
 
 

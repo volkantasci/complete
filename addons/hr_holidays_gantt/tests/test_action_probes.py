@@ -374,6 +374,17 @@ class TestActionProbesAct(ActionProbeCase):
     def day_pill(self, day):
         return pill_on(ACT, WEEK_DAYS[day])
 
+    def test_r26_striped_pill_under_the_pointer(self):
+        """M84 and M85: the request To Approve of Wednesday 18, the pointer away, then at its
+        centre: the stripes stay and darken, the colour does not change."""
+        for scheme in self.schemes():
+            with self.subTest(scheme=scheme), self.week(scheme):
+                self.prepare(ACT)
+                wed = self.day_pill(18)
+                self.check('M84', wed, scheme, 'desktop', 'the pill To Approve at rest')
+                self.pointer_on(wed)
+                self.check('M85', wed, scheme, 'desktop', 'the pill To Approve under the pointer')
+
     def test_a16_a13_a17_popovers(self):
         dy = SHELL['desktop']
         for scheme in self.schemes():
