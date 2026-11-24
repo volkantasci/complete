@@ -254,6 +254,7 @@ finer.
 - **Marks.** The view definition can mark pills that meet a condition (danger,
   warning, success, info, secondary) with a small triangle in the top left
   corner. The info mark also fills the pill with diagonal stripes.
+  A striped pill under the pointer keeps its stripes and darkens them.
 - **Progress.** A darker band covers the left part of the pill, as wide as the
   percentage held by a field of the record.
 

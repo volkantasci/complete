@@ -38,19 +38,34 @@ What the module adds
   leave lines and the pencil for Employees officers.
 - **Import and Export** in the gear of the leave view.
 
-In this release a leave is opened, changed and created in the other views of
-Time Off. In the Gantt views a click, a drag or a selection does nothing yet;
-the Gantt view takes these inputs in a later release.
+- **The leave popover.** A click or a tap on a pill opens a popover with the
+  request's type, dates, number of days, allocation warning and description. Its
+  buttons follow the state and what the Community allows: Edit, Save, Approve,
+  Refuse, Discard and Delete. The report view's popover offers Delete alone.
+  Expand opens the request's form; a double click opens its dialog.
+- **Moves, resizes and copies** in the leave view, through the Community's own
+  checks, with Undo. Second Approval and Approved pills are locked; a copy is
+  refused except for a Refused or Cancelled request.
+- **The split tool.** Officers and Administrators split a request at a day border
+  with a click and join the parts again with Undo; each Approved part keeps its own
+  leave.
+- **The phone.** A tap opens the popover as the Gantt view's bottom sheet, with no
+  split tool.
+
+Creating leaves from the cells follows in a later release: until then a click, a
+double click or a drag on an empty cell does nothing.
 
 For developers
 ==============
 
 The client variants are ``hr_holidays_gantt_manager_hr_leave`` (leave view) and
-``hr_holidays_report_gantt`` (report view). The renderer lists the inputs it
-leaves to later releases in the ``hhgInputs`` getter. The server side is in
-``models/``: ``get_gantt_data``, ``_gantt_unavailability`` and
-``_gantt_progress_bar`` are overridden on ``hr.leave``, and
-``get_gantt_data`` on ``hr.leave.report.calendar``.
+``hr_holidays_report_gantt`` (report view). The renderer's ``hhgInputs`` getter
+switches the pill inputs on and the cell inputs off for the next release. The popover
+is built on the form ``hr_holidays_gantt.hr_leave_gantt_multi_create_view``. The
+server side is in ``models/``: ``get_gantt_data``, ``_gantt_unavailability`` and
+``_gantt_progress_bar`` are overridden on ``hr.leave``, and ``get_gantt_data`` on
+``hr.leave.report.calendar``; ``hhg_cut_request`` and ``hhg_rejoin_request`` split a
+request and undo the split.
 
 Reads with system rights
 ========================
