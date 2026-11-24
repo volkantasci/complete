@@ -849,11 +849,6 @@
     }
 }
 
-// more specific than the stripes of every colour index, the dark one included
-.o_tl_renderer .o_tl_pill.o_tl_striped:hover {
-    background-image: none;
-}
-
 .o_tl_pill_title {
     position: relative;
     flex: 1 1 auto;
@@ -926,6 +921,18 @@
             lighten($pill, 6%) 10px,
             lighten($pill, 6%) 20px
         );
+
+        // under the pointer the stripes stay and take the full palette colour and its lighter tint
+        // (R26, M85); the background colour is unchanged
+        &:hover {
+            background-image: repeating-linear-gradient(
+                -45deg,
+                $base 0,
+                $base 10px,
+                lighten($base, 6%) 10px,
+                lighten($base, 6%) 20px
+            );
+        }
     }
 }
 
