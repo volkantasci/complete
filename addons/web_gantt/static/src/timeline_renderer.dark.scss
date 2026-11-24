@@ -19,6 +19,20 @@
             lighten($o-gray-700, 6%) 10px,
             lighten($o-gray-700, 6%) 20px
         );
+
+        // under the pointer the stripes stay and darken, as at the light scheme's colours
+        // (R26, M85); this rule outranks the light scheme's twin, so it needs its own
+        &:hover {
+            $-hover: darken($o-gray-700, 8%);
+
+            background-image: repeating-linear-gradient(
+                -45deg,
+                $-hover 0,
+                $-hover 10px,
+                lighten($-hover, 6%) 10px,
+                lighten($-hover, 6%) 20px
+            );
+        }
     }
 }
 
