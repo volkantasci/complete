@@ -26,7 +26,7 @@ MULTI_LAST = date(2026, 11, 25)
 
 
 @tagged('post_install', '-at_install')
-class TestTimeOffRoleTours(ReportToursBase):
+class TestTimeOffRoleMatrixTours(ReportToursBase):
 
     # -- helpers ----------------------------------------------------------------------------------
 
