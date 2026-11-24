@@ -230,19 +230,23 @@ scenario("hhg_a43_split_area", async () => {
         }
     }
     assertEqual(shown, Array.from({ length: 16 }, (_, i) => i + 6), "the tool shows from 8 px left to 8 px right");
-    // the pill's full height: 1 px inside its top and its bottom, not 2 px out
+    // the pill's whole 25 px box, its 1 px inset included (R16): from the box's top edge to 0.5 px
+    // above its bottom edge; 1 px inside either edge shows, 2 px out does not
     const rect = rectOf(pill);
+    const boxTop = rect.top - 1;
+    const boxBottom = rect.bottom + 1;
     const x = bx + 3;
     const rows = [
-        [rect.top - 2, false],
-        [rect.top + 1, true],
+        [boxTop - 2, false],
+        [boxTop, true],
+        [boxTop + 1, true],
         [centreY(pill), true],
-        [rect.bottom - 2, true],
-        [rect.bottom + 2, false],
+        [boxBottom - 1, true],
+        [boxBottom + 2, false],
     ];
     for (const [yy, wanted] of rows) {
         await restAt(x, yy);
-        assertEqual(Boolean(tool()), wanted, `the tool at ${Math.round(yy)} (pill ${Math.round(rect.top)} to ${Math.round(rect.bottom)})`);
+        assertEqual(Boolean(tool()), wanted, `the tool at ${Math.round(yy)} (box ${Math.round(boxTop)} to ${Math.round(boxBottom)})`);
     }
     assertEqual(writesSince(mark), [], "no write");
 });
@@ -563,7 +567,8 @@ scenario("hhg_a90_refused_split", async () => {
     await clickAt(point.x, point.y);
     await until(() => $(".modal .modal-body"), "the Community's error dialog", 10000);
     const text = clean($(".modal .modal-body").textContent);
-    assert(/(no longer exist|does not exist|deleted)/i.test(text), `the error: "${text}"`);
+    // E11: the Community's error of a missing record
+    assert(/does not exist or has been deleted/i.test(text), `the error of a missing record: "${text}"`);
     assert(!$(".o_notification"), "no notification");
     await closeDialog();
     await settle(400);

@@ -36,9 +36,13 @@ function columnsOf({ left, width, count, first = DateTime.local(2026, 11, 16), r
     return result;
 }
 
-/** The week of the spec: Monday 16 from x 303, 252.203 px a day, a pill of three days. */
+/**
+ * The week of the spec: Monday 16 from x 303, 252.203 px a day, a pill of three days. The pill's
+ * rect is its whole 25 px box (the 1 px inset included): from y 213 to 0.5 px above its bottom
+ * edge, y 237.5 (R16, A43).
+ */
 const WEEK = columnsOf({ left: 302.985, width: 252.203, count: 5 });
-const PILL = { left: 302.985, right: 302.985 + 3 * 252.203, top: 214, bottom: 237 };
+const PILL = { left: 302.985, right: 302.985 + 3 * 252.203, top: 213, bottom: 237.5 };
 const MIDDLE = 225.5;
 
 describe("the border math", () => {
@@ -63,14 +67,16 @@ describe("the border math", () => {
         expect(shown).toHaveLength(16);
     });
 
-    test("A43 the pill's height: 1 px under its top to 1 px over its bottom, not 2 px out", () => {
+    test("A43 the pill's whole 25 px box: y 213 to 237.5, its 1 px inset included, not y 238 or 212", () => {
         const at = (y) => hhgSplitBorderAt({ x: 558, y, pillRect: PILL, columns: WEEK });
+        expect(at(213)).not.toBe(null);
         expect(at(214)).not.toBe(null);
         expect(at(237)).not.toBe(null);
-        expect(at(213)).toBe(null);
-        expect(at(212)).toBe(null);
+        expect(at(237.5)).not.toBe(null);
+        expect(at(212.9)).toBe(null);
+        expect(at(211)).toBe(null);
         expect(at(238)).toBe(null);
-        expect(at(239)).toBe(null);
+        expect(at(240)).toBe(null);
     });
 
     test("E7 A44 no tool at the pill's first and last edges, nor on a one-day pill", () => {
@@ -92,22 +98,16 @@ describe("the border math", () => {
             count: 2,
             first: DateTime.local(2026, 11, 20),
         });
-        const pillRect = { left: 0, right: 384, top: 214, bottom: 237 };
+        const pillRect = { left: 0, right: 384, top: 213, bottom: 237.5 };
         const found = hhgSplitBorderAt({ x: 190, y: MIDDLE, pillRect, columns });
         expect(found.day).toBe("2026-11-21");
         expect(found.borderX).toBe(192);
         expect(hhgSplitBorderAt({ x: 381, y: MIDDLE, pillRect, columns })).toBe(null);
     });
 
-    test("R16 a folded column beside the border takes no tool", () => {
-        // Tuesday is folded away: Monday's end border has no day column after it
-        const columns = [WEEK[0], WEEK[2], WEEK[3]];
-        expect(hhgSplitBorderAt({ x: 553, y: MIDDLE, pillRect: PILL, columns })).toBe(null);
-    });
-
     test("A44 the Quarter range: where both borders of a column are near, the end border wins", () => {
         const columns = columnsOf({ left: 100, width: 14.6, count: 8 });
-        const pillRect = { left: 100, right: 100 + 8 * 14.6, top: 214, bottom: 237 };
+        const pillRect = { left: 100, right: 100 + 8 * 14.6, top: 213, bottom: 237.5 };
         // the middle of the third column (Wednesday 18): both borders within 8 px
         const middle = 100 + 2 * 14.6 + 7.3;
         const found = hhgSplitBorderAt({ x: middle, y: MIDDLE, pillRect, columns });
@@ -124,7 +124,7 @@ describe("the border math", () => {
         const make = (day, left, right) => ({ left, right, start: DateTime.local(2026, 11, day) });
         const columns = [make(16, 1037.6, 1297), make(17, 778.2, 1037.6), make(18, 518.8, 778.2)];
         const monday = columns[0];
-        const pillRect = { left: 518.8, right: monday.right, top: 213, bottom: 238 };
+        const pillRect = { left: 518.8, right: monday.right, top: 213, bottom: 237.5 };
         // 7.6 px left of the border between Monday 16 and Tuesday 17
         const found = hhgSplitBorderAt({ x: monday.left - 7.6, y: 225, pillRect, columns, rtl: true });
         expect(found.day).toBe("2026-11-17");
@@ -259,6 +259,27 @@ describe("the split tool in the view", () => {
         expect(".o_notification.o_tl_notification_success").toHaveCount(1);
         expect(".o_notification_buttons > button").toHaveCount(1);
         expect(".o_hhg_split_tool").toHaveCount(0);
+    });
+
+    test("R16 a press at the split point that has not moved splits on release; a 10 px move starts the move and hides the tool", async () => {
+        await mountLeave();
+        await moveTo(borderAfter(1) + 2);
+        // pressed and released in place: the split
+        const still = await drag(pillEl(), { position: lastPoint });
+        await still.drop();
+        await settle();
+        expect(rpcLog.map(([name]) => name)).toEqual(["cut"]);
+        rpcLog.length = 0;
+        // pressed, then 12 px along: the move of R12 starts, the tool goes, nothing is cut
+        await moveTo(borderAfter(1) + 2);
+        const held = await drag(pillEl(), { position: lastPoint });
+        const to = { x: lastPoint.x + 12, y: lastPoint.y };
+        await held.moveTo(document.elementFromPoint(to.x, to.y), { position: to });
+        await animationFrame();
+        expect(".o_hhg_split_tool").toHaveCount(0);
+        await held.cancel();
+        await settle();
+        expect(rpcLog).toHaveLength(0);
     });
 
     test("A45 a click away from a border opens the popover as ever; a split closes the popover", async () => {

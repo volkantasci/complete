@@ -312,11 +312,12 @@
         height: 23px;
     }
 
-    // M11: the link takes the focus without the browser's ring (a 3 px outline of no style, in the
-    // link's colour); the underline shows where it is
+    // M11, M12: the link has the focus without any mark: no outline (a 3 px outline of no style,
+    // in the link's colour), no underline, no shadow; it keeps its colour (S1)
     .o_hhg_pop_type a:focus {
         outline: 3px none currentcolor;
-        text-decoration: underline;
+        text-decoration: none;
+        box-shadow: none;
     }
 
     .o_hhg_pop_iconcol .o_hhg_pop_icon {
