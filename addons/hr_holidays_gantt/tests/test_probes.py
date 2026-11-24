@@ -143,10 +143,14 @@ def column_js(date):
 class TimeOffProbeCase(TimelineProbeCase):
     """A page, the steps, the real input and the readings of the probes; it holds no test."""
 
+    # the card's "back on" line follows the server's clock: the probes pin it to the package's
+    # day, but for M81 to M83, which read the server's real clock
+    pin_status_clock = True
+
     def setUp(self):
         super().setUp()
-        # the card's "back on" line follows the server's clock: pin it to the package's day
-        fx.pin_leave_status_clock(self)
+        if self.pin_status_clock:
+            fx.pin_leave_status_clock(self)
 
     @classmethod
     def setUpClass(cls):

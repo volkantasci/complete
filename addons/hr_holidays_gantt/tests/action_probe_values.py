@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # ruff: noqa: E501
 """Measured values of the original for the time-off popover, the split tool, the pointer and the
-moves of slice 002e2 (spec.md, "Measured values", M1 to M80, M84 and M85), transcribed from the
+moves of slice 002e2 (spec.md, "Measured values", M1 to M88), transcribed from the
 package's table by a script run once (the script is not part of the repository): the values
 Complete is compared with.
 
@@ -21,7 +21,10 @@ Left out, and why:
 * M75 (an error dialog after the move of an Approved request) and M80 (two resize handles on an
   Approved pill): the original's readings, corrected by decision D7: on Complete the pill is
   locked, the probes assert none (rulings R-T11-2 and R-T11-3);
-* M63 is retired in the table and not used.
+* M63 is retired in the table and not used;
+* M86 and M87 are read on 002a's host in the package (its minimal view); Complete's are read on
+  its own leave view on the phone with the search bar open (R-R3b-1): M86's height is left out, the
+  leave view's panel being M88's (its height is the leave view's controls).
 """
 
 TIME_OFF_ACTION_PROBES = [
@@ -2085,6 +2088,42 @@ TIME_OFF_ACTION_PROBES = [
     ('M77', 'dark', 'desktop', 'count', '1'),
     ('M78', 'light', 'desktop', 'count', '1'),
     ('M78', 'dark', 'desktop', 'count', '1'),
+    ('M81', 'light', 'desktop', 'color', 'rgba(154, 107, 1, 1)'),
+    ('M81', 'light', 'desktop', 'background-color', 'rgba(0, 0, 0, 0)'),
+    ('M81', 'light', 'desktop', 'border-top-color', 'rgba(154, 107, 1, 1)'),
+    ('M81', 'light', 'desktop', 'border-right-color', 'rgba(154, 107, 1, 1)'),
+    ('M81', 'light', 'desktop', 'border-bottom-color', 'rgba(154, 107, 1, 1)'),
+    ('M81', 'light', 'desktop', 'border-left-color', 'rgba(154, 107, 1, 1)'),
+    ('M81', 'light', 'desktop', 'outline-color', 'rgba(154, 107, 1, 1)'),
+    ('M81', 'light', 'desktop', 'opacity', '0.75'),
+    ('M81', 'light', 'desktop', 'font-size', '12'),
+    ('M81', 'light', 'desktop', 'font-weight', '500'),
+    ('M81', 'light', 'desktop', 'line-height', '18'),
+    ('M81', 'light', 'desktop', 'geometry.x', '85.562'),
+    ('M81', 'light', 'desktop', 'geometry.y', '289.5'),
+    ('M81', 'light', 'desktop', 'geometry.height', '18'),
+    ('M81', 'dark', 'desktop', 'color', 'rgba(216, 157, 84, 1)'),
+    ('M81', 'dark', 'desktop', 'background-color', 'rgba(0, 0, 0, 0)'),
+    ('M81', 'dark', 'desktop', 'border-top-color', 'rgba(216, 157, 84, 1)'),
+    ('M81', 'dark', 'desktop', 'border-right-color', 'rgba(216, 157, 84, 1)'),
+    ('M81', 'dark', 'desktop', 'border-bottom-color', 'rgba(216, 157, 84, 1)'),
+    ('M81', 'dark', 'desktop', 'border-left-color', 'rgba(216, 157, 84, 1)'),
+    ('M81', 'dark', 'desktop', 'outline-color', 'rgba(216, 157, 84, 1)'),
+    ('M81', 'dark', 'desktop', 'opacity', '0.75'),
+    ('M81', 'dark', 'desktop', 'font-size', '12'),
+    ('M81', 'dark', 'desktop', 'font-weight', '500'),
+    ('M81', 'dark', 'desktop', 'line-height', '18'),
+    ('M81', 'dark', 'desktop', 'geometry.x', '85.562'),
+    ('M81', 'dark', 'desktop', 'geometry.y', '289.5'),
+    ('M81', 'dark', 'desktop', 'geometry.height', '18'),
+    ('M82', 'light', 'desktop', 'geometry.x', '85.562'),
+    ('M82', 'light', 'desktop', 'geometry.y', '270'),
+    ('M82', 'light', 'desktop', 'geometry.height', '19.5'),
+    ('M82', 'dark', 'desktop', 'geometry.x', '85.562'),
+    ('M82', 'dark', 'desktop', 'geometry.y', '270'),
+    ('M82', 'dark', 'desktop', 'geometry.height', '19.5'),
+    ('M83', 'light', 'desktop', 'count', '1'),
+    ('M83', 'dark', 'desktop', 'count', '1'),
     ('M84', 'light', 'desktop', 'background-color', 'rgba(241, 214, 119, 1)'),
     ('M84', 'light', 'desktop', 'background-image', 'repeating-linear-gradient(-45deg, rgb(241, 214, 119) 0px, rgb(241, 214, 119) 10px, rgb(244, 222, 147) 10px, rgb(244, 222, 147) 20px)'),
     ('M84', 'dark', 'desktop', 'background-color', 'rgba(237, 208, 102, 1)'),
@@ -2093,6 +2132,30 @@ TIME_OFF_ACTION_PROBES = [
     ('M85', 'light', 'desktop', 'background-image', 'repeating-linear-gradient(-45deg, rgb(232, 187, 29) 0px, rgb(232, 187, 29) 10px, rgb(235, 195, 57) 10px, rgb(235, 195, 57) 20px)'),
     ('M85', 'dark', 'desktop', 'background-color', 'rgba(237, 208, 102, 1)'),
     ('M85', 'dark', 'desktop', 'background-image', 'repeating-linear-gradient(-45deg, rgb(225, 176, 0) 0px, rgb(225, 176, 0) 10px, rgb(255, 200, 1) 10px, rgb(255, 200, 1) 20px)'),
+    ('M86', 'light', 'phone', 'geometry.x', '0'),
+    ('M86', 'light', 'phone', 'geometry.y', '46'),
+    ('M86', 'light', 'phone', 'geometry.width', '390'),
+    ('M86', 'light', 'phone', 'geometry.height', '98'),
+    ('M86', 'dark', 'phone', 'geometry.x', '0'),
+    ('M86', 'dark', 'phone', 'geometry.y', '46'),
+    ('M86', 'dark', 'phone', 'geometry.width', '390'),
+    ('M86', 'dark', 'phone', 'geometry.height', '98'),
+    ('M87', 'light', 'phone', 'geometry.x', '1'),
+    ('M87', 'light', 'phone', 'geometry.y', '145'),
+    ('M87', 'light', 'phone', 'geometry.width', '388'),
+    ('M87', 'light', 'phone', 'geometry.height', '698'),
+    ('M87', 'dark', 'phone', 'geometry.x', '1'),
+    ('M87', 'dark', 'phone', 'geometry.y', '145'),
+    ('M87', 'dark', 'phone', 'geometry.width', '388'),
+    ('M87', 'dark', 'phone', 'geometry.height', '698'),
+    ('M88', 'light', 'phone', 'geometry.x', '0'),
+    ('M88', 'light', 'phone', 'geometry.y', '46'),
+    ('M88', 'light', 'phone', 'geometry.width', '390'),
+    ('M88', 'light', 'phone', 'geometry.height', '130'),
+    ('M88', 'dark', 'phone', 'geometry.x', '0'),
+    ('M88', 'dark', 'phone', 'geometry.y', '46'),
+    ('M88', 'dark', 'phone', 'geometry.width', '390'),
+    ('M88', 'dark', 'phone', 'geometry.height', '130'),
 ]
 
 

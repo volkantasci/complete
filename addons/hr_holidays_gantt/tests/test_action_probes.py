@@ -35,11 +35,10 @@ Left out of the comparison and why, the rulings of Task 11:
 * R-T11-6: the automatic left margin of the footer's last button (M33, M40, M47) is the room the
   buttons leave; the original's buttons are a few 1/64 px wider or narrower, so it is compared
   within 0.05 px (the other styles within 0.01);
-* R-T11-7: M49 to M55 read the request of Wednesday 18 (the table's day), not Thursday 19 of
-  acceptance A31, so that the popover lies where the table has it; M46, M47 and M49 to M54 are not
-  among the values the shell moves (their y is the table's);
-* R-T11-8: M11's focus ring is a 3 px outline of no style (the table's value): the link shows its
-  focus by an underline.
+* M49 to M55 read the request of Wednesday 18, as A31 now prepares it; M46, M47 and M49 to M54 are
+  not among the values the shell moves (their y is the table's);
+* the focus of M11 and M12 has no mark (S1): the focused link shows no outline, no underline and
+  no shadow, and keeps its colour (the table's values, plus the text decoration read as none).
 
 The desktop y values of M1, M2 to M21, M24 to M43, M56 to M60 and M66 to M69 are compared 3 px
 lower (``SHELL``), logged as ``SHELL-DIFFERENCE``; M62 is not moved.
@@ -65,7 +64,7 @@ SKIPPED = set()
 STARTED = set()
 CLASSES = {
     'TestActionProbesDemo', 'TestActionProbesAct', 'TestActionProbesRoles',
-    'TestActionProbesSplit', 'TestActionProbesMove',
+    'TestActionProbesSplit', 'TestActionProbesMove', 'TestActionProbesAway',
 }
 
 POP = "document.querySelector('.o_hhg_pop')"
@@ -282,6 +281,11 @@ class ActionProbeCase(base.TimeOffProbeCase):
         check('M9', pop('.o_hhg_pop_type .o_hhg_pop_icon'), 'the tag')
         check('M10', pop(".o_hhg_pop_type [class*='o_calendar_color_']"), 'the code badge')
         check('M11', pop('.o_hhg_pop_type a'), 'the type name')
+        # S1: the focused link shows no mark: no underline (the table's outline and shadow rows
+        # are compared above)
+        self.probe('M11', pop('.o_hhg_pop_type a'), scheme, 'desktop',
+                   {'text-decoration-line': 'none', 'outline-style': 'none', 'box-shadow': 'none'},
+                   'the focused type link shows no mark')
         self.check_count(
             'M12', "[...document.querySelectorAll('.o_hhg_pop_type a')]"
                    ".filter((e) => e === document.activeElement).length",
@@ -338,6 +342,10 @@ class TestActionProbesDemo(ActionProbeCase):
                     'M12', "[...document.querySelectorAll('.o_hhg_pop_type a')]"
                            ".filter((e) => e === document.activeElement).length",
                     scheme, 'phone', 'the focused type link')
+                self.check_values('M11', pop('.o_hhg_pop_type a'), scheme,
+                                  'the focused type link shows no mark',
+                                  {'text-decoration-line': 'none', 'outline-style': 'none',
+                                   'box-shadow': 'none'})
                 self.check_count('M21', count_of('.o_hhg_pop_footer button'), scheme, 'phone',
                                  'the footer\'s buttons')
                 header = pop('.o_hhg_pop_header')
@@ -462,6 +470,23 @@ class TestActionProbesAct(ActionProbeCase):
                 self.check_values('R21', pop('.o_hhg_pop_note .o_field_widget'), scheme,
                                   'the description', {'geometry.height': '50'})
 
+    def test_a95_phone_sheet_with_the_search_bar_open(self):
+        """M86 to M88: the phone with the search bar open: the control panel, and the sheet that
+        keeps its place (frame from y 145, 388 x 698), covering the panel's lowest 32 px."""
+        for scheme in self.schemes():
+            with self.subTest(scheme=scheme), self.week(scheme, 'phone'):
+                self.prepare(ACT, 'phone')
+                self.assertTrue(self.js("!!document.querySelector('.o_searchview_input')"),
+                                'the search bar is open')
+                panel = "document.querySelector('.o_control_panel')"
+                # R-R3b-1: M86 is read on 002a's minimal view in the package; its height is the
+                # minimal view's panel, M88's the leave view's
+                self.check('M86', panel, scheme, 'phone', 'the control panel',
+                           skip=('geometry.height',))
+                self.check('M88', panel, scheme, 'phone', 'the control panel')
+                self.click_pill(self.day_pill(18), 'phone', '.o_hhg_pop_sheet')
+                self.check('M87', POP, scheme, 'phone', 'the sheet\'s frame')
+
     def test_a23_pointer_and_handles(self):
         dy = SHELL['desktop']
         for scheme in self.schemes():
@@ -558,7 +583,7 @@ class TestActionProbesRoles(ActionProbeCase):
         return self.open(scheme, viewport, login='toff_emp', touch=viewport == 'phone')
 
     def approved_request(self):
-        """Toff Role Emp's Approved request of Wednesday 18 (M49 asks for that day, A31 for 19)."""
+        """Toff Role Emp's Approved request of Wednesday 18 (A31, M49 to M55)."""
         fx.make_leave(self.env, self.emp(), fx.find_type(self.env, 'STO'), date(2026, 11, 18))
         self.env.flush_all()
 
@@ -715,6 +740,57 @@ class TestActionProbesMove(ActionProbeCase):
                 COMPARED.add(('M75', scheme, 'desktop'))
                 with self.subTest(probe='M75', scheme=scheme):
                     self.assertEqual(self.js(count_of('.modal')), 0, 'no error dialog (D7)')
+
+
+@tagged('post_install', '-at_install')
+class TestActionProbesAway(ActionProbeCase):
+    """N1 (A94): "Toff Away" is inside an Approved leave at the server's real now (the clock of
+    the card's status is not pinned): the Community's "back on" line under the card's name
+    (M81, M82) and the same line in the report view of toff_emp (M83)."""
+
+    pin_status_clock = False
+    LINES = ("[...document.querySelectorAll('.o_avatar_card .o_card_user_infos .text-warning')]"
+             ".filter((e) => /^Back on /.test(e.textContent.trim()))")
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        fx.make_role_users(cls.env, cls.schedule)
+        fx.make_away_state(cls.env, cls.schedule)
+        cls.isolate(keep={fx.AWAY_NAME, 'Toff Role Emp', 'Toff Peer', 'Toff Role None',
+                          'Toff Role Approver', 'Toff Role Manager', 'Toff Role Officer',
+                          'Toff Role Admin'})
+
+    def open_card(self):
+        self.loaded()
+        if self.js("document.querySelector('.o_tl_range_button').textContent.trim()") != 'Month':
+            self.choose_range('month')
+        self.search(fx.AWAY_NAME)
+        self.mouse('mouseMoved', 1000, 123, buttons=0)
+        self.settle(500)
+        self.real_click(base.in_row(fx.AWAY_NAME, '.o_hrg_avatar'), settle=1.5)
+        self.wait(f"{self.LINES}.length > 0", timeout=30)
+        self.settle(800)
+
+    def test_m81_m82_card_line(self):
+        dy = SHELL['desktop'] + .5
+        for scheme in self.schemes():
+            with self.subTest(scheme=scheme), self.open(scheme):
+                self.open_card()
+                line = f"{self.LINES}[0]"
+                self.check('M81', line, scheme, 'desktop', 'the line that says when he is back',
+                           dy=dy)
+                self.assertRegex(self.js(f"{line}.textContent.trim()"), r'^Back on .*\d')
+                self.check('M82', "document.querySelector('.o_avatar_card "
+                                  ".o-mail-avatar-card-name')", scheme, 'desktop', 'the name',
+                           dy=dy)
+
+    def test_m83_card_line_in_the_report(self):
+        for scheme in self.schemes():
+            with self.subTest(scheme=scheme), self.open(scheme, login='toff_emp'):
+                self.open_card()
+                self.check_count('M83', f"{self.LINES}.length", scheme, 'desktop',
+                                 'cards with the line')
 
 
 @tagged('post_install', '-at_install')
