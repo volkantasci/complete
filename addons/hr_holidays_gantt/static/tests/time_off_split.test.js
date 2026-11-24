@@ -214,6 +214,25 @@ describe("the split tool in the view", () => {
         expect(".o_hhg_split_tool").toHaveCount(0);
     });
 
+    test("A43 the 1 px insets above and under the coloured body belong to the area; 2 px out do not", async () => {
+        await mountLeave();
+        const body = queryRect(pillEl());
+        const x = borderAfter(1) + 2;
+        const at = async (y) => {
+            lastPoint = { x, y };
+            await hover(pillEl(), { position: lastPoint });
+            await animationFrame();
+        };
+        await at(body.top - 0.6);
+        expect(".o_hhg_split_tool").toHaveCount(1);
+        await at(body.bottom + 0.4);
+        expect(".o_hhg_split_tool").toHaveCount(1);
+        await at(body.top - 2);
+        expect(".o_hhg_split_tool").toHaveCount(0);
+        await at(body.bottom + 2);
+        expect(".o_hhg_split_tool").toHaveCount(0);
+    });
+
     test("E7 the first border and the last (the pill's edges) take no tool", async () => {
         await mountLeave();
         await moveTo(borderAfter(0) + 2);

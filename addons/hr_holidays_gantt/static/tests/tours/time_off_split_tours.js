@@ -236,15 +236,17 @@ scenario("hhg_a43_split_area", async () => {
     const boxTop = rect.top - 1;
     const boxBottom = rect.bottom + 1;
     const x = bx + 3;
+    // integer pointer points: the first and the last pixel row of the box (the 1 px insets above
+    // and under the coloured body, outside the pill's element, are part of the area), 1 px inside
+    // either edge, and 2 px out
     const rows = [
-        [boxTop - 2, false],
-        // inside the 1 px inset above the coloured body (the mouse point may be rounded down)
-        [boxTop + 0.6, true],
-        [boxTop + 1, true],
+        [Math.floor(boxTop) - 2, false],
+        [Math.ceil(boxTop), true],
+        [Math.ceil(boxTop) + 1, true],
         [centreY(pill), true],
-        // inside the box's last pixel but one (the mouse point may be rounded)
-        [boxBottom - 1.5, true],
-        [boxBottom + 2, false],
+        [Math.floor(boxBottom - 0.5), true],
+        [Math.floor(boxBottom - 0.5) - 1, true],
+        [Math.ceil(boxBottom) + 2, false],
     ];
     for (const [yy, wanted] of rows) {
         await restAt(x, yy);

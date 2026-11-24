@@ -160,8 +160,35 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         }
     }
 
-    /** The pointer moves over a pill: where it rests decides whether the split tool shows (R16). */
-    hhgOnPillMove(ev, pill, row) {
+    /**
+     * The pointer moves over a row: the pill whose whole box (the 1 px inset above and under the
+     * coloured body included, which lie outside the pill's element) holds the pointer, if any,
+     * decides whether the split tool shows (R16).
+     */
+    hhgOnRowMove(ev, row) {
+        if (ev.pointerType === "touch" || row.kind !== "pills") {
+            return;
+        }
+        for (const pill of row.pills) {
+            const el = ev.currentTarget.querySelector(`.o_tl_pill[data-pill-id="${pill.id}"]`);
+            if (!el) {
+                continue;
+            }
+            const box = el.getBoundingClientRect();
+            if (
+                ev.clientX >= box.left &&
+                ev.clientX <= box.right &&
+                ev.clientY >= box.top - PILL_INSET &&
+                ev.clientY <= box.bottom + PILL_INSET
+            ) {
+                return this.hhgOnPillMove(ev, pill, row, el);
+            }
+        }
+        this._hhgHideSplit();
+    }
+
+    /** The pointer rests at a pill's box: where it rests decides whether the split tool shows (R16). */
+    hhgOnPillMove(ev, pill, row, pillEl) {
         if (ev.pointerType === "touch") {
             return;
         }
@@ -175,7 +202,6 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
             // a press that has not moved yet: the click that follows decides (R17)
             return;
         }
-        const pillEl = ev.currentTarget;
         const rtl = this._isRtl();
         const body = pillEl.getBoundingClientRect();
         const found = hhgSplitBorderAt({
