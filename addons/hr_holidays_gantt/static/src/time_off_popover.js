@@ -253,7 +253,7 @@ export class TimeOffLeavePopover extends Component {
             discard: {
                 name: "discard",
                 label: _t("Discard"),
-                icon: "undo",
+                icon: "",
                 style: "btn-secondary ms-auto",
             },
             delete: {

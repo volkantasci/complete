@@ -63,7 +63,7 @@
                                     options="{'allowed_selection_field': 'allowed_request_durations'}"/>
                             </div>
                             <div class="o_hhg_pop_days d-flex gap-1 text-muted"
-                                invisible="work_entry_type_request_unit == 'hour' or (work_entry_type_request_unit == 'half_day' and not last_several_days)">
+                                invisible="work_entry_type_request_unit == 'hour' or (work_entry_type_request_unit == 'half_day' and request_duration in ('am', 'pm'))">
                                 <field name="number_of_days" readonly="1" nolabel="1" class="w-auto"/>
                                 <span class="text-nowrap">day(s)</span>
                             </div>

@@ -25,7 +25,7 @@
     <t t-name="hr_holidays_gantt.TimeOffPopoverFooter">
         <t t-foreach="this.footerButtons" t-as="button" t-key="button.name">
             <button type="button" t-att-class="`o_hhg_pop_button o_hhg_pop_${button.name} btn ${button.style}`" t-att-name="button.name" t-on-click="() => this.onFooterButton(button.name)">
-                <i class="oi me-1" t-att-data-icon="button.icon"/><t t-out="button.label"/>
+                <i t-if="button.icon" class="oi me-1" t-att-data-icon="button.icon"/><t t-out="button.label"/>
             </button>
         </t>
     </t>

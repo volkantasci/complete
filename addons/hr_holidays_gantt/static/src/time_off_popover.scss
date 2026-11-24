@@ -143,7 +143,7 @@
 
 // the report's body: the Community's report form, read-only (R9 point 2)
 .o_hhg_pop_report .o_hhg_pop_form .o_inner_group {
-    margin: 0;
+    margin: 0 0 8px;
 }
 
 // the phone's sheet is 002a's (`o_tl_popover_sheet`); its content takes the sheet's width (R21)
@@ -247,5 +247,103 @@
             font-size: 14px;
             line-height: 21px;
         }
+    }
+}
+
+// The desktop popover's measured layout (M2 to M20, M25 to M34): the form's own padding goes, the
+// body keeps the original's offsets, the label icons are 17.5 px glyphs, the footer's buttons the
+// theme's small size (3 px 8 px, 4 px corners, 27.5 px tall).
+.o_hhg_pop:not(.o_hhg_pop_sheet) {
+    // the report's form keeps the form's own paddings (M49: 24 px above and below, 16 at the sides)
+    &:not(.o_hhg_pop_report) .o_form_renderer,
+    &:not(.o_hhg_pop_report) .o_form_nosheet {
+        padding: 0;
+    }
+
+    .o_hhg_pop_title {
+        font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    }
+
+    .o_hhg_pop_expand {
+        margin-top: 1.5px;
+    }
+
+    .o_hhg_pop_close {
+        margin-top: -1px;
+    }
+
+    .o_hhg_pop_body {
+        padding: 17.25px 16px;
+    }
+
+    // every line holds its value 6.75 px under its top and is 36 px tall at least; the field
+    // widgets keep the form's 5 px under them (M14, M15: 5 px between the choice and the days)
+    .o_hhg_pop_line {
+        box-sizing: border-box;
+        padding-top: 6.75px;
+        padding-bottom: 1.25px;
+        align-items: flex-start;
+    }
+
+    // the description line keeps 15 px under its field (M8: 46 px read-only)
+    .o_hhg_pop_note {
+        padding-bottom: 14.75px;
+    }
+
+    .o_form_editable .o_hhg_pop_note {
+        padding-bottom: 15.25px;
+    }
+
+    // M10, M11: the badge and the type's name lie on the column's first x, the badge 23 px tall
+    .o_hhg_pop_type .o_radio_item {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        height: 23px;
+    }
+
+    // M11: the link takes the focus without the browser's ring (a 3 px outline of no style, in the
+    // link's colour); the underline shows where it is
+    .o_hhg_pop_type a:focus {
+        outline: 3px none currentcolor;
+        text-decoration: underline;
+    }
+
+    .o_hhg_pop_iconcol .o_hhg_pop_icon {
+        display: block;
+    }
+
+    // M30: the description's area is 50 px tall
+    .o_hhg_pop_note textarea {
+        height: 50px !important;
+        min-height: 50px;
+        box-sizing: border-box;
+        resize: none;
+    }
+
+    .o_form_editable .o_hhg_pop_note .o_field_widget {
+        height: 50px !important;
+    }
+
+    .o_hhg_pop_footer .o_hhg_pop_button .oi {
+        font-size: 16.72px;
+    }
+
+    .o_hhg_pop_icon {
+        width: auto;
+        height: 18.5px;
+        font-size: 17.5px;
+        line-height: 18.5px;
+    }
+
+    .o_hhg_pop_line > .o_hhg_pop_icon,
+    .o_hhg_pop_line > .o_hhg_pop_iconcol {
+        align-self: flex-start !important;
+        margin-top: 2px;
+    }
+
+    .o_hhg_pop_footer .o_hhg_pop_button {
+        padding: 3px 8px;
+        border-radius: 4px;
     }
 }
