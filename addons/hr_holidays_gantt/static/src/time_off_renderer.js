@@ -200,7 +200,9 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         const top = pillRect.top - PILL_INSET - layer.top;
         const styles = {
             box: `left: ${left}px; top: ${top}px; width: ${width}px; height: ${SPLIT_BOX_HEIGHT}px`,
-            line: `left: ${at + (rtl ? -0.5 : -1.5)}px`,
+            // left to right the line element spans the box with 1.5 px of negative margin at each side
+            // (M58); mirrored it stands at the border as a bare edge
+            line: rtl ? `left: ${at - 0.5}px` : "left: 0; right: 0; width: auto; margin-inline: -1.5px",
             scissors: `left: ${at + (rtl ? 1.3 : -1.3) - 8.75}px`,
         };
         this.hhgSplit.borderX = found.borderX;

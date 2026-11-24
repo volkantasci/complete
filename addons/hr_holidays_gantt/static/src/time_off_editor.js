@@ -30,7 +30,7 @@ export class TimeOffEditor extends TimelineEditor {
                     return;
                 }
                 this._notifyChange({
-                    message: _t("This time off was split in two."),
+                    message: _t("Time off split in two."),
                     undo: {
                         kind: "split",
                         resId,
