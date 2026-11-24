@@ -160,10 +160,9 @@ class TestTimeOffGestureTours(ReportToursBase):
     # -- half-day and hour requests (A71, A72) ----------------------------------------------------
 
     def test_a71_move_half_day(self):
-        half, hours = fx.make_units_state(self.env, self.schedule)
-        # the hours request of Thursday 19 lies where the moved request ends (its morning): the
-        # Community refuses the overlap, so this scenario runs without it (R-T8-5)
-        hours.sudo().unlink()
+        # A71 prepares the half-day request alone (the hours request of Thursday 19 would lie
+        # where the moved request ends)
+        half, _hours = fx.make_units_state(self.env, self.schedule, with_hours=False)
         self._isolate(keep={fx.ACT_NAME})
         self._tour('hhg_a71_move_half_day')
         self.env.invalidate_all()

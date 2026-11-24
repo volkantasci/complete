@@ -58,11 +58,12 @@ class TestTimeOffCommunityWrites(TransactionCase):
 
     def make_deletions(self):
         fx.drop_leaves(self.env)
-        own = fx.make_four_states(
-            self.env, self.users['toff_emp'].employee_id, date(2026, 11, 16))
-        peer = fx.make_four_states(
-            self.env, self.env['hr.employee'].search([('name', '=', fx.PEER_NAME)]),
-            date(2026, 11, 23))
+        # the four states of toff_emp's own employee from Monday 16 (and a Cancelled request of
+        # Friday 20, cancelled by the role user) and of Toff Peer from Monday 23: every request
+        # after the server's day
+        made = fx.make_matrix_state(
+            self.env, 'toff_emp', date(2026, 11, 16), peer_first=date(2026, 11, 23))
+        own, peer = made['own'], made['peer']
         past = fx.make_past_state(self.env)['emp_past']
         self.assertEqual(past.request_date_from, date(2026, 11, 10))
         return own, peer, past
@@ -78,7 +79,9 @@ class TestTimeOffCommunityWrites(TransactionCase):
         for key in ('confirm', 'validate1'):
             self.delete(own[key], emp)
             self.assertFalse(own[key].exists(), key)
-        for leave in (own['validate'], own['refuse'], *peer.values()):
+        # their own Cancelled, Approved and Refused requests give the access error, as every
+        # request of another employee (the Community's own rule, not the administrators' error)
+        for leave in (own['cancel'], own['validate'], own['refuse'], *peer.values()):
             with self.assertRaises(AccessError, msg=leave.state):
                 self.delete(leave, emp)
         with self.assertRaisesRegex(UserError, 'in the past'):
@@ -88,7 +91,7 @@ class TestTimeOffCommunityWrites(TransactionCase):
         for leave in peer.values():
             with self.assertRaises(AccessError, msg=leave.state):
                 self.delete(leave, self.users['toff_approver'])
-        # toff_officer: To Approve only
+        # toff_officer: To Approve and Cancelled, their own too
         own, peer, past = self.make_deletions()
         officer = self.users['toff_officer']
         for group in (own, peer):
@@ -96,6 +99,8 @@ class TestTimeOffCommunityWrites(TransactionCase):
             for key in ('validate1', 'validate', 'refuse'):
                 with self.assertRaisesRegex(UserError, 'only be deleted by Administrators'):
                     self.delete(group[key], officer)
+        self.delete(own['cancel'], officer)
+        self.assertFalse(own['cancel'].exists())
         self.delete(past, officer)
         # the administrator: every state
         own, peer, past = self.make_deletions()

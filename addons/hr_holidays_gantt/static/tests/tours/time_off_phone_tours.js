@@ -234,9 +234,8 @@ async function phoneSearch(name, { fold = true } = {}) {
         return;
     }
     // The open search bar makes the control panel 176 px tall, more than the 144 px 002a's sheet
-    // leaves free. Controller ruling R-C-8 keeps 002a's sheet geometry; the other tours fold the
-    // bar (the search stays) by the button that opened it, the tour "hhg_a85_phone_open_search_bar"
-    // taps with it open (spec question: A58 and A85 should name the folded bar).
+    // leaves free: A58 and A85 fold the bar (the search stays) by the button that opened it; A95
+    // taps with it open, and the sheet covers the panel's lowest 32 px (decision D14).
     await realTap(searchToggler());
     await until(() => !$(".o_searchview_input"), "the search bar folds");
     await settle(500);
@@ -441,24 +440,33 @@ scenario("hhg_a85_phone_rows", async () => {
     assertEqual(writesSince(mark), [], "no write");
 });
 
-// A85 with the search bar open: 002a's sheet keeps its geometry (controller ruling R-C-8) ------------
+// A95: the phone sheet with the search bar open (R21 point 1, decision D14) ----------------------------
 
-scenario("hhg_a85_phone_open_search_bar", async () => {
+scenario("hhg_a95_phone_open_search_bar", async () => {
     await toTheWeek();
-    await phoneSearch("Toff", { fold: false });
+    await phoneSearch("Toff Act", { fold: false });
     assert($(".o_searchview_input"), "the search bar is open");
     const mark = noteMark();
     const check = checker();
-    await tapOpen(pillsOf("Toff A")[0]);
-    checkFrame(check, "A85 open bar");
+    const panel = rectOf($(".o_control_panel"));
+    // M88: the opened panel ends at y 176
+    check.near("A95: the control panel's bottom", panel.bottom, 176, 1);
+    await tapOpen(actPill(0));
     const outer = rectOf(outerOf());
-    // 002a's rule: the sheet's top is 144 px below the screen's top
-    check.near("A85 open bar: the sheet's top", outer.top, 144, 1);
+    const frame = rectOf(frameOf());
+    // 002a keeps the sheet's place: its frame from y 145, its outer box from y 144 (M86, M87)
+    checkFrame(check, "A95");
+    check.near("A95: the sheet's frame top", frame.top, 145, 1);
+    check.near("A95: the sheet's outer box top", outer.top, 144, 1);
+    check.near("A95: the frame's width", frame.width, 388, 0.5);
+    check.near("A95: the frame's height", frame.height, 698, 0.5);
+    // it covers the panel's lowest 32 px
+    check.near("A95: the sheet covers the panel's lowest 32 px", panel.bottom - outer.top, 32, 1);
+    const at = document.elementFromPoint(panel.left + panel.width / 2, panel.bottom - 4);
+    check.yes("A95: the panel's lowest part is the sheet's", Boolean(at) && outerOf().contains(at), `${at?.className}`);
     const top = rectOf($(".o_navbar"));
-    check.yes("A85 open bar: the top bar ends above the sheet", top.bottom <= outer.top + 0.5, `${top.bottom}`);
-    const at = document.elementFromPoint(top.left + top.width / 2, top.top + top.height / 2);
-    check.yes("A85 open bar: the top bar's middle is not the sheet's", !outerOf().contains(at), `${at?.className}`);
-    check.done("A85 open bar");
+    check.yes("A95: the top bar ends above the sheet", top.bottom <= outer.top + 0.5, `${top.bottom}`);
+    check.done("A95");
     await realTap($(".o_hhg_pop_close"));
     await until(() => !sheetOpen(), "the close icon closes the sheet");
     assertEqual(writesSince(mark), [], "no write");

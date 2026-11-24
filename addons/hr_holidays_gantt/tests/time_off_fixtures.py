@@ -25,6 +25,7 @@ PEER_NAME = "Toff Peer"
 HOURS_TYPE = "Toff Hours"
 DAYS_TYPE = "Toff Days"
 ACT_NAME = "Toff Act"
+AWAY_NAME = "Toff Away"
 SICK_NAME = "Guaranteed monthly wage illness"
 UNPAID_NAME = "Leave without pay"
 
@@ -393,21 +394,25 @@ def make_split_state(env, schedule=None):
     return leave
 
 
-def make_units_state(env, schedule=None):
+def make_units_state(env, schedule=None, with_hours=True):
     """The *units* records: type "Toff Hours"; "Toff Act" with STO To Approve from Monday 16
     afternoon to Wednesday 18 morning and Toff Hours To Approve on Thursday 19, 9:00 to 13:00.
-    Returns ``(half-day request, hours request)``."""
+    Returns ``(half-day request, hours request)``. ``with_hours=False`` prepares the half-day
+    request alone (A71: the move onto Thursday 19 would overlap the hours request): the second
+    item is then None."""
     schedule = schedule or find_schedule(env)
     employee = env["hr.employee"].search([("name", "=", ACT_NAME)], limit=1)
     employee = employee or _employee(env, ACT_NAME, schedule)
     half = make_leave(
         env, employee, find_type(env, "STO"), date(2026, 11, 16), date(2026, 11, 18),
         periods=("pm", "am"), approve=False)
-    hours = make_leave(
-        env, employee, make_hours_type(env), date(2026, 11, 19), duration="specific",
-        hours=(9, 13), approve=False)
     set_waiting(env, half)
-    set_waiting(env, hours)
+    hours = None
+    if with_hours:
+        hours = make_leave(
+            env, employee, make_hours_type(env), date(2026, 11, 19), duration="specific",
+            hours=(9, 13), approve=False)
+        set_waiting(env, hours)
     env.flush_all()
     return half, hours
 
@@ -547,6 +552,26 @@ def users_of(env):
     found = env["res.users"].with_context(active_test=False).search(
         [("login", "in", list(ROLES))])
     return {user.login: user for user in found}
+
+
+def make_away_state(env, schedule=None):
+    """*away* (A94, N1): "Toff Away" with an STO request, Approved, that covers the server's
+    present instant at every hour of the day: from the last working day before the server's day
+    (its UTC date) to the first working day two days after it. The card's "back on" line reads
+    the server's real clock, so the tours that use this state do not pin it
+    (``pin_leave_status_clock``). Returns the request."""
+    employee = env["hr.employee"].search([("name", "=", AWAY_NAME)], limit=1)
+    employee = employee or _employee(env, AWAY_NAME, schedule or find_schedule(env))
+    today = fields.Datetime.now().date()
+    first = today - timedelta(days=1)
+    while first.weekday() >= 5:
+        first -= timedelta(days=1)
+    last = today + timedelta(days=2)
+    while last.weekday() >= 5:
+        last += timedelta(days=1)
+    leave = make_leave(env, employee, find_type(env, "STO"), first, last)
+    env.flush_all()
+    return leave
 
 
 def make_alloc_state(env, schedule=None):

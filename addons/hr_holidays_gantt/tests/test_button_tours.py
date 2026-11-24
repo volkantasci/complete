@@ -6,7 +6,7 @@ Approve, Refuse, Discard and Delete. The harness is that of ``test_tours`` and
 users); each tour is in ``static/tests/tours/time_off_button_tours.js`` and sees what the user
 sees, and each test reads here what the tour left on the server. Every record is made here (CI
 has no demo data) from the prepared states of ``acceptance.md``."""
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from odoo import fields
 from odoo.tests import tagged
@@ -63,6 +63,18 @@ class TestTimeOffButtonTours(ReportToursBase):
     def test_a37_refuse_overview(self):
         made = self._act()
         self._tour('hhg_a37_refuse_overview')
+        self.assertEqual(self._state(made['confirm']), 'refuse')
+        self.assertEqual(self._state(made['validate']), 'validate')
+
+    def test_a99_popover_stays(self):
+        """The Overview without a search: 14 demo employees (by name), "Toff Act" and five
+        employees after him, 20 rows (the first page), so that the grid scrolls by more than
+        150 px and his row lies in its lower part, in view."""
+        fx.make_demo_world(self.env, self.schedule)
+        made = fx.make_act_state(self.env, self.schedule)
+        after = [fx._employee(self.env, f'Toff Zed {n}', self.schedule).name for n in range(1, 6)]
+        self._isolate(keep=set(sorted(fx.DEMO_EMPLOYEES)[:14]) | {fx.ACT_NAME, *after})
+        self._tour('hhg_a99_popover_stays')
         self.assertEqual(self._state(made['confirm']), 'refuse')
         self.assertEqual(self._state(made['validate']), 'validate')
 
@@ -146,7 +158,14 @@ class TestTimeOffButtonTours(ReportToursBase):
         self.assertEqual(made['emp_confirm'].state, 'confirm')
 
     def test_a31_report_popover(self):
-        self._emp()
+        """A31 prepares its own Approved request of Wednesday 18 (as S7 and M49 to M55 read it),
+        not the *emp* state."""
+        self._world(demo=False)
+        emp = self.role_employees['toff_emp']
+        leave = fx.make_leave(self.env, emp, fx.find_type(self.env, 'STO'), date(2026, 11, 18))
+        self.env.flush_all()
+        self._only('toff_emp')
+        self.assertEqual(leave.state, 'validate')
         self._tour_writes_nothing('hhg_a31_report_popover', login='toff_emp')
 
     def test_a32_report_delete_other(self):

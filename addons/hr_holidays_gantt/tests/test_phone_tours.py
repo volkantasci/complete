@@ -74,9 +74,10 @@ class TestTimeOffPhoneTours(ReportToursBase):
             fx.make_waiting(self.env, employee, sick, date(2026, 11, 18))
         self._isolate(keep={'Toff A', 'Toff B'})
 
-    def test_a85_phone_open_search_bar(self):
-        self._toff_rows()
-        self._tour_writes_nothing('hhg_a85_phone_open_search_bar', mobile=PHONE)
+    def test_a95_phone_open_search_bar(self):
+        made = self._act()
+        self._tour_writes_nothing('hhg_a95_phone_open_search_bar', mobile=PHONE)
+        self.assertFalse(made['confirm'].name, 'the request is unchanged')
 
     def test_a85_phone_rows(self):
         self._toff_rows()
