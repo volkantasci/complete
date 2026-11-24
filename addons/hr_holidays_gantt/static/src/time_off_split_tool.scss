@@ -5,7 +5,8 @@
 // and the scissors are placed by the renderer (left to right or mirrored, D11). No pointer event.
 .o_hhg_split_tool {
     position: absolute;
-    z-index: 3;
+    // over the pills (z-index 10), whose body the dashed line crosses
+    z-index: 11;
     pointer-events: none;
 
     // 2 px dashed line, black at 60 %, from 2 px under the pill's top, 87 % of its height
