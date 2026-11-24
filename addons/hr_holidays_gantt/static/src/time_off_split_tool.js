@@ -10,14 +10,15 @@ const SAME = 0.6;
 /**
  * R16, R17 point 1, D11: the border a click on a pill splits at, for a pointer at `(x, y)`.
  *
- * - `pillRect`: the pill's box in the viewport (`left`, `right`, `top`, `bottom`).
+ * - `pillRect`: the pill's whole box in the viewport (`left`, `right`, `top`, `bottom`), its 1 px
+ *   inset included: 25 px tall, from the box's top edge to 0.5 px above its bottom edge (R16, A43).
  * - `columns`: the visible, unfolded day columns, `{left, right, start}` with `start` the
  *   column's first moment as a luxon DateTime in the browser's zone.
  * - `rtl`: the grid runs from right to left; the border at a column's start is its right edge.
  *
  * A border qualifies when it lies strictly inside the pill, within `SPLIT_REACH` of `x`, with
  * a day column on each side of it (so never the edge of the grid, nor one beside a folded run),
- * and `y` is inside the pill's box. Where both borders of the column under the pointer qualify,
+ * and `y` is inside that box. Where both borders of the column under the pointer qualify,
  * its end border wins; else the nearer border.
  *
  * @returns {{borderX: number, day: string, box: {left: number, right: number}} | null} `day` is

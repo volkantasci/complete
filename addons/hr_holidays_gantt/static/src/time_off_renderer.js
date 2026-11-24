@@ -177,10 +177,18 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         }
         const pillEl = ev.currentTarget;
         const rtl = this._isRtl();
+        const body = pillEl.getBoundingClientRect();
         const found = hhgSplitBorderAt({
             x: ev.clientX,
             y: ev.clientY,
-            pillRect: pillEl.getBoundingClientRect(),
+            // R16, A43: the area is the pill's whole box, its 1 px inset included: from the box's
+            // top edge to 0.5 px above its bottom edge
+            pillRect: {
+                left: body.left,
+                right: body.right,
+                top: body.top - PILL_INSET,
+                bottom: body.bottom + PILL_INSET - 0.5,
+            },
             columns: this._hhgDayColumns(),
             rtl,
         });
