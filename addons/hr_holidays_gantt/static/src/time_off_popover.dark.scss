@@ -6,6 +6,20 @@
     box-shadow: 0 8px 16px rgba(#000, 0.3);
 }
 
+// the form's area (between the header and the footer) takes the theme's overlay background in the
+// dark scheme (001b R35 gives it to every form in a popover), a step lighter than the surface; the
+// body (M8) itself is transparent
+.o_hhg_pop:not(.o_hhg_pop_sheet) .o_hhg_pop_content {
+    > * {
+        background-color: $o-cws-overlay-bg;
+    }
+
+    // the renderer lets the form's colour show
+    .o_form_renderer {
+        background-color: transparent;
+    }
+}
+
 // M31: the label of Approve is black on the success colour in the dark scheme
 .o_hhg_pop .o_hhg_pop_approve {
     color: #000;
