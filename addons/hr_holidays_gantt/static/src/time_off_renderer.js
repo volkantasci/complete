@@ -283,8 +283,12 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
     /**
      * The popover hangs from a stand-in for the pill, not from the pill: the pill goes when the
      * request leaves the view (the Overview shows no refused request, R8 point 4), and the popover
-     * would close with it. The stand-in is a hidden element beside the pill whose box is the
-     * pill's, live while the pill is in the grid and the last one it had after.
+     * would close with it. The stand-in is a hidden element whose box is the pill's, live while the
+     * pill is in the grid and the last one it had after. It lies in the page's body, outside every
+     * element the grid draws: the grid takes a pill's neighbours with it when its row loses its last
+     * pill (it empties the container of the pills in one go), and the row itself may go (decision
+     * D15, R8 point 4: the popover stays at the place where the pill was whatever becomes of the
+     * row, until it is closed).
      */
     _hhgAnchorOf(pill) {
         const anchor = document.createElement("div");
@@ -297,7 +301,7 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
             }
             return last;
         };
-        pill.after(anchor);
+        document.body.append(anchor);
         return anchor;
     }
 

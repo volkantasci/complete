@@ -171,31 +171,67 @@
     }
 }
 
-// R21 points 2 and 3: on the sheet the header is 28.2 px (a 16 px title on a 19.2 px line with 4 px
-// above and below, and the border), the form stacks every label icon and every value in a box of
-// its own, as wide as the sheet allows, and the footer takes the 37 px buttons of the touch size
+// R21 points 1 to 3: on the sheet the header is 28.2 px (a 16 px title on a 19.2 px line with 4 px
+// above and below, and the border), the form stacks every label icon and every value in a box of its
+// own, as wide as the sheet allows, and the footer takes the 37 px buttons of the touch size.
+//
+// The look of the boxes (M90 to M99), the same in both views: every box has a 1 px border in the
+// popover's border role, 4 px corners, 8 px above and below and 12 px at the sides, and lies 16 px
+// over the next; the label boxes are in the view background, the value boxes in grey 100 when the
+// form is read-only and in the view background when it is editable; the box that holds the focus has
+// its border in the colour of a focused input.
+@mixin o-hhg-sheet-box($fill) {
+    margin: 0 0 16px;
+    padding: 8px 12px;
+    border: 1px solid $popover-border-color;
+    border-radius: 4px;
+    background-color: $fill;
+}
+
 .o_hhg_pop.o_hhg_pop_sheet {
     .o_hhg_pop_title {
         font-size: 16px;
         line-height: 19.2px;
     }
 
-    // the form's own paddings leave the sheet's width to the body's 16 px
-    .o_form_renderer,
-    .o_form_nosheet {
-        padding-inline: 0;
+    // P6: one background over the sheet's whole height, the sheet's own (`.o_tl_popover_sheet`): the
+    // body takes none of its own; the header keeps its band
+    .o_hhg_pop_content,
+    .o_hhg_pop_content > *,
+    .o_hhg_pop_content .o_form_view,
+    .o_hhg_pop_content .o_content,
+    .o_hhg_pop_content .o_form_renderer,
+    .o_hhg_pop_content .o_form_nosheet,
+    .o_hhg_pop_content .o_form_sheet_bg,
+    .o_hhg_pop_content .o_form_sheet {
+        background-color: transparent;
+    }
+
+    // M93, M98: the form has 16 px at its sides and 24 px above and below, in both views, and
+    // lies on the sheet's own colour
+    .o_hhg_pop_content .o_form_renderer,
+    .o_hhg_pop_content .o_form_nosheet {
+        padding: 24px 16px;
+        background-color: $popover-bg;
+    }
+
+    // the Community's boxes of the report's form: the border role, and the fill of a read-only box
+    .o_form_view {
+        --o-field-box-border-color: #{$popover-border-color};
+        --body-bg: #{$o-gray-100};
     }
 
     .o_hhg_pop_body {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        padding: 0;
+        gap: 0;
     }
 
     .o_hhg_pop_line {
         flex-direction: column;
         align-items: stretch;
-        gap: 8px !important;
+        gap: 0 !important;
         min-height: 0;
 
         // the label icon: a box of its own above the value (the line's direct child, the icon
@@ -203,46 +239,54 @@
         // utility class is one
         > .o_hhg_pop_icon,
         > .o_hhg_pop_iconcol {
+            @include o-hhg-sheet-box($o-view-background-color);
+
             display: flex;
             align-items: center;
             align-self: stretch !important;
             min-height: 46px;
-            padding: 0 12px;
-            border: 1px solid $border-color;
-            border-radius: $border-radius;
         }
 
         // the value: a box of its own, the width of the sheet less the form's padding
         .o_hhg_pop_dates_value,
         > .o_field_widget {
+            @include o-hhg-sheet-box($o-view-background-color);
+
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid $border-color;
-            border-radius: $border-radius;
+        }
+
+        // the form's own 5 px under a field widget give way to the box's 16
+        > .o_field_widget {
+            margin-bottom: 16px !important;
         }
     }
 
-    .o_hhg_pop_type > .o_field_widget:focus-within {
-        border-color: $primary;
+    .o_form_readonly .o_hhg_pop_line {
+        .o_hhg_pop_dates_value,
+        > .o_field_widget {
+            background-color: $o-gray-100;
+        }
     }
 
-    // the description's area is 50 px tall, its border included: the field's wrapper
-    // (`.o_field_widget`) carries the height, its textarea fills it
+    // the box that holds the focus (the type's, which has it when the popover opens)
+    .o_hhg_pop_type > .o_field_widget:focus-within {
+        border-color: $o-action;
+    }
+
+    // P5, M96, M97: the description's text area is 50 px tall inside its value box of 73.5 px
     .o_hhg_pop_note > .o_field_widget {
-        padding: 0;
-        height: 50px;
+        height: auto !important;
         min-height: 0;
-        max-height: 50px;
-        overflow-y: auto;
-        box-sizing: border-box;
+        max-height: none;
 
         textarea {
             display: block;
             width: 100%;
             // the field sets its height by the text's (an inline style)
-            height: 48px !important;
-            min-height: 48px;
-            padding: 8px 12px;
+            height: 50px !important;
+            min-height: 50px;
+            margin-bottom: 5.5px;
+            padding: 0;
             border: 0;
             resize: none;
         }
@@ -250,7 +294,6 @@
         .o_field_text,
         span {
             display: block;
-            padding: 8px 12px;
         }
     }
 
@@ -329,6 +372,15 @@
 
     .o_form_editable .o_hhg_pop_note .o_field_widget {
         height: 50px !important;
+    }
+
+    // R8 point 4, M102: the empty description of a request that was editable keeps its box once the
+    // form is read-only (after Refuse): 60.5 px, which makes the body 221.5 px (M101)
+    &.o_hhg_pop_was_editable .o_form_readonly .o_hhg_pop_note .o_field_widget.o_field_empty {
+        box-sizing: border-box;
+        height: 60.5px !important;
+        // the 5 px the widgets keep under them are part of the box's 60.5 in the original
+        margin-bottom: 0;
     }
 
     .o_hhg_pop_footer .o_hhg_pop_button .oi {

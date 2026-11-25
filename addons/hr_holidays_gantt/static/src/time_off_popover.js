@@ -12,7 +12,6 @@ import {
     useScope,
 } from "@odoo/owl";
 import { isMobileOS } from "@web/core/browser/feature_detection";
-import { useSubEnv } from "@web/owl2/utils";
 import { _t } from "@web/core/l10n/translation";
 import { BackButtonManager, useService } from "@web/core/utils/hooks";
 import { View } from "@web/views/view";
@@ -58,10 +57,14 @@ export class TimeOffLeavePopover extends Component {
     /** The model of the body's form, once it has loaded (a signal: the title follows its record). */
     formModel = signal(null);
 
+    /**
+     * Whether the request was editable while this popover was open: its empty description then keeps
+     * the box it had once the form is read-only (R8 point 4, M102).
+     */
+    wasEditable = signal(false);
+
     setup() {
         this.ui = useService("ui");
-        // the form's widgets know they stand in the popover (the type badge, R4 point 1)
-        useSubEnv({ hhgPopover: true });
         this.hhgAction = useService("action");
         this.orm = useService("orm");
         // the employee's name: the form holds the field invisible, which carries no name
@@ -94,6 +97,9 @@ export class TimeOffLeavePopover extends Component {
         // only a change of the buttons renders the popover again: its render gives the form its
         // props again, which loads the form, which tells the popover (a loop otherwise); the
         // first load comes before the popover is on the page, so the buttons are there at once
+        if (!this.isReport && record?.data.state === "confirm" && !untrack(() => this.wasEditable())) {
+            this.wasEditable.set(true);
+        }
         const buttons = this.computeFooterButtons(record);
         const names = (list) => list.map((button) => button.name).join(" ");
         if (names(buttons) !== names(untrack(() => this.footerShown()))) {
@@ -188,6 +194,9 @@ export class TimeOffLeavePopover extends Component {
         }
         if (this.isReport) {
             classes.push("o_hhg_pop_report");
+        }
+        if (this.wasEditable()) {
+            classes.push("o_hhg_pop_was_editable");
         }
         return classes.join(" ");
     }
