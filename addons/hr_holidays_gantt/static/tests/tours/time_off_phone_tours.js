@@ -177,10 +177,10 @@ function checkContent(check, what, { badge = true, buttons = {}, choices = false
         check.near(`${what}: Morning's width`, widths.Morning, 80.6, 0.5);
     }
     if (area) {
-        // the field's wrapper (`.o_field_widget`, the box with the border) is the 50 px area; its
-        // textarea fills it
+        // P5, M96, M97: the text area is 50 px tall inside the value box of 73.5 px
         const box = $(".o_hhg_pop_note > .o_field_widget");
-        check.near(`${what}: the description area's height`, rectOf(box).height, 50, 0.3);
+        check.near(`${what}: the description area's height`, rectOf($("textarea", box)).height, 50, 0.3);
+        check.near(`${what}: the description's value box`, rectOf(box).height, 73.5, 0.3);
     }
     const footer = $(".o_hhg_pop_footer");
     const style = getComputedStyle(footer);
