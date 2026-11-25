@@ -677,6 +677,15 @@ What a user may do with a pill follows the same groups (the table in
   them under the pointer and darkens them: the stripes are the pill's full colour
   and that colour lightened a little, for every colour of the type, grey included,
   in both schemes.
+- **The box of the dates on the phone.** In the phone sheet, the box of the dates is
+  10 px taller than in the reference look (88.5 px for 78.5 px), in the read-only and
+  the editable sheet. The next release corrects it.
+- **No focus outline in the report view's popover.** The reference look draws a focus
+  outline round the employee's name when the report view's popover opens; Complete
+  draws none.
+- **The address after Expand.** After Expand, the address of the request's form names
+  the action and the request in another form than the reference look's. The page is
+  the same.
 - **Shell and theme.** Four differences of the shell and the theme are not corrected
   here: the search field 3 px taller (every value of the popover and the grid on a
   wide screen lies 3 px lower), the phone dialogs without the 1 px line at their left,

@@ -65,13 +65,17 @@ You run two steps of the lifecycle: step 4, implementation, and step 7, document
    - A unit test finds every element in the page, including those a stylesheet hides. Assert what a user sees, such as a dialog's visible buttons, in a tour.
    - An element can be in the page and still lie under a layer, such as the helper of an empty view. A tour that checks that a row or a line is visible reads its box against the layer's, or the element at a point inside it. A count of the elements does not show it.
    - A colour can be drawn with an opacity. Where the package gives a colour as a user sees it, a tour reads the colour as drawn on the element's background, and a probe reads the opacity beside the colour.
+   - Where the package gives the look of a form's boxes, compare their fill, their border and the focused box's border in the probes, in light and in dark. A comparison of sizes alone passes with a missing fill.
    - Tests create the records they need, so that they pass with and without demo data. CI installs every module without it.
+   - A module's data files, its demo data included, change nothing outside the module's own records: they activate no language, and create no user that the package does not name. A helper that a test needs is called by that test.
+   - A server method that acts with rights above the caller's uses them for the one step that needs them. It decides which records it may touch from what the server stored, not from what the caller sends. Test it as each role with records that the view would not send, each refusal by its own message, and ask the final review to read the method by name.
    - When the slice renames an identifier of a released module, such as a view's, add a migration script, and check an update from the released version: install `main`'s code on a scratch database, update it with the branch, and report what the log and the records show.
    - A tour or a probe that counts or places the rows of an application's view first moves the records it did not create out of that view, for example to another company. Run the module tests with demo data once as soon as the first tour exists, not only in the final runs: an application's demo records enter a view that a test built for its own records.
    - When your module depends on a Community application that no module under `addons/` needed before, run CI's configuration once as soon as the module's manifest exists. A new application can change pages and test bundles that earlier tests rely on. Correct an earlier test in a commit of its own, and report the cause.
    - Give every behaviour that depends on the live web client, such as what happens while a view scrolls, a tour in a real browser session as well as a unit test.
    - A tour of a gesture plays the scenario's own path, with real pointer events at the package's points. A tour that reaches the same state by another path can pass while the scenario's path fails.
    - A tour never reads the real day. It starts the browser's clock at a fixed instant and lets it run on, and it computes a date it expects by the view's own rule. A second rule in the tour can differ from the view's by a day near a day boundary, and the tour then fails on some days only.
+   - A test never depends on the server's real time either. Where the Community computes a value from the server's clock, such as a line that says until when an employee is away, the test runs that computation at a fixed instant, or places its records from the server's own day.
    - Where the slice adds a module with an uninstall step, test the step by a direct call, and run one real uninstall on a scratch database. `odoo module uninstall` takes the database from the `PG*` variables. If your session cannot give them, say so in your report: the verifier runs the uninstall.
    - Where the package says an input cancels a gesture, test what that input's own press and release do, at each place the package names. A tour of such a case fails when anything opens, and a control without the gesture shows that the same place does open it.
 4. **Screenshots before the final review.** Take Complete screenshots at 1600×900 and 390×844 under `docs/assets/<area>/`, and compare them with the spec's screens. Tests can pass while the UI is wrong. Compare the module's user-facing texts with the visible wording in the screens too, and reword any sentence that repeats it.
@@ -108,11 +112,13 @@ Your final message is copied to the coordinator. Make it self-contained, write i
 - **Working tree:** the output of `git status --porcelain`, which must be empty. If a file is left that you cannot remove, give its path and the reason.
 - **Paths outside the slice's modules:** every changed file outside them and `docs/`, with its commit and the reason, or "none".
 - **Changes in released modules:** every change in a module that an earlier slice released, with its commit, its reason and the views it changes, or "none". Name a change that a rework round makes there in the first lines of the report: the verifier then measures the earlier slices again.
+- **Server methods:** for each method the slice adds that changes or removes records: who may call it, which records it touches, what it refuses, where it uses rights above the caller's, and the tests that show each. Or "none".
 - **For the verifier:**
   - the exact commands that create the demo database with the module and demo data, and that start Complete;
   - every command that starts a server on the demo database with the option that switches the scheduled jobs off (`--max-cron-threads=0`): a job of an application can change the demo data that the package describes;
   - how the hosts of `acceptance.md` get into that database, and how a restricted user logs in;
   - how a browser session reaches the states your tours prepare, such as a fixed date or another language.
+  - every test, and every value a user sees, that depends on the server's clock while the server runs, or "none".
 - **Time and friction:**
   - the start and end (UTC) of plan, implementation, documentation and review;
   - what slowed you down.
