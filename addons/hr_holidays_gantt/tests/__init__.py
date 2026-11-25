@@ -14,6 +14,7 @@ from . import (
     test_fixtures,
     test_gesture_tours,
     test_hoot,
+    test_host_probes,
     test_hours_label,
     test_install,
     test_phone_tours,

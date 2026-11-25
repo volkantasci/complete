@@ -491,14 +491,23 @@ export class TimeOffLeaveRenderer extends EmployeeTimelineRenderer {
         this._popoverTimer = browser.setTimeout(() => {
             this._popoverTimer = null;
             const anchor = this._hhgAnchorOf(target);
-            this.popover.open(anchor, {
-                model: this.props.model,
-                archInfo: this.props.archInfo,
-                record: pill.record,
-                editor: this.props.editor,
-                variant: this.hhgPopoverVariant,
-                onChanged: () => this.hhgReloadKeepingPopover(),
-            });
+            let opened = false;
+            try {
+                this.popover.open(anchor, {
+                    model: this.props.model,
+                    archInfo: this.props.archInfo,
+                    record: pill.record,
+                    editor: this.props.editor,
+                    variant: this.hhgPopoverVariant,
+                    onChanged: () => this.hhgReloadKeepingPopover(),
+                });
+                opened = true;
+            } finally {
+                // an anchor that no popover holds is not left in the page
+                if (!opened) {
+                    anchor.remove();
+                }
+            }
             // after `open`, which first closes (and so forgets) the previous popover
             this._popoverFor = pill.id;
             this._hhgGhost = anchor;

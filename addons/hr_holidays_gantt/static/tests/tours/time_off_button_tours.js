@@ -314,6 +314,9 @@ async function refusedPopoverStays(others) {
     const open = popover();
     assert(titleOf().startsWith(FIRST), `the popover of ${FIRST}: "${titleOf()}"`);
     await expectButtons(["Approve", "Refuse", "Delete"], "the request To Approve");
+    // the popover's place just before Refuse: the pill's last place
+    await settle(600);
+    const placed = frameOf();
     await pressButton("Refuse");
     await until(() => !pillOn(FIRST, "2026-11-18"), "the pill leaves the Overview", 10000);
     await written();
@@ -329,6 +332,13 @@ async function refusedPopoverStays(others) {
     }
     // the frame of the read-only popover of a Refused request (R8 point 4, P2)
     const before = frameOf();
+    // it stays where the pill last was: centred on the same x (the width follows the body, read-only
+    // now) and at the same top, as A37 reads it
+    assert(
+        Math.abs(before.left + before.width / 2 - (placed.left + placed.width / 2)) < 4 &&
+            Math.abs(before.top - placed.top) < 6,
+        `the popover stays at the pill's last place: ${JSON.stringify([placed.left, placed.top, placed.width])} then ${JSON.stringify([before.left, before.top, before.width])}`
+    );
     const note = $(".o_hhg_pop_note .o_field_widget");
     assert(
         Math.abs(before.height - 296.2) < 1,
@@ -351,6 +361,8 @@ async function refusedPopoverStays(others) {
         assert(pillOn(FIRST, date), `the pill of ${date} is still there`);
     }
     await closeWithEscape();
+    await until(() => !popover(), "the popover is closed");
+    assertEqual(document.querySelector(".o_hhg_pop_anchor"), null, "no anchor is left after the close");
 }
 
 scenario("hhg_a99_popover_stays", () => refusedPopoverStays([]));
