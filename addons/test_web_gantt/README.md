@@ -75,8 +75,10 @@ Hidden module, never installed in production. User documentation:
   activates Arabic (`ar_001`) with its translations and returns the user
   "RTL Admin" (login and password `rtl`, the administrator's groups and time
   zone), creating it when missing and returning the same one afterwards. The
-  demo data calls it through a function record; tests that need the user call
-  the helper themselves (the demo data is absent in CI).
+  module's data and demo files **do not call it** and activate no language: a
+  database installed with the demo data keeps the languages it had. Tests and
+  verifiers that need the user call the helper themselves (an Odoo shell, or a
+  `-i`-time test: `env['test.web.gantt.pill']._tl_rtl_user()`).
 - **H13, the search view**: a search view with an **Archived** filter and
   group-bys for parent, contact and tags; it is the search view of every action
   on the first model (not of H10, which has its own model). Archived records

@@ -11,6 +11,25 @@ const { DateTime, Settings } = luxon;
  * context of the data call (R10, R13, R14, R16), and a named range is one period (R17).
  */
 export class TimeOffLeaveModel extends EmployeeTimelineModel {
+    /**
+     * R25: the zone of the browser is in the context of every call the view makes, the writes of a
+     * move, a resize and a copy included: the Community reads the start and end the grid shows
+     * back into days in that zone, whatever the user's preference zone.
+     */
+    get context() {
+        return { ...this._hhgContext, tz: Settings.defaultZone.name };
+    }
+
+    set context(value) {
+        this._hhgContext = value;
+    }
+
+    /** The framework compares the context of a search with the one it holds: both name the zone. */
+    async load(searchParams = {}) {
+        const context = { ...searchParams.context, tz: Settings.defaultZone.name };
+        return super.load({ ...searchParams, context });
+    }
+
     _request(range, offset) {
         const request = super._request(range, offset);
         request.kwargs.context = {

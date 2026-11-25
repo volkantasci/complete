@@ -2,5 +2,4 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <odoo>
     <function model="test.web.gantt.pill" name="_tl_build_host_records"/>
-    <function model="test.web.gantt.pill" name="_tl_rtl_user"/>
 </odoo>

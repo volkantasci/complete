@@ -197,6 +197,20 @@ test("A38 Undo calls the server undo with the earlier values and shows Change un
     expect(".o_notification").toHaveClass("o_tl_notification");
 });
 
+test("A38 a plain notice carries no icon, a normal one the check", async () => {
+    await mountTimeline();
+    editor()._notifyChange({ message: "Plain" });
+    await animationFrame();
+    const shown = () =>
+        getComputedStyle(queryOne(".o_notification .o_notification_body"), "::before").display;
+    expect(checkIcon()).toBe('"check"');
+    expect(shown()).not.toBe("none");
+    editor()._notifyChange({ message: "Plain", plain: true });
+    await animationFrame();
+    expect(".o_notification").toHaveClass("o_tl_notification_plain");
+    expect(shown()).toBe("none");
+});
+
 test("A41 Undo of a copy deletes the copy: kind copy on the new id", async () => {
     await mountTimeline();
     const resId = pill("Review").id;

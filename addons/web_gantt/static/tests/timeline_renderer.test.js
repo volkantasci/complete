@@ -440,6 +440,70 @@ test("A48: info stripes and mark", async () => {
     expect(pillOf("Build")).not.toHaveClass("o_tl_striped");
 });
 
+/**
+ * Gives the rules that hold a `:hover` selector a twin that matches the class `o_tl_test_hover`
+ * instead (a test cannot drive the pointer's own state), and returns the style element of the twins.
+ */
+function addHoverTwins() {
+    const twins = [];
+    for (const sheet of document.styleSheets) {
+        let rules;
+        try {
+            rules = sheet.cssRules;
+        } catch {
+            continue;
+        }
+        for (const rule of rules) {
+            if (rule.selectorText && rule.selectorText.includes(":hover")) {
+                twins.push(
+                    rule.cssText.replaceAll(":hover", ".o_tl_test_hover")
+                );
+            }
+        }
+    }
+    const element = document.createElement("style");
+    element.textContent = twins.join("\n");
+    document.head.appendChild(element);
+    return element;
+}
+
+/** The numbers of the colours of a gradient, stop by stop. */
+function gradientStops(image) {
+    return [...image.matchAll(/rgb\((\d+), (\d+), (\d+)\)/g)].map((match) =>
+        match.slice(1).map(Number)
+    );
+}
+
+test("R26 M84 M85: a striped pill under the pointer keeps its stripes, darker", async () => {
+    await mountTimeline();
+    const deploy = pillOf("Deploy");
+    expect(deploy).toHaveClass("o_tl_striped");
+    const rest = style(deploy, "backgroundColor", "backgroundImage");
+    const twins = addHoverTwins();
+    deploy.classList.add("o_tl_test_hover");
+    const hovered = style(deploy, "backgroundColor", "backgroundImage");
+    deploy.classList.remove("o_tl_test_hover");
+    twins.remove();
+    expect(rest[1]).toMatch(/^repeating-linear-gradient\(-45deg, /);
+    expect(hovered[1]).toMatch(/^repeating-linear-gradient\(-45deg, /);
+    // the colour of the pill itself does not change
+    expect(hovered[0]).toBe(rest[0]);
+    const restStops = gradientStops(rest[1]);
+    const hoveredStops = gradientStops(hovered[1]);
+    expect(restStops).toHaveLength(4);
+    expect(hoveredStops).toHaveLength(4);
+    // each stop of the stripes under the pointer is darker than its twin at rest
+    for (let i = 0; i < 4; i++) {
+        expect(hoveredStops[i].reduce((a, b) => a + b)).toBeLessThan(
+            restStops[i].reduce((a, b) => a + b)
+        );
+    }
+    // the second stripe stays lighter than the first
+    expect(hoveredStops[2].reduce((a, b) => a + b)).toBeGreaterThan(
+        hoveredStops[0].reduce((a, b) => a + b)
+    );
+});
+
 test("A48: info and danger together give one mark and the stripes", async () => {
     (await serverRecords()).find((record) => record.name === "Deploy").x_flagged = true;
     await mountTimeline();
@@ -644,4 +708,38 @@ test("R25: the day line of an Arabic user: the weekday name and the day number i
         "الثلاثاء ٣",
     ]);
     expect(queryAllTexts(".o_tl_col").some((text) => /[0-9]/.test(text))).toBe(false);
+});
+
+test("A101 R26 M105 M106: under the pointer the stripes are the pill's full colour and its tint", async () => {
+    const twins = addHoverTwins();
+    const probe = document.createElement("div");
+    document.body.appendChild(probe);
+    for (let index = 0; index < 12; index++) {
+        probe.className = `o_tl_pill o_tl_striped o_tl_color_${index}`;
+        const [colorText, restImage] = style(probe, "backgroundColor", "backgroundImage");
+        const pillColor = colorText.match(/\d+/g).slice(0, 3).map(Number);
+        probe.classList.add("o_tl_test_hover");
+        const [hoveredColor, hoveredImage] = style(probe, "backgroundColor", "backgroundImage");
+        probe.classList.remove("o_tl_test_hover");
+        expect(hoveredColor).toBe(colorText);
+        const stops = gradientStops(hoveredImage);
+        expect(stops).toHaveLength(4);
+        const full = pillColor.map((channel) => Math.max(0, (channel - 0.4 * 255) / 0.6));
+        // the first stripe is B, within one step per channel, for every colour (grey included)
+        stops[0].forEach((channel, i) => {
+            expect(Math.abs(channel - full[i])).toBeLessThan(1.01, {
+                message: `colour ${index}, channel ${i}`,
+            });
+        });
+        // the stripes of each pair are the same colour, the second one lighter
+        expect(stops[1]).toEqual(stops[0]);
+        expect(stops[3]).toEqual(stops[2]);
+        expect(stops[2].reduce((a, b) => a + b)).toBeGreaterThan(
+            stops[0].reduce((a, b) => a + b)
+        );
+        // at rest the stripes are the pill's colour P itself
+        expect(gradientStops(restImage)[0]).toEqual(pillColor);
+    }
+    probe.remove();
+    twins.remove();
 });

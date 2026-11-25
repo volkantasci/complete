@@ -508,15 +508,21 @@ export class TimelineEditor {
      * R10: one notification of this view at a time; it replaces the view's current one (the
      * newest change's, which is the clicked one unless a newer change was made while its Undo was
      * pending). Without an `undo` it is a result (no Undo button); `failed` makes it a danger
-     * one. Nothing is shown once the view is left.
+     * one. Nothing is shown once the view is left. `plain` leaves out the check icon (a host
+     * view's notices that the host shows as the Community's own plain notification).
      */
-    _notifyChange({ message, undo, failed = false }) {
+    _notifyChange({ message, undo, failed = false, plain = false }) {
         this.closeNotification();
         if (this.model.disposed) {
             return;
         }
         const type = failed ? "danger" : "success";
-        const options = { type, className: `o_tl_notification o_tl_notification_${type}` };
+        const options = {
+            type,
+            className: `o_tl_notification o_tl_notification_${type}${
+                plain ? " o_tl_notification_plain" : ""
+            }`,
+        };
         const handle = {};
         if (undo) {
             let used = false;

@@ -44,22 +44,41 @@ export class Leave extends models.Model {
     _name = "hhg.leave";
 
     name = fields.Char();
+    duration_display = fields.Char();
     active = fields.Boolean({ default: true });
     employee_id = fields.Many2one({ relation: "hr.employee", string: "Employee" });
     state = fields.Selection({
         string: "Status",
         selection: [
             ["confirm", "To Approve"],
+            ["validate1", "Second Approval"],
             ["validate", "Approved"],
+            ["refuse", "Refused"],
+            ["cancel", "Cancelled"],
         ],
     });
+    // the Community's flags for the reading user (the popover's footer reads them)
+    can_approve = fields.Boolean({ string: "Can approve" });
+    hours = fields.Float({ string: "Hours" });
+    can_validate = fields.Boolean({ string: "Can validate" });
     start = fields.Datetime({ string: "Start" });
+    can_refuse = fields.Boolean({ string: "Can refuse" });
     stop = fields.Datetime({ string: "Stop" });
+    can_back_to_approve = fields.Boolean({ string: "Can go back to approve" });
 
     _views = {
         "search,false": SEARCH,
         "list,false": plainArch("list", ["name", "start"]),
-        "form,false": plainArch("form", ["name", "employee_id"]),
+        "form,false": `<form>
+            <field name="duration_display" invisible="1"/>
+            <field name="state" invisible="1"/>
+            <field name="can_approve" invisible="1"/>
+            <field name="can_validate" invisible="1"/>
+            <div class="o_hhg_pop_type"><field name="employee_id" nolabel="1"/></div>
+            <field name="can_refuse" invisible="1"/>
+            <field name="can_back_to_approve" invisible="1"/>
+            <field name="name"/>
+        </form>`,
     };
 }
 
@@ -68,6 +87,7 @@ export class Report extends models.Model {
     _name = "hhg.report";
 
     name = fields.Char();
+    duration_display = fields.Char();
     employee_id = fields.Many2one({ relation: "hr.employee", string: "Employee" });
     start = fields.Datetime({ string: "Start" });
     stop = fields.Datetime({ string: "Stop" });
@@ -75,7 +95,11 @@ export class Report extends models.Model {
     _views = {
         "search,false": SEARCH,
         "list,false": plainArch("list", ["name", "start"]),
-        "form,false": plainArch("form", ["name", "employee_id"]),
+        "form,false": `<form>
+            <field name="duration_display" invisible="1"/>
+            <div class="o_hhg_pop_type"><field name="employee_id" nolabel="1"/></div>
+            <field name="name"/>
+        </form>`,
     };
 }
 
@@ -97,7 +121,8 @@ export function utc(day, clock) {
 
 /**
  * Creates employees (and their public records, with the same ids) and records
- * `[employeeName, [day, "H:MM"], [day, "H:MM"]]` on `resModel`.
+ * `[employeeName, [day, "H:MM"], [day, "H:MM"], extraValues]` on `resModel` (the last entry is
+ * optional: values of the request, such as `{ state, duration_display }`).
  * @returns {Promise<Object>} employee ids by name
  */
 export async function makeTimeOffData(employeeNames, records = [], resModel = "hhg.leave") {
@@ -111,12 +136,14 @@ export async function makeTimeOffData(employeeNames, records = [], resModel = "h
     }
     const byName = Object.fromEntries(employeeNames.map((name, index) => [name, ids[index]]));
     env[resModel].create(
-        records.map(([employee, from, to]) => ({
+        records.map(([employee, from, to, extra = {}]) => ({
             name: "L",
             employee_id: byName[employee],
             start: utc(...from),
             stop: utc(...to),
+            duration_display: "3 days",
             ...(resModel === "hhg.report" ? {} : { state: "validate" }),
+            ...extra,
         }))
     );
     return byName;
@@ -126,7 +153,7 @@ export const LEAVE_ARCH = (attrs = "") =>
     `<gantt js_class="hr_holidays_gantt_manager_hr_leave" string="Days" date_start="start"
         date_stop="stop" default_group_by="employee_id" groups_limit="20" default_range="month"
         scales="week,month,quarter" precision="{'week': 'day:full', 'month': 'day:full'}"
-        plan="0" ${attrs}/>`;
+        plan="0" ${attrs}><field name="state"/></gantt>`;
 
 export const REPORT_ARCH = (attrs = "") =>
     `<gantt js_class="hr_holidays_report_gantt" string="Time Off" date_start="start"

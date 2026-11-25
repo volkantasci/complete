@@ -279,6 +279,69 @@ scenario("hhg_a82_card_in_the_report", async () => {
     assert($(".o_hhg_card_band"), "the leave band shows");
 });
 
+// A94: the card's line while the employee is away (N1; M81 to M83) -----------------------------------
+//
+// The Community draws the line; the leave of "Toff Away" covers the server's real now (the tour's
+// test does not pin the server's clock), so the line shows for every role.
+
+/** The card's "back on" lines: the Community's warning-coloured text after the name. */
+const awayLines = () =>
+    $$(".o_avatar_card .o_card_user_infos .text-warning").filter((el) => /^Back on /.test(clean(el.textContent)));
+
+/** Opens the card of "Toff Away" and waits for its line. */
+async function awayCard() {
+    await until(() => rowNames().includes("Toff Away"), `the row of Toff Away: ${rowNames()}`, 10000);
+    await openCardOf("Toff Away");
+    return until(() => awayLines()[0], "the card's line that says when the employee is back", 10000);
+}
+
+/** The Month range (the view opens on it or the tour picks it). */
+async function toTheMonth() {
+    if (rangeName().toLowerCase() !== "month") {
+        await pickRange("month");
+    }
+}
+
+scenario("hhg_a94_card_away", async () => {
+    await toTheMonth();
+    await searchFor("Toff Away");
+    await settle(500);
+    const line = await awayCard();
+    assertEqual(awayLines().length, 1, "one line");
+    assert(/^Back on .*\d/.test(clean(line.textContent)), `the line says the day: "${line.textContent}"`);
+    const name = $(".o_avatar_card .o-mail-avatar-card-name");
+    assertEqual(clean(name.textContent), "Toff Away", "the card's name");
+    const box = rectOf(line);
+    const nameBox = rectOf(name);
+    // M81, M82: under the name (19.5 px), 18 px tall, 12 px at weight 500
+    assert(Math.abs(box.top - nameBox.bottom) <= 1.5, `the line under the name: ${nameBox.bottom} then ${box.top}`);
+    assert(Math.abs(box.height - 18) <= 0.5, `the line's height ${box.height}`);
+    assert(Math.abs(nameBox.height - 19.5) <= 0.5, `the name's height ${nameBox.height}`);
+    const style = getComputedStyle(line);
+    assertEqual(style.fontSize, "12px", "the line's size");
+    assertEqual(style.fontWeight, "500", "the line's weight");
+    assertEqual(style.opacity, "0.75", "the line's opacity");
+    // the warning role of the page's theme
+    const sample = document.body.appendChild(document.createElement("span"));
+    sample.className = "text-warning";
+    const warning = getComputedStyle(sample).color;
+    sample.remove();
+    assertEqual(style.color, warning, "the warning colour");
+    // above the "View Profile" button
+    const profile = $$(".o_avatar_card button").find((el) => clean(el.textContent) === "View Profile");
+    assert(profile, "the View Profile button");
+    assert(rectOf(profile).top >= box.bottom - 0.5, `the button (${rectOf(profile).top}) lies under the line (${box.bottom})`);
+});
+
+scenario("hhg_a94_card_away_report", async () => {
+    assertEqual(viewTitle(), "Time Off", "the report view");
+    await toTheMonth();
+    await searchFor("Toff Away");
+    await settle(500);
+    await awayCard();
+    assertEqual(awayLines().length, 1, "the same line (M83)");
+});
+
 // A26 to A28: the report's search defaults ----------------------------------------------------------
 
 const defaultFacets = (name, expected) =>

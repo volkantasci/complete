@@ -318,3 +318,32 @@ class TestTimeOffRoleTours(ReportToursBase):
         self.env.flush_all()
         self.assertTrue(approver.has_group(RESPONSIBLE))
         self._tour('hhg_a84_approver_management', login='toff_approver', path=test_tours.MANAGEMENT)
+
+
+@tagged('post_install', '-at_install')
+class TestTimeOffCardAwayTours(ReportToursBase):
+    """A94 (N1; M81 to M83): the Community's "back on" line of the card while the employee is
+    inside an Approved leave at the server's real now, for every role. These tours do not pin the
+    server's clock (the leave covers the present instant at every hour of the day)."""
+
+    pin_status_clock = False
+
+    def _away(self):
+        leave = fx.make_away_state(self.env, self.schedule)
+        self.env.flush_all()
+        self.env.invalidate_all()
+        employee = leave.employee_id
+        self.assertEqual(leave.state, 'validate')
+        self.assertTrue(employee.leave_date_to, 'the leave covers the server\'s now')
+        return leave
+
+    def test_a94_card_away(self):
+        self._away()
+        self._isolate(keep={fx.AWAY_NAME})
+        self._tour_writes_nothing('hhg_a94_card_away')
+
+    def test_a94_card_away_report(self):
+        self._world(demo=False)
+        self._away()
+        self._only('toff_emp')
+        self._tour_writes_nothing('hhg_a94_card_away_report', login='toff_emp')

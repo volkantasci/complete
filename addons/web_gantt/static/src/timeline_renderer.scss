@@ -849,11 +849,6 @@
     }
 }
 
-// more specific than the stripes of every colour index, the dark one included
-.o_tl_renderer .o_tl_pill.o_tl_striped:hover {
-    background-image: none;
-}
-
 .o_tl_pill_title {
     position: relative;
     flex: 1 1 auto;
@@ -906,6 +901,21 @@
     }
 }
 
+// The full colour B behind a pill's colour P, which is B mixed 60 % with 40 % white: for each
+// channel B = (P - 0.4 * 255) / 0.6 (R26). The stripes under the pointer are B and B lightened by
+// 6 points, for every colour, grey included, in both schemes.
+@function o-tl-pill-full($pill) {
+    $-channels: ();
+    @each $-channel in red($pill), green($pill), blue($pill) {
+        $-value: round(($-channel - 102) / 0.6);
+        @if $-value < 0 {
+            $-value: 0;
+        }
+        $-channels: append($-channels, $-value);
+    }
+    @return rgb(nth($-channels, 1), nth($-channels, 2), nth($-channels, 3));
+}
+
 // Palette: index 0 is the first colour of the theme palette, the others follow; each is
 // 60 % of the palette colour over white. The progress band is the palette colour darkened.
 @mixin o-tl-pill-color($base, $pill) {
@@ -926,6 +936,20 @@
             lighten($pill, 6%) 10px,
             lighten($pill, 6%) 20px
         );
+
+        // under the pointer the stripes stay and take the pill's full colour and its lighter tint
+        // (R26, M85, M106); the background colour is unchanged
+        &:hover {
+            $-full: o-tl-pill-full($pill);
+
+            background-image: repeating-linear-gradient(
+                -45deg,
+                $-full 0,
+                $-full 10px,
+                lighten($-full, 6%) 10px,
+                lighten($-full, 6%) 20px
+            );
+        }
     }
 }
 

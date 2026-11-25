@@ -19,22 +19,35 @@ Technical reference:
 
 ![The leave view on the Month range, dark](../assets/time_off_gantt/01-month-dark.png)
 
-## In this release: reading, not editing
+## In this release: opening and changing leaves
 
-This release **shows** time off. A leave is still opened, changed, approved,
-refused and created in the other views of Time Off (the list, the kanban, the
-calendar, the request form and the Community dashboard). In the Gantt views
-themselves these inputs do nothing yet: a click or a tap on a pill, a double
-click, a drag or a resize of a pill, a click or a drag on empty cells, and the
-selection of several cells. No popover opens, no dialog opens, nothing is
-written and nothing is highlighted, and the pointer keeps its default shape over
-a pill, over its ends and over an empty cell (no hand, no resize arrow). The Gantt view takes these inputs in a later
-release.
+This release makes the Gantt views **act**. A leave is opened, changed, approved,
+refused and deleted on its pill, and in the leave view it is also moved, resized,
+copied and split:
 
-What does work in the views: the search and its filters, the grouping, the range
-menu, the previous, next and Today buttons, the pager, the folding of columns,
-the click on an avatar (the employee card), the click on a row header (it scrolls
-to the first pill of the row) and the gear menu.
+- a click or a tap on a pill opens the **leave popover** (see
+  [The leave popover](#the-leave-popover)); its buttons edit, save, approve,
+  refuse, discard and delete;
+- a double click (two taps on a phone) opens the request's record dialog;
+- a drag moves the pill, its ends resize it, and Ctrl with a drag copies it, in
+  the leave view (see [Moving, resizing and copying](#moving-resizing-and-copying));
+- an Officer or an Administrator splits a request in two at a day border, with
+  **Undo** (see [The split tool](#the-split-tool));
+- on a phone the popover is the Gantt view's bottom sheet (see
+  [On the phone](#on-the-phone)).
+
+**Not yet:** creating a leave from the cells. The selection of several cells, its
+buttons and the creation form follow in a later release. Until then a click, a
+double click or a tap on an empty cell, and a drag or a Ctrl-click across cells,
+**do nothing**: nothing is selected, nothing opens, nothing is written, and the
+pointer keeps its default shape over an empty cell. Requests are still created in
+the other views of Time Off (the list, the kanban, the calendar, the request form
+and the Community dashboard).
+
+What works in the views besides: the search and its filters, the grouping, the
+range menu, the previous, next and Today buttons, the pager, the folding of
+columns, the click on an avatar (the employee card), the click on a row header (it
+scrolls to the first pill of the row) and the gear menu.
 
 ## Two views, and who reaches which
 
@@ -258,6 +271,15 @@ An employee who is not an officer sees the band with the schedule button alone.
 
 ![The card of an employee without leave lines, light](../assets/time_off_gantt/06-card-emp.png)
 
+**When the employee is away.** While the employee is inside an **Approved** leave at
+the server's real time, the card shows under the name the Community's line that says
+when they are back ("back on" and the next working day). It shows for every role that
+sees the card. The Community computes the date from the server's clock, not from the
+period the view shows, so it depends on the day the server runs, not on the day the
+browser shows.
+
+![The card of an employee who is away, light](../assets/time_off_gantt/002e2-n1-card-away.png)
+
 ## Import and Export in the gear
 
 On a screen 768 px wide or more, the gear beside the title of the leave view
@@ -333,7 +355,230 @@ keeps today near it, and Next keeps the scroll position.
 - The leave intervals of flexible schedules follow the employee's time zone.
 - The dates in the long pill text are those of the request.
 
-The browser sends its zone with each load of the data.
+The browser sends its zone with each load of the data, and with the writes of a
+move, a resize, a copy and the popover's buttons.
+
+## The leave popover
+
+A click on a pill (a tap on a touch screen) opens the popover of its request,
+after a short delay of 200 ms, in both views. It sits against the pill, under it
+when the window has room, otherwise over it, otherwise beside it. One popover is
+open at a time: a click on another pill replaces it, and a click on the pill whose
+popover is open leaves it as it is.
+
+![The popover of an Approved request, light](../assets/time_off_gantt/002e2-01-pop-approved.png)
+
+![The popover of an Approved request, dark](../assets/time_off_gantt/002e2-01-pop-approved-dark.png)
+
+**Closing.** The close icon, a click anywhere outside it (the grid, the control bar
+and the control panel), and Escape close it. A pending change is **dropped without
+a question** when the popover closes: save it or discard it with the footer
+first. Closing alone does not reload the view. A press that starts a move, a resize
+or a copy closes the popover too. When the pill of an open popover leaves the view
+(a request refused in the Overview), the popover stays where the pill was until you
+close it; scrolling the grid does not carry it to another pill. A reload of the
+page brings the view back, without the popover.
+
+**The header** holds the employee's name, a hyphen and the request's duration, with
+the expand and the close icons at its right. It is grey for every request and takes
+no colour of the type.
+
+**The body** has one line per field, each with an icon (its tooltip names the
+field):
+
+- **The type**: a badge with the type's code in its colour (an empty badge, still in
+  the type's colour, when the type has no code), then its name. In read
+  mode the name links to the type. When the popover is editable it is a field whose
+  drop-down offers the types the employee may take and Time Off lets people choose.
+- **The dates**, as the type's unit asks:
+  - *half day*, a request of several days: the half of the first day and the half of
+    the last, "Morning → Afternoon";
+  - *half day*, a request of one day: the choice Full Day, Morning or Afternoon;
+  - *hours*: the number of hours written "4h" ("4h30" with minutes), with a small
+    question mark that explains the field;
+  - *days*: the icon alone.
+- **The number of days**, in muted text ("1.00 day(s)"), for every request that is
+  not counted in hours and is not a half day of a half-day type.
+- **The allocation warning**, in a red box under the dates, when the Community finds
+  that the balance does not cover the request.
+- **The description**. A user who is neither an Officer, nor the employee of the
+  request, nor its approver sees it masked, as the Community masks it.
+
+The popover is **editable** in the leave view for a request To Approve, and
+read-only in every other case. The report view's popover is never editable. A
+change is not written until Save (or Approve or Refuse) is pressed.
+
+When the type is changed in an editable popover, the Community's own rules
+recompute the days and the choices offered.
+
+![The popover of a request To Approve, light](../assets/time_off_gantt/002e2-02-pop-confirm.png)
+
+### The buttons
+
+The footer shows, from the left, the buttons that the request's state and the
+Community's rules for the reading user allow. A button that does not apply is
+**absent**, not disabled.
+
+| Button | Shown when | What it does |
+|---|---|---|
+| Edit | the user may send the request back to approval and the request is not To Approve | sends it back to approval; the popover becomes editable and the pill gets its stripes (an Approved request stops greying its days) |
+| Save | there is a pending change and the user may neither approve nor refuse | writes the change |
+| Approve | the request is To Approve and the user may approve it | writes a pending change first, then approves; Officers and Administrators approve to Approved at once, an approver of a type that needs two approvals gives the first one (Second Approval) |
+| Refuse | the request is To Approve and the user may refuse it | refuses it |
+| Discard | there is a pending change | drops it, the stored values come back |
+| Delete | no pending change (every state, every role that opens the popover) | deletes the request |
+
+There is **no Approve at Second Approval**: an Officer or an Administrator gives the
+final approval by pressing Edit, then Approve. Delete is always shown; the
+Community decides whether it accepts (see [Who may do what](#who-may-do-what)), and
+when it refuses, its error dialog shows over the popover, which stays open and
+nothing changes. Every button that writes reloads the view, and the popover stays
+open on its request.
+
+![A pending change in the popover, light](../assets/time_off_gantt/002e2-04-pop-dirty.png)
+
+![The popover of a request at Second Approval, light](../assets/time_off_gantt/002e2-03-pop-second.png)
+
+### Expand, the dialog and the report view
+
+The expand icon opens the request's Community form in the current window, with the
+breadcrumb "All Time Off", which leads back to the same Gantt view in its state
+(range and search). The browser's **Back** button goes to the list of Management >
+Time Off instead: that is the web client's own history.
+
+A **double click** on a pill (two clicks within 200 ms on the same pill) opens the
+request's record dialog instead of the popover; Escape closes it as it does in the
+other Gantt views.
+
+The **report view's popover** has the same frame. Its body is the report's form
+(employee, status, dates, duration), always read-only, and its footer holds
+**Delete** alone for every role: it is how an Employee removes their own pending
+request from the Overview. The Community protects every other request, so
+deleting another person's request shows its access error.
+
+![The popover in the report view, light](../assets/time_off_gantt/002e2-07-pop-report.png)
+
+### Who may do what
+
+The Community's groups and record rules decide; the module adds no right. "Own"
+means the request of the user's own employee. The table is what the Community
+answers with the prepared users of [Verifying with demo data](#verifying-with-demo-data).
+
+| Role | Sees in the leave view | Popover | Move, resize, copy | Split | Delete accepted |
+|---|---|---|---|---|---|
+| Employee, Manager | own requests | To Approve: editable, Delete; every other state: read-only, Delete | own To Approve | no | own To Approve and Second Approval, starting on or after today (the server's day) |
+| Approver | own and their employees' requests | another employee's To Approve: editable, Approve and Refuse for a type approved by the manager or twice, Delete; read-only in other states | their employees' and own To Approve | no | as Employee, **own** requests only |
+| Officer | every request | To Approve: editable, Approve, Refuse, Delete; Second Approval, Approved, Refused: read-only, Edit, Delete; Cancelled: read-only, Delete | To Approve, Refused, Cancelled | yes | To Approve and Cancelled |
+| Administrator | every request | as Officer | as Officer | yes | every state |
+
+An Employee, a Manager or an Approver cannot delete their own Approved, Refused or
+Cancelled request: the Community answers that they may not delete such records. A
+request that starts before today can be deleted only from the Officer role up. The
+server's day is the UTC date of the server's clock, so around midnight it can differ
+from the day of the browser. In the report view the rows of the table hold for
+**Delete** only; nothing else is writable there.
+
+![The popover of an Employee, light](../assets/time_off_gantt/002e2-05-pop-emp.png)
+
+## Moving, resizing and copying
+
+In the **leave view** the pills of the requests To Approve, Refused and Cancelled
+move by a drag, resize by their ends and copy with Ctrl; the pointer shows the
+hand, the resize arrows and the copy shape. The rules are those of the Gantt view
+([Gantt View](gantt_view.md)), at the precision of whole days.
+
+- A move or resize shifts the request's start and end by whole days. The Community
+  keeps a half day a half day and the hours of an hour request, and recomputes the
+  days, the hours and the balance of the allocation. A request To Approve stays To
+  Approve; a move never approves. A drop on another employee's row moves the request
+  to that employee.
+- The Community's checks apply and show its own error when they refuse: an overlap
+  with another request of the employee, a balance that no longer covers the days,
+  days without working time, a request the user may not write. Nothing is written and
+  the pill returns to its day.
+- A notification offers **Undo**, which writes the former dates (and employee) back
+  through the Community, with the same checks.
+- **Second Approval and Approved pills are locked** for every user, an Administrator
+  too: pressing or dragging one lifts it in place with the lock icon and the
+  not-allowed pointer, writes nothing and opens nothing, and it shows no resize
+  handles. Send the request back to approval with Edit first. A click, a double click
+  and the split tool still work on it. A pill cut by the edge of the period is
+  locked as well, and has no handle at the cut end.
+- **Copy** (Ctrl with a drag) is refused by the Community for every request except a
+  Refused or a Cancelled one (the Community's error shows and nothing is created).
+  The copy of such a request is a new request on the new days; it is created as the
+  Community creates a new request for the user, which is Approved at once for an
+  Officer or Administrator and a type that Officers approve.
+- The days are those of the **browser's** time zone: a request moved by one day lands
+  on the next day of the browser's calendar, whatever the zone of the user's
+  preferences.
+- In the report view every pill is locked and nothing moves.
+
+![A pill being moved, light](../assets/time_off_gantt/002e2-14-moving.png)
+
+![The pill after the move, with Undo, light](../assets/time_off_gantt/002e2-15-moved.png)
+
+![The move undone, light](../assets/time_off_gantt/002e2-16-move-undone.png)
+
+![A move the Community refuses: the pill stays on its day, light](../assets/time_off_gantt/002e2-17-move-refused.png)
+
+## On the phone
+
+Below the small-screen breakpoint a tap on a pill opens the popover as the Gantt
+view's **bottom sheet**: the same header, body and footer, with the fields stacked
+and the close icon in the header. It closes with the close icon, a tap outside it,
+the device's Back and Escape, and drops a pending change as the desktop popover
+does. Two taps on one pill within 200 ms open the record dialog. A hold of 300 ms
+starts a move or a resize, as in the Gantt view; Second Approval and Approved pills
+are locked as on the desktop. There is **no split tool** on a phone.
+
+The stacked fields are boxes of their own on one background, the sheet's: a
+bordered box for each label icon and each value, 16 px apart, with 16 px of space
+at the sides of the form. A value box is light grey while the request is read-only
+and takes the view's background while it can be edited; the box that holds the
+focus (the type's, when the popover opens) has its border in the colour of a
+focused input.
+
+![The popover on a phone, light](../assets/time_off_gantt/002e2-01-pop-approved.mobile.png)
+
+## The split tool
+
+In the leave view, for a user of the Time Off group "Officer: Manage all requests"
+or above, on the desktop: with the pointer within 8 px of a day border inside a
+pill, a dashed line and scissors show on that border, and a click there (no move)
+splits the request at the first day after the border, read in the browser's zone (a
+click elsewhere on the pill opens the popover as before). The border at a pill's
+first or last edge, a one-day pill, a border beside a folded column and the report
+view show no tool; neither does a phone or an Employee, a Manager or an Approver.
+The tool's area is 16 px wide and as tall as the pill's whole box, its 1 px inset
+included. Where a day column is narrower than 16 px the column's end border is
+taken. In a right-to-left language the line still lies on the border that is split.
+
+![The split tool on a pill, light](../assets/time_off_gantt/002e2-08-split-tool.png)
+
+The split calls `hhg_cut_request`. The request keeps its days before the border; a
+new request **in the same state**, with the same name and type, covers the rest. A
+notification says that the time off was divided in two and offers **Undo**; a later
+split closes the earlier notification. While the call runs the tool is off; it is back
+once the call has answered, also after the Community's error.
+
+![A request in two parts after a split, light](../assets/time_off_gantt/002e2-09-split-done.png)
+
+- **Approved requests keep a leave for each part.** Each part has its own leave over
+  exactly its days, so refusing, deleting or sending back one part frees only its
+  days. A request at Second Approval has no leave yet; neither part gets one until
+  its own final approval. The parts of an hour request get leaves over their own
+  hours.
+- **Undo** (`hhg_rejoin_request`) joins the parts again: one request with one leave
+  over all its days, and a notification that says so. It removes **only the parts that
+  this split made**. It works for everyone who may split, an Officer's Undo of an
+  Approved split included. When the request is gone meanwhile, a notification says the
+  split could not be undone.
+
+![The split joined again, light](../assets/time_off_gantt/002e2-10-split-undone.png)
+
+The code is in `time_off_split_tool.js` (the border math), `time_off_editor.js` (the
+two calls) and the renderer; see [For developers](#for-developers).
 
 ## What Time Off changes in the attendance views
 
@@ -388,6 +633,16 @@ open it by its address they get the same view as an Approver, with the
 Community's read rules on requests applied. An Approver in Management > Time
 Off sees the label, since the hours are read with their own rights.
 
+What a user may do with a pill follows the same groups (the table in
+[Who may do what](#who-may-do-what) has the details):
+
+| | No role | Employee, Manager | Approver | Officer, Admin |
+|---|---|---|---|---|
+| Opens the popover of a pill | n/a | yes | yes | yes |
+| Moves, resizes, copies | n/a | own To Approve | own and their employees' To Approve | To Approve, Refused, Cancelled |
+| Splits a request | n/a | no | no | yes |
+| Approves, refuses | n/a | no | requests of their employees, as the type allows | yes |
+
 ## Known differences
 
 - **The leave view lies 3 px lower on a wide screen.** Where the control panel shows
@@ -402,8 +657,35 @@ Off sees the label, since the hours are read with their own rights.
 - **Where Complete differs on purpose.** In the leave view, a request of one day or
   less reads its duration alone on the Month and Quarter ranges, whatever the search
   holds. On a phone, the leave view's control bar takes two lines and no control lies
-  over the grid. And until the releases that open, move and create leaves in these
-  views, the pointer keeps its default shape over a pill and over an empty cell.
+  over the grid. And until the release that creates leaves from the cells, the
+  pointer keeps its default shape over an empty cell and nothing happens there.
+- **The popover keeps its place on the phone with the search bar open.** The phone
+  sheet is the Gantt view's own and keeps its place whatever the search bar does;
+  with the bar open in the leave view it covers the lowest 32 px of the control
+  panel. The screen above it is dimmed while it is open. This is kept on purpose.
+- **Back after Expand.** The browser's Back button, after Expand, goes to the list of
+  Management > Time Off and not to the Gantt view; the breadcrumb leads back to the
+  Gantt view. It is the web client's own history.
+- **Escape and a click outside drop a pending change** without a question; Save and
+  Discard are in the footer.
+- **No Approve at Second Approval, no Cancel in the popover.** The final approval is
+  Edit, then Approve; cancelling stays in My Time.
+- **Locked pills.** Second Approval and Approved pills do not start a move, a resize or
+  a copy, and show no handles, for every role, instead of letting the Community refuse
+  the write afterwards.
+- **Hover on a striped pill.** A pill with stripes (To Approve, Second Approval) keeps
+  them under the pointer and darkens them: the stripes are the pill's full colour
+  and that colour lightened a little, for every colour of the type, grey included,
+  in both schemes.
+- **Shell and theme.** Four differences of the shell and the theme are not corrected
+  here: the search field 3 px taller (every value of the popover and the grid on a
+  wide screen lies 3 px lower), the phone dialogs without the 1 px line at their left,
+  the tooltips outside the Gantt view (the field icons of the popover) in another
+  shape, and the Community's overview card with another text colour in the dark
+  scheme.
+- **What this release leaves out.** The marks and the action of Payroll on pills, the
+  leave overlap warning of Planning (their applications are not part of Complete
+  yet), and every input on an empty cell (the next release).
 
 ## Verifying with demo data
 
@@ -561,6 +843,34 @@ same name. Check them after the setup, in the user's form or from the shell: for
 instance `toff_approver` holds "Time Off Responsible" and `toff_manager` does not,
 and only the officer and the administrator hold "Export / Allowed".
 
+### The records of the actions part
+
+The scenarios of 002e2 use more prepared records, made by the same module
+(`tests/time_off_fixtures.py`), by name. Make the role users first, then the state a
+scenario needs; the tests and the tours make their own records and need none of this.
+Each function makes its records and returns them; call each state once, and use
+`drop_time_off_records` to start again.
+
+| Function | Records |
+|---|---|
+| `make_split_state` | "Toff Act" with an Approved request from Monday 16 to Wednesday 18 November (the split) |
+| `make_units_state` | "Toff Act" with a half-day request (Monday afternoon to Wednesday morning) and an hours request on Thursday 19, 9:00 to 13:00 (the dates by unit; type "Toff Hours") |
+| `make_act_state` | "Toff Act" with one request in each of To Approve (Wednesday 18), Second Approval (Thursday 19) and Approved (Friday 20) |
+| `make_move_state` | "Toff Act" with a request To Approve on Monday 16 and an Approved one on Wednesday 18 (the moves) |
+| `make_alloc_state` | "Toff Act" with a 2-day allocation, a request that uses the whole balance and an Approved one |
+| `make_emp_state`, `make_types_state`, `make_matrix_state`, `make_past_state` | records for the role users: requests of "Toff Role Emp" and "Toff Peer" in several states, types that need one or two approvals, a request in the past |
+| `make_away_state` | "Toff Away", Approved around the server's real day, for the card's "back on" line |
+
+The role-user states need `make_role_users` first. The *past* and *away* records
+follow the **server's** day (its UTC date), because the Community deletes and the
+card reads by it; the other records are dated in November 2026.
+
+The browser's state of the scenarios is the one of [The browser](#the-browser): the
+clock at Wednesday 11 November 2026, 11:00 in Europe/Brussels **running on**. The
+card's "back on" line is the one value that reads the server's real clock, so a
+database made at the package's instant shows no such line for Anita Oliver, while
+"Toff Away" shows it at any time.
+
 ### The browser
 
 Set the browser to the state the scenarios assume before each one:
@@ -589,30 +899,67 @@ employee variant of `hr_gantt`, are registered in the `views` registry:
 They replace the card's content, the hours label and the context of the data call
 (`group_by`, `tz`, and the scale), and make a named range one period.
 
-**Inputs for the later parts: `hhgInputs`.** The renderer of the leave variant
-lists the inputs of the framework that do nothing in this release, in a getter
-`hhgInputs` that returns an object of booleans, all `false`: `pillClick`,
-`pillDoubleClick`, `pillHover`, `pillPress`, `cellPress` and `multiSelect`. A
-value of `true` hands the input back to the framework. A subclass flips entries
-by spreading its parent's:
+**Inputs: `hhgInputs`.** The renderer of the leave variant lists, in a getter
+`hhgInputs`, which inputs of the framework are switched on. Since this release the
+four pill entries `pillClick`, `pillDoubleClick`, `pillHover` and `pillPress` are
+`true` (the popover, the double click, the handles and the moves, the split tool);
+`cellPress` and `multiSelect` are `false` until the next release, which adds the
+selection of cells and its form option to the view and flips them. A value of
+`true` hands the input back to the framework. A subclass flips entries by spreading
+its parent's:
 
 ```js
 get hhgInputs() {
-    return { ...super.hhgInputs, pillClick: true };
+    return { ...super.hhgInputs, cellPress: true, multiSelect: true };
 }
 ```
 
-A later part that adds the popover and the pill gestures assigns its popover in
-`setup()` after `super.setup()` and sets the four pill entries; a part that adds
-the selection of cells adds its form option to the view and sets `cellPress` and
-`multiSelect`. Clicks on avatars and row headers, folding and the controls are
-not listed: they stay.
+Clicks on avatars and row headers, folding and the controls are not listed: they
+stay.
 
-The pointer shape follows the same entries: the grid's frame carries
-`o_hhg_no_pill_cursor` while `pillClick` and `pillPress` are both `false` and
-`o_hhg_no_cell_cursor` while `cellPress` and `multiSelect` are both `false`, and
-the stylesheet keeps the default pointer on pills, their ends and empty cells under
-them; the part that turns an input on gets the framework's pointers back.
+The pointer shape of empty cells follows the entries: the grid's frame carries
+`o_hhg_no_cell_cursor` while `cellPress` and `multiSelect` are both `false`, and the
+stylesheet keeps the default pointer on empty cells under it. Pills keep the
+framework's pointers.
+
+**The popover.** `TimeOffLeavePopover` replaces the framework's popover in both
+variants (the renderer's `hhgPopoverVariant` is `leave` for the leave view,
+`report` for the report view). Its body is the form view `hr_holidays_gantt.hr_leave_gantt_multi_create_view`
+(a form of `hr.leave`, named "time off popover form"), used by the popover now and
+by the creation form of the next release. The hours line uses the field widget
+`hhg_hours` ("4h"). The footer's buttons are in `time_off_popover.js`; each one runs
+with the user's rights and sends the browser's zone in the context.
+
+**Server: the split.** Two methods of `hr.leave` (`models/hr_leave_split.py`), for
+the callers of the Officer group and above (anyone else gets an access error):
+
+- `hhg_cut_request(split_day)`: `split_day` is the second part's first day,
+  "YYYY-MM-DD". It answers `{"new_ids": [...], "end_day", "end_period", "end_hour"}`,
+  the new requests and the request's **former** end. A malformed day is refused with a
+  user error; a day on or before the request's first day, or after its last, changes
+  nothing and answers an empty `new_ids`. The new part is made by the Community's own
+  split, without tracking messages; for an Approved request each part then gets its
+  own leave.
+- `hhg_rejoin_request(new_ids, end_day, end_period, end_hour=None)`: answers `True`
+  after it removed the named parts and wrote the former end back (and made the leave
+  of the whole request again when it is Approved), `False` when the request no longer
+  exists. It **refuses as a whole**, changing nothing, a call that names an existing
+  request that is not a part cut from this request (another employee, type or state,
+  or not linked to it), or a part that was cut again itself.
+
+**The link of a split.** The field `hhg_split_source_id` ("Divided from", a many2one
+to `hr.leave`, readable by the system group only, not copied, set to null when the
+source is deleted) records which request each part was cut from. The server writes
+it, not the caller, and the undo removes only parts that carry the link to the
+request; the parts are removed by the Community's own deletion as the system user,
+because the Community lets administrators alone delete an Approved request and the
+parts are the ones this split made.
+
+**The end the server recorded.** At each split the server records, per created part,
+the former end of the request in the field `hhg_split_record` (system-only, next to
+the link `hhg_split_source_id`). The undo writes back only those recorded values: it
+refuses a call that names no recorded part or sends end values other than the
+recorded ones (ruling R-C-11).
 
 **Server.** A model holds the part both data calls share (`hhg.gantt.rows`, an
 abstract model mixed into `hr.leave` and `hr.leave.report.calendar`):

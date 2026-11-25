@@ -1,0 +1,18 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <!-- The popover's form: the renderer alone. The `o_content` box is the one the framework's
+         controller looks for before it picks a button to focus (there is none here). -->
+    <t t-name="hr_holidays_gantt.TimeOffPopoverForm">
+        <div class="o_hhg_pop_form o_form_view_container" t-att-class="this.className" t-ref="this.rootRef">
+            <div class="o_content">
+                <t t-component="this.props.Renderer"
+                   record="this.model.root"
+                   Compiler="this.props.Compiler"
+                   archInfo="this.archInfo"
+                   readonly="this.props.readonly or !this.canEdit"
+                   onNotebookPageChange.bind="this.onNotebookPageChange"/>
+            </div>
+        </div>
+    </t>
+</templates>

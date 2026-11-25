@@ -38,6 +38,11 @@
     }
 }
 
+// a notice a host view asks to be plain: the Community's notification without the icon
+.o_notification.o_tl_notification.o_tl_notification_plain .o_notification_body::before {
+    display: none;
+}
+
 // a rescheduling that moved nothing (a loop, a record in the past) carries a warning icon
 .o_notification.o_tl_notification.o_tl_notification_warning .o_notification_body::before {
     content: "warning";

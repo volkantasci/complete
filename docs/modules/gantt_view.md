@@ -254,6 +254,7 @@ finer.
 - **Marks.** The view definition can mark pills that meet a condition (danger,
   warning, success, info, secondary) with a small triangle in the top left
   corner. The info mark also fills the pill with diagonal stripes.
+  A striped pill under the pointer keeps its stripes and darkens them.
 - **Progress.** A darker band covers the left part of the pill, as wide as the
   percentage held by a field of the record.
 
@@ -1600,6 +1601,15 @@ change what it sends.
   rescheduling method and the unscheduling are not shaped by them.
 - **Pill clicks.** `onPillClick` and `onPillDoubleClick` are renderer methods, so a
   variant's `Renderer` subclass overrides them; nothing else was added.
+- **Change notices without the check icon.** A subclass of the editor that shows a
+  notice of its own through `_notifyChange({message, undo, failed, plain})` may pass
+  `plain: true`. The notice then appears as the Community's plain notification: the
+  view leaves out the check icon that the success notices of the view carry (the
+  classes `o_tl_notification o_tl_notification_success` stay, and the notice gains
+  `o_tl_notification_plain`; Undo, the single-notice rule and the closing behave as
+  for any notice). The option is off unless the caller asks for it, so the notices of
+  a view that does not pass it, and every notice the view itself shows, keep the icon.
+  The time-off variant uses it for the notice of a split and of its undo.
 
 | Place | What a variant may do | What the view guarantees |
 |---|---|---|

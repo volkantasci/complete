@@ -59,8 +59,14 @@ class TimeOffToursBase(RealPointerMixin, HttpCase):
     """The helpers of the live tours of the time-off views: the administrator, one language, the
     real pointer, ``_tour`` and the isolation of the employees. It holds no test."""
 
+    # the card's "back on" line follows the server's clock: the tours pin it to the package's day,
+    # but for A94, which reads the server's real clock
+    pin_status_clock = True
+
     def setUp(self):
         super().setUp()
+        if self.pin_status_clock:
+            fx.pin_leave_status_clock(self)
         self.browser_size = '1600x900'
         self.touch_enabled = False
         self.admin = fx.find_admin(self.env)

@@ -4,15 +4,16 @@
 
 The browser inherits the time zone of the test process, pinned to UTC here, and the records are
 built around the date of that zone with a zero offset, so the browser and the records agree on
-what today is. A scenario that changes the database runs inside the test's own savepoint, which
-is rolled back after it: every test starts from the records of `setUpClass`.
+what today is: D0, the instant the browser's clock starts at. A scenario that changes the
+database runs inside the test's own savepoint, which is rolled back after it: every test starts
+from the records of `setUpClass`.
 """
 import os
 import time
 from datetime import datetime, timedelta
 from datetime import time as clock
 
-from odoo import Command, fields
+from odoo import Command
 from odoo.tests import HttpCase, tagged
 
 from .timeline_real_pointer import RealPointerMixin
@@ -48,7 +49,7 @@ class TestTimelineDragTours(RealPointerMixin, HttpCase):
         # the demo data (when loaded) holds the same records: start from a clean host
         pill.with_context(active_test=False).search([]).unlink()
         cls.env['test.web.gantt.pill2'].with_context(active_test=False).search([]).unlink()
-        cls.today = fields.Date.today()
+        cls.today = D0.date()
         cls.records = pill._tl_build_host_records(today=cls.today, tz_offset_hours=0)
         cls.rtl_user = pill._tl_rtl_user()
         cls.restricted = cls.env['res.users'].create({
@@ -66,15 +67,13 @@ class TestTimelineDragTours(RealPointerMixin, HttpCase):
 
     # -- helpers --------------------------------------------------------------------------------
 
-    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False, now=None):
-        """``now`` moves the browser's clock to that instant (UTC), which then runs on."""
+    def _tour(self, host, name, login='admin', size=DESKTOP, touch=False, now=D0):
+        """``now`` moves the browser's clock to that instant (UTC), which then runs on (D0 unless
+        a tour says otherwise): no tour reads the real day."""
         self.browser_size = size
         self.touch_enabled = touch
         path = host if host.startswith('/') else HOST_ACTION.format(host)
-        if now is None:
-            self.start_tour(path, name, login=login)
-        else:
-            self.start_tour_with_pointer(path, name, login=login, now=now)
+        self.start_tour_with_pointer(path, name, login=login, now=now)
 
     # -- notes on 002a and 002b -----------------------------------------------------------------
 
@@ -85,8 +84,7 @@ class TestTimelineDragTours(RealPointerMixin, HttpCase):
 
     def test_a64_tour_scroll_moves_focus(self):
         count = self.env[PILL].search_count([])
-        # the browser's clock starts at D0 so that the tour runs from the same day every time
-        self._tour('h1', 'timeline_002b2_a64_scroll_moves_focus', now=D0)
+        self._tour('h1', 'timeline_002b2_a64_scroll_moves_focus')
         self.assertEqual(self.env[PILL].search_count([]), count)
 
     # -- the chain of empty-value rows (R26) ------------------------------------------------------

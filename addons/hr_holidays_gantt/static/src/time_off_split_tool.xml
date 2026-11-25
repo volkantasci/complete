@@ -1,0 +1,13 @@
+<!-- Copyright 2026 Complete contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<templates xml:space="preserve">
+    <!-- R16: the split tool of the pill `pill` of `row`, laid over the day after the border; it takes
+         no pointer event (the click goes to the pill). -->
+    <t t-name="hr_holidays_gantt.TimeOffSplitTool">
+        <t t-set="split" t-value="this.hhgSplitOf(pill, row)"/>
+        <div t-if="split" class="o_hhg_split_tool" t-att-style="split.box">
+            <div class="o_hhg_split_line" t-att-style="split.line"/>
+            <i class="oi o_hhg_split_scissors" data-icon="content_cut" t-att-style="split.scissors"/>
+        </div>
+    </t>
+</templates>

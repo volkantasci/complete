@@ -1,0 +1,407 @@
+// Copyright 2026 Complete contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// The leave popover (R2 to R5, R26; M2 to M17). The outer box is the popover service's element: it
+// draws the 1 px border of the popover role, the 12 px corners and the shadow 8 px down with a 16 px
+// blur (M2); the surface inside it is the view background (M3).
+.o_popover:has(> .o_hhg_pop:not(.o_hhg_pop_sheet)) {
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba($o-black, 0.15);
+    // the width follows the body (R3): no fixed width of the framework's popover
+    max-width: 95vw;
+}
+
+// M11, M12: the type's link, in the desktop popover and in the phone sheet, has the focus without
+// any mark: no outline (a 3 px outline of no style, in the link's colour), no underline, no
+// shadow; it keeps its colour (S1)
+.o_hhg_pop .o_hhg_pop_type a:focus {
+    outline: 3px none currentcolor;
+    text-decoration: none;
+    box-shadow: none;
+}
+
+.o_hhg_pop {
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    min-width: 232px;
+    max-width: 95vw;
+    max-height: 80vh;
+    border-radius: 11px;
+    background-color: $o-view-background-color;
+    color: $body-color;
+    font-size: $o-font-size-base-small;
+
+    // R3, M4, M5: a grey band, 29.2 px with its bottom border; no colour of the request (D1)
+    .o_hhg_pop_header {
+        padding: 0 8px 0 16px;
+        background-color: $o-tl-popover-header-bg;
+        border-bottom: 1px solid $popover-border-color;
+        border-top-left-radius: 11px;
+        border-top-right-radius: 11px;
+        color: $o-main-headings-color;
+    }
+
+    .o_hhg_pop_title {
+        padding: 4px 0;
+        font-size: 16.8px;
+        font-weight: 500;
+        line-height: 20.16px;
+        color: $o-main-headings-color;
+    }
+
+    // M6, M7: the two icons, black; the cross 16 px right of the expand icon
+    .o_hhg_pop_expand,
+    .o_hhg_pop_close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: $o-main-headings-color;
+        line-height: 1;
+
+        &:hover,
+        &:focus-visible {
+            color: $o-main-headings-color;
+        }
+    }
+
+    .o_hhg_pop_expand {
+        margin-inline-start: 16px;
+        font-size: 17.5px;
+    }
+
+    .o_hhg_pop_close {
+        margin-inline-start: 16px;
+        font-size: 14px;
+    }
+
+    // M8: the body is the form; its box takes what the footer leaves
+    .o_hhg_pop_content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .o_hhg_pop_form {
+        padding: 0;
+
+        .o_form_view_container,
+        .o_content {
+            padding: 0;
+        }
+    }
+
+    // R4: the two columns, a label icon per line and its value, 16 px apart (M9, M13, M16)
+    .o_hhg_pop_body {
+        padding: 12px 16px 16px;
+        font-size: $o-tl-popover-body-font-size;
+    }
+
+    .o_hhg_pop_line {
+        gap: 16px !important;
+        min-height: 36px;
+        align-items: flex-start;
+
+        .o_hhg_pop_icon {
+            flex: 0 0 auto;
+            align-self: center;
+            color: inherit;
+        }
+    }
+
+    .o_hhg_pop_hours {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .o_hhg_pop_note textarea {
+        width: 271.2px;
+        max-width: 100%;
+        min-height: 50px;
+    }
+
+    // R4 point 2: the small question mark beside the clock icon; it only shows its tooltip
+    .o_hhg_pop_iconcol .o_widget {
+        position: absolute;
+        top: -6px;
+        inset-inline-start: 100%;
+        margin-inline-start: -4px;
+    }
+
+    .o_hhg_pop_help {
+        color: $text-muted;
+        cursor: help;
+        font-size: 12px;
+    }
+
+    // R6, M18 to M21, M31 to M48: the buttons 4 px apart, the last one at the right end; the
+    // button's own padding (3 px 8 px) is the theme's
+    .o_hhg_pop_footer {
+        gap: 4px;
+        padding: 0 16px 16px;
+        border-top: 0;
+
+        .o_hhg_pop_button {
+            font-size: 13px;
+            font-weight: 500;
+        }
+    }
+}
+
+// the report's body: the Community's report form, read-only (R9 point 2)
+.o_hhg_pop_report .o_hhg_pop_form .o_inner_group {
+    margin: 0 0 8px;
+}
+
+// the phone's sheet is 002a's (`o_tl_popover_sheet`); its content takes the sheet's width (R21)
+.o_hhg_pop.o_hhg_pop_sheet {
+    width: 100%;
+    min-width: 0;
+    max-height: none;
+    border-radius: 0;
+
+    .o_hhg_pop_content {
+        flex: 1 1 auto;
+    }
+
+    .o_hhg_pop_footer {
+        margin-top: auto;
+    }
+}
+
+// R21 points 1 to 3: on the sheet the header is 28.2 px (a 16 px title on a 19.2 px line with 4 px
+// above and below, and the border), the form stacks every label icon and every value in a box of its
+// own, as wide as the sheet allows, and the footer takes the 37 px buttons of the touch size.
+//
+// The look of the boxes (M90 to M99), the same in both views: every box has a 1 px border in the
+// popover's border role, 4 px corners, 8 px above and below and 12 px at the sides, and lies 16 px
+// over the next; the label boxes are in the view background, the value boxes in grey 100 when the
+// form is read-only and in the view background when it is editable; the box that holds the focus has
+// its border in the colour of a focused input.
+@mixin o-hhg-sheet-box($fill) {
+    margin: 0 0 16px;
+    padding: 8px 12px;
+    border: 1px solid $popover-border-color;
+    border-radius: 4px;
+    background-color: $fill;
+}
+
+.o_hhg_pop.o_hhg_pop_sheet {
+    .o_hhg_pop_title {
+        font-size: 16px;
+        line-height: 19.2px;
+    }
+
+    // P6: one background over the sheet's whole height, the sheet's own (`.o_tl_popover_sheet`): the
+    // body takes none of its own; the header keeps its band
+    .o_hhg_pop_content,
+    .o_hhg_pop_content > *,
+    .o_hhg_pop_content .o_form_view,
+    .o_hhg_pop_content .o_content,
+    .o_hhg_pop_content .o_form_renderer,
+    .o_hhg_pop_content .o_form_nosheet,
+    .o_hhg_pop_content .o_form_sheet_bg,
+    .o_hhg_pop_content .o_form_sheet {
+        background-color: transparent;
+    }
+
+    // M93, M98: the form has 16 px at its sides and 24 px above and below, in both views, and
+    // lies on the sheet's own colour
+    .o_hhg_pop_content .o_form_renderer,
+    .o_hhg_pop_content .o_form_nosheet {
+        padding: 24px 16px;
+        background-color: $popover-bg;
+    }
+
+    // the Community's boxes of the report's form: the border role, and the fill of a read-only box
+    .o_form_view {
+        --o-field-box-border-color: #{$popover-border-color};
+        --body-bg: #{$o-gray-100};
+    }
+
+    .o_hhg_pop_body {
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        gap: 0;
+    }
+
+    .o_hhg_pop_line {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0 !important;
+        min-height: 0;
+
+        // the label icon: a box of its own above the value (the line's direct child, the icon
+        // alone or its column with the help mark); `!important` because the form's `align-self-center`
+        // utility class is one
+        > .o_hhg_pop_icon,
+        > .o_hhg_pop_iconcol {
+            @include o-hhg-sheet-box($o-view-background-color);
+
+            display: flex;
+            align-items: center;
+            align-self: stretch !important;
+            min-height: 46px;
+        }
+
+        // the value: a box of its own, the width of the sheet less the form's padding
+        .o_hhg_pop_dates_value,
+        > .o_field_widget {
+            @include o-hhg-sheet-box($o-view-background-color);
+
+            width: 100%;
+        }
+
+        // the form's own 5 px under a field widget give way to the box's 16
+        > .o_field_widget {
+            margin-bottom: 16px !important;
+        }
+    }
+
+    .o_form_readonly .o_hhg_pop_line {
+        .o_hhg_pop_dates_value,
+        > .o_field_widget {
+            background-color: $o-gray-100;
+        }
+    }
+
+    // the box that holds the focus (the type's, which has it when the popover opens)
+    .o_hhg_pop_type > .o_field_widget:focus-within {
+        border-color: $o-action;
+    }
+
+    // P5, M96, M97: the description's text area is 50 px tall inside its value box of 73.5 px
+    .o_hhg_pop_note > .o_field_widget {
+        height: auto !important;
+        min-height: 0;
+        max-height: none;
+
+        textarea {
+            display: block;
+            width: 100%;
+            // the field sets its height by the text's (an inline style)
+            height: 50px !important;
+            min-height: 50px;
+            margin-bottom: 5.5px;
+            padding: 0;
+            border: 0;
+            resize: none;
+        }
+
+        .o_field_text,
+        span {
+            display: block;
+        }
+    }
+
+    .o_hhg_pop_footer {
+        .o_hhg_pop_button {
+            padding: 7px 12px;
+            font-size: 14px;
+            line-height: 21px;
+        }
+    }
+}
+
+// The desktop popover's measured layout (M2 to M20, M25 to M34): the form's own padding goes, the
+// body keeps the original's offsets, the label icons are 17.5 px glyphs, the footer's buttons the
+// theme's small size (3 px 8 px, 4 px corners, 27.5 px tall).
+.o_hhg_pop:not(.o_hhg_pop_sheet) {
+    // the report's form keeps the form's own paddings (M49: 24 px above and below, 16 at the sides)
+    &:not(.o_hhg_pop_report) .o_form_renderer,
+    &:not(.o_hhg_pop_report) .o_form_nosheet {
+        padding: 0;
+    }
+
+    .o_hhg_pop_title {
+        font-family: $o-headings-font-family;
+    }
+
+    .o_hhg_pop_expand {
+        margin-top: 1.5px;
+    }
+
+    .o_hhg_pop_close {
+        margin-top: -1px;
+    }
+
+    .o_hhg_pop_body {
+        padding: 17.25px 16px;
+    }
+
+    // every line holds its value 6.75 px under its top and is 36 px tall at least; the field
+    // widgets keep the form's 5 px under them (M14, M15: 5 px between the choice and the days)
+    .o_hhg_pop_line {
+        box-sizing: border-box;
+        padding-top: 6.75px;
+        padding-bottom: 1.25px;
+        align-items: flex-start;
+    }
+
+    // the description line keeps 15 px under its field (M8: 46 px read-only)
+    .o_hhg_pop_note {
+        padding-bottom: 14.75px;
+    }
+
+    .o_form_editable .o_hhg_pop_note {
+        padding-bottom: 15.25px;
+    }
+
+    // M10, M11: the badge and the type's name lie on the column's first x, the badge 23 px tall
+    .o_hhg_pop_type .o_radio_item {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        height: 23px;
+    }
+
+    .o_hhg_pop_iconcol .o_hhg_pop_icon {
+        display: block;
+    }
+
+    // M30: the description's area is 50 px tall
+    .o_hhg_pop_note textarea {
+        height: 50px !important;
+        min-height: 50px;
+        box-sizing: border-box;
+        resize: none;
+    }
+
+    .o_form_editable .o_hhg_pop_note .o_field_widget {
+        height: 50px !important;
+    }
+
+    // R8 point 4, M102: the empty description of a request that was editable keeps its box once the
+    // form is read-only (after Refuse): 60.5 px, which makes the body 221.5 px (M101)
+    &.o_hhg_pop_was_editable .o_form_readonly .o_hhg_pop_note .o_field_widget.o_field_empty {
+        box-sizing: border-box;
+        height: 60.5px !important;
+        // the 5 px the widgets keep under them are part of the box's 60.5 in the original
+        margin-bottom: 0;
+    }
+
+    .o_hhg_pop_footer .o_hhg_pop_button .oi {
+        font-size: 16.72px;
+    }
+
+    .o_hhg_pop_icon {
+        width: auto;
+        height: 18.5px;
+        font-size: 17.5px;
+        line-height: 18.5px;
+    }
+
+    .o_hhg_pop_line > .o_hhg_pop_icon,
+    .o_hhg_pop_line > .o_hhg_pop_iconcol {
+        align-self: flex-start !important;
+        margin-top: 2px;
+    }
+
+    .o_hhg_pop_footer .o_hhg_pop_button {
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+}
