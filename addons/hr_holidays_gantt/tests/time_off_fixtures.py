@@ -25,6 +25,7 @@ PEER_NAME = "Toff Peer"
 HOURS_TYPE = "Toff Hours"
 DAYS_TYPE = "Toff Days"
 ACT_NAME = "Toff Act"
+FIRST_NAME = "Aaab Toff"
 AWAY_NAME = "Toff Away"
 SICK_NAME = "Guaranteed monthly wage illness"
 UNPAID_NAME = "Leave without pay"
@@ -230,7 +231,7 @@ def drop_leaves(env):
     administrator); returns those employees (archived too)."""
     admin = find_admin(env)
     employees = env["hr.employee"].with_context(active_test=False).search(
-        [("name", "=like", PREFIX + "%")])
+        ["|", ("name", "=like", PREFIX + "%"), ("name", "=", FIRST_NAME)])
     env["hr.leave"].with_context(active_test=False).with_user(admin).search(
         [("employee_id", "in", employees.ids)]).unlink()
     env["hr.leave.allocation"].with_context(
@@ -472,6 +473,25 @@ def make_act_state(env, schedule=None):
         "validate1": make_second_approval(env, employee, date(2026, 11, 19)),
         "validate": make_leave(env, employee, find_type(env, "STO"), date(2026, 11, 20)),
     }
+    env.flush_all()
+    return made
+
+
+def make_first_row_state(env, schedule=None, with_second=False):
+    """A99's records: "Aaab Toff" (schedule 40 hours/week, contract from 1 January 2026), a name
+    that sorts first, so that his row is the Overview's first row; STO **To Approve** on
+    Wednesday 18 November, his row's only pill (``with_second``: and STO **Approved** on Friday
+    20). ``{"employee", "confirm"[, "validate"]}``."""
+    schedule = schedule or find_schedule(env)
+    employee = env["hr.employee"].search([("name", "=", FIRST_NAME)], limit=1)
+    employee = employee or _employee(env, FIRST_NAME, schedule)
+    sick = find_type(env, "STO")
+    made = {
+        "employee": employee,
+        "confirm": make_waiting(env, employee, sick, date(2026, 11, 18)),
+    }
+    if with_second:
+        made["validate"] = make_leave(env, employee, sick, date(2026, 11, 20))
     env.flush_all()
     return made
 

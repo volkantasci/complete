@@ -386,7 +386,8 @@ no colour of the type.
 **The body** has one line per field, each with an icon (its tooltip names the
 field):
 
-- **The type**: a badge with the type's code in its colour, then its name. In read
+- **The type**: a badge with the type's code in its colour (an empty badge, still in
+  the type's colour, when the type has no code), then its name. In read
   mode the name links to the type. When the popover is editable it is a field whose
   drop-down offers the types the employee may take and Time Off lets people choose.
 - **The dates**, as the type's unit asks:
@@ -531,6 +532,13 @@ does. Two taps on one pill within 200 ms open the record dialog. A hold of 300 m
 starts a move or a resize, as in the Gantt view; Second Approval and Approved pills
 are locked as on the desktop. There is **no split tool** on a phone.
 
+The stacked fields are boxes of their own on one background, the sheet's: a
+bordered box for each label icon and each value, 16 px apart, with 16 px of space
+at the sides of the form. A value box is light grey while the request is read-only
+and takes the view's background while it can be edited; the box that holds the
+focus (the type's, when the popover opens) has its border in the colour of a
+focused input.
+
 ![The popover on a phone, light](../assets/time_off_gantt/002e2-01-pop-approved.mobile.png)
 
 ## The split tool
@@ -666,8 +674,9 @@ What a user may do with a pill follows the same groups (the table in
   a copy, and show no handles, for every role, instead of letting the Community refuse
   the write afterwards.
 - **Hover on a striped pill.** A pill with stripes (To Approve, Second Approval) keeps
-  them under the pointer and darkens them. For the colours of the type that are
-  shifted in the dark scheme the darker stripes are computed from the plain colour.
+  them under the pointer and darkens them: the stripes are the pill's full colour
+  and that colour lightened a little, for every colour of the type, grey included,
+  in both schemes.
 - **Shell and theme.** Four differences of the shell and the theme are not corrected
   here: the search field 3 px taller (every value of the popover and the grid on a
   wide screen lies 3 px lower), the phone dialogs without the 1 px line at their left,

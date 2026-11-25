@@ -411,8 +411,16 @@ scenario("hhg_a46_undo_after_delete", async () => {
     await clickAt(point.x, point.y);
     await splitIsDone();
     holdNotice();
-    await deleteByPopover(pillOn(ACT, FIRST));
-    assert(!pillOn(ACT, FIRST), "the first part is gone");
+    // A46: the first part is deleted through the server (a Delete pressed in the popover reloads the
+    // view and closes the split's notification on the original), the notification stays open
+    const [firstId] = await leaveIdsOf(ACT, FIRST);
+    await rpc("/web/dataset/call_kw/hr.leave/unlink", {
+        model: "hr.leave",
+        method: "unlink",
+        args: [[firstId]],
+        kwargs: {},
+    });
+    assertEqual((await leaveRowsOf(ACT, FIRST)).length, 0, "the first part is gone on the server");
     assert(undoButton(), "the split's notification is still open");
     await realClick(undoButton());
     await until(
@@ -425,14 +433,19 @@ scenario("hhg_a46_undo_after_delete", async () => {
     assert(pillOn(ACT, SECOND), "the second part still shows");
 });
 
-/** The ids of the requests of `name` that start on `day`, by a call as the administrator. */
-async function leaveIdsOf(name, day) {
-    const rows = await rpc("/web/dataset/call_kw/hr.leave/search_read", {
+/** The requests of `name` that start on `day`, by a call as the administrator. */
+async function leaveRowsOf(name, day) {
+    return rpc("/web/dataset/call_kw/hr.leave/search_read", {
         model: "hr.leave",
         method: "search_read",
         args: [[["employee_id.name", "=", name], ["request_date_from", "=", day]]],
         kwargs: { fields: ["id"], context: { active_test: false } },
     });
+}
+
+/** The ids of the requests of `name` that start on `day` (exactly one). */
+async function leaveIdsOf(name, day) {
+    const rows = await leaveRowsOf(name, day);
     assertEqual(rows.length, 1, `one request of ${name} from ${day}`);
     return rows.map((row) => row.id);
 }

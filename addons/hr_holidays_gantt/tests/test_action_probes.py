@@ -45,6 +45,7 @@ lower (``SHELL``), logged as ``SHELL-DIFFERENCE``; M62 is not moved.
 """
 import json
 import logging
+import re
 import time
 from datetime import date
 
@@ -65,6 +66,7 @@ STARTED = set()
 CLASSES = {
     'TestActionProbesDemo', 'TestActionProbesAct', 'TestActionProbesRoles',
     'TestActionProbesSplit', 'TestActionProbesMove', 'TestActionProbesAway',
+    'TestActionProbesFirstRow',
 }
 
 POP = "document.querySelector('.o_hhg_pop')"
@@ -201,6 +203,46 @@ class ActionProbeCase(base.TimeOffProbeCase):
         self.assertIn(probe, KNOWN)
         self.check_count(probe, count_js, scheme, 'desktop', label, want=want)
 
+    def check_near(self, probe, element_js, scheme, viewport, label, delta):
+        """The geometry of ``probe`` read on another box than the table's, within ``delta`` px
+        (M87: the sheet's outer box is the frame grown by its 1 px border)."""
+        self.assertIn(probe, KNOWN, f'{probe} is not a probe of the table')
+        expected = {prop: float(value) for prop, value in measured(probe, viewport)[scheme].items()
+                    if prop.startswith('geometry.')}
+        got = self.read(element_js, list(expected))
+        for prop, want in expected.items():
+            with self.subTest(probe=probe, scheme=scheme, viewport=viewport, prop=prop):
+                self.assertAlmostEqual(float(got[prop]), want, delta=delta,
+                                       msg=f'{probe} {scheme} {prop}: {label}')
+
+    def check_stripes(self, probe, element_js, scheme, label):
+        """R26, A101: the stripes' colours within one step per channel of the table's (the rule
+        gives the measured colours within one step); the other values are compared as they are."""
+        self.check(probe, element_js, scheme, 'desktop', label, skip=('background-image',))
+        want = measured(probe, 'desktop')[scheme]['background-image']
+        got = self.js(f"getComputedStyle({element_js}).backgroundImage")
+        self.assertEqual(re.sub(r'rgb\([^)]*\)', 'rgb', got), re.sub(r'rgb\([^)]*\)', 'rgb', want),
+                         f'{probe} {scheme}: the gradient\'s shape')
+        def numbers(text):
+            return [int(n) for found in re.findall(r'rgb\((\d+), (\d+), (\d+)\)', text)
+                    for n in found]
+
+        for g, w in zip(numbers(got), numbers(want), strict=True):
+            self.assertLessEqual(abs(g - w), 1, f'{probe} {scheme}: {got} against {want}')
+
+    def drawn(self, x, y):
+        """The colour drawn at a point of the page: the first background an element under it and
+        its ancestors paint (computed ``rgb`` text)."""
+        return self.js(f"""(() => {{
+            for (let el = document.elementFromPoint({x}, {y}); el; el = el.parentElement) {{
+                const colour = getComputedStyle(el).backgroundColor;
+                if (colour !== 'rgba(0, 0, 0, 0)' && colour !== 'transparent') {{
+                    return colour;
+                }}
+            }}
+            return 'none';
+        }})()""")
+
     def check_values(self, probe, element_js, scheme, label, expected):
         """R21 point 3's values, which the table has no row for: ``{prop: value}`` read on the
         sheet's element."""
@@ -262,6 +304,28 @@ class ActionProbeCase(base.TimeOffProbeCase):
         self.mouse('mouseMoved', x, y, buttons=0)
         self.settle(settle)
         return x, y
+
+    def check_sheet_background(self, scheme):
+        """R21 point 1, P6: one background, the sheet's, under the body, the footer and the empty
+        area (the header keeps its band): read at points of the drawn page."""
+        want = {'light': 'rgb(255, 255, 255)', 'dark': 'rgb(62, 63, 71)'}[scheme]
+        frame = self.read(FRAME, ['geometry.x', 'geometry.width'])
+        left = float(frame['geometry.x']) + 3
+        content = self.read(pop('.o_hhg_pop_content'), ['geometry.y', 'geometry.height'])
+        footer = self.read(FOOTER, ['geometry.y', 'geometry.height'])
+        content_y, content_h = float(content['geometry.y']), float(content['geometry.height'])
+        footer_y, footer_h = float(footer['geometry.y']), float(footer['geometry.height'])
+        points = {
+            # the form's own side padding at the middle of the body, and the strip under it
+            'the body': (left, content_y + content_h / 2),
+            'the empty area': (left, content_y + content_h - 3),
+            'the footer': (left, footer_y + footer_h / 2),
+            'between the body and the footer': (left, footer_y - 1),
+        }
+        for name, (x, y) in points.items():
+            with self.subTest(scheme=scheme, point=name):
+                self.assertEqual(
+                    self.drawn(x, y), want, f'P6 {scheme}: the sheet\'s colour at {name}')
 
     # -- the popover's probes, shared ------------------------------------------------------------
 
@@ -359,6 +423,15 @@ class TestActionProbesDemo(ActionProbeCase):
                 self.check_values('R21', FOOTER, scheme, 'the footer', {
                     'geometry.height': '53', 'padding-left': '16', 'padding-right': '16',
                     'padding-bottom': '16'})
+                # F2, R21 point 2: the stacked boxes of the read-only request (A56)
+                self.check('M90', pop('.o_hhg_pop_type > .o_field_widget'), scheme, 'phone',
+                           'the time type\'s value box')
+                self.check('M91', pop('.o_hhg_pop_dates_value'), scheme, 'phone',
+                           'the dates\' value box')
+                self.check('M92', pop('.o_hhg_pop_type > .o_hhg_pop_icon'), scheme, 'phone',
+                           'the time type\'s label box')
+                self.check('M93', pop('.o_form_renderer'), scheme, 'phone', 'the form')
+                self.check_sheet_background(scheme)
                 for name, width in (('edit', '68.1'), ('delete', '84.5')):
                     self.check_values('R21', button(name), scheme, name, {
                         'geometry.height': '37', 'font-size': '14', 'geometry.width': width})
@@ -389,9 +462,17 @@ class TestActionProbesAct(ActionProbeCase):
             with self.subTest(scheme=scheme), self.week(scheme):
                 self.prepare(ACT)
                 wed = self.day_pill(18)
-                self.check('M84', wed, scheme, 'desktop', 'the pill To Approve at rest')
+                self.check_stripes('M84', wed, scheme, 'the pill To Approve at rest')
                 self.pointer_on(wed)
-                self.check('M85', wed, scheme, 'desktop', 'the pill To Approve under the pointer')
+                self.check_stripes('M85', wed, scheme, 'the pill To Approve under the pointer')
+                # A101, S3: colour 5, the request at Second Approval of Thursday 19
+                thu = self.day_pill(19)
+                self.mouse('mouseMoved', 1000, 123, buttons=0)
+                self.settle(900)
+                self.check_stripes('M105', thu, scheme, 'the pill at Second Approval at rest')
+                self.pointer_on(thu)
+                self.check_stripes('M106', thu, scheme,
+                                   'the pill at Second Approval under the pointer')
 
     def test_a16_a13_a17_popovers(self):
         dy = SHELL['desktop']
@@ -467,8 +548,16 @@ class TestActionProbesAct(ActionProbeCase):
                     self.check_values(
                         'R21', by_text(choice, 'button, .btn, .o_selection_badge', text), scheme,
                         text, {'geometry.height': '37', 'geometry.width': width})
-                self.check_values('R21', pop('.o_hhg_pop_note .o_field_widget'), scheme,
-                                  'the description', {'geometry.height': '50'})
+                # F2, P5, R21 point 2: the editable request's boxes (A58)
+                self.check('M94', pop('.o_hhg_pop_type > .o_field_widget'), scheme, 'phone',
+                           'the time type\'s value box')
+                self.check('M95', pop('.o_hhg_pop_dates_value'), scheme, 'phone',
+                           'the dates\' value box')
+                self.check('M96', pop('.o_hhg_pop_note textarea'), scheme, 'phone',
+                           'the description\'s text area')
+                self.check('M97', pop('.o_hhg_pop_note > .o_field_widget'), scheme, 'phone',
+                           'the description\'s value box')
+                self.check_sheet_background(scheme)
 
     def test_a95_phone_sheet_with_the_search_bar_open(self):
         """M86 to M88: the phone with the search bar open: the control panel, and the sheet that
@@ -486,6 +575,8 @@ class TestActionProbesAct(ActionProbeCase):
                 self.check('M88', panel, scheme, 'phone', 'the control panel')
                 self.click_pill(self.day_pill(18), 'phone', '.o_hhg_pop_sheet')
                 self.check('M87', POP, scheme, 'phone', 'the sheet\'s frame')
+                # M87: Complete's outer box is the frame grown by its 1 px border, within 2 px
+                self.check_near('M87', FRAME, scheme, 'phone', 'the sheet\'s outer box', 2)
 
     def test_a23_pointer_and_handles(self):
         dy = SHELL['desktop']
@@ -614,6 +705,11 @@ class TestActionProbesRoles(ActionProbeCase):
                                 '.o_hhg_pop_sheet')
                 self.check_count('M55', count_of('.o_hhg_pop_footer button'), scheme, 'phone',
                                  'the footer\'s buttons')
+                # F2, A31: the report form's paddings and its focused box
+                self.check('M98', pop('.o_form_renderer'), scheme, 'phone', 'the form')
+                self.check('M99', pop('.o_inner_group .o_cell'), scheme, 'phone',
+                           'the employee\'s value box')
+                self.check_sheet_background(scheme)
                 self.check_values('R21', button('delete'), scheme, 'Delete', {
                     'geometry.height': '37', 'font-size': '14', 'geometry.width': '84.5'})
 
@@ -692,6 +788,43 @@ class TestActionProbesSplit(ActionProbeCase):
                 self.assertAlmostEqual(got, expected, delta=3, msg=f'{drawn} instead of {want}')
         self.assertIsNone(compare_value('opacity', '0.6', self.js(
             f"getComputedStyle({tool}.querySelector('.o_hhg_split_line')).opacity")))
+
+
+# ------------------------------------------------------------------------------------------------
+# the first-row world
+
+
+@tagged('post_install', '-at_install')
+class TestActionProbesFirstRow(ActionProbeCase):
+    """"Aaab Toff", the Overview's first row, with one request To Approve on Wednesday 18, his
+    row's only pill: the popover after Refuse (A99, M100 to M103)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.isolate(keep={fx.FIRST_NAME})
+
+    def test_a99_popover_after_refuse(self):
+        dy = SHELL['desktop']
+        first = fx.FIRST_NAME
+        for scheme in self.schemes():
+            # the request of the light run is refused: a new one for each scheme
+            fx.make_first_row_state(self.env, self.schedule)
+            with self.subTest(scheme=scheme), self.week(scheme):
+                self.prepare()
+                self.click_pill(pill_on(first, WEEK_DAYS[18]))
+                self.js(f"{button('refuse')}.click()")
+                self.wait(f"{base.pills_of(first)}.length === 0", timeout=30)
+                self.settle(1500)
+                self.assertTrue(self.js("!!document.querySelector('.o_hhg_pop')"),
+                                'the popover stays open (R8 point 4)')
+                self.check('M100', FRAME, scheme, 'desktop', 'the frame after Refuse', dy=dy)
+                self.check('M101', pop('.o_hhg_pop_content'), scheme, 'desktop',
+                           'the body after Refuse', dy=dy)
+                self.check('M102', pop('.o_hhg_pop_note .o_field_widget'), scheme, 'desktop',
+                           'the description\'s value box after Refuse', dy=dy)
+                self.check_count('M103', f"{base.pills_of(first)}.length", scheme, 'desktop',
+                                 'the pills of the first row')
 
 
 # ------------------------------------------------------------------------------------------------

@@ -240,7 +240,22 @@ scenario("hhg_a20_type_without_code", async () => {
     await openPopoverOf(pill);
     const badge = $(".o_hhg_pop_type [class*='o_calendar_color_']");
     assert(badge, `the type's badge in ${$(".o_hhg_pop_type")?.outerHTML}`);
-    assert(clean(badge.textContent).includes("Toff Days"), `the badge holds the name: "${clean(badge.textContent)}"`);
+    // R4 point 1, A20: the badge is empty, its 36.1 x 23 px box in the type's colour (colour 2)
+    assertEqual(clean(badge.textContent), "", "the badge holds no text");
+    const box = rectOf(badge);
+    assert(
+        Math.abs(box.width - 36.1) < 0.5 && Math.abs(box.height - 23) < 0.5,
+        `the badge is 36.1 x 23 px: ${box.width} x ${box.height}`
+    );
+    assert(badge.classList.contains("o_calendar_color_2"), `the type's colour: ${badge.className}`);
+    const fill = getComputedStyle(badge).backgroundColor;
+    assert(fill && !/rgba\(0, 0, 0, 0\)|transparent/.test(fill), `the badge is filled: ${fill}`);
+    // the type's name follows the badge (an input while the request is To Approve)
+    const name = await until(() => $(".o_hhg_pop_type input, .o_hhg_pop_type a"), "the type's name");
+    assert(
+        clean(name.value ?? name.textContent).startsWith("Toff Days"),
+        `the type's name: ${clean(name.value ?? name.textContent)}`
+    );
 });
 
 scenario("hhg_a21_allocation_warning", async () => {

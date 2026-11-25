@@ -209,6 +209,8 @@ scenario("hhg_a17_second_approval_and_approved", async () => {
 scenario("hhg_a34_edit", async () => {
     await openToffAct();
     const hours = hoursOf(TOFF_ACT);
+    // A34: before Edit only Friday's Approved request counts: 40 h of the week less 8 h
+    assertEqual(hours, 32, `the label reads 32h before Edit: ${labelOf(TOFF_ACT)}`);
     assert(isGrey(cellOfDate(TOFF_ACT, "2026-11-20")), "Friday 20 is greyed (the request is Approved)");
     await openPopoverOf(pillOn(TOFF_ACT, "2026-11-20"));
     await expectButtons(["Edit", "Delete"], "the Approved request");
@@ -226,7 +228,7 @@ scenario("hhg_a34_edit", async () => {
     assert(pill.classList.contains("o_tl_striped"), "the pill is striped");
     assert($(".o_tl_pill_mark.o_tl_mark_info", pill), "the pill carries the info mark");
     assert(!isGrey(cellOfDate(TOFF_ACT, "2026-11-20")), "Friday 20 is no longer greyed");
-    await until(() => hoursOf(TOFF_ACT) === hours + 8, `the label grows by 8 h from ${hours}: ${labelOf(TOFF_ACT)}`);
+    await until(() => hoursOf(TOFF_ACT) === 40, `the label grows from 32h to 40h: ${labelOf(TOFF_ACT)}`);
 });
 
 // A35: Approve by an Admin of a type approved twice ----------------------------------------------------
@@ -288,50 +290,72 @@ function verticalScroller() {
     return document.scrollingElement;
 }
 
-scenario("hhg_a99_popover_stays", async () => {
-    // the Overview without a search: every employee, "Toff Act" in the lower part of the grid
+const FIRST = "Aaab Toff";
+
+/**
+ * A99: the Overview without a search, "Aaab Toff" the first row of the first page with his request
+ * To Approve of Wednesday 18; his popover is opened, Refuse is pressed and the grid scrolled down
+ * by 150 px. The popover stays where the pill was (R8 point 4, D15, E4): its box is the same
+ * before and after the scroll, its frame is the read-only popover of a Refused request (M100, M101).
+ * `others`: pills of his row that stay.
+ */
+async function refusedPopoverStays(others) {
     await pickRange("week");
     await step(1);
     await dataSettled();
     await settle(500);
-    const pill = pillOn(TOFF_ACT, "2026-11-18");
-    assert(rowNames().includes(TOFF_ACT), `the row of ${TOFF_ACT} on the first page: ${rowNames()}`);
-    assert(pill, `the request of Wednesday 18: ${rowNames()}`);
-    // the grid at its top: the row of "Toff Act" lies in its lower part, in view, with room to scroll
+    assertEqual(rowNames()[0], FIRST, `his row is the first one: ${rowNames()}`);
+    assertEqual(pillsOf(FIRST).length, others.length + 1, "the pills of his row");
     verticalScroller().scrollTop = 0;
     await settle(800);
-    assert(
-        rectOf(pill).bottom < window.innerHeight - 20,
-        `the pill is in view at the grid's top: ${JSON.stringify(rectOf(pill))}`
-    );
-    await openPopoverOf(pillOn(TOFF_ACT, "2026-11-18"));
+    const pill = pillOn(FIRST, "2026-11-18");
+    assert(pill, `the request of Wednesday 18: ${rowNames()}`);
+    await openPopoverOf(pill);
     const open = popover();
-    assert(
-        titleOf().startsWith(TOFF_ACT),
-        `the popover of ${TOFF_ACT}: "${titleOf()}" (rows ${rowNames()}, row ${JSON.stringify(rowEl(TOFF_ACT) && rectOf(rowEl(TOFF_ACT)))}, pill ${JSON.stringify(rectOf(pillOn(TOFF_ACT, "2026-11-18")))})`
-    );
+    assert(titleOf().startsWith(FIRST), `the popover of ${FIRST}: "${titleOf()}"`);
     await expectButtons(["Approve", "Refuse", "Delete"], "the request To Approve");
     await pressButton("Refuse");
-    await until(() => !pillOn(TOFF_ACT, "2026-11-18"), "the pill leaves the Overview", 10000);
+    await until(() => !pillOn(FIRST, "2026-11-18"), "the pill leaves the Overview", 10000);
     await written();
+    await settle(600);
     assert(popover() === open && open.isConnected, "the popover stays open");
     assert(isReadonly(), "read-only");
-    await settle(600);
+    await expectButtons(["Edit", "Delete"], "Refused");
+    // M103: the row stays, with the pills that stay, or none
+    assertEqual(rowNames()[0], FIRST, "his row stays the first");
+    assertEqual(pillsOf(FIRST).length, others.length, "the pills of his row now");
+    for (const date of others) {
+        assert(pillOn(FIRST, date), `the pill of ${date} stays`);
+    }
+    // the frame of the read-only popover of a Refused request (R8 point 4, P2)
     const before = frameOf();
+    const note = $(".o_hhg_pop_note .o_field_widget");
+    assert(
+        Math.abs(before.height - 296.2) < 1,
+        `the frame is 296.2 px tall: ${before.height}; the description's box ${JSON.stringify(rectOf(note))} ${note.className} ${getComputedStyle(note).display}; the popover ${$(".o_hhg_pop").className}`
+    );
+    // (the frame's width, 292.7 px, depends on the name of the type: M100 is compared in the probe)
     const grid = verticalScroller();
     const top = grid.scrollTop;
     grid.scrollTop = top + 150;
     await settle(800);
     assert(grid.scrollTop > top, `the grid scrolled: ${top} then ${grid.scrollTop}`);
-    assert(!pillOn(TOFF_ACT, "2026-11-18"), "the pill is still gone");
+    assert(!pillOn(FIRST, "2026-11-18"), "the pill is still gone");
     assert(popover() === open && open.isConnected, "the popover is still open after the scroll");
     const after = frameOf();
     for (const side of ["left", "top", "width", "height"]) {
         assertEqual(after[side], before[side], `the popover's ${side} after the scroll`);
     }
-    assert(titleOf().startsWith(TOFF_ACT), `it keeps its title: ${titleOf()}`);
+    assert(titleOf().startsWith(FIRST), `it keeps its title: ${titleOf()}`);
+    for (const date of others) {
+        assert(pillOn(FIRST, date), `the pill of ${date} is still there`);
+    }
     await closeWithEscape();
-});
+}
+
+scenario("hhg_a99_popover_stays", () => refusedPopoverStays([]));
+
+scenario("hhg_a99_popover_stays_with_pill", () => refusedPopoverStays(["2026-11-20"]));
 
 // A38: Approve saves a pending change first ------------------------------------------------------------
 

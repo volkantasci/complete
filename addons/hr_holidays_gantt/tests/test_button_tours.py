@@ -66,18 +66,30 @@ class TestTimeOffButtonTours(ReportToursBase):
         self.assertEqual(self._state(made['confirm']), 'refuse')
         self.assertEqual(self._state(made['validate']), 'validate')
 
-    def test_a99_popover_stays(self):
-        """The Overview without a search: 14 demo employees (by name), "Toff Act" and five
-        employees after him, 20 rows (the first page), so that the grid scrolls by more than
-        150 px and his row lies in its lower part, in view."""
-        before = sorted(fx.DEMO_EMPLOYEES)[:14]
-        for name in before:
+    def _first_row_world(self, with_second):
+        """A99: "Aaab Toff", the Overview's first row on its first page, 14 demo employees by
+        name and five "Toff Zed" after him (20 rows, so that the grid scrolls by more than
+        150 px); everyone else is moved out of the view."""
+        names = sorted(fx.DEMO_EMPLOYEES)[:14]
+        for name in names:
             if not self.env['hr.employee'].search_count([('name', '=', name)]):
                 fx._employee(self.env, name, self.schedule)
-        made = fx.make_act_state(self.env, self.schedule)
+        made = fx.make_first_row_state(self.env, self.schedule, with_second=with_second)
         after = [fx._employee(self.env, f'Toff Zed {n}', self.schedule).name for n in range(1, 6)]
-        self._isolate(keep={*before, fx.ACT_NAME, *after})
+        self._isolate(keep={*names, fx.FIRST_NAME, *after})
+        return made
+
+    def test_a99_popover_stays(self):
+        """The refused request is the only pill of his row: the row stays, empty, and the
+        popover stays where the pill was, through a scroll of the grid."""
+        made = self._first_row_world(with_second=False)
         self._tour('hhg_a99_popover_stays')
+        self.assertEqual(self._state(made['confirm']), 'refuse')
+
+    def test_a99_popover_stays_with_another_pill(self):
+        """The second case: his Approved request of Friday 20 stays in the row."""
+        made = self._first_row_world(with_second=True)
+        self._tour('hhg_a99_popover_stays_with_pill')
         self.assertEqual(self._state(made['confirm']), 'refuse')
         self.assertEqual(self._state(made['validate']), 'validate')
 

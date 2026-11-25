@@ -284,6 +284,21 @@ class TestTimeOffSplit(fx.TimeOffGanttMixin, TransactionCase):
                     self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
                     self.assertEqual(self.span(new), (date(2026, 11, 17), date(2026, 11, 18)))
 
+        # A96, extended: the new part's id alone with end values other than the recorded ones
+        # (the afternoon of "2026-11-25"), and an empty list, are refused and nothing changes
+        other_end = dict(answer, end_day='2026-11-25', end_period='pm')
+        for ids, sent, message in (
+            (answer['new_ids'], other_end, self.OTHER_END),
+            ([], answer, self.NO_RECORD),
+        ):
+            with self.subTest(ids=ids, end_day=sent['end_day']):
+                with self.assertRaisesRegex(UserError, message):
+                    leave.with_user(self.officer).hhg_rejoin_request(
+                        ids, sent['end_day'], sent['end_period'], sent['end_hour'])
+                self.assertEqual(len(new.exists()), 1)
+                self.assertEqual(self.span(leave), (date(2026, 11, 16), date(2026, 11, 16)))
+                self.assertEqual(self.span(new), (date(2026, 11, 17), date(2026, 11, 18)))
+
     def test_a97_officer_undo_of_approved_split(self):
         officers_own = self.split_state()
         admins = fx.make_leave(
